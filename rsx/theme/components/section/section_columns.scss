@@ -1,0 +1,17 @@
+// Section_Columns - nested 2:1 split inside a section (own collapse + gutter).
+.Section_Columns {
+    display: grid;
+    grid-template-columns: 1fr; // mobile: stacked
+    gap: var(--block-gap);
+
+    @include desktop {
+        grid-template-columns: 2fr 1fr; // 2:1 split
+        gap: var(--col-gutter);
+        align-items: start;
+    }
+
+    &__primary,
+    &__secondary {
+        min-width: 0; // let wide children shrink rather than overflow
+    }
+}

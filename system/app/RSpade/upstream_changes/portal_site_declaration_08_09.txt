@@ -1,0 +1,174 @@
+PORTAL SITE DECLARATION (Portal_Session::set_site_id)
+Date: 2026-08-09 (corrected 2026-08-10)
+
+SUMMARY
+    The portal no longer resolves its own site. Portal_Session::detect_site_id()
+    and the config('rsx.portal.default_site_id', 1) fallback behind it are DELETED;
+    the application must now declare which site a portal request serves with the
+    new Portal_Session::set_site_id(int), and an undeclared site FAILS LOUD.
+
+    If your portal relied on the old silent default (it did, unless you called
+    detect_site_id() yourself - there was no other way), EVERY portal request will
+    throw after this update until you add one line to your Portal_Main::init().
+
+    ACTION REQUIRED for every app that serves a portal. Apps with no portal
+    (no /rsx/portal_main.php, no #[Portal_Route]) are unaffected.
+
+THE CHANGE
+    Before: Portal_Session::get_site_id() fell through to detect_site_id(), which
+    returned config('rsx.portal.default_site_id', 1) on every branch - a hard-wired
+    "site 1" with a "For now, use default site" comment. A multi-tenant portal was
+    therefore silently single-tenant, and a misconfigured one silently filed its
+    sessions, uploads, flash alerts and audit stamps under site 1.
+
+    After: there is no detection, no default, and deliberately NO resolve hook or
+    event. Which tenant a portal request serves is an application fact (one site;
+    a host -> site table; a subdomain; an invite code), and every scheme the
+    framework could guess would be wrong for some app. So the app declares it.
+
+    New API:
+        Portal_Session::set_site_id(int $site_id): void
+            Request-scoped declaration, RECORDED on the session row's
+            portal_site_id when the browser already has a row. Creates nothing.
+            Idempotent for the same id; THROWS on a different id, on a site that
+            contradicts the portal tenant a live session already carries, and on
+            a non-positive id.
+
+    New column: _sessions.portal_site_id. The portal's tenant is its OWN property
+        on the browser's one session row - site_id is STAFF-only - because one
+        browser can legitimately be on a different tenant in each experience. See
+        upstream_changes/session_table_merge_08_09.txt.
+
+    Changed:
+        Portal_Session::get_site_id()      resolves portal_site_id -> declaration
+                                           -> THROWS (no default)
+        Portal_Session::get_site()         same resolution (may no longer return
+                                           null for "no site" - it throws)
+        Portal_Session::set_portal_user_id(?int $id)
+                                           the $site_id 2nd parameter is GONE; a
+                                           login uses the declared site
+        Portal_Session::get_session_id() / get_session()
+                                           the $site_id parameter is GONE
+        Portal_Session::cli_set_site_id()  DELETED - set_site_id() is the one
+                                           spelling in every mode; reset() clears
+                                           it in CLI
+        Portal_Session::detect_site_id()   DELETED
+        config('rsx.portal.default_site_id')
+                                           REMOVED from framework config
+
+    Also: Portal_Main::init() is now actually CALLED. It was declared abstract on
+    Portal_Main_Abstract and documented as "once per portal request", but nothing
+    invoked it. Portal_Dispatcher now runs it as the first thing in a portal
+    request - before dev auth, CSRF, the #[Auth] gates, Portal_Main::pre_dispatch
+    and every controller. If your Portal_Main::init() has a body, it starts running
+    now; check that it is idempotent-safe and does no per-route work.
+
+ACTION REQUIRED
+
+    1. DECLARE THE SITE. In your /rsx/portal_main.php:
+
+        use App\RSpade\Core\Portal\Portal_Session;
+
+        public static function init()
+        {
+            // MONO-SITE: the site is a fact about this deployment.
+            Portal_Session::set_site_id((int) config('rsx.portal.site_id'));
+
+            Portal_Session::init();
+        }
+
+       and add the key to YOUR OWN config (rsx/resource/config/rsx.php), under
+       'portal':
+
+            // THE site this portal serves (an application key - the framework
+            // has none).
+            'site_id' => 1,
+
+       If you already have 'default_site_id' => N in rsx/resource/config/rsx.php,
+       either rename it to 'site_id' or keep the old name and read that key
+       instead - it is your key now, the framework no longer reads it.
+
+       MULTI-TENANT (resolve from the request host) - same call, different source:
+
+            $site = Site_Model::where('portal_domain', Rsx::get_hostname())->first();
+            if ($site) {
+                Portal_Session::set_site_id((int) $site->id);
+            }
+            // an unknown host: leave it undeclared and return your own 404 /
+            // landing response from Portal_Main::pre_dispatch()
+
+       SITE ONLY KNOWN AT LOGIN (invite code, workspace picker): declare it in the
+       login/register handler, on the branch that resolved it, BEFORE the first
+       Portal_Session call that needs a site.
+
+    2. DROP THE SITE ARGUMENT AT YOUR LOGIN SITES. Find them:
+
+        grep -rn "set_portal_user_id(" rsx/
+        grep -rn "get_session_id(\|Portal_Session::get_session(" rsx/
+
+       and remove the second argument:
+
+        - Portal_Session::set_portal_user_id($portal_user->id, $site_id);
+        + Portal_Session::set_portal_user_id($portal_user->id);
+
+       (PHP ignores extra arguments to a userland function, so a stale call will
+       NOT fatal - it will silently keep passing a value nobody reads. Clean them
+       up, or your code will lie about where the site comes from.)
+
+    3. REMOVE COMPENSATING "no site" BRANCHES. Code shaped like
+
+            $site_id = Portal_Session::get_site_id();
+            if (!$site_id) {
+                $error = 'Portal configuration error...';
+            }
+
+       is dead: get_site_id() now returns a real site or throws. Delete the branch
+       (the template's login / password-reset / request-access controllers did
+       exactly this and were cleaned up).
+
+        grep -rn "get_site_id()" rsx/
+
+    4. AUDIT CROSS-SITE CREDENTIALS. Now that the served site is explicit, check
+       that every portal credential lookup is scoped to it:
+         - account lookups: Portal_User_Model::find_by_email($site_id, $email) -
+           never a global email lookup whose row supplies the site.
+         - invitation / password-reset codes: reject a token whose site_id is not
+           the served site. The template's Portal_Register_Controller now does:
+
+            if ((int) $invitation->site_id !== Portal_Session::get_site_id()) {
+                return rsx_view('Portal_Register_Invalid', [...]);
+            }
+
+    5. PHP TESTS (CLI). Replace the deleted CLI setter and any two-argument login:
+
+        - Portal_Session::cli_set_site_id(self::SITE_ID);
+        + Portal_Session::set_site_id(self::SITE_ID);
+
+        - Portal_Session::cli_set_site_id(0);              // "clear"
+        + Portal_Session::reset();                          // clears site+identity
+
+       CLI is never in portal context (Rsx_Portal::is_portal_request() is false
+       there), so the declaration plus cli_set_portal_user_id() is the whole of
+       the CLI portal state. Portal_Session::get_session_id() delegates to
+       Session, which mints the process's own TYPE_CLI row on demand.
+
+    6. rsx:debug --portal. The harness declares no site of its own; it rides your
+       Portal_Main::init() declaration. A --portal-user belonging to a DIFFERENT
+       site is now refused with an explicit error instead of being signed in
+       against the served tenant.
+
+VERIFICATION
+    - Load any portal page (e.g. /_portal/login). It renders => the site is
+      declared. A 500 whose message begins "The portal site has not been declared"
+      => step 1 is not done (the message names the fix and the man page).
+    - php artisan rsx:debug /login --portal            (public page, no user)
+    - php artisan rsx:debug /dashboard --portal --portal-user=<id>
+    - Log in through your portal UI end to end, then confirm the session row:
+        SELECT id, portal_site_id, portal_user_id FROM _sessions
+         WHERE portal_user_id IS NOT NULL ORDER BY id DESC LIMIT 5;
+      portal_site_id must be the site you declared, on every row.
+    - grep -rn "default_site_id" rsx/     -> only your own key, if you kept the
+      name; nothing expecting the framework to read it.
+    - php artisan rsx:test                (your portal tests)
+
+    Full contract: php artisan rsx:man portal  (PORTAL SESSIONS, PORTAL LOGIN FLOW)

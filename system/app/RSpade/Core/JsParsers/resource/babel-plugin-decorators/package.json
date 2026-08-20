@@ -1,0 +1,35 @@
+{
+    "name": "@rspade/babel-plugin-decorators",
+    "version": "7.29.7-rsx.1",
+    "description": "Vendored, patched fork of @babel/plugin-proposal-decorators that emits the module-scope class-name binding dropped by the upstream decorator transform for decorated class declarations with static members. Bundled with esbuild, @babel/core externalized.",
+    "main": "index.js",
+    "private": true,
+    "license": "MIT",
+    "rspade": {
+        "upstream_base": "@babel/plugin-proposal-decorators@7.29.7",
+        "patch_revision": 1,
+        "patch_file": "upstream.patch",
+        "patch_target": "@babel/helper-create-class-features-plugin/lib/decorators.js",
+        "bundled_packages": {
+            "@babel/plugin-proposal-decorators": "7.29.7",
+            "@babel/plugin-syntax-decorators": "7.29.7",
+            "@babel/helper-create-class-features-plugin": "7.29.7",
+            "@babel/helper-plugin-utils": "7.29.7",
+            "@babel/helper-annotate-as-pure": "7.29.7",
+            "@babel/helper-member-expression-to-functions": "7.29.7",
+            "@babel/helper-optimise-call-expression": "7.29.7",
+            "@babel/helper-replace-supers": "7.29.7",
+            "@babel/helper-skip-transparent-expression-wrappers": "7.29.7",
+            "semver": "6.3.1"
+        },
+        "externalized_packages": [
+            "@babel/core",
+            "@babel/types",
+            "@babel/traverse",
+            "@babel/template",
+            "@babel/parser"
+        ],
+        "build_tool": "esbuild",
+        "regeneration": "See README.md"
+    }
+}

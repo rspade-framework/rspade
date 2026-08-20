@@ -1,0 +1,8 @@
+<Define:Settings_Portal_Users_Index_Action>
+<Page_Scaffold>
+    <Slot:main>
+        <p class="text-muted">Portal users are external (client portal) accounts. Suspend is a global account ban - it blocks login everywhere and ends active sessions. To remove access to a single client, use Disable Access on that client's portal members table.</p>
+        <Portal_Users_DataGrid $sid="portal_users_datagrid" />
+    </Slot:main>
+</Page_Scaffold>
+</Define:Settings_Portal_Users_Index_Action>

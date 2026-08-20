@@ -1,0 +1,187 @@
+# Text Input $max_length Requirement
+
+**Date:** 2025-12-29
+**Affects:** All Text_Input and textarea components
+
+## Breaking Change
+
+`Text_Input` now **requires** the `$max_length` argument. This ensures all text fields have explicit character limits tied to database schema.
+
+### Before (Old Pattern)
+```html
+<Text_Input $name="email" $placeholder="user@example.com" />
+<Text_Input $name="notes" $type="textarea" $rows=5 />
+```
+
+### After (New Pattern)
+```html
+<Text_Input $name="email" $max_length=User_Model.field_length('email') $placeholder="user@example.com" />
+<Text_Input $name="notes" $type="textarea" $max_length=-1 $rows=5 />
+```
+
+## Why This Change
+
+Database VARCHAR columns have length limits. When forms don't enforce these limits:
+- Users can enter text that gets truncated on save
+- Data loss occurs silently
+- No feedback to user about constraints
+
+By requiring `$max_length`, we ensure:
+- Character limits are enforced in the UI
+- Limits come from a single source of truth (database schema)
+- Changes to database column sizes automatically propagate to forms
+
+## The field_length() API
+
+Models now expose a `field_length(column)` static method that returns the VARCHAR max length:
+
+```javascript
+// Returns max length for varchar/char columns, null for others
+User_Model.field_length('email')     // 255
+User_Model.field_length('username')  // 50
+User_Model.field_length('id')        // null (not a varchar)
+```
+
+This is generated automatically from database schema metadata.
+
+## $max_length Values
+
+| Value | Behavior |
+|-------|----------|
+| Positive number | Sets HTML `maxlength` attribute to that value |
+| `-1` | Unlimited - no maxlength attribute applied |
+| `undefined` | **Error** - console.error with guidance |
+
+## Migration Checklist
+
+### 1. Update Text_Input component files
+
+**rsx/theme/components/inputs/text/text_input.js** - Add on_create() method:
+
+```javascript
+class Text_Input extends Form_Input_Abstract {
+    on_create() {
+        super.on_create();
+
+        // Only require $max_length when Text_Input is used directly, not subclasses
+        if (this.constructor === Text_Input && this.args.max_length === undefined) {
+            console.error(
+                `Text_Input with $name="${this.args.name}" requires $max_length. ` +
+                `Use $max_length=Model_Name.field_length('column_name') for database-driven limits, ` +
+                `a numeric value for custom limits, or -1 for unlimited.`
+            );
+        }
+    }
+
+    // ... rest of existing code (keep _get_value, _set_value, on_ready, seed)
+}
+```
+
+**rsx/theme/components/inputs/text/text_input.jqhtml** - Update template:
+
+1. Change all `this.args.maxlength` to `this.args.max_length`
+2. Change condition from `if (this.args.maxlength)` to `if (this.args.max_length > 0)`
+3. Add maxlength to textarea (was missing before):
+
+```html
+<textarea $sid="input"
+          class="form-control"
+          rows="<%= this.args.rows || 3 %>"
+          placeholder="<%= this.args.placeholder || '' %>"
+          <% if (this.args.max_length > 0) { %>maxlength="<%= this.args.max_length %>"<% } %>
+          <% if (this.args.disabled) { %>disabled<% } %>></textarea>
+```
+
+Apply the same `max_length > 0` check to both input elements in the template.
+
+### 2. Rebuild manifest
+
+```bash
+php artisan rsx:manifest:build --clean
+```
+
+This regenerates JS model stubs with the new `field_length()` method.
+
+### 3. Find all Text_Input usage in forms
+
+```bash
+grep -rn '<Text_Input' rsx/app --include="*.jqhtml" --include="*.blade.php"
+```
+
+### 4. Add $max_length to each
+
+For database-backed fields (recommended):
+```html
+<Text_Input $name="email" $max_length=User_Model.field_length('email') />
+```
+
+For custom limits:
+```html
+<Text_Input $name="search" $max_length=100 />
+```
+
+For truly unlimited fields (use sparingly):
+```html
+<Text_Input $name="notes" $type="textarea" $max_length=-1 />
+```
+
+### 5. Verify no console errors
+
+Load each form and check browser console. Any Text_Input missing `$max_length` will log:
+
+```
+Text_Input with $name="fieldname" requires $max_length. Use $max_length=Model_Name.field_length('column_name') for database-driven limits, a numeric value for custom limits, or -1 for unlimited.
+```
+
+## Subclasses Are Exempt
+
+Components extending `Text_Input` (like `Phone_Text_Input`, `Currency_Input`) are NOT affected. The validation only triggers when `Text_Input` is used directly:
+
+```javascript
+// In Text_Input.on_create():
+if (this.constructor === Text_Input && this.args.max_length === undefined) {
+    console.error(...);
+}
+```
+
+This allows specialized inputs to define their own intrinsic limits.
+
+## Custom Text Input Components
+
+If you have custom components extending `Text_Input`, they automatically bypass the $max_length requirement. If you want your custom component to also require $max_length, add the same check:
+
+```javascript
+class My_Text_Input extends Text_Input {
+    on_create() {
+        super.on_create();
+
+        // Optionally enforce $max_length on this component too
+        if (this.constructor === My_Text_Input && this.args.max_length === undefined) {
+            console.error(`My_Text_Input with $name="${this.args.name}" requires $max_length.`);
+        }
+    }
+}
+```
+
+## Renamed Argument
+
+The old `$maxlength` argument has been renamed to `$max_length` (with underscore) for consistency with RSX naming conventions.
+
+```html
+<!-- OLD (no longer works) -->
+<Text_Input $maxlength="255" />
+
+<!-- NEW -->
+<Text_Input $max_length=255 />
+```
+
+## Validation
+
+After migration, verify no console errors by loading forms and checking browser console:
+
+```bash
+# Find all forms in the app
+find rsx/app -name "*.jqhtml" -exec grep -l '<Text_Input' {} \;
+```
+
+Load each form and confirm no $max_length errors in console.

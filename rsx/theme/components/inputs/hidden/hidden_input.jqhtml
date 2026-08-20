@@ -1,0 +1,12 @@
+<%--
+Hidden_Input
+
+Hidden input for passing values through forms without user interaction.
+
+$name - Field name (required) - used for form serialization
+
+Usage:
+<Hidden_Input $name="id" />
+--%>
+<Define:Hidden_Input extends="Form_Input_Abstract" tag="input" type="hidden">
+</Define:Hidden_Input>

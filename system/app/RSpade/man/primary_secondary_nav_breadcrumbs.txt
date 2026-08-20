@@ -1,0 +1,548 @@
+PRIMARY_SECONDARY_NAV_BREADCRUMBS(3)  RSX Framework Manual  PRIMARY_SECONDARY_NAV_BREADCRUMBS(3)
+
+NAME
+    Primary, Secondary Navigation and Breadcrumbs - SPA navigation systems
+
+SYNOPSIS
+    // Primary navigation (sidebar) in layout
+    class Frontend_Spa_Layout extends Spa_Layout {
+        on_create() {
+            this.state = {
+                nav_sections: [
+                    { title: 'Overview', items: [
+                        { label: 'Dashboard', icon: 'bi-house', href: Rsx.Route('...') }
+                    ]}
+                ]
+            };
+        }
+    }
+
+    // Secondary navigation (sublayout sidebar)
+    class Settings_Layout extends Spa_Layout {
+        static ACTION_CONFIG = {
+            'Settings_General_Action': { icon: 'bi-gear', label: 'General' },
+            'Settings_Profile_Action': { icon: 'bi-person', label: 'Profile' }
+        };
+    }
+
+    // Breadcrumb methods in actions
+    class Contacts_View_Action extends Spa_Action {
+        async page_title() { return this.data.contact.name; }
+        async breadcrumb_label() { return this.data.contact.name; }
+        async breadcrumb_label_active() { return 'View Contact'; }
+        async breadcrumb_parent() { return Rsx.Route('Contacts_Index_Action'); }
+    }
+
+DESCRIPTION
+    RSX provides a comprehensive navigation system for SPAs consisting of:
+
+    1. Primary Navigation - Main sidebar with sections and links
+    2. Secondary Navigation - Sublayout sidebars for feature areas
+    3. Breadcrumbs - Progressive URL-based navigation trail
+
+    The system uses session storage caching for instant navigation feedback
+    while resolving live data in the background.
+
+PRIMARY NAVIGATION
+    The primary navigation is typically a sidebar defined in the main SPA
+    layout (e.g., Frontend_Spa_Layout). It uses the Sidebar_Nav component.
+
+    Layout Structure:
+        // Frontend_Spa_Layout.js
+        class Frontend_Spa_Layout extends Spa_Layout {
+            on_create() {
+                this.state = {
+                    nav_sections: [
+                        {
+                            title: 'Overview',
+                            items: [
+                                {
+                                    label: 'Dashboard',
+                                    icon: 'bi-house-door',
+                                    href: Rsx.Route('Dashboard_Index_Action'),
+                                },
+                                {
+                                    label: 'Calendar',
+                                    icon: 'bi-calendar',
+                                    href: Rsx.Route('Calendar_Index_Action'),
+                                },
+                            ],
+                        },
+                        {
+                            title: 'Business',
+                            items: [
+                                { label: 'Clients', icon: 'bi-people',
+                                  href: Rsx.Route('Clients_Index_Action') },
+                                { label: 'Contacts', icon: 'bi-person-rolodex',
+                                  href: Rsx.Route('Contacts_Index_Action') },
+                            ],
+                        },
+                    ],
+                };
+            }
+
+            on_action(url, action_name, args) {
+                // Update active state on navigation
+                this.sid('sidebar_nav').on_action(url, action_name, args);
+            }
+        }
+
+    Template Structure:
+        <Define:Frontend_Spa_Layout>
+            <nav class="app-sidebar">
+                <Sidebar_Nav $sid="sidebar_nav"
+                    $sections=this.state.nav_sections />
+            </nav>
+            <main $sid="content"></main>
+        </Define:Frontend_Spa_Layout>
+
+    Sidebar_Nav Component:
+        Renders navigation sections with automatic active state based on
+        current URL. Supports icons (Bootstrap Icons), labels, and href.
+
+        on_action(url, action_name, args):
+            Called by layout to update active link highlighting.
+            Matches current URL to nav item hrefs.
+
+SECONDARY NAVIGATION (SUBLAYOUTS)
+    Secondary navigation is used for feature areas with multiple related
+    pages (e.g., Settings). Implemented as sublayouts with their own sidebar.
+
+    Sublayout Pattern:
+        // Settings_Layout.js
+        class Settings_Layout extends Spa_Layout {
+            // Configure nav items per action
+            static ACTION_CONFIG = {
+                'Settings_General_Action': {
+                    icon: 'bi-gear',
+                    label: 'General Settings'
+                },
+                'Settings_Profile_Action': {
+                    icon: 'bi-person',
+                    label: 'Profile'
+                },
+                'Settings_User_Management_Index_Action': {
+                    icon: 'bi-people',
+                    label: 'User Management'
+                },
+            };
+
+            on_create() {
+                this._build_nav_items();
+            }
+
+            _build_nav_items() {
+                this.state.nav_items = [];
+                for (const [action_name, config] of
+                     Object.entries(Settings_Layout.ACTION_CONFIG)) {
+                    this.state.nav_items.push({
+                        action: action_name,
+                        icon: config.icon,
+                        label: config.label,
+                        href: Rsx.Route(action_name),
+                    });
+                }
+            }
+
+            on_action(url, action_name, args) {
+                this._update_active_nav(action_name);
+            }
+
+            _update_active_nav(action_name) {
+                this.$sid('nav').find('.active').removeClass('active');
+                this.$sid('nav')
+                    .find(`[data-action="${action_name}"]`)
+                    .addClass('active');
+            }
+        }
+
+    Template Structure:
+        <Define:Settings_Layout>
+            <div class="settings-layout">
+                <aside class="settings-sidebar">
+                    <nav $sid="nav">
+                        <% for (let item of this.state.nav_items) { %>
+                            <a href="<%= item.href %>"
+                               data-action="<%= item.action %>"
+                               class="settings-sidebar__item">
+                                <i class="bi <%= item.icon %>"></i>
+                                <span><%= item.label %></span>
+                            </a>
+                        <% } %>
+                    </nav>
+                </aside>
+                <div class="settings-content" $sid="content"></div>
+            </div>
+        </Define:Settings_Layout>
+
+    Action Declaration:
+        Actions declare both outer and inner layouts:
+
+        @route('/frontend/settings/general')
+        @layout('Frontend_Spa_Layout')     // Outer layout
+        @layout('Settings_Layout')          // Sublayout (nested)
+        @spa('Frontend_Spa_Controller::index')
+        class Settings_General_Action extends Spa_Action { }
+
+BREADCRUMB SYSTEM
+    Breadcrumbs provide hierarchical navigation context. The system uses
+    progressive resolution with caching for instant display.
+
+    Action Breadcrumb Methods:
+        All methods are async and can await the 'load' event if needed.
+
+        page_title()
+            Returns the page title for the header and document.title.
+            Example: "Edit: John Smith"
+
+        breadcrumb_label()
+            Returns the label when this page appears as a PARENT in
+            another page's breadcrumb trail.
+            Example: "John Smith" (when viewing edit page)
+
+        breadcrumb_label_active()
+            Returns the label when this page is the CURRENT page
+            (rightmost breadcrumb, no link).
+            Example: "Edit Contact"
+
+        breadcrumb_parent()
+            Returns the URL of the parent page, or null for root.
+            Example: Rsx.Route('Contacts_View_Action', { id: this.args.id })
+
+    Example Implementation:
+        class Contacts_View_Action extends Spa_Action {
+            on_create() {
+                this.data.contact = { first_name: '', last_name: '' };
+            }
+
+            async on_load() {
+                this.data.contact = await Contact_Model.fetch(this.args.id);
+            }
+
+            // Helper to await loaded data
+            async _await_loaded() {
+                if (this.data.contact && this.data.contact.id) return;
+                await new Promise(resolve => this.once('loaded', resolve));
+            }
+
+            async page_title() {
+                await this._await_loaded();
+                const c = this.data.contact;
+                return `${c.first_name} ${c.last_name}`.trim() || 'Contact';
+            }
+
+            async breadcrumb_label() {
+                await this._await_loaded();
+                const c = this.data.contact;
+                return `${c.first_name} ${c.last_name}`.trim() || 'Contact';
+            }
+
+            async breadcrumb_label_active() {
+                return 'View Contact';  // Static, no await needed
+            }
+
+            async breadcrumb_parent() {
+                return Rsx.Route('Contacts_Index_Action');  // Static route
+            }
+        }
+
+    Awaiting Loaded Data:
+        Breadcrumb methods are called BEFORE on_load() completes. If a method
+        needs loaded data (e.g., contact name), it must await the 'loaded' event:
+
+            async _await_loaded() {
+                // Check if data is already loaded
+                if (this.data.contact && this.data.contact.id) return;
+                // Otherwise wait for 'loaded' event
+                await new Promise(resolve => this.once('loaded', resolve));
+            }
+
+        The 'loaded' event fires after on_load() completes and this.data is
+        set. Using once() is appropriate since it only needs to fire once.
+
+PATTERNS BY PAGE TYPE
+    The four breadcrumb methods combine differently depending on where the
+    action sits in the hierarchy. Any label that reads loaded data must
+    await _await_loaded() first (see Awaiting Loaded Data above).
+
+    Index/Root Pages:
+        Top of a hierarchy, no parent. breadcrumb_parent() returns null.
+
+        class Contacts_Index_Action extends Spa_Action {
+            async page_title() { return 'Contacts'; }
+            async breadcrumb_label() { return 'Contacts'; }
+            async breadcrumb_label_active() {
+                return 'Manage your contact database';
+            }
+            async breadcrumb_parent() { return null; }
+        }
+
+        Result: Contacts / Manage your contact database
+
+    View/Detail Pages:
+        A single record whose parent is the list page. Data-dependent
+        labels await loaded data.
+
+        class Contacts_View_Action extends Spa_Action {
+            async page_title() {
+                await this._await_loaded();
+                return this.data.contact.name;
+            }
+            async breadcrumb_label() {
+                await this._await_loaded();
+                return this.data.contact.name;
+            }
+            async breadcrumb_label_active() { return 'View Contact'; }
+            async breadcrumb_parent() {
+                return Rsx.Route('Contacts_Index_Action');
+            }
+        }
+
+        Result: Contacts > John Smith / View Contact
+
+    Edit Pages:
+        Dual-route add/edit. The parent and labels branch on edit vs. add
+        mode (this.data.is_edit).
+
+        class Contacts_Edit_Action extends Spa_Action {
+            async page_title() {
+                if (!this.data.is_edit) return 'New Contact';
+                await this._await_loaded();
+                return `Edit: ${this.data.contact.name}`;
+            }
+            async breadcrumb_label_active() {
+                return this.data.is_edit ? 'Edit Contact' : 'New Contact';
+            }
+            async breadcrumb_parent() {
+                if (this.data.is_edit) {
+                    return Rsx.Route('Contacts_View_Action',
+                        { id: this.args.id });
+                }
+                return Rsx.Route('Contacts_Index_Action');
+            }
+        }
+
+        Edit result: Contacts > John Smith > View Contact / Edit Contact
+        Add result:  Contacts / New Contact
+
+    Nested Pages (Sublayouts):
+        Actions inside a sublayout (e.g. settings sections) point their
+        breadcrumb_parent() at the relevant hierarchy root.
+
+        class Settings_Profile_Display_Action extends Spa_Action {
+            async page_title() { return 'Display Preferences'; }
+            async breadcrumb_label() { return 'Display Preferences'; }
+            async breadcrumb_label_active() {
+                return 'Configure display settings';
+            }
+            async breadcrumb_parent() {
+                return Rsx.Route('Dashboard_Index_Action');
+            }
+        }
+
+        Result: Dashboard > Display Preferences / Configure display settings
+
+RSX_BREADCRUMB_RESOLVER
+    Framework class that handles breadcrumb resolution with caching.
+
+    Location: /system/app/RSpade/Breadcrumbs/Rsx_Breadcrumb_Resolver.js
+
+    API:
+        Rsx_Breadcrumb_Resolver.stream(action, url, callbacks)
+            Streams breadcrumb data progressively.
+
+            Parameters:
+                action    - Current Spa_Action instance
+                url       - Current URL (pathname + search)
+                callbacks - Object with callback functions:
+                    on_chain(chain)           - Chain structure ready
+                    on_label_update(idx, lbl) - Individual label resolved
+                    on_complete(chain)        - All labels resolved
+
+            Returns: Cancel function
+
+        Rsx_Breadcrumb_Resolver.clear_cache(url)
+            Clears cached breadcrumb chain for a URL.
+
+    Resolution Flow:
+        1. Check session cache for URL's breadcrumb chain
+        2. If cached, display immediately
+        3. Walk breadcrumb_parent() chain to get structure (URLs)
+        4. Compare to cache:
+           - Different length: render skeleton with blank labels
+           - Same length: render with cached labels
+        5. Resolve each label via breadcrumb_label()/breadcrumb_label_active()
+        6. Update display as each label resolves
+        7. Cache final result
+
+    Caching:
+        Uses Rsx_Storage.session_set/get() with key prefix 'breadcrumb_chain:'
+        Cached data: Array of { url, label, is_active }
+
+LAYOUT INTEGRATION
+    The layout handles header rendering and breadcrumb streaming.
+
+    Frontend_Spa_Layout Integration:
+        class Frontend_Spa_Layout extends Spa_Layout {
+            static TITLE_CACHE_PREFIX = 'header_text:';
+
+            on_action(url, action_name, args) {
+                // Update page title with caching
+                this._update_page_title(url);
+
+                // Cancel previous breadcrumb stream
+                if (this._breadcrumb_cancel) {
+                    this._breadcrumb_cancel();
+                }
+
+                // Start new breadcrumb stream
+                this._breadcrumb_cancel = Rsx_Breadcrumb_Resolver.stream(
+                    this.action,
+                    url,
+                    {
+                        on_chain: (chain) => this._on_breadcrumb_chain(chain),
+                        on_label_update: (i, l) => this._on_breadcrumb_label_update(i, l),
+                        on_complete: (chain) => this._on_breadcrumb_complete(chain)
+                    }
+                );
+            }
+
+            async _update_page_title(url) {
+                const $title = this.$sid('page_title');
+                const cache_key = Frontend_Spa_Layout.TITLE_CACHE_PREFIX + url;
+
+                // Clear, show cached, then resolve live
+                $title.html('&nbsp;');
+                const cached = Rsx_Storage.session_get(cache_key);
+                if (cached) {
+                    $title.html(cached);
+                    document.title = 'RSX - ' + cached;
+                }
+
+                const live = await this.action.page_title();
+                if (live) {
+                    $title.html(live);
+                    document.title = 'RSX - ' + live;
+                    Rsx_Storage.session_set(cache_key, live);
+                }
+            }
+        }
+
+BREADCRUMB_NAV COMPONENT
+    Renders the breadcrumb trail from a chain array.
+
+    Location: /rsx/theme/components/page/breadcrumb_nav.jqhtml
+
+    Props:
+        $crumbs - Array of { label, url, is_active, resolved }
+                  label: string or null (shows placeholder if null)
+                  url: string or null (no link if null or is_active)
+                  is_active: boolean (current page, no link)
+                  resolved: boolean (false shows loading state)
+
+    Usage:
+        $breadcrumbs.component('Breadcrumb_Nav', {
+            crumbs: [
+                { label: 'Contacts', url: '/contacts', is_active: false },
+                { label: 'John Smith', url: '/contacts/view/1', is_active: false },
+                { label: 'Edit Contact', url: null, is_active: true }
+            ]
+        });
+
+PAGE HEADER STRUCTURE
+    Standard page header with title, breadcrumbs, and action buttons.
+
+    Template Pattern:
+        <header class="page-title-header">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h1 $sid="page_title"></h1>
+                    <nav $sid="page_breadcrumbs"></nav>
+                </div>
+                <div $sid="page_actions"></div>
+            </div>
+        </header>
+
+    Action Buttons:
+        Actions define page_actions() to provide header buttons:
+
+        class Contacts_View_Action extends Spa_Action {
+            page_actions() {
+                return `
+                    <div class="d-flex gap-2">
+                        <a href="${Rsx.Route('Contacts_Index_Action')}"
+                           class="btn btn-secondary btn-sm">
+                            <i class="bi bi-arrow-left"></i> Back
+                        </a>
+                        <a href="${Rsx.Route('Contacts_Edit_Action', this.args.id)}"
+                           class="btn btn-primary btn-sm">
+                            <i class="bi bi-pencil"></i> Edit
+                        </a>
+                    </div>
+                `;
+            }
+        }
+
+        The layout renders these via _render_page_actions().
+
+BREADCRUMB CHAIN EXAMPLE
+    For URL /contacts/edit/1, the breadcrumb chain resolves as:
+
+    Chain Structure (URLs):
+        1. /contacts          (Contacts_Index_Action)
+        2. /contacts/view/1   (Contacts_View_Action)
+        3. /contacts/edit/1   (Contacts_Edit_Action) - ACTIVE
+
+    Resolution Process:
+        1. Contacts_Edit_Action.breadcrumb_parent() -> /contacts/view/1
+        2. Load detached Contacts_View_Action
+        3. Contacts_View_Action.breadcrumb_parent() -> /contacts
+        4. Load detached Contacts_Index_Action
+        5. Contacts_Index_Action.breadcrumb_parent() -> null (root)
+
+    Label Resolution (parallel):
+        - Index: breadcrumb_label() -> "Contacts"
+        - View: breadcrumb_label() -> "John Smith" (awaits load)
+        - Edit: breadcrumb_label_active() -> "Edit Contact"
+
+    Final Display:
+        Contacts > John Smith > Edit Contact
+
+CACHING STRATEGY
+    Two caches are used for instant navigation feedback:
+
+    Page Title Cache:
+        Key: 'header_text:/contacts/edit/1'
+        Value: "Edit: John Smith"
+
+    Breadcrumb Chain Cache:
+        Key: 'breadcrumb_chain:/contacts/edit/1'
+        Value: [
+            { url: '/contacts', label: 'Contacts', is_active: false },
+            { url: '/contacts/view/1', label: 'John Smith', is_active: false },
+            { url: '/contacts/edit/1', label: 'Edit Contact', is_active: true }
+        ]
+
+    Cache Behavior:
+        - Cached values display immediately on navigation
+        - Live values resolve in background
+        - Cache updates when live values complete
+        - Previous breadcrumbs stay visible until new chain ready
+
+FILES
+    /system/app/RSpade/Breadcrumbs/Rsx_Breadcrumb_Resolver.js
+        Breadcrumb resolution with progressive streaming and caching
+
+    /rsx/app/frontend/Frontend_Spa_Layout.js
+        Main layout with navigation and header integration
+
+    /rsx/theme/components/page/breadcrumb_nav.jqhtml
+        Breadcrumb rendering component
+
+    /rsx/theme/components/navigation/sidebar/sidebar_nav.jqhtml
+        Primary sidebar navigation component
+
+SEE ALSO
+    spa(3), jqhtml(3), storage(3)
+
+RSX Framework                    2025-12-16       PRIMARY_SECONDARY_NAV_BREADCRUMBS(3)

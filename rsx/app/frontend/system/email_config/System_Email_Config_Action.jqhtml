@@ -1,0 +1,99 @@
+<Define:System_Email_Config_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading email configuration..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <% const _c = this.data.config; %>
+    <% const _has_failed = _c.stats.failed > 0; %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Card_Widget>
+                <Section $title="Mail Configuration">
+                    <View_Fields>
+                        <View_Field $label="Mail Driver"><%= _c.mail_driver %></View_Field>
+                        <View_Field $label="From Address"><%= _c.from_address %></View_Field>
+                        <View_Field $label="SMTP Host"><%= _c.smtp_host %></View_Field>
+                        <View_Field $label="From Name"><%= _c.from_name %></View_Field>
+                        <View_Field $label="SMTP Port"><%= _c.smtp_port %></View_Field>
+                        <View_Field $label="Max Retries"><%= _c.retry_max %></View_Field>
+                    </View_Fields>
+                </Section>
+
+                <Section $title="Dev Site Email Safety">
+                    <View_Fields>
+                        <View_Field $label="Dev Site Detected">
+                            <% if (_c.is_dev_site) { %>
+                                <Status_Badge $label="Yes" $badge="bg-warning" />
+                                <span class="text-muted ms-2">Emails gated through catchall / whitelist</span>
+                            <% } else { %>
+                                <Status_Badge $label="No" $badge="bg-success" />
+                                <span class="text-muted ms-2">Emails delivered to real recipients</span>
+                            <% } %>
+                        </View_Field>
+                        <% if (_c.is_dev_site) { %>
+                            <View_Field $label="Delivery Suppressed">
+                                <% if (_c.dev_suppressed) { %>
+                                    <Status_Badge $label="Yes" $badge="bg-danger" />
+                                    <span class="text-muted ms-2">Emails render but are not sent</span>
+                                <% } else { %>
+                                    <Status_Badge $label="No" $badge="bg-secondary" />
+                                <% } %>
+                            </View_Field>
+                            <View_Field $label="Catchall Address">
+                                <% if (_c.dev_catchall) { %><%= _c.dev_catchall %><% } else { %>
+                                    <span class="text-muted">Not set - non-whitelisted emails queue but do not deliver</span>
+                                <% } %>
+                            </View_Field>
+                            <% if (_c.dev_address_whitelist) { %>
+                                <View_Field $label="Address Whitelist"><%= _c.dev_address_whitelist %></View_Field>
+                            <% } %>
+                            <% if (_c.dev_domain_whitelist) { %>
+                                <View_Field $label="Domain Whitelist"><%= _c.dev_domain_whitelist %></View_Field>
+                            <% } %>
+                        <% } %>
+                    </View_Fields>
+                </Section>
+            </Card_Widget>
+        </Slot:main>
+
+        <Slot:sidebar>
+            <Detail_Sidebar>
+                <Sidebar_Kpi_Group>
+                    <Kpi_Cell $tooltip="Emails waiting to be sent">
+                        <Slot:label>Pending</Slot:label>
+                        <Slot:value><%= _c.stats.pending %></Slot:value>
+                    </Kpi_Cell>
+                    <Kpi_Cell $tooltip="Emails delivered">
+                        <Slot:label>Sent</Slot:label>
+                        <Slot:value><%= _c.stats.sent %></Slot:value>
+                    </Kpi_Cell>
+                    <Kpi_Cell $alert=_has_failed $tooltip="Emails that failed to send">
+                        <Slot:label>Failed</Slot:label>
+                        <Slot:value><%= _c.stats.failed %></Slot:value>
+                    </Kpi_Cell>
+                    <Kpi_Cell $tooltip="Emails blocked by recipient preferences">
+                        <Slot:label>Blocked</Slot:label>
+                        <Slot:value><%= _c.stats.blocked %></Slot:value>
+                    </Kpi_Cell>
+                </Sidebar_Kpi_Group>
+
+                <View_Fields>
+                    <View_Field $label="Total Emails" $inline=true><%= _c.stats.total %></View_Field>
+                </View_Fields>
+
+                <div class="d-grid gap-2">
+                    <a href="<%= Rsx.Route('System_Email_Queue_Action') %>" class="btn btn-secondary btn-sm">
+                        <i class="bi bi-envelope"></i> Email Queue
+                    </a>
+                    <a href="<%= Rsx.Route('System_Email_Recipients_Action') %>" class="btn btn-secondary btn-sm">
+                        <i class="bi bi-people"></i> Recipients
+                    </a>
+                </div>
+            </Detail_Sidebar>
+        </Slot:sidebar>
+    </Page_Scaffold>
+<% } %>
+</Define:System_Email_Config_Action>

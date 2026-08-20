@@ -1,0 +1,126 @@
+CATEGORY: 1 - ACTION REQUIRED (one check; likely no action)
+TITLE: Four framework faults fixed - update deadlock, silent config drift, leaked
+       build lock, and a migration dead-end
+DATE: 2026-08-11
+
+--------------------------------------------------------------------------------
+WHY YOU ARE READING THIS
+--------------------------------------------------------------------------------
+
+A downstream app hit a total outage plus a ~10 hour window where it could not take
+any framework update at all. Six faults, four of them ours. All four are fixed
+here. Every one of them shares a shape worth naming: THEY FAILED SILENTLY AND
+RE-ARMED THEMSELVES. Nothing shouted, and the worst of them only surfaced as an
+unrelated app-wide outage two releases after it started causing damage.
+
+--------------------------------------------------------------------------------
+DO THIS ONCE
+--------------------------------------------------------------------------------
+
+    php artisan rsx:framework:pull
+
+Then READ THE OUTPUT. If it now says:
+
+    [WARNING] N file(s) differ from upstream and were KEPT AS YOURS.
+      You are NOT receiving upstream changes to these - not now, and not on any
+      future pull, until the local difference is resolved.
+
+...then those files are the ones that have been silently frozen on your box, and
+you should reconcile each one. That warning is new. The behaviour it describes is
+not - it has been happening quietly all along.
+
+If any named file is a REGISTRATION LIST (a Kernel, a provider, or config/) the
+pull says so explicitly and in stronger terms, because that is the case that causes
+outages rather than drift.
+
+    php artisan rsx:framework:pull --diff-system-changes    # see exactly what differs
+
+--------------------------------------------------------------------------------
+WHAT WAS WRONG, AND WHAT CHANGED
+--------------------------------------------------------------------------------
+
+1. SILENT CONFIG DRIFT - this is the one that caused the outage.
+
+   ONE small local edit to system/config/rsx.php made the three-way reconciler keep
+   YOUR copy of that file on every subsequent pull. The app then silently never
+   received any upstream change to it. By the time it was found, the file was
+   missing an entire release's worth of wiring - Auth_ManifestSupport,
+   Auth_Service_Provider, Web_Exception_Handler, the whole locks section and ~170
+   more lines. The missing manifest_support entry meant the auth-gate index was
+   never built, every gate check resolved to "not defined", and every page 500'd.
+
+   Preserving a locally-modified file is correct. Doing it SILENTLY is not. The
+   reconciler now NAMES every file it kept as yours, every run, and calls out
+   registration lists specifically.
+
+   Also: system/config, system/resources and system/supervisor became framework-
+   OWNED zones in the previous release, so config/rsx.php can no longer be frozen
+   this way at all. See framework_tree_completeness_08_11.txt for the one thing
+   that could bite there.
+
+2. UPDATE DEADLOCK - the tamper gate could not be escaped.
+
+   Every pull aborted with "Unauthorized changes detected under framework-owned
+   zones". The framework file in question had been hand-edited in an app commit -
+   so it was COMMITTED, and the gate is supposed to accept committed drift
+   (a change already in history cannot be lost by an update).
+
+   The exemption was not running. The gate asks git which paths are dirty, and that
+   probe used a plain `git status`, which REFRESHES the index and takes
+   .git/index.lock. With that lock held or orphaned, the probe failed, returned
+   "no git information", and the committed-drift exemption was skipped ENTIRELY and
+   silently - so a safely-committed edit was reclassified as tampering and blocked
+   every update. It also explains why the result appeared to vary between
+   invocations: it depended on whether a lock happened to exist at that moment.
+
+   The probe now uses `git --no-optional-locks status`, which cannot be blocked by
+   a lock, and when git genuinely cannot answer, verify SAYS SO instead of quietly
+   becoming stricter.
+
+3. BUILD LOCK LEAKED INTO HELPER DAEMONS - wedged the entire CLI.
+
+   rsx:manifest:build takes a lock, then spawns the js-parser and js-transformer
+   node daemons. PHP does not set FD_CLOEXEC on the lock file, and a POSIX flock
+   lives on the OPEN FILE DESCRIPTION - so the daemons inherited a live lock and
+   kept holding it after the build exited. Everything needing the manifest lock
+   then queued forever, including php-fpm workers, so the site stopped serving.
+   And because the lock is taken at BOOT, before command resolution, even
+   `php artisan <nonsense>` blocked - the CLI you would use to diagnose it.
+
+   Measured on the box: build at 8 minutes and 0m00s CPU, php-fpm workers likewise,
+   both node daemons idle holding the descriptor. Killing the daemons drained it
+   instantly. Reproduced twice.
+
+   Our lock descriptors are now closed in every spawned child - the RPC daemons and
+   detached task workers alike. NOTHING FOR YOU TO DO; noted because if you have
+   ever killed a node process to unstick a build, this was why.
+
+4. MIGRATION DEAD-END - migrate could brick a database with no way back.
+
+   On a table carrying both a legacy framework `created_by` and an app
+   `created_by_user_id`, the schema normalizer renamed the app column to
+   `created_by_id` - manufacturing exactly the `created_by` + `created_by_id`
+   collision its next pass refuses. Because schema changes auto-commit, a failed
+   migrate left both columns permanently, and since this pass runs BEFORE any
+   migration, no migration could repair it. Only hand-written SQL could.
+
+   Now it decides BEFORE changing anything:
+     - legacy column entirely NULL -> dropped (lossless), converges in one step,
+       AND self-heals a database already dead-ended by the old behaviour
+     - real data in both -> refuses having changed NOTHING, so the database stays
+       migratable, and names the exact DROP statement that unblocks it
+
+   If a previous migrate left you with both columns, YOU DO NOT NEED HAND SQL ANY
+   MORE - just run `php artisan migrate` on this release.
+
+--------------------------------------------------------------------------------
+ALSO IN THIS RELEASE FAMILY
+--------------------------------------------------------------------------------
+
+  - The framework-update commit now carries the FULL upstream changelog (every
+    commit's subject AND body) instead of one content-free release-squash line, so
+    `git log` in your app answers "what changed in the framework and why".
+  - .git/index.lock contention no longer aborts an update: the load-bearing git
+    operations retry, and a provably-orphaned 0-byte lock is cleared.
+  - The shipped status line no longer takes the git index lock on every render -
+    it was the source of the orphaned locks in the first place.

@@ -1,0 +1,381 @@
+
+NAME
+    Enums - Database field enumeration system for RSX models
+
+SYNOPSIS
+    public static $enums = [
+        'field_name' => [
+            value => ['constant' => 'NAME', 'label' => 'Display Name', ...]
+        ]
+    ];
+
+DESCRIPTION
+    The enum system provides a powerful way to define predefined values for database
+    fields with associated metadata. It automatically generates constants, magic
+    properties, helper methods, and JavaScript equivalents.
+
+    BEM-STYLE NAMING: All enum magic properties and methods use double underscore
+    to clearly separate field name from property/method name:
+
+        $user->role_id__label       (not role_id_label)
+        User_Model::role_id__enum() (not role_id_enum_val)
+
+    This makes it immediately clear when accessing generated enum properties vs
+    regular model attributes, and enables reliable grep searches.
+
+DEFINING ENUMS
+
+    Basic Definition
+        Define enums as a static property on your model class:
+
+        public static $enums = [
+            'status_id' => [
+                1 => [
+                    'constant' => 'STATUS_ACTIVE',
+                    'label' => 'Active',
+                ],
+                2 => [
+                    'constant' => 'STATUS_INACTIVE',
+                    'label' => 'Inactive',
+                ],
+            ],
+        ];
+
+    Standard Properties
+        constant        - PHP constant name (generates Model::STATUS_ACTIVE)
+        label           - Human-readable display name
+        order           - Sort order (defaults to 0)
+        selectable      - Whether shown in dropdowns (defaults to true)
+
+    Custom Properties
+        You can add any custom properties for business logic:
+
+        'status_id' => [
+            1 => [
+                'constant' => 'STATUS_PUBLISHED',
+                'label' => 'Published',
+                'badge' => 'bg-success',           // CSS class for styling
+                'visible_frontend' => true,        // Visibility control
+                'can_edit' => false,               // Business rule
+                'icon' => 'fa-check',              // Icon class
+            ],
+        ];
+
+PHP MAGIC PROPERTIES (Instance)
+
+    For a model instance with an enum field, these properties are automatically
+    available using BEM-style double underscore:
+
+    field__label        Returns the label for the current value
+                        $user->status_id = 1;
+                        echo $user->status_id__label; // "Active"
+
+    field__constant     Returns the constant name for the current value
+                        echo $user->status_id__constant; // "STATUS_ACTIVE"
+
+    field__[property]   Returns any custom property for the current value
+                        echo $user->status_id__badge; // "bg-success"
+                        echo $user->status_id__visible_frontend; // true
+
+STATIC METHODS (PHP and JavaScript)
+
+    These methods are available as static methods on model classes in both PHP
+    and JavaScript. Uses BEM-style double underscore naming.
+
+    Model::field__enum()
+        Returns all enum definitions for a field with full metadata:
+
+        $statuses = User_Model::status_id__enum();
+        // [1 => ['constant' => 'STATUS_ACTIVE', 'label' => 'Active', ...], ...]
+
+        // JavaScript equivalent:
+        const statuses = User_Model.status_id__enum();
+
+    Model::field__enum(id)  [JavaScript only]
+        Returns single enum's metadata by ID, or null + console.error if invalid:
+
+        User_Model.status_id__enum(User_Model.STATUS_ACTIVE).badge  // "bg-success"
+        User_Model.status_id__enum(1).selectable  // true
+        User_Model.status_id__enum(999)  // null + console.error
+
+    Model::field__enum_select()
+        Returns selectable items as [{value, label}] array for dropdowns.
+        Respects 'selectable' and 'order' properties. Array index preserves
+        sort order -- no Proxy or special iteration needed.
+
+        $options = User_Model::status_id__enum_select();
+        // [['value' => 1, 'label' => 'Active'], ['value' => 2, 'label' => 'Inactive']]
+
+        // JavaScript equivalent:
+        const options = User_Model.status_id__enum_select();
+        // [{value: 1, label: 'Active'}, {value: 2, label: 'Inactive'}]
+
+        Select_Input accepts this format natively via $options.
+
+    Model::field__enum_labels()
+        Returns simple id => label map (all items, ignores selectable flag):
+
+        $labels = User_Model::status_id__enum_labels();
+        // [1 => 'Active', 2 => 'Inactive', 3 => 'Archived']
+
+        // JavaScript equivalent:
+        const labels = User_Model.status_id__enum_labels();
+
+    Model::field__enum_ids()
+        Returns array of all valid enum IDs:
+
+        $ids = User_Model::status_id__enum_ids();
+        // [1, 2, 3]
+
+        // JavaScript equivalent:
+        const ids = User_Model.status_id__enum_ids();
+
+PHP CONSTANTS
+
+    Constants are automatically generated via rsx:constants:regenerate command:
+
+    class User_Model extends Rsx_Model_Abstract
+    {
+        const STATUS_ACTIVE = 1;
+        const STATUS_INACTIVE = 2;
+    }
+
+    Usage:
+        if ($user->status_id === User_Model::STATUS_ACTIVE) {
+            // User is active
+        }
+
+JAVASCRIPT ACCESS
+
+    The framework generates JavaScript stub classes with full enum support.
+    See: php artisan rsx:man model_fetch (JAVASCRIPT CLASS ARCHITECTURE)
+
+    Static Constants
+        Project_Model.STATUS_ACTIVE    // 2
+        Project_Model.STATUS_PLANNING  // 1
+
+    Static Methods (BEM-style double underscore)
+        Project_Model.status__enum()          // Full enum definitions with metadata
+        Project_Model.status__enum(id)        // Single enum metadata by ID
+        Project_Model.status__enum_select()   // [{value, label}] array for dropdowns
+        Project_Model.status__enum_labels()   // Simple id => label map
+        Project_Model.status__enum_ids()      // Array of valid IDs
+
+    Instance Properties (after fetch, BEM-style)
+        const project = await Project_Model.fetch(1);
+        project.status              // 2 (raw value)
+        project.status__label       // "Active"
+        project.status__badge       // "bg-success"
+
+AJAX/JSON EXPORT
+
+    When models are converted to arrays/JSON, enum properties are automatically
+    included using BEM-style naming:
+
+    $user->toArray() returns:
+    [
+        'id' => 1,
+        'status_id' => 1,
+        'status_id__label' => 'Active',           // Added automatically
+        'status_id__constant' => 'STATUS_ACTIVE', // Added automatically
+        'status_id__badge' => 'bg-success',       // Custom properties too
+        // ... all enum properties for current value
+    ]
+
+ANTI-ALIASING POLICY
+
+    RSpade considers aliasing an anti-pattern. The BEM-style naming exists
+    specifically to make enum properties grepable and self-documenting.
+
+    WRONG - Aliasing in fetch():
+        public static function fetch($id) {
+            $contact = static::find($id);
+            $data = $contact->toArray();
+            $data['type_label'] = $contact->type_id__label;      // Alias - BAD
+            $data['type_icon'] = $contact->type_id__icon;        // Alias - BAD
+            return $data;
+        }
+
+    RIGHT - Use full BEM-style names:
+        // In JavaScript, use the automatic property names:
+        contact.type_id__label
+        contact.type_id__icon
+
+    Why aliasing is harmful:
+    1. Makes grep searches unreliable (can't find all usages of type_id__label)
+    2. Adds no value (we're not paying by the byte in source code)
+    3. Creates maintenance burden (two names for the same thing)
+    4. Obscures the data source (is 'type_label' a DB column or computed?)
+
+    The fetch() function's purpose is SECURITY - removing private data that
+    the current user shouldn't see. It is not for aliasing or adding data.
+
+ADVANCED FEATURES
+
+    Ordering
+        Use the 'order' property to control sort order in dropdowns:
+
+        'priority' => [
+            3 => ['label' => 'Low', 'order' => 3],
+            1 => ['label' => 'High', 'order' => 1],
+            2 => ['label' => 'Medium', 'order' => 2],
+        ]
+        // __enum_select() returns: [{value: 1, label: 'High'}, {value: 2, label: 'Medium'}, {value: 3, label: 'Low'}]
+
+    Selective Options
+        Use 'selectable' => false to hide options from dropdowns while keeping
+        them valid:
+
+        3 => [
+            'constant' => 'STATUS_ARCHIVED',
+            'label' => 'Archived',
+            'selectable' => false,  // Won't appear in new dropdowns
+        ]
+
+    Context-Specific Labels
+        Define different labels for different contexts:
+
+        'label' => 'New Listing',           // Backend label
+        'label_frontend' => 'Coming Soon',  // Frontend label
+        'label_short' => 'New',             // Abbreviated version
+
+PRACTICAL APPLICATIONS
+
+    Populating Select Boxes
+        <!-- Blade template -->
+        <select name="status_id">
+            @foreach(User_Model::status_id__enum_select() as $option)
+                <option value="{{ $option['value'] }}">{{ $option['label'] }}</option>
+            @endforeach
+        </select>
+
+    Dynamic CSS Classes
+        <span class="badge {{ $auction->auction_status__badge }}">
+            {{ $auction->auction_status__label }}
+        </span>
+
+    Business Logic Flags
+        if ($auction->auction_status__can_bid) {
+            // Show bidding interface
+        }
+
+    Permission Systems
+        'role' => [
+            1 => [
+                'constant' => 'ROLE_ADMIN',
+                'label' => 'Administrator',
+                'permissions' => ['users.create', 'users.delete'],
+                'can_admin_roles' => [2, 3, 4], // Can manage these role IDs
+            ]
+        ]
+
+        // Check permissions
+        if (in_array('users.create', $user->role__permissions)) {
+            // User can create users
+        }
+
+    Visual Indicators
+        'priority' => [
+            1 => [
+                'label' => 'Critical',
+                'color' => '#FF0000',
+                'icon' => 'fa-exclamation-circle',
+                'badge_class' => 'badge-danger pulse-animation',
+            ]
+        ]
+
+BOOLEAN FIELDS
+
+    For boolean fields, use 0/1 as keys:
+
+    'is_verified' => [
+        0 => ['label' => 'Not Verified'],
+        1 => ['label' => 'Verified'],
+    ]
+
+BEST PRACTICES
+
+    1. Always define constants for code readability
+    2. Use descriptive labels that make sense to end users
+    3. Add 'order' when dropdown order matters
+    4. Use 'selectable' => false for deprecated/archived values
+    5. Keep enum values immutable - add new values, don't change existing
+    6. Document custom properties in your model
+    7. Run rsx:constants:regenerate after adding enums
+    8. NEVER alias enum properties - use full BEM-style names
+
+EXAMPLE IMPLEMENTATION
+
+    // rsx/models/project_model.php
+    class Project_Model extends Rsx_Model_Abstract
+    {
+        public static $enums = [
+            'status' => [
+                1 => [
+                    'constant' => 'STATUS_PLANNING',
+                    'label' => 'Planning',
+                    'badge' => 'badge-secondary',
+                    'can_edit' => true,
+                    'order' => 1,
+                ],
+                2 => [
+                    'constant' => 'STATUS_IN_PROGRESS',
+                    'label' => 'In Progress',
+                    'badge' => 'badge-primary',
+                    'can_edit' => true,
+                    'order' => 2,
+                ],
+                3 => [
+                    'constant' => 'STATUS_REVIEW',
+                    'label' => 'Under Review',
+                    'badge' => 'badge-warning',
+                    'can_edit' => false,
+                    'order' => 3,
+                ],
+                4 => [
+                    'constant' => 'STATUS_COMPLETE',
+                    'label' => 'Complete',
+                    'badge' => 'badge-success',
+                    'can_edit' => false,
+                    'visible_in_reports' => true,
+                    'order' => 4,
+                ],
+                5 => [
+                    'constant' => 'STATUS_CANCELLED',
+                    'label' => 'Cancelled',
+                    'badge' => 'badge-danger',
+                    'can_edit' => false,
+                    'selectable' => false, // Hide from new projects
+                    'order' => 5,
+                ],
+            ],
+            'priority' => [
+                1 => ['constant' => 'PRIORITY_LOW', 'label' => 'Low', 'days' => 30],
+                2 => ['constant' => 'PRIORITY_MEDIUM', 'label' => 'Medium', 'days' => 14],
+                3 => ['constant' => 'PRIORITY_HIGH', 'label' => 'High', 'days' => 7],
+                4 => ['constant' => 'PRIORITY_CRITICAL', 'label' => 'Critical', 'days' => 1],
+            ],
+        ];
+    }
+
+    // Usage in controller
+    if ($project->status === Project_Model::STATUS_IN_PROGRESS) {
+        if ($project->priority__days < 3) {
+            // Escalate critical project
+        }
+    }
+
+    // Usage in Blade view
+    <div class="{{ $project->status__badge }}">
+        {{ $project->status__label }}
+        @if($project->status__can_edit)
+            <button>Edit</button>
+        @endif
+    </div>
+
+SEE ALSO
+    php artisan rsx:constants:regenerate - Generate constants and type hints
+    php artisan rsx:man model_fetch - Model fetching from JavaScript
+    php artisan rsx:man model - RSX model system overview
+
+RSpade 1.0                           December 2025                                  ENUMS(7)

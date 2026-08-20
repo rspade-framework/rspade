@@ -1,0 +1,41 @@
+<%--
+Rsx_Form
+
+Main form container that manages widget discovery, value collection, and submission.
+
+$data - Object with initial form values (for edit mode)
+$action - Ajax URL or controller method reference (e.g., Frontend_Clients_Controller.save)
+
+Usage:
+<Rsx_Form $data=$client $action=Frontend_Clients_Controller.save>
+    <Form_Field $label="Company Name">
+        <Text_Input $name="name" />
+    </Form_Field>
+</Rsx_Form>
+--%>
+<Define:Rsx_Form tag="form">
+
+    <div $sid="loader" class="text-center py-5">
+        <div class="spinner-border text-primary mb-3" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="text-muted">Loading form...</p>
+    </div>
+
+    <div $sid="form_content" style="display: none;">
+        <% if (window.rsxapp.debug) { %>
+            <%-- <div class="mb-3">
+                <button type="button"
+                        class="btn btn-sm btn-secondary"
+                        $sid="seed_btn">
+                    <i class="bi bi-shuffle"></i> Fill Test Data
+                </button>
+            </div> --%>
+        <% } %>
+
+        <div $sid="error_container"></div>
+
+        <%= content() %>
+    </div>
+
+</Define:Rsx_Form>

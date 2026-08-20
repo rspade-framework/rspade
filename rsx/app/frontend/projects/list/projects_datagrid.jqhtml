@@ -1,0 +1,86 @@
+<%-- Extends Datagrid_Abstract --%>
+
+<Define:Projects_DataGrid
+    extends="DataGrid_Abstract"
+    $data_source=Frontend_Projects_Controller.datagrid_fetch
+    $sort="created_at"
+    $per_page=15
+    class="card DataGrid">
+
+    <Slot:DG_Card_Header>
+        <Card_Title>Project List</Card_Title>
+        <Card_Header_Right>
+            <Search_Input $sid="filter_input" $placeholder="Search projects..." />
+            <button class="btn btn-secondary btn-sm">Filter</button>
+        </Card_Header_Right>
+    </Slot:DG_Card_Header>
+
+    <Slot:DG_Table_Header>
+        <tr>
+            <th style="width: 40px;">
+                <input class="form-check-input" type="checkbox" $sid="select_all" />
+            </th>
+            <th data-sortby="id">ID</th>
+            <th data-sortby="name">Project Name</th>
+            <th data-sortby="client_id">Client</th>
+            <th data-sortby="status">Status</th>
+            <th data-sortby="priority">Priority</th>
+            <th data-sortby="start_date">Start Date</th>
+            <th data-sortby="due_date">Due Date</th>
+            <th data-sortby="created_at">Created</th>
+            <th style="width: 120px;">Actions</th>
+        </tr>
+    </Slot:DG_Table_Header>
+
+    <Slot:row>
+        <tr data-href="<%= Rsx.Route('Projects_View_Action',row.id) %>">
+            <td>
+                <input class="form-check-input row-checkbox" type="checkbox" value="<%= row.id %>" />
+            </td>
+            <td>
+                #PR<%= String(row.id).padStart(3, '0') %>
+            </td>
+            <td>
+                <%= row.name %>
+            </td>
+            <td>
+                <%= row.client_name || '-' %>
+            </td>
+            <td>
+                <% if (row.status === 1) { %>
+                    <span class="badge bg-info">Planning</span>
+                <% } else if (row.status === 2) { %>
+                    <span class="badge bg-success">Active</span>
+                <% } else if (row.status === 3) { %>
+                    <span class="badge bg-warning">On Hold</span>
+                <% } else if (row.status === 4) { %>
+                    <span class="badge bg-primary">Completed</span>
+                <% } else if (row.status === 5) { %>
+                    <span class="badge bg-secondary">Cancelled</span>
+                <% } %>
+            </td>
+            <td>
+                <% if (row.priority === 4) { %>
+                    <span class="badge bg-danger">Urgent</span>
+                <% } else if (row.priority === 3) { %>
+                    <span class="badge bg-warning">High</span>
+                <% } else if (row.priority === 2) { %>
+                    <span class="badge bg-primary">Medium</span>
+                <% } else { %>
+                    <span class="badge bg-secondary">Low</span>
+                <% } %>
+            </td>
+            <td><%= row.start_date ? Rsx_Date.format(row.start_date) : '-' %></td>
+            <td><%= row.due_date ? Rsx_Date.format(row.due_date) : '-' %></td>
+            <td><%= Rsx_Time.format_date(row.created_at) %></td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <a class="btn btn-outline-primary" href="<%= Rsx.Route('Projects_View_Action', row.id) %>" title="View">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                </div>
+            </td>
+        </tr>
+    </Slot:row>
+
+</Define:Projects_DataGrid>

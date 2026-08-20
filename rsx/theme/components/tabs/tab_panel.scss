@@ -1,0 +1,7 @@
+// Tab_Panel - one tab's content region. Stacks its sections with block rhythm
+// (R1: the container owns the gaps, sections carry no outer margins).
+.Tab_Panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--block-gap);
+}

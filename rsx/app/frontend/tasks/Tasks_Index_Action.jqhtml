@@ -1,0 +1,7 @@
+<Define:Tasks_Index_Action>
+<Page_Scaffold>
+    <Slot:main>
+        <Tasks_DataGrid />
+    </Slot:main>
+</Page_Scaffold>
+</Define:Tasks_Index_Action>

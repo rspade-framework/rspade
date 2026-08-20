@@ -1,0 +1,14 @@
+// Action_Logs_View_Action
+//
+// The one justified page-SCSS survivor: the raw metadata JSON dump. Action-log
+// metadata is arbitrary developer-facing JSON with no fixed shape, shown in a
+// <pre> only when present. It is a single dev-only consumer, so it does not meet
+// the extraction bar for a shared component; wrapping/breaking is the only styling
+// it needs. Everything else on this page is composed from the semantic vocabulary.
+.Action_Logs_View_Action {
+    &__json {
+        white-space: pre-wrap;
+        word-break: break-word;
+        margin-bottom: 0;
+    }
+}

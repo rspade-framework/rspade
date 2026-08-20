@@ -1,0 +1,33 @@
+.Portal_Document_Detail_Modal_Body {
+    text-align: center;
+
+    &__thumb-wrap {
+        display: flex;
+        justify-content: center;
+        margin-bottom: $spacing-md;
+    }
+
+    &__thumb {
+        max-width: 220px;
+        max-height: 220px;
+        object-fit: contain;
+        border: 1px solid $border-color;
+        border-radius: $border-radius-sm;
+        background-color: $gray-100;
+        padding: $spacing-sm;
+    }
+
+    &__name {
+        font-weight: $font-weight-semibold;
+        color: $gray-900;
+        word-break: break-word;
+    }
+
+    &__meta {
+        margin-top: $spacing-xs;
+    }
+
+    &__reason {
+        text-align: left;
+    }
+}

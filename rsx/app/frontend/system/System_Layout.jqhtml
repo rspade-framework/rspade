@@ -1,0 +1,46 @@
+<%--
+    System Layout - Sublayout for system administration pages
+    Provides sidebar navigation for system-level tools.
+--%>
+<Define:System_Layout>
+<div class="system-layout">
+    <aside class="system-sidebar">
+        <div class="system-sidebar__card">
+            <div class="system-sidebar__section">
+                <div class="system-sidebar__section-title">System</div>
+                <a class="system-sidebar__item" data-page="status"
+                    href="<%= Rsx.Route('System_Status_Action') %>">
+                    <i class="bi bi-heart-pulse"></i>
+                    <span>System Status</span>
+                </a>
+                <a class="system-sidebar__item" data-page="tasks"
+                    href="<%= Rsx.Route('System_Tasks_Action') %>">
+                    <i class="bi bi-list-task"></i>
+                    <span>Scheduled Tasks</span>
+                </a>
+            </div>
+
+            <div class="system-sidebar__section">
+                <div class="system-sidebar__section-title">Email</div>
+                <a class="system-sidebar__item" data-page="email_config"
+                    href="<%= Rsx.Route('System_Email_Config_Action') %>">
+                    <i class="bi bi-envelope-gear"></i>
+                    <span>Configuration</span>
+                </a>
+                <a class="system-sidebar__item" data-page="email_queue"
+                    href="<%= Rsx.Route('System_Email_Queue_Action') %>">
+                    <i class="bi bi-envelope"></i>
+                    <span>Email Queue</span>
+                </a>
+                <a class="system-sidebar__item" data-page="email_recipients"
+                    href="<%= Rsx.Route('System_Email_Recipients_Action') %>">
+                    <i class="bi bi-person-lines-fill"></i>
+                    <span>Recipients</span>
+                </a>
+            </div>
+        </div>
+    </aside>
+
+    <div class="system-content" $sid="content"></div>
+</div>
+</Define:System_Layout>

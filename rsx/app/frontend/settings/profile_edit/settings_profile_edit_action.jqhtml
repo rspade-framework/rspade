@@ -1,0 +1,102 @@
+<Define:Settings_Profile_Edit_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading profile..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Profile"
+                $back_label="Go back to Profile"
+                $back_url="<%= Rsx.Route('Settings_Profile_Display_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Rsx_Form $data="<%= JSON.stringify(this.data.form_data) %>" $controller="Frontend_Settings_Profile_Edit_Controller" $method="save_profile">
+                <Card_Widget>
+                    <Section $title="Profile Information">
+                        <Form_Field $label="Profile Photo">
+                            <Profile_Photo_Input $name="profile_photo" $width=96 $height=96 $show_remove=true />
+                        </Form_Field>
+
+                        <Form_Field $label="First Name" $required=true>
+                            <Text_Input $name="first_name" $placeholder="John" $max_length=User_Model.field_length('first_name') />
+                        </Form_Field>
+                        <Form_Field $label="Last Name" $required=true>
+                            <Text_Input $name="last_name" $placeholder="Doe" $max_length=User_Model.field_length('last_name') />
+                        </Form_Field>
+
+                        <Form_Field $label="Email Address" $required=true
+                            $help="Your primary email address for notifications and login.">
+                            <Text_Input $name="email" $type="email" $placeholder="john.doe@example.com" $max_length=User_Model.field_length('email') $disabled=true />
+                        </Form_Field>
+
+                        <Form_Field $label="Phone Number">
+                            <Text_Input $name="phone" $type="tel" $placeholder="+1 (555) 123-4567" $max_length=User_Model.field_length('phone') />
+                        </Form_Field>
+
+                        <Form_Field $label="Title">
+                            <Text_Input $name="title" $placeholder="Senior Developer" $max_length=User_Profile_Model.field_length('title') />
+                        </Form_Field>
+                        <Form_Field $label="Department">
+                            <Text_Input $name="department" $placeholder="Engineering" $max_length=User_Profile_Model.field_length('department') />
+                        </Form_Field>
+
+                        <Form_Field $label="Bio"
+                            $help="Brief description for your profile. Max 500 characters.">
+                            <Text_Input $name="bio" $type="textarea" $rows=4 $placeholder="Tell us about yourself..." $max_length=500 />
+                        </Form_Field>
+                    </Section>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="<%= Rsx.Route('Settings_Profile_Display_Action') %>" class="btn btn-secondary">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            Save Changes
+                        </button>
+                    </div>
+                </Card_Widget>
+            </Rsx_Form>
+        </Slot:main>
+
+        <Slot:sidebar>
+            <Section $title="Profile Tips">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        Use a professional photo
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        Keep your contact info current
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        Write a clear, concise bio
+                    </li>
+                    <li class="mb-0">
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        Use your real name
+                    </li>
+                </ul>
+            </Section>
+
+            <Section $title="Privacy">
+                <p class="small text-muted mb-0">
+                    Your profile information is only visible to team members within your organization.
+                    You can adjust privacy settings in
+                    <a href="<%= Rsx.Route('Frontend_Settings_User_Settings_Controller') %>">User Settings</a>.
+                </p>
+            </Section>
+        </Slot:sidebar>
+    </Page_Scaffold>
+<% } %>
+</Define:Settings_Profile_Edit_Action>

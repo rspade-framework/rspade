@@ -1,0 +1,30 @@
+<%--
+Empty_State - an empty region: icon + title + reason + optional CTA
+
+$icon - a large muted icon class, e.g. "bi bi-people" [optional]
+<Slot:title> - the headline, e.g. "No contacts yet" (required)
+<Slot:body> - the reason / explanation line [optional]
+<Slot:cta> - a call-to-action button [optional]
+
+The single empty-region component (a zero-child list must render this, never
+bare text or a lying count). For a single empty CELL use <Empty_Value>.
+
+Usage:
+    <Empty_State $icon="bi bi-folder">
+        <Slot:title>No projects yet</Slot:title>
+        <Slot:body>Projects created for this client appear here.</Slot:body>
+        <Slot:cta><a class="btn btn-sm btn-primary" href="...">Add Project</a></Slot:cta>
+    </Empty_State>
+--%>
+<Define:Empty_State>
+    <% if (this.args.icon) { %>
+        <i class="Empty_State__icon <%= this.args.icon %>"></i>
+    <% } %>
+    <div class="Empty_State__title"><%= content('title') %></div>
+    <% if (this.args._slots && this.args._slots.body) { %>
+        <div class="Empty_State__body"><%= content('body') %></div>
+    <% } %>
+    <% if (this.args._slots && this.args._slots.cta) { %>
+        <div class="Empty_State__cta"><%= content('cta') %></div>
+    <% } %>
+</Define:Empty_State>

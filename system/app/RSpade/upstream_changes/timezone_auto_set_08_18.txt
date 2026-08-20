@@ -1,0 +1,185 @@
+CATEGORY: 2 - ACTION REQUIRED (decide whether the new default suits your app;
+          retire any timezone setter of your own)
+TITLE: Signed-in users now have their timezone set from their BROWSER on the
+       next page load - login_users.timezone_auto defaults to 1 for every
+       existing row, and the first matching load reloads the page once
+DATE: 2026-08-18
+
+--------------------------------------------------------------------------------
+SUMMARY
+--------------------------------------------------------------------------------
+
+Until now nothing in RSpade could WRITE login_users.timezone. The resolution
+chain read it, the settings screen showed a decorative select, and in practice
+every user rendered in the site default - wrong for everyone who does not live
+there.
+
+This release ships the setter, a framework Ajax controller in front of it, and
+an early-boot hook that sets the zone from the browser automatically.
+
+The new column login_users.timezone_auto is created NOT NULL DEFAULT 1, so
+EVERY EXISTING USER is opted in. On each user's next signed-in staff page load,
+if their browser reports an IANA identifier different from the zone the page was
+rendered in, the framework silently stores it and reloads the page once. From
+then on their datetimes render in their own zone.
+
+That is the intended behavior, and for most applications it is simply correct.
+It is also a visible, unannounced change for your users (one extra page load,
+and every timestamp on screen moves), which is why this document exists: the
+default is a product decision only you can make.
+
+--------------------------------------------------------------------------------
+THE CHANGE (informational - arrives automatically with the pull)
+--------------------------------------------------------------------------------
+
+Schema:
+
+    - login_users.timezone_auto TINYINT(1) NOT NULL DEFAULT 1, beside
+      login_users.timezone. The migration is framework-core; it runs on your
+      next `php artisan migrate`.
+
+PHP (Rsx_Time):
+
+    - NEW Rsx_Time::set_user_timezone(string $timezone, ?bool $timezone_auto = null): bool
+      Validates against timezone_identifiers_list() (unknown -> InvalidArgument-
+      Exception), writes the login_users row by explicit assignment + save(),
+      clears the per-request resolution cache, and returns whether the RESOLVED
+      zone actually moved. A portal request or no signed-in login user is
+      shouldnt_happen() - portal accounts have no personal zone.
+    - NEW Rsx_Time::timezone_options(): identifier => "America/Chicago
+      (UTC-05:00)", offsets computed at call time.
+    - NEW Rsx_Time::_clear_user_timezone_cache().
+    - Rsx_Time::get_site_timezone() is unchanged but is now documented
+      (rsx:man time).
+
+Ajax surface:
+
+    - NEW Rsx_Timezone_Controller (framework-core, staff realm,
+      #[Auth('is_logged_in')]) with timezone_options(), get_settings() and
+      set_timezone({timezone, timezone_auto}) -> {changed, timezone}.
+
+Client:
+
+    - NEW Rsx_Timezone_Auto (_on_framework_core_init). Guards: signed in, NOT a
+      portal request, timezone_auto on, a browser zone is available, no sentinel
+      for this browser session, and the browser IDENTIFIER differs from the
+      rendered zone. One attempt per browser session (sessionStorage sentinel
+      'rsx_timezone_auto_attempted', written BEFORE the call so a misbehaving
+      server cannot produce a reload loop). On {changed:true} it halts framework
+      boot and reloads.
+    - window.rsxapp gains user_timezone_auto beside user_timezone.
+
+Lint / audit:
+
+    - NEW rsx:check rule JQHTML-DATETIME-01 (advisory): a raw *_at / *_date
+      value interpolated into a .jqhtml template without an Rsx_Time. /
+      Rsx_Date. formatter.
+    - prelaunch_checklist ENTRY 7: the display sweep beyond the linter's reach,
+      plus the DATETIME-vs-DATE column audit.
+
+--------------------------------------------------------------------------------
+ACTION REQUIRED
+--------------------------------------------------------------------------------
+
+1. DECIDE THE DEFAULT for your existing users - this is the only decision that
+   cannot wait, because it changes as soon as they load a page.
+
+   Ship as-is (recommended for most apps): do nothing. Existing users get their
+   real zone on their next load; new users are created with the default 1.
+
+   Opt existing users OUT (keep everyone where they are today, and let them turn
+   it on themselves in settings): ship a migration in YOUR app immediately after
+   pulling, before the release reaches users.
+
+       php artisan make:migration:safe opt_existing_users_out_of_timezone_auto
+
+       // in the migration
+       DB::statement('UPDATE login_users SET timezone_auto = 0');
+
+   To opt out only users who already made a deliberate choice, and auto-set the
+   rest:
+
+       DB::statement('UPDATE login_users SET timezone_auto = 0
+                      WHERE timezone IS NOT NULL AND timezone <> ""');
+
+   To change the default for FUTURE users as well, alter the column default in
+   the same migration:
+
+       DB::statement('ALTER TABLE login_users
+                      MODIFY timezone_auto TINYINT(1) NOT NULL DEFAULT 0');
+
+2. RETIRE ANY TIMEZONE SETTER OF YOUR OWN. If your app grew its own endpoint,
+   service method or settings save that writes login_users.timezone, delete it
+   and post to Rsx_Timezone_Controller::set_timezone instead. Two writers is the
+   dual-implementation trap, and yours will not clear the framework's resolution
+   cache - the response to your own save would then be rendered in the OLD zone.
+
+       grep -rn "->timezone *=" rsx/
+       grep -rn "timezone" rsx/app/*/settings/ rsx/controllers/ 2>/dev/null
+
+   Anything that assigns login_users.timezone outside Rsx_Time::set_user_timezone
+   is a hit.
+
+3. RE-CHECK ANY "WHICH ZONE?" ASSUMPTION. Before this release the overwhelming
+   majority of your users rendered in the SITE zone, whatever the column said.
+   That is no longer true. Code that assumed one shared zone - a report header,
+   a day-boundary "today" computation, a cron summary, an exported CSV - now
+   produces per-user output. Anything that must stay tenant-wide should call
+   Rsx_Time::get_site_timezone() explicitly rather than relying on the user tier
+   being empty.
+
+4. TEMPLATE DIFF (only if you forked the settings screen). The reference app's
+   /rsx/app/frontend/settings/user_settings/ screen now implements the timezone
+   section for real: a Checkbox_Input for auto-set, a Select_Input populated from
+   Rsx_Timezone_Controller::timezone_options(), an interlock that disables the
+   selector while auto is on, a save that posts straight to
+   Rsx_Timezone_Controller::set_timezone, and a one-time forced full navigation
+   after a change so the rest of the app re-renders in the new zone. If your fork
+   still ships the old decorative select, copy the three files
+   (settings_user_settings_action.jqhtml / .js / _controller.php) or port the
+   section - otherwise your users can never turn the auto-set off.
+
+   One gotcha worth copying verbatim from that file: subscribe to the input
+   components' 'input' event, NEVER 'val'. val() fires on the programmatic seed
+   Rsx_Form performs when it loads, and jqhtml events are sticky, so a 'val'
+   handler registered in on_ready() fires immediately with the seeded value.
+
+5. RUN THE NEW LINT and triage it:
+
+       php artisan rsx:check
+
+   JQHTML-DATETIME-01 findings are advisory. Fix the real ones with an
+   Rsx_Time / Rsx_Date formatter; mark a genuine false positive on its own line
+   with @JQHTML-DATETIME-01-EXCEPTION and a reason. This matters more now than it
+   did last week: with per-user zones, a raw interpolated timestamp is visibly
+   wrong for real users instead of merely ugly.
+
+--------------------------------------------------------------------------------
+VERIFICATION
+--------------------------------------------------------------------------------
+
+    php artisan migrate
+    php artisan db:query "DESCRIBE login_users" --table
+        -> timezone_auto TINYINT(1) NOT NULL DEFAULT 1 (or 0 if you opted out)
+
+    php artisan db:query "SELECT timezone_auto, COUNT(*) FROM login_users
+                          GROUP BY timezone_auto" --table
+        -> the split you intended in step 1
+
+    php artisan rsx:ajax Rsx_Timezone_Controller get_settings --user=<id>
+        -> {timezone, resolved_timezone, timezone_auto}
+
+    php artisan rsx:check
+        -> no unexplained JQHTML-DATETIME-01 findings
+
+In a browser, signed in as a staff user whose stored zone differs from your
+machine's: load any page. Expect exactly ONE reload, after which timestamps
+render in your machine's zone, and NO further reloads on subsequent navigation
+(the sessionStorage sentinel 'rsx_timezone_auto_attempted' is present). Then
+open the user-settings screen, uncheck "Automatically set timezone", pick a zone
+manually, save, and confirm timezone_auto is 0 and the chosen zone sticks.
+
+Portal pages must show none of this: no auto-set, no reload, no sentinel - a
+portal account has no personal timezone and renders in the site's.
+
+Full contract: php artisan rsx:man time (TIMEZONE PREFERENCE).

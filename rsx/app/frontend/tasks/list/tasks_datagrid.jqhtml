@@ -1,0 +1,74 @@
+<%-- Extends Datagrid_Abstract --%>
+
+<Define:Tasks_DataGrid
+    extends="DataGrid_Abstract"
+    $data_source=Frontend_Tasks_Controller.datagrid_fetch
+    $sort="created_at"
+    $per_page=15
+    class="card DataGrid">
+
+    <Slot:DG_Card_Header>
+        <Card_Title>Task List</Card_Title>
+        <Card_Header_Right>
+            <Search_Input $sid="filter_input" $placeholder="Search tasks..." />
+        </Card_Header_Right>
+    </Slot:DG_Card_Header>
+
+    <Slot:DG_Table_Header>
+        <tr>
+            <th data-sortby="title">Title</th>
+            <th>Parent</th>
+            <th>Project</th>
+            <th data-sortby="status">Status</th>
+            <th data-sortby="priority">Priority</th>
+            <th>Assignee</th>
+            <th data-sortby="due_date">Due Date</th>
+            <th data-sortby="hour_estimate" class="text-end">Est. Hours</th>
+        </tr>
+    </Slot:DG_Table_Header>
+
+    <Slot:row>
+        <tr data-href="<%= Rsx.Route('Tasks_View_Action', row.id) %>">
+            <td><%= row.title %></td>
+            <td>
+                <% if (row.parent_type && row.parent_label) { %>
+                    <i class="text-muted <%= Entity_Link.icon_for(row.parent_type) %>"></i>
+                    <%= row.parent_label %>
+                <% } else { %>
+                    <Empty_Value />
+                <% } %>
+            </td>
+            <td>
+                <% if (row.project_name) { %><%= row.project_name %><% } else { %><Empty_Value /><% } %>
+            </td>
+            <td><Status_Badge $label=row.status__label $badge=row.status__badge /></td>
+            <td>
+                <% const _pcls = (row.priority__badge || 'bg-secondary').replace('bg-', 'badge-outline-'); %>
+                <span class="badge <%= _pcls %>"><%= row.priority__label %></span>
+            </td>
+            <td>
+                <% if (row.assigned_to_name) { %><%= row.assigned_to_name %><% } else { %><Empty_Value /><% } %>
+            </td>
+            <td>
+                <% if (row.due_date) { %>
+                    <% const _overdue = Rsx_Date.is_past(row.due_date) && (row.status === 1 || row.status === 2); %>
+                    <% if (_overdue) { %>
+                        <span class="text-danger"><%= Rsx_Date.format(row.due_date) %></span>
+                    <% } else { %>
+                        <%= Rsx_Date.format(row.due_date) %>
+                    <% } %>
+                <% } else { %>
+                    <Empty_Value />
+                <% } %>
+            </td>
+            <td class="text-end">
+                <% if (row.hour_estimate !== null && row.hour_estimate !== undefined && row.hour_estimate !== '') { %>
+                    <%= row.hour_estimate %>
+                <% } else { %>
+                    <Empty_Value />
+                <% } %>
+            </td>
+        </tr>
+    </Slot:row>
+
+</Define:Tasks_DataGrid>

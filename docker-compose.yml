@@ -1,0 +1,63 @@
+# RSpade development environment.
+#
+#     docker compose up
+#
+# Then open http://localhost:8080 and log in with the credentials printed in
+# this terminal on the very first start.
+#
+# TO CHANGE THE PORT, change it below. Nothing else needs to agree with it: the
+# application learns its own address from the first request you make, on the
+# welcome screen, so whatever host and port you actually browse is the one it
+# records - localhost, a machine name, or a LAN address alike.
+#
+# There is deliberately no ${VARIABLE} interpolation anywhere in this file.
+# Compose reads .env from this directory for its own substitution, and that is
+# the application's .env - with no interpolation here, that read is harmless.
+
+services:
+  app:
+    image: rspade/rspade-server-dev:latest
+    # Built locally by build.sh, which tags it with the name above. The context
+    # is scoped to that directory on purpose: a context at the project root
+    # would ship system/vendor and system/node_modules to the Docker daemon on
+    # every build.
+    build:
+      context: ./system/app/RSpade/resource/docker
+      target: dev
+    # Never reach for a registry - this image is built, not pulled.
+    pull_policy: build
+
+    ports:
+      - "8080:80"
+
+    # LINUX USERS: uncomment these and set them to your own ids, so files the
+    # application writes belong to you rather than to root:
+    #
+    #     id -u    # -> PUID
+    #     id -g    # -> PGID
+    #
+    # macOS and Windows do not need this - Docker Desktop already presents every
+    # file as yours - and leaving it commented changes nothing.
+    #
+    # environment:
+    #   PUID: "1000"
+    #   PGID: "1000"
+
+    volumes:
+      # Your project. Edit files on your machine; the container serves them.
+      - .:/var/www/html
+      # The database lives in a named volume, NEVER in the bind mount above:
+      # MySQL's data directory does not behave correctly on a Docker Desktop
+      # bind mount, and keeping it separate means `docker compose down` does not
+      # take your data with it.
+      - rspade-mysql:/var/lib/mysql
+      # Claude Code's settings, login and history. Kept in your project (under
+      # storage/, which is gitignored) so they survive `docker compose down` and
+      # rebuilding the image does not sign you out.
+      - ./storage/.claude:/root/.claude
+
+    # Lets the container stop cleanly rather than being killed mid-write.
+    stop_grace_period: 30s
+
+volumes:
+  rspade-mysql:

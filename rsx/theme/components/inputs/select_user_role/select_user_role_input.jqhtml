@@ -1,0 +1,46 @@
+<%--
+Select_User_Role_Input
+
+User role dropdown with description help text.
+Automatically loads roles from User_Model.role_id__enum() and filters to selectable roles.
+
+$placeholder - Placeholder option text (default: "Select a role...")
+$disabled - Boolean to disable the select
+
+Widget interface:
+- val() - Get/set selected role_id value
+--%>
+<Define:Select_User_Role_Input extends="Form_Input_Abstract">
+    <%
+        // Transform User_Model enum data into select options
+        const enum_data = User_Model.role_id__enum();
+        this.options = [];
+        this.description_map = {};
+
+        for (let [value, data] of Object.entries(enum_data)) {
+            // Skip non-selectable roles (Developer, Root Admin, Disabled)
+            if (data.selectable === false) continue;
+
+            this.options.push({
+                value: value,
+                label: data.label,
+                description: data.short_description || ''
+            });
+
+            if (data.short_description) {
+                this.description_map[value] = data.short_description;
+            }
+        }
+
+        // Sort by value (role_id) ascending so higher privilege roles appear first
+        this.options.sort((a, b) => parseInt(a.value) - parseInt(b.value));
+    %>
+    <%-- Options render EMPTY (no selected attribute). Value is set via val() after render. --%>
+    <select $sid="input" <% if (this.args.disabled) { %>disabled<% } %>>
+        <option value=""><%= this.args.placeholder || 'Select a role...' %></option>
+        <% for (let opt of this.options) { %>
+            <option value="<%= opt.value %>"><%= opt.label %></option>
+        <% } %>
+    </select>
+    <div $sid="description" class="select-description text-muted mt-1" style="font-size: var(--text-sm);"></div>
+</Define:Select_User_Role_Input>

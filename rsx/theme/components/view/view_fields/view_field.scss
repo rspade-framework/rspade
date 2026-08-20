@@ -1,0 +1,42 @@
+// View_Field - one label/value fact.
+.View_Field {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-1; // 4px between label and value
+    min-width: 0;
+
+    &__label {
+        font-size: $font-size-xs;
+        font-weight: $font-weight-medium;
+        color: $text-muted;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    &__icon {
+        margin-right: $spacing-1;
+    }
+
+    &__value {
+        font-size: $font-size-sm;
+        color: $text-color;
+        word-break: break-word;
+    }
+
+    // Compact label-left / value-right variant.
+    &--inline {
+        flex-direction: row;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: $spacing-3;
+
+        .View_Field__label {
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .View_Field__value {
+            text-align: right;
+        }
+    }
+}

@@ -1,0 +1,1 @@
+{"version":3,"file":"getSelectedFrame.d.ts","sourceRoot":"","sources":["../../../../src/components/stackTrace/selectors/getSelectedFrame.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,KAAK,EAAE,MAAM,UAAU,CAAC;AAEjC,OAAO,EAAE,UAAU,EAAE,MAAM,gBAAgB,CAAC;AAE5C,MAAM,CAAC,OAAO,UAAU,gBAAgB,CAAC,KAAK,EAAE,KAAK,GAAG,UAAU,CAEjE"}

@@ -1,0 +1,7 @@
+// Status_Badge - one filled status pill from a model enum. The filled color
+// comes from the enum's Bootstrap `.bg-*` badge class; this component only owns
+// its inline layout.
+.Status_Badge {
+    display: inline-flex;
+    align-items: center;
+}

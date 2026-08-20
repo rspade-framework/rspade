@@ -1,0 +1,1 @@
+{"version":3,"file":"InViewContextProvider.d.ts","sourceRoot":"","sources":["../../src/contexts/InViewContextProvider.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAmB,MAAM,OAAO,CAAC;AAGxC,aAAK,KAAK,GAAG;IAAE,QAAQ,EAAE,KAAK,CAAC,SAAS,CAAA;CAAE,CAAC;AAE3C,MAAM,CAAC,OAAO,UAAU,qBAAqB,CAAC,EAAE,QAAQ,EAAE,EAAE,KAAK,eAIhE"}

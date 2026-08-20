@@ -1,0 +1,121 @@
+URL_HASH(1)                       RSpade Manual                       URL_HASH(1)
+
+NAME
+    Rsx.url_hash_* - Persist UI view state to the URL hash
+
+SYNOPSIS
+    Rsx.url_hash_get(key)              // single value or null
+    Rsx.url_hash_get_all()             // all params as object
+    Rsx.url_hash_set_single(key, val)  // write one key (null/'' removes)
+    Rsx.url_hash_set({k1: v1, k2: null})  // bulk write/remove
+
+DESCRIPTION
+    The url_hash_* API persists UI-only view state (filter selections, active
+    tabs, dropdown values, sort/page state) to the URL hash so a browser
+    refresh preserves the user's current view. The hash is updated via
+    history.replaceState, so no new history entry is added per change.
+
+    Format: #key=value&key2=value2 (URL-encoded).
+
+    BARE FRAGMENTS. A web-standard fragment with no '=' in it (#installation)
+    is normalized on parse to the framework-reserved anchor key, `at`, so it
+    reads back as {at: 'installation'} and survives serialization. Before that
+    normalization it parsed as {'installation': ''}, and an empty value is
+    dropped on the next write - so any component writing hash state silently
+    destroyed the anchor. See `php artisan rsx:man anchors`.
+
+    RESERVED KEYS. Application code must not use `at` (the anchor target) or
+    the `dg_*` family (DataGrid state) for its own values.
+
+    Currently used internally by Tab_Bar, DataGrid_Abstract, and Rsx_Tabs.
+    Application
+    code should use this API directly when persisting UI state for custom
+    actions (e.g., a status filter dropdown on a list page).
+
+API REFERENCE
+    Rsx.url_hash_get(key)
+        Returns the string value for `key`, or null if not set. A bare
+        fragment is reachable as Rsx.url_hash_get(Rsx.HASH_ANCHOR_KEY) - see
+        BARE FRAGMENTS above.
+
+    Rsx.url_hash_get_all()
+        Returns an object containing all hash parameters.
+
+    Rsx.url_hash_set_single(key, value)
+        Writes a single key. Passing null, undefined, or '' removes the key.
+        Numeric values are coerced to strings.
+
+    Rsx.url_hash_set(new_state)
+        Merges `new_state` into the current hash. Keys with null/undefined/''
+        values are removed. Other keys in the hash are preserved.
+
+CONVENTION
+    Only persist deviations from defaults, so the URL stays clean. When the
+    user's selection matches the default, omit the key from the hash entirely.
+
+    Write pattern:
+        Rsx.url_hash_set_single('status', val !== DEFAULT_STATUS ? val : null);
+
+    Read pattern:
+        this.args.status = Rsx.url_hash_get('status') || DEFAULT_STATUS;
+
+    A page sitting on default values has a clean URL with no hash. Only when
+    the user changes something does the URL reflect it.
+
+EXAMPLES
+    Persist a status filter dropdown on an action page
+
+        on_create() {
+            this.args.status = Rsx.url_hash_get('status') || 'active';
+        }
+
+        // When the dropdown changes:
+        on_status_change(new_status) {
+            this.args.status = new_status;
+            Rsx.url_hash_set_single(
+                'status',
+                new_status !== 'active' ? new_status : null
+            );
+            this.reload();
+        }
+
+    Persist multiple filters at once
+
+        Rsx.url_hash_set({
+            status: status !== 'active' ? status : null,
+            owner:  owner_id || null,
+            sort:   sort !== 'name' ? sort : null,
+        });
+
+    Read all filters on init
+
+        const hash = Rsx.url_hash_get_all();
+        this.args.status = hash.status || 'active';
+        this.args.owner  = hash.owner  || null;
+
+WHEN TO USE
+    - UI-only filter, tab, or view state that should survive refresh
+    - User-driven selections where a shareable URL is useful
+
+WHEN NOT TO USE
+    - Data scoping for DataGrid backends (use $extra_params instead)
+    - Default values (apply on init, do not write to hash)
+    - Required state for the page to function (use route params)
+    - Confidential or security-sensitive data (hash is plainly visible)
+
+PITFALLS
+    - Hash values are always strings. Coerce when reading numeric values.
+    - history.replaceState is used, so the back button does not undo hash
+      changes made by this API.
+    - Do not write defaults to the hash; doing so clutters URLs and breaks
+      the "clean URL means default state" invariant.
+
+FILE LOCATION
+    /system/app/RSpade/Core/Js/Rsx.js
+
+SEE ALSO
+    php artisan rsx:man anchors
+    php artisan rsx:man storage
+    php artisan rsx:man spa
+
+RSPADE                           April 2026                       URL_HASH(1)

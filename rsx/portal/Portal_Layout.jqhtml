@@ -1,0 +1,73 @@
+<Define:Portal_Layout>
+
+    <%-- Read-only impersonation banner: shown when a staff member is viewing the
+         portal as a client. The server enforces read-only at each write endpoint
+         (Portal_Permission::is_read_only()); this is the visible affordance. --%>
+    <% if (Rsx_Portal.is_impersonating()) { %>
+        <div class="Portal_Layout__impersonation-banner bg-warning text-dark text-center py-2 px-3">
+            <i class="bi bi-eye me-1"></i>
+            <strong>Read-only:</strong> you are viewing this portal as the client.
+            <a href="<%= Rsx_Portal.Route('Portal_Impersonate_Controller::stop') %>" class="alert-link ms-2">
+                <i class="bi bi-box-arrow-right"></i> Exit read-only view
+            </a>
+        </div>
+    <% } %>
+
+    <%-- Top header: brand + current portal user --%>
+    <nav class="Portal_Layout__header navbar bg-primary navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="<%= Rsx_Portal.Route('Portal_Dashboard_Action') %>">
+                Client Portal
+            </a>
+            <div class="d-flex align-items-center">
+                <%-- Realtime connection status (hidden unless the backend is unreachable) --%>
+                <div class="me-3">
+                    <Realtime_Status_Badge $sid="realtime_status_badge" />
+                </div>
+                <% const portal_user = Rsx_Portal.user(); %>
+                <% if (portal_user) { %>
+                    <span class="navbar-text Portal_Layout__user">
+                        <i class="bi bi-person-circle me-1"></i><%= portal_user.email %>
+                    </span>
+                <% } %>
+            </div>
+        </div>
+    </nav>
+
+    <%-- Sub-header navigation --%>
+    <div class="Portal_Layout__subheader border-bottom">
+        <div class="container-fluid d-flex align-items-center py-2">
+            <div class="Portal_Layout__subnav">
+                <a class="Portal_Layout__nav-link" href="<%= Rsx_Portal.Route('Portal_Dashboard_Action') %>">
+                    <i class="bi bi-house-door me-1"></i>Dashboard
+                </a>
+            </div>
+            <div class="Portal_Layout__subnav ms-auto">
+                <a class="Portal_Layout__nav-link" href="<%= Rsx_Portal.Route('Portal_Settings_Action') %>">
+                    <i class="bi bi-gear me-1"></i>Settings
+                </a>
+                <a class="Portal_Layout__nav-link" href="<%= Rsx_Portal.Route('Portal_Logout_Controller') %>">
+                    <i class="bi bi-box-arrow-right me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <%-- Main Content Area. The $sid="content" element IS the padded page area; a
+         scaffolded action neutralizes that padding (see Portal_Layout.js /
+         .Portal_Layout__page--scaffolded) so a nested Page_Scaffold owns width/padding. --%>
+    <div class="Portal_Layout__content">
+        <%-- Actions render here --%>
+        <div class="Portal_Layout__page" $sid="content"></div>
+    </div>
+
+    <%-- Footer --%>
+    <footer class="Portal_Layout__footer bg-light border-top py-3 mt-auto">
+        <div class="container-fluid">
+            <p class="text-muted mb-0 small">
+                &copy; <%= new Date().getFullYear() %> Client Portal
+            </p>
+        </div>
+    </footer>
+
+</Define:Portal_Layout>

@@ -1,0 +1,99 @@
+<Define:Dev_Spa_Layout>
+
+<%-- Sidebar Navigation - - --%>
+<nav class="app-sidebar">
+  <%-- Brand - Desktop only  - --%>
+  <div class="sidebar-brand d-none d-desktop-block">
+    <a href="<%= Rsx.Route('Dev_Index_Controller') %>">
+      Dev Tools
+    </a>
+  </div>
+
+  <%-- Mobile Navbar (full-width on mobile)  - --%>
+  <div class="d-desktop-none">
+    <nav class="navbar navbar-expand bg-body border-bottom">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="<%= Rsx.Route('Dev_Index_Controller') %>">
+          Dev Tools
+        </a>
+        <button class="navbar-toggler" data-bs-target="#sidebarNav" data-bs-toggle="collapse" type="button">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <%-- Main Navigation Links  - --%>
+  <Sidebar_Nav $sections="<%= JSON.stringify([
+      {
+          title: 'Dev Tools',
+          items: [
+              {
+                  label: 'Home',
+                  icon: 'bi-house-door',
+                  href: Rsx.Route('Dev_Index_Controller')
+              },
+              {
+                  label: 'SPA Test',
+                  icon: 'bi-router',
+                  href: Rsx.Route('Dev_Spa_Action')
+              },
+              {
+                  label: 'Modals',
+                  icon: 'bi-window',
+                  href: Rsx.Route('Dev_Modals_Controller')
+              },
+              {
+                  label: 'Attachments',
+                  icon: 'bi-paperclip',
+                  href: Rsx.Route('Dev_Attachments_Controller::#index')
+              },
+              {
+                  label: 'Flash Alerts',
+                  icon: 'bi-bell',
+                  href: Rsx.Route('Dev_Flash_Controller')
+              },
+              {
+                  label: 'ORM',
+                  icon: 'bi-database',
+                  href: Rsx.Route('Dev_Orm_Action')
+              },
+              {
+                  label: 'Document Preview',
+                  icon: 'bi-file-earmark-text',
+                  href: Rsx.Route('Dev_Document_Preview_Action')
+              }
+          ]
+      }
+  ]) %>" />
+</nav>
+
+<%-- Main Content Area  - --%>
+<div class="app-content">
+  <%-- Top Header Navbar  - --%>
+  <nav class="app-header navbar navbar-expand bg-dark navbar-dark">
+    <div class="container-fluid">
+      <%-- Right side content  - --%>
+      <div class="d-flex align-items-center ms-auto">
+        <%-- User Dropdown  - --%>
+        <div class="dropdown">
+          <button class="btn btn-sm dropdown-toggle" data-bs-toggle="dropdown" type="button">
+            Guest
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow">
+            <li><a class="dropdown-item" href="#">
+              Login
+            </a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <%-- Page Content - SPA actions render here  - --%>
+  <main class="page-content page-content--constrained">
+    <div $sid="content"></div>
+  </main>
+</div>
+
+</Define:Dev_Spa_Layout>

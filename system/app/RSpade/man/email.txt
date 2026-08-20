@@ -1,0 +1,267 @@
+EMAIL(7)                           RSpade Developer Manual                           EMAIL(7)
+
+NAME
+    Email - Queue-based email delivery with dev site safety and unsubscribe management
+
+SYNOPSIS
+    use App\RSpade\Core\Mail\Rsx_Mail;
+
+    Rsx_Mail::send($to, $subject, $template, $data, $category);
+    Rsx_Mail::send_to_contact($contact, $subject, $template, $data);
+    Rsx_Mail::send_to_portal_user($portal_user, $subject, $template, $data);
+
+DESCRIPTION
+    RSpade provides a queue-based email system where all emails are queued to the
+    database and processed asynchronously. Emails are never sent inline during a
+    request. The system includes automatic dev site safety gating, per-address
+    unsubscribe management, and an admin UI for monitoring.
+
+    Unlike Laravel's Mail facade, Rsx_Mail always queues. There is no "send now"
+    option. This prevents request blocking and ensures all emails are auditable
+    through the admin interface.
+
+SENDING EMAILS
+
+    Basic Send
+        Rsx_Mail::send(
+            'user@example.com',         // recipient
+            'Welcome',                  // subject
+            'Welcome_Email',            // template (rsx_id of blade file)
+            ['name' => 'John'],         // template data
+            Rsx_Mail::NOTIFICATION      // category (optional, default NOTIFICATION)
+        );
+
+    Send to Contact
+        Rsx_Mail::send_to_contact(
+            $contact,                   // Contact_Model instance
+            'Subject',
+            'Template_Name',
+            $data,
+            Rsx_Mail::NOTIFICATION
+        );
+
+    Send to Portal User
+        Rsx_Mail::send_to_portal_user(
+            $portal_user,               // Portal_User_Model instance
+            'Subject',
+            'Template_Name',
+            $data,
+            Rsx_Mail::TRANSACTIONAL     // default for portal users
+        );
+
+    Site Resolution
+        send() (and the blocklist API) scopes to the current Session site. A
+        sessionless send (from a #[Task] or CLI) resolves to site 0 (the Default
+        site); call Session::set_site_id($site_id) first to target a specific
+        tenant's blocklist/queue.
+
+EMAIL CATEGORIES
+
+    Three categories control unsubscribe behavior:
+
+    Rsx_Mail::TRANSACTIONAL (1)
+        Always delivers. Ignores unsubscribe preferences.
+        Examples: password reset, invitation, verification, account changes.
+
+    Rsx_Mail::NOTIFICATION (2)  [default]
+        Respects unsubscribe preferences. Skipped if recipient has opted out.
+        Examples: portal activity, shared content, reminders.
+
+    Rsx_Mail::MARKETING (3)
+        Respects unsubscribe preferences. Skipped if recipient has opted out.
+        Examples: newsletters, promotions, announcements.
+
+    Transactional emails never check the blocklist. Notification and marketing
+    emails create a BLOCKED record in the queue (visible in admin UI) when the
+    recipient has opted out.
+
+EMAIL TEMPLATES
+
+    Templates are Blade files in /rsx/emails/ with @rsx_id() directives.
+    They use Rsx_Mail_Layout::header() and footer() for the HTML email wrapper.
+
+    File Location
+        /rsx/emails/
+            layouts/
+                email_layout_default.blade.php    (placeholder, layout is in PHP)
+            my_notification_email.blade.php       (your templates)
+
+    Template Structure
+        @rsx_id('My_Notification_Email')
+        {!! \App\RSpade\Core\Mail\Rsx_Mail_Layout::header($subject ?? '') !!}
+
+        <p>Hello {{ $name }},</p>
+        <p>Your content here.</p>
+
+        <p style="text-align: center;">
+            <a href="{{ $action_url }}" class="email-button">Click Here</a>
+        </p>
+
+        {!! \App\RSpade\Core\Mail\Rsx_Mail_Layout::footer($unsubscribe_url ?? null) !!}
+
+    Auto-Injected Variables
+        $subject           - Email subject line
+        $unsubscribe_url   - Signed unsubscribe URL (non-transactional only, null for transactional)
+
+    CSS Classes Available in Templates
+        .email-button      - Blue CTA button (Bootstrap primary color)
+        .email-muted       - Small gray text
+        .email-divider     - Horizontal rule
+
+UNSUBSCRIBE MANAGEMENT
+
+    Blocklist API
+        Rsx_Mail::is_blocked($email, Rsx_Mail::MARKETING);   // true/false
+        Rsx_Mail::block($email, Rsx_Mail::MARKETING);         // block category
+        Rsx_Mail::unblock($email, Rsx_Mail::MARKETING);       // unblock category
+        Rsx_Mail::block_all($email);                          // block all non-transactional
+
+    Unsubscribe URLs
+        Auto-injected into non-transactional email templates as $unsubscribe_url.
+        URLs are HMAC-signed and verified on the unsubscribe endpoint.
+
+        Manual generation:
+        $url = Rsx_Mail::unsubscribe_url($email, Rsx_Mail::NOTIFICATION);
+
+    Verification:
+        Rsx_Mail::verify_unsubscribe_signature($email, $category, $sig);
+
+    Models are FRAMEWORK-CORE: App\RSpade\Core\Models\Email_Queue_Model and
+    Email_Recipient_Model (the Rsx_Mail facade depends on them). Apps may override
+    via the class-override pattern. Email_Queue_Model::fetch() (an
+    #[Ajax_Endpoint_Model_Fetch], login-gated) loads one record for a developer
+    "Email Transaction Log" - full fields, no aliasing, plus status_id__label/__badge.
+
+QUEUE PROCESSING
+
+    ** REAL OUTBOUND DELIVERY IS NOT WIRED YET (backlogged). **
+
+    The queue is processed by the core Mail_Queue_Service task:
+
+        php artisan rsx:task:run Mail_Queue_Service send_pending_queue
+
+    #[Exclusive] (one drain at a time, coalesced) + #[Schedule('*/5 * * * *')]
+    (every 5 minutes). Rsx_Mail::send() also kicks a prompt background drain
+    (Task::dispatch) on web requests. Requires cron:
+        * * * * * cd /var/www/html && php artisan rsx:task:process
+
+    Current behavior (until real send is wired):
+    1. Picks up one PENDING record at a time (respects retry_at)
+    2. Renders the Blade template to HTML (stored in rendered_html, so a developer
+       can recover the content / a link that never left the box)
+    3. Marks the record STATUS_HELD_BACK ("Held (dev)") - recorded but NOT delivered.
+       Distinct from SENT, FAILED, and BLOCKED. Nothing is sent via SMTP.
+
+    Status enum: 1 Pending, 2 Sending, 3 Sent, 4 Failed, 5 Blocked, 6 Held (dev).
+
+    A second scheduled task prunes old terminal (sent/failed/blocked/held-back) rows:
+
+        php artisan rsx:task:run Mail_Queue_Service cleanup
+
+    #[Schedule('0 3 * * *')] (daily 3am). Deletes records older than 90 days (override
+    with --days=N).
+
+    FUTURE real-send + retry policy (documented in the send task; NOT implemented):
+    render -> SMTP send; success -> mark_sent(); failure -> mark_failed(), where an
+    SMTP *connect* error does not count toward the strike limit (retry no sooner than
+    5 min), a *server* error does, giving up after config('rsx.mail.retry_max')
+    strikes (default 6). Needs a last_attempt_at column. Config:
+    config('rsx.mail.retry_max') / retry_backoff_minutes. See the backlog: "wire real
+    SMTP/SMS outbound delivery".
+
+DEV SITE EMAIL SAFETY
+
+    On dev sites (hostname contains .dev.), emails are automatically gated.
+    This prevents accidental delivery to real users during development.
+
+    Detection
+        Rsx::is_dev_site()     - true if hostname contains .dev.
+        Rsx::is_debug_site()   - true if hostname ends in .dev.hanson.xyz
+
+    Environment Variables (.env)
+        EMAIL_DEV_CATCHALL_ADDRESS=dev@example.com
+            All non-whitelisted emails redirect to this address.
+            Original recipient stored in dev_original_to field.
+
+        EMAIL_DEV_SUPPRESS_EMAIL_DELIVERY=false
+            If true, emails render but are never delivered via SMTP.
+            Templates still render and are visible in admin UI.
+
+        EMAIL_DEV_EMAIL_ADDRESS_WHITELIST=safe@example.com,other@test.com
+            Comma-separated addresses that bypass catchall redirect.
+            These emails deliver to the real recipient on dev sites.
+
+        EMAIL_DEV_EMAIL_DOMAIN_WHITELIST=example.com,trusted.org
+            Comma-separated domains that bypass catchall redirect.
+            Any recipient @domain delivers to the real recipient.
+
+    Priority Order
+        1. Address whitelist match -> deliver normally
+        2. Domain whitelist match -> deliver normally
+        3. Catchall address set -> redirect to catchall
+        4. No catchall -> email queued but not delivered
+
+    Production sites (no .dev. in hostname) bypass all dev gating.
+
+HOSTNAME DETECTION
+
+    Rsx::get_hostname()
+        Returns the application hostname. Used by is_dev_site/is_debug_site.
+
+        Resolution order:
+        - Web mode: uses request hostname (HTTP_HOST)
+        - CLI mode: uses the APP_URL host
+        - Production web: validates request hostname matches the APP_URL host
+
+    Environment Variable
+        APP_URL=https://myapp.example.com
+            The single source of the application hostname. The $HOSTNAME token
+            (APP_URL=https://$HOSTNAME) resolves to the OS hostname at boot, so a
+            dev/docker box needs no per-instance edit. Must be https.
+
+ADMIN UI
+
+    Three admin pages in the template app's System module. Reach them from the
+    sidebar section "System" -> "System Admin", then the "Email" group in the
+    System sublayout's own sidebar. They are NOT under "Settings" (that is a
+    separate item in the "Administration" nav section). The sidebar labels are
+    shorter than the breadcrumb titles, noted per page below.
+
+    Email Configuration (/frontend/system/email_config, sidebar "Configuration")
+        Read-only display of mail driver, SMTP settings, dev site status,
+        catchall/whitelist configuration, queue statistics.
+
+    Email Queue (/frontend/system/email_queue)
+        DataGrid of all queued emails. Search, filter by status. Preview
+        rendered HTML. Resend failed/blocked emails.
+
+    Email Recipients (/frontend/system/email_recipients, sidebar "Recipients")
+        Per-address tracking. Toggle blocklist status (notification/marketing/all).
+        View delivery stats (sent/failed counts, last sent date).
+
+DATABASE TABLES
+
+    email_queue
+        Stores every email with status, template data, rendered HTML, retry info.
+        Status: PENDING, SENDING, SENT, FAILED, BLOCKED
+        Category: TRANSACTIONAL, NOTIFICATION, MARKETING
+
+    email_recipients
+        Per-address blocklist and delivery statistics.
+        Fields: is_blocked_notification, is_blocked_marketing, is_blocked_all
+        Stats: total_sent, total_failed, last_sent_at
+
+EXISTING TEMPLATES
+
+    Portal_Invitation_Email         - Portal user invitation with registration link
+    Portal_Password_Reset_Email     - Portal password reset with reset link
+    User_Invitation_Email           - Internal user invitation with accept link
+    Welcome_Email                   - Welcome email after account creation
+    Portal_Shared_Content_Email     - Shared content notification with message
+
+SEE ALSO
+    php artisan rsx:man portal - Client portal system
+    php artisan rsx:task:list - View scheduled tasks
+    php artisan rsx:task:run Mail_Queue_Service send_pending_queue - Process email queue manually
+
+RSpade 1.0                           April 2026                                    EMAIL(7)

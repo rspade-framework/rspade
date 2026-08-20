@@ -1,0 +1,9 @@
+{
+    "name": "rsx-app",
+    "description": "RSX application dependency layer - managed via 'php artisan rsx:npm'",
+    "private": true,
+    "dependencies": {},
+    "rsx": {
+        "provided": {}
+    }
+}

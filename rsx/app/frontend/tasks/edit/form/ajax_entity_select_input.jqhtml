@@ -1,0 +1,27 @@
+<%--
+Ajax_Entity_Select_Input
+
+A single-type, remote-search entity picker (TomSelect) over
+Frontend_Tasks_Controller.search_parents. Options are fetched as the user types
+(typeahead), so it scales to large sets (e.g. hundreds of tasks) without loading
+them all. Used standalone for the assignee + project fields, and as the entity
+half of Parent_Selector_Input.
+
+$parent_type - the search type discriminator ("User_Model" / "Project_Model" /
+               "Task_Model" / "Client_Model"). May be changed at runtime via
+               set_type() (Parent_Selector_Input swaps it when the type select
+               changes).
+$exclude_id  - optional; a task id whose subtree is excluded (Task type only,
+               cycle guard).
+$placeholder - placeholder text.
+
+val() get/set is a scalar entity id (string/number) - timing-indifferent per the
+Form_Input_Abstract contract (the base buffers a pre-ready val() and applies it
+at _mark_ready). On set of an id not yet in the option set, the specific record's
+label is resolved via search_parents({type, id}) so the preselection shows a name.
+
+Renders EMPTY (TomSelect owns the option list) per the inputs contract.
+--%>
+<Define:Ajax_Entity_Select_Input extends="Select_Input">
+    <select $sid="input"></select>
+</Define:Ajax_Entity_Select_Input>

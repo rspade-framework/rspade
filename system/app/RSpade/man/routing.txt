@@ -1,0 +1,301 @@
+NAME
+    routing - RSX type-safe URL generation and route patterns
+
+SYNOPSIS
+    Type-safe URL generation in PHP and JavaScript with automatic route discovery
+
+DESCRIPTION
+    The RSX framework provides type-safe URL generation that ensures routes
+    are valid at build time and prevents broken links. Unlike Laravel's
+    route() helper which uses string names, RSX uses controller class names
+    and actions, providing IDE autocompletion and refactoring safety.
+
+    Key differences from Laravel:
+    - Laravel: route('user.profile', $user) using named routes
+    - RSX: Rsx::Route('User_Controller::profile', ['id' => $user->id])
+
+    Benefits:
+    - No route name management required
+    - Automatic route discovery from controller attributes
+    - Same syntax works in both PHP and JavaScript
+    - IDE autocompletion for controller names
+    - Refactoring-safe (renaming controllers updates routes)
+
+BASIC USAGE
+    Signature:
+        Rsx::Route($action, $params = null)
+        Rsx.Route(action, params = null)
+
+        Where:
+        - $action: Controller class, SPA action, or "Class::method"
+          Defaults to 'index' method if no :: present
+        - $params: Integer sets 'id', array/object provides named params
+
+    PHP Syntax:
+        use App\RSpade\Core\Rsx;
+
+        // Generate URLs (defaults to 'index' method)
+        $url = Rsx::Route('Demo_Index_Controller');           // /demo
+        $url = Rsx::Route('Demo_Index_Controller::show');     // /demo/show
+        $url = Rsx::Route('Demo_Index_Controller::show', 123);        // /demo/123
+        $url = Rsx::Route('Demo_Index_Controller::show', ['id' => 123]); // /demo/123
+
+        // Use in redirects
+        return redirect(Rsx::Route('Demo_Index_Controller'));
+
+    JavaScript Syntax:
+        // Generate URLs (defaults to 'index' method)
+        const url = Rsx.Route('Demo_Index_Controller');           // /demo
+        const url = Rsx.Route('Demo_Index_Controller::show');     // /demo/show
+        const url = Rsx.Route('Demo_Index_Controller::show', 123);        // /demo/123
+        const url = Rsx.Route('Demo_Index_Controller::show', {id: 123}); // /demo/123
+
+        // Use in navigation
+        window.location.href = Rsx.Route('Demo_Index_Controller');
+
+ROUTE PATTERNS
+    Route Definition:
+        Routes are defined using #[Route] attributes on controller methods:
+
+        #[Route('/users/:division/:id')]
+        public static function show_user(Request $request, array $params = [])
+        {
+            // $params['division'] and $params['id'] contain URL values
+            $division = $params['division'];
+            $user_id = $params['id'];
+        }
+
+    Multiple Routes Per Action:
+        Controllers and SPA actions can define multiple route patterns.
+        The best matching route is automatically selected based on provided parameters:
+
+        #[Route('/users/add')]
+        #[Route('/users/:id/edit')]
+        public static function form(Request $request, array $params = [])
+        {
+            $user_id = $params['id'] ?? null;
+            // Handle both add and edit in single method
+        }
+
+        Rsx::Route('User_Controller::form')              // /users/add
+        Rsx::Route('User_Controller::form', ['id' => 5]) // /users/5/edit
+
+        The framework selects the most specific route that satisfies all
+        required parameters. SPA actions use @route() decorator syntax.
+
+    Parameter Syntax:
+        - :param - Required parameter in URL path
+        - Routes without parameters use controller/action mapping
+        - URL generation validates required parameters are provided
+
+    URL Parameter Handling:
+        - Required parameters (in pattern) must be provided or exception thrown
+        - Extra parameters become query string (?key=value)
+        - All values automatically URL encoded
+        - Supports complex parameter patterns
+
+ROUTE ACCESS CONTROL
+    Every route declares its own access with #[Auth(...)], and every route is
+    CLOSED BY DEFAULT: one with no gate fails the manifest build. The gate is
+    evaluated by the dispatcher before the controller method. Full treatment:
+    rsx:man auth_gates.
+
+    Controller-wide (recommended) - a class-level gate covers every surface in
+    the class; a method-level #[Auth] is additive and can only narrow:
+
+        #[Auth('is_logged_in')]
+        class Settings_Controller extends Rsx_Controller_Abstract
+        {
+            #[Route('/settings/users')]
+            #[Auth('can_manage_users')]
+            public static function users(Request $request, array $params = [])
+            {
+                // Logged in AND can_manage_users
+            }
+        }
+
+    Public route - declare it, do not omit it:
+
+        class Landing_Controller extends Rsx_Controller_Abstract
+        {
+            #[Route('/')]
+            #[Auth('public')]
+            public static function index(Request $request, array $params = [])
+            {
+                return rsx_view('Landing');
+            }
+        }
+
+    Because access is declared ON the destination, a link's visibility can be
+    derived from it - Permission::can_access('Settings_Controller::users') -
+    instead of duplicating the rule at every link site.
+
+    See acls(3) and auth(3) for complete authorization documentation.
+
+ROUTE DISCOVERY
+    Automatic Discovery:
+        The manifest system automatically discovers routes by scanning
+        for #[Route] attributes on controller static methods.
+
+    Discovery Process:
+        1. Manifest scanner finds Route attributes during build
+        2. Routes extracted and cached in manifest
+        3. Bundle compilation injects routes into JavaScript
+        4. Both PHP and JS use same routing logic
+
+    Controller Mapping:
+        - Demo_Index_Controller maps to /demo route by default
+        - User_Profile_Controller maps to /user/profile
+        - Action methods create sub-routes: show -> /demo/show
+
+BUNDLE INTEGRATION
+    Automatic Route Inclusion:
+        Routes are automatically included in JavaScript bundles when
+        controllers are in the bundle's include paths.
+
+    Bundle Configuration:
+        class My_Bundle extends Rsx_Bundle_Abstract
+        {
+            public static function define(): array
+            {
+                return [
+                    'include' => ['rsx/app/myapp'],
+                    'include_routes' => ['rsx/app/admin'], // Additional route scanning
+                ];
+            }
+        }
+
+    Route Availability:
+        - Routes available in JavaScript when bundle renders
+        - Same URL generation logic in both PHP and JavaScript
+        - No manual route registration required
+
+ADVANCED PATTERNS
+    Complex Parameter Examples:
+        // Multiple parameters
+        #[Route('/api/v1/users/:company/:division/:id')]
+        $url = Rsx::Route('Api_V1_Users_Controller::show',
+            ['company' => 'acme', 'division' => 'sales', 'id' => 123]);
+        // Result: /api/v1/users/acme/sales/123
+
+        // Query parameters for extra values
+        $url = Rsx::Route('Demo_Controller::show',
+            ['id' => 123, 'format' => 'json', 'include' => 'profile']);
+        // Result: /demo/123?format=json&include=profile
+
+        // Complex objects as parameters
+        $url = Rsx::Route('Demo_Controller',
+            ['filter' => ['status' => 'active', 'type' => 'user']]);
+        // Result: /demo?filter[status]=active&filter[type]=user
+
+    Route Groups and Prefixes:
+        Routes inherit prefixes from controller structure:
+        - Backend_User_Controller -> /backend/user
+        - Api_V1_User_Controller -> /api/v1/user
+        - Admin_Reports_Controller -> /admin/reports
+
+    Custom Route Patterns:
+        #[Route('/custom/path/:id')]           // Custom path
+        #[Route('/api/:version/users/:id')]    // Multiple segments
+        #[Route('/files/*')]                   // Wildcard (bare *, matches trailing path)
+
+JAVASCRIPT BUNDLE ROUTES
+    Route Availability in JavaScript:
+        Routes are injected into JavaScript bundles as part of the Rsx
+        framework initialization. No manual configuration required.
+
+    Bundle Route Extraction:
+        // Routes automatically extracted from included controllers
+        class Frontend_Bundle extends Rsx_Bundle_Abstract
+        {
+            public static function define(): array
+            {
+                return [
+                    'include' => [
+                        'rsx/app/frontend',     // Controllers here get routes extracted
+                        'rsx/app/shared',       // Additional controller directories
+                    ],
+                ];
+            }
+        }
+
+    Runtime Route Access:
+        // Routes available after bundle loads
+        if (typeof Rsx !== 'undefined') {
+            const url = Rsx.Route('Demo_Index_Controller');
+        }
+
+ERROR HANDLING
+    Missing Route Errors:
+        - PHP: Rsx_Caller_Exception when controller/action not found
+        - JavaScript: Error thrown when route not available in bundle
+        - Development: Clear error messages with suggestions
+
+    Parameter Validation:
+        - Required parameters must be provided
+        - Invalid parameter types rejected
+        - URL encoding applied automatically
+
+    Bundle Configuration Errors:
+        - Routes not available if controllers not in bundle includes
+        - Clear error messages when routes missing from JavaScript
+
+DEBUGGING ROUTES
+    View All Routes:
+        php artisan rsx:routes                 # List all discovered routes
+
+    Test Route Generation:
+        php artisan rsx:debug /demo --eval="Rsx.Route('Demo_Index_Controller')"
+
+    Route Information:
+        php artisan rsx:manifest:show          # View route cache in manifest
+
+COMMON PATTERNS
+    Controller Navigation:
+        // Redirect to another controller
+        public static function handle_form(Request $request, array $params = [])
+        {
+            // Process form...
+            return redirect(Rsx::Route('Dashboard_Index_Controller'));
+        }
+
+    AJAX URL Generation:
+        // Generate URLs for AJAX calls
+        const apiUrl = Rsx.Route('Api_User_Controller::update', {id: userId});
+        fetch(apiUrl, {method: 'POST', body: formData});
+
+    Form Action URLs:
+        // Generate form action URLs
+        <form action="<?= Rsx::Route('User_Profile_Controller::update') ?>" method="POST">
+
+    Link Generation:
+        // Generate navigation links
+        <a href="<?= Rsx::Route('Dashboard_Index_Controller') ?>">Dashboard</a>
+
+TROUBLESHOOTING
+    Route Not Found:
+        - Verify controller exists and has #[Route] attribute
+        - Check controller is in manifest-scanned directories
+        - Ensure manifest rebuilt after adding new routes
+
+    JavaScript Route Unavailable:
+        - Verify controller included in bundle configuration
+        - Check bundle compiles without errors
+        - Ensure bundle renders in HTML output
+
+    Parameter Errors:
+        - Required parameters must match route pattern exactly
+        - Parameter names are case-sensitive
+        - Use array syntax for multiple parameters
+
+    URL Generation Issues:
+        - Check for typos in controller names
+        - Verify action method exists on controller
+        - Ensure route pattern matches expected parameters
+
+SEE ALSO
+    auth_gates - #[Auth] gates on routes, and can_access link visibility
+    controller - Controller patterns and route attributes
+    bundle_api - Bundle system and JavaScript integration
+    manifest_api - Route discovery and caching system
+    config_rsx - config('rsx.middleware'), the app's HTTP middleware seam

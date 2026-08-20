@@ -1,0 +1,10 @@
+<Define:System_Status_Action>
+<Page_Scaffold>
+    <Slot:main>
+        <Placeholder_Card $icon="bi bi-heart-pulse">
+            <Slot:title>System status monitoring coming soon</Slot:title>
+            <Slot:body>Server health, service status, and key infrastructure metrics will appear here.</Slot:body>
+        </Placeholder_Card>
+    </Slot:main>
+</Page_Scaffold>
+</Define:System_Status_Action>

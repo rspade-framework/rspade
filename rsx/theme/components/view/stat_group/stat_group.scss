@@ -1,0 +1,17 @@
+// Stat_Group - responsive grid of dashboard KPI stat tiles.
+// Owns only the layout (the gap between cells and how many sit per row); the
+// tile look belongs to Kpi_Cell. Four-up wide, two-up on tablet, one-up
+// on phone.
+.Stat_Group {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--block-gap);
+
+    @include tablet {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @include phone {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

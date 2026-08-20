@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     * 
+     * IMPORTANT: Use raw MySQL queries for clarity and auditability
+     * ✅ DB::statement("ALTER TABLE {{ table }} ADD COLUMN new_field VARCHAR(255)")
+     * ❌ Schema::table() with Blueprint
+     * 
+     * Migrations must be self-contained - no Model/Service references
+     *
+     * @return void
+     */
+    public function up()
+    {
+        // Examples:
+        // DB::statement("ALTER TABLE {{ table }} ADD COLUMN name VARCHAR(255) NOT NULL");
+        // DB::statement("ALTER TABLE {{ table }} ADD INDEX idx_name (name)");
+        // DB::statement("UPDATE {{ table }} SET updated_at = NOW() WHERE updated_at IS NULL");
+    }
+    
+    /**
+     * down() method is prohibited in RSpade framework
+     * Migrations should only move forward, never backward
+     * You may remove this comment as soon as you see it and understand.
+     */
+};

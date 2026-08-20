@@ -1,0 +1,133 @@
+FORM VALUE PERSISTENCE - MIGRATION GUIDE
+Date: 2025-12-29
+
+SUMMARY
+
+    When using stale-while-revalidate caching, forms may render from cache and then
+    re-render with fresh data after cache revalidation. If a user modifies an input
+    between these two renders, their changes would be lost. This update adds automatic
+    tracking and restoration of user-modified form values across re-renders within
+    the same parent action context.
+
+    The system works by storing changed values on the parent component (or the form
+    itself if no parent exists). When the form re-renders, cached values are merged
+    back into the form state before widgets are populated.
+
+AFFECTED FILES
+
+    Theme form component:
+    - rsx/theme/components/forms/rsx_form.js
+
+    Widget components (contract requirement):
+    - Any custom Widget that doesn't fire 'input' events won't participate in caching
+
+CHANGES REQUIRED
+
+    1. Add on_render() Method to Rsx_Form
+
+       Add this method after on_create():
+
+       on_render() {
+           // Form value persistence across cache revalidation re-renders.
+           // When a form renders from cache, the user may change inputs before
+           // the cache revalidates and the form re-renders with fresh data.
+           // This system caches user changes and re-applies them after re-render.
+
+           // Get parent component (closest .Component that isn't this one)
+           const $parent = this.$.closest('.Component').not(this.$);
+           const parent_component = $parent.exists() ? $parent.component() : null;
+
+           // Determine cache storage location and key
+           const cache_location = parent_component || this;
+           const cache_key = parent_component ? `__formvals_${this._cid}` : '__this_formvals';
+
+           // Initialize cache if it doesn't exist
+           if (!cache_location[cache_key]) {
+               cache_location[cache_key] = {};
+           }
+           const cache = cache_location[cache_key];
+
+           // If cache has values from prior render, merge into state.values
+           // These will be applied when on_ready calls vals()
+           if (Object.keys(cache).length > 0) {
+               Object.assign(this.state.values, cache);
+           }
+
+           // Register input listeners on all widgets to track user changes
+           const that = this;
+           this.$.shallowFind('.Widget').each(function () {
+               const $widget = $(this);
+               const component = $widget.component();
+               if (component && 'on' in component) {
+                   const widget_name = $widget.data('name');
+                   if (widget_name) {
+                       component.on('input', function (comp, value) {
+                           cache[widget_name] = value;
+                       });
+                   }
+               }
+           });
+       }
+
+    2. Widget Contract Requirements
+
+       For form value persistence to work, Widget components must:
+
+       a) Have a data-name attribute (set via $name on Form_Field)
+       b) Implement component.on('input', callback) event registration
+       c) Fire the 'input' event when the user changes the value
+       d) NOT fire 'input' when val() is called programmatically
+
+       Standard framework widgets (Text_Input, Select_Input, Checkbox_Input, etc.)
+       already meet these requirements. Custom widgets should be verified.
+
+HOW IT WORKS
+
+    1. First Render (from cache):
+       - on_create: parses $data into this.state.values
+       - on_render: initializes cache on parent, registers input listeners
+       - on_ready: loads values into widgets via vals()
+       - User modifies a checkbox
+       - Input listener fires, stores { checkbox_name: new_value } in cache
+
+    2. Second Render (cache revalidated):
+       - on_create: parses fresh $data into this.state.values
+       - on_render: finds existing cache, merges cached values into this.state.values
+       - on_ready: loads merged values (server data + user changes) into widgets
+       - User's checkbox change is preserved
+
+    Cache Storage:
+    - If form has a parent: stored at parent.__formvals_{form_cid}
+    - If form has no parent: stored at form.__this_formvals
+
+    Cache Lifecycle:
+    - Created when form first renders
+    - Persists as long as parent component exists
+    - Automatically cleared when parent is destroyed (navigating away)
+
+CONFIGURATION
+
+    No configuration required. The feature is automatic.
+
+VERIFICATION
+
+    1. Open a page with a form that uses stale-while-revalidate caching
+
+    2. Quickly modify a form input (checkbox, text field, etc.) before
+       the cache revalidates
+
+    3. Wait for the form to re-render with fresh data
+
+    4. Verify that your change is preserved after re-render
+
+    5. In browser console, you can inspect the cache:
+       // If form has a parent:
+       Spa.action().__formvals_form
+
+       // Or check what's stored:
+       console.log(Object.keys(Spa.action()).filter(k => k.startsWith('__formvals')));
+
+REFERENCE
+
+    php artisan rsx:man form_conventions
+    rsx/theme/components/forms/rsx_form.js

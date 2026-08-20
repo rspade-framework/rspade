@@ -1,0 +1,461 @@
+{
+    "description": "This file tracks migrations created via php artisan make:migration",
+    "purpose": "Prevents manually created migrations from running to avoid timestamp conflicts",
+    "migrations": {
+        "2024_01_01_000000_create_sessions_table.php": {
+            "created_at": "pre-whitelist",
+            "created_by": "system",
+            "command": "existing migration"
+        },
+        "2025_09_03_054656_create_sites_table.php": {
+            "created_at": "2025-09-03T05:46:56+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_sites_table"
+        },
+        "2025_09_03_054826_create_users_table.php": {
+            "created_at": "2025-09-03T05:48:26+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_users_table"
+        },
+        "2025_09_03_054950_create_file_hashes_table.php": {
+            "created_at": "2025-09-03T05:49:50+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_file_hashes_table"
+        },
+        "2025_09_03_054950_create_files_table.php": {
+            "created_at": "2025-09-03T05:49:50+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_files_table"
+        },
+        "2025_09_03_054950_create_ip_addresses_table.php": {
+            "created_at": "2025-09-03T05:49:50+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_ip_addresses_table"
+        },
+        "2025_09_03_054950_create_site_users_table.php": {
+            "created_at": "2025-09-03T05:49:50+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_site_users_table"
+        },
+        "2025_09_03_054951_create_user_invites_table.php": {
+            "created_at": "2025-09-03T05:49:51+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_user_invites_table"
+        },
+        "2025_09_03_054951_create_user_verifications_table.php": {
+            "created_at": "2025-09-03T05:49:51+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_user_verifications_table"
+        },
+        "2025_09_03_152057_create_admin_test_user.php": {
+            "created_at": "2025-09-03T15:20:57+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_admin_test_user"
+        },
+        "2025_09_03_164754_add_rsx_columns_to_sessions_table.php": {
+            "created_at": "2025-09-03T16:47:54+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_rsx_columns_to_sessions_table"
+        },
+        "2025_09_09_102518_create_flash_alerts_table.php": {
+            "created_at": "2025-09-09T10:25:18+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_flash_alerts_table"
+        },
+        "2025_09_09_173210_update_flash_alerts_foreign_key_cascade.php": {
+            "created_at": "2025-09-09T17:32:10+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe update_flash_alerts_foreign_key_cascade"
+        },
+        "2025_09_11_235349_fix_flash_alerts_session_id_schema.php": {
+            "created_at": "2025-09-11T23:53:49+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe fix_flash_alerts_session_id_schema"
+        },
+        "2025_09_12_185559_add_csrf_token_to_sessions_table.php": {
+            "created_at": "2025-09-12T18:55:59+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_csrf_token_to_sessions_table"
+        },
+        "2025_09_16_074547_add_status_to_users_table.php": {
+            "created_at": "2025-09-16T07:45:47+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_status_to_users_table"
+        },
+        "2025_09_16_075234_rename_status_column_to_status_id.php": {
+            "created_at": "2025-09-16T07:52:34+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe rename_status_column_to_status_id"
+        },
+        "2025_09_16_080116_fix_flash_alerts_foreign_key.php": {
+            "created_at": "2025-09-16T08:01:16+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe fix_flash_alerts_foreign_key"
+        },
+        "2025_09_30_023430_drop_and_recreate_session_table.php": {
+            "created_at": "2025-09-30T02:34:30+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe drop_and_recreate_session_table"
+        },
+        "2025_09_30_050004_add_last_login_to_users_table.php": {
+            "created_at": "2025-09-30T05:00:05+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_last_login_to_users_table"
+        },
+        "2025_10_14_172351_add_experience_id_to_sessions.php": {
+            "created_at": "2025-10-14T17:23:51+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_experience_id_to_sessions"
+        },
+        "2025_10_28_223500_create_geographic_data_tables.php": {
+            "created_at": "2025-10-28T22:35:00+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_geographic_data_tables"
+        },
+        "2025_11_02_063218_rename_file_tables_for_storage_attachment_refactor.php": {
+            "created_at": "2025-11-02T06:32:18+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe rename_file_tables_for_storage_attachment_refactor"
+        },
+        "2025_11_02_065329_add_metadata_fields_to_file_attachments.php": {
+            "created_at": "2025-11-02T06:53:29+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_metadata_fields_to_file_attachments"
+        },
+        "2025_11_02_065347_create_file_thumbnails_table.php": {
+            "created_at": "2025-11-02T06:53:47+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_file_thumbnails_table"
+        },
+        "2025_11_02_070055_create_search_indexes_table.php": {
+            "created_at": "2025-11-02T07:00:55+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_search_indexes_table"
+        },
+        "2025_11_02_162826_add_dimensions_to_file_attachments.php": {
+            "created_at": "2025-11-02T16:28:26+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_dimensions_to_file_attachments"
+        },
+        "2025_11_04_011033_add_name_and_phone_columns_to_users_table.php": {
+            "created_at": "2025-11-04T01:10:33+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe Add name and phone columns to users table"
+        },
+        "2025_11_04_011050_create_user_profiles_table.php": {
+            "created_at": "2025-11-04T01:10:50+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe Create user profiles table"
+        },
+        "2025_11_04_014825_add_session_id_to_file_attachments_table.php": {
+            "created_at": "2025-11-04T01:48:25+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_session_id_to_file_attachments_table"
+        },
+        "2025_11_04_051746_create_login_users_table.php": {
+            "created_at": "2025-11-04T05:17:46+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_login_users_table"
+        },
+        "2025_11_04_051828_refactor_site_users_to_users_table.php": {
+            "created_at": "2025-11-04T05:18:28+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe refactor_site_users_to_users_table"
+        },
+        "2025_11_04_051907_update_sessions_table_for_login_user_id.php": {
+            "created_at": "2025-11-04T05:19:07+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe update_sessions_table_for_login_user_id"
+        },
+        "2025_11_04_051935_update_user_profiles_foreign_key.php": {
+            "created_at": "2025-11-04T05:19:35+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe update_user_profiles_foreign_key"
+        },
+        "2025_11_04_181832_add_invite_columns_to_users_table.php": {
+            "created_at": "2025-11-04T18:18:32+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_invite_columns_to_users_table"
+        },
+        "2025_11_05_012345_make_login_user_id_nullable_in_users_table.php": {
+            "created_at": "2025-11-05T01:23:45+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe Make login_user_id nullable in users table"
+        },
+        "2025_11_13_193740_modify_flash_alerts_table_for_type_based_system.php": {
+            "created_at": "2025-11-13T19:37:40+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe modify_flash_alerts_table_for_type_based_system"
+        },
+        "2025_11_16_093331_drop_file_thumbnails_table.php": {
+            "created_at": "2025-11-16T09:33:31+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe drop_file_thumbnails_table"
+        },
+        "2025_11_16_200145_create_tasks_table.php": {
+            "created_at": "2025-11-16T20:01:45+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_tasks_table"
+        },
+        "2025_11_19_054000_rename_system_tables_to_underscore_prefix.php": {
+            "created_at": "2025-11-19T05:40:00+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe rename_system_tables_to_underscore_prefix"
+        },
+        "2025_11_19_231708_create_test_user_record.php": {
+            "created_at": "2025-11-19T23:17:08+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_test_user_record"
+        },
+        "2025_11_21_193529_create_api_keys_table.php": {
+            "created_at": "2025-11-21T19:35:29+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_api_keys_table"
+        },
+        "2025_11_23_160855_create_user_permissions_table.php": {
+            "created_at": "2025-11-23T16:08:55+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_user_permissions_table"
+        },
+        "2025_11_23_164439_reindex_user_roles_to_100_based.php": {
+            "created_at": "2025-11-23T16:44:39+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe reindex_user_roles_to_100_based"
+        },
+        "2025_12_08_042258_drop_migrations_and_rename_sessions_table.php": {
+            "created_at": "2025-12-08T04:22:58+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe drop_migrations_and_rename_sessions_table"
+        },
+        "2025_12_10_020633_set_user_1_invite_accepted.php": {
+            "created_at": "2025-12-10T02:06:33+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe set_user_1_invite_accepted"
+        },
+        "2025_12_11_050610_create_login_history_table.php": {
+            "created_at": "2025-12-11T05:06:10+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_login_history_table"
+        },
+        "2025_12_11_061551_create_groups_and_group_users_tables.php": {
+            "created_at": "2025-12-11T06:15:51+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_groups_and_group_users_tables"
+        },
+        "2025_12_24_210213_add_timezone_to_login_users_table.php": {
+            "created_at": "2025-12-24T21:02:13+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_timezone_to_login_users_table"
+        },
+        "2025_12_27_225200_create_type_refs_table.php": {
+            "created_at": "2025-12-27T22:52:00+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_type_refs_table"
+        },
+        "2025_12_27_225224_convert_polymorphic_columns_to_type_refs.php": {
+            "created_at": "2025-12-27T22:52:24+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe convert_polymorphic_columns_to_type_refs"
+        },
+        "2026_01_12_073624_add_timezone_to_sites_table.php": {
+            "created_at": "2026-01-12T07:36:24+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_timezone_to_sites_table"
+        },
+        "2026_01_29_070242_create_action_logs_tables.php": {
+            "created_at": "2026-01-29T07:02:42+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_action_logs_tables"
+        },
+        "2026_01_29_081808_create_throttle_table.php": {
+            "created_at": "2026-01-29T08:18:08+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_throttle_table"
+        },
+        "2026_01_29_081902_create_notifications_table.php": {
+            "created_at": "2026-01-29T08:19:02+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_notifications_table"
+        },
+        "2026_01_29_180540_create_portal_users_table.php": {
+            "created_at": "2026-01-29T18:05:40+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_portal_users_table"
+        },
+        "2026_01_29_180545_create_portal_sessions_table.php": {
+            "created_at": "2026-01-29T18:05:45+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_portal_sessions_table"
+        },
+        "2026_04_08_070914_create_email_queue_table.php": {
+            "created_at": "2026-04-08T07:09:14+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_email_queue_table"
+        },
+        "2026_04_08_070914_create_email_recipients_table.php": {
+            "created_at": "2026-04-08T07:09:14+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_email_recipients_table"
+        },
+        "2026_06_22_054710_create_settings_tables.php": {
+            "created_at": "2026-06-22T05:47:10+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_settings_tables"
+        },
+        "2026_06_23_035931_create_portal_notifications_table.php": {
+            "created_at": "2026-06-23T03:59:31+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_portal_notifications_table"
+        },
+        "2026_06_30_162814_add_impersonation_to_portal_sessions.php": {
+            "created_at": "2026-06-30T16:28:14+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_impersonation_to_portal_sessions"
+        },
+        "2026_07_01_080525_add_status_to_portal_invitations.php": {
+            "created_at": "2026-07-01T08:05:25+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_status_to_portal_invitations"
+        },
+        "2026_07_01_132114_create_sms_queue_table.php": {
+            "created_at": "2026-07-01T13:21:14+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_sms_queue_table"
+        },
+        "2026_07_01_133258_create_sms_recipients_table.php": {
+            "created_at": "2026-07-01T13:32:58+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_sms_recipients_table"
+        },
+        "2026_07_02_094505_add_external_handler_fields_to_file_attachments.php": {
+            "created_at": "2026-07-02T09:45:05+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_external_handler_fields_to_file_attachments"
+        },
+        "2026_07_08_084412_add_cron_expression_to_tasks.php": {
+            "created_at": "2026-07-08T08:44:12+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_cron_expression_to_tasks"
+        },
+        "2026_07_09_084211_add_impersonation_columns_to_sessions.php": {
+            "created_at": "2026-07-09T08:42:11+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_impersonation_columns_to_sessions"
+        },
+        "2026_07_16_130944_alter_search_indexes_add_extraction_status.php": {
+            "created_at": "2026-07-16T13:09:44+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe alter_search_indexes_add_extraction_status"
+        },
+        "2026_07_16_130948_alter_file_storage_add_is_indexed.php": {
+            "created_at": "2026-07-16T13:09:48+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe alter_file_storage_add_is_indexed"
+        },
+        "2026_07_22_144452_add_scopes_to_api_keys.php": {
+            "created_at": "2026-07-22T14:44:52+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_scopes_to_api_keys"
+        },
+        "2026_07_22_144455_create_api_request_log_table.php": {
+            "created_at": "2026-07-22T14:44:55+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_api_request_log_table"
+        },
+        "2026_07_23_135833_create_zip_download_requests_table.php": {
+            "created_at": "2026-07-23T13:58:33+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_zip_download_requests_table"
+        },
+        "2026_07_28_135157_repair_document_mime_routing.php": {
+            "created_at": "2026-07-28T13:51:57+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe repair_document_mime_routing"
+        },
+        "2026_07_30_121017_seed_default_site.php": {
+            "created_at": "2026-07-30T12:10:17+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe seed_default_site"
+        },
+        "2026_07_30_152852_drop_language_from_search_indexes.php": {
+            "created_at": "2026-07-30T15:28:52+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe drop_language_from_search_indexes"
+        },
+        "2026_07_31_133354_add_status_reason_to_tasks.php": {
+            "created_at": "2026-07-31T13:33:54+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_status_reason_to_tasks"
+        },
+        "2026_08_03_141649_add_preview_unavailable_to_file_attachments.php": {
+            "created_at": "2026-08-03T14:16:49+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_preview_unavailable_to_file_attachments"
+        },
+        "2026_07_16_143236_add_retention_columns_to_file_attachments.php": {
+            "created_at": "2026-08-04T05:57:53+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_retention_columns_to_file_attachments"
+        },
+        "2026_08_07_152553_add_type_to_sessions.php": {
+            "created_at": "2026-08-07T15:25:53+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_type_to_sessions"
+        },
+        "2026_08_07_152935_add_type_to_portal_sessions.php": {
+            "created_at": "2026-08-07T15:29:35+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_type_to_portal_sessions"
+        },
+        "2026_08_09_053054_drop_session_id_add_ip_to_file_attachments.php": {
+            "created_at": "2026-08-09T05:30:54+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe drop_session_id_add_ip_to_file_attachments"
+        },
+        "2026_08_09_075941_merge_portal_sessions_into_sessions.php": {
+            "created_at": "2026-08-09T07:59:41+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe merge_portal_sessions_into_sessions"
+        },
+        "2026_08_09_103324_rename_audit_columns_to_pair_shape.php": {
+            "created_at": "2026-08-09T10:33:24+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe rename_audit_columns_to_pair_shape"
+        },
+        "2026_08_09_112232_add_deleted_at_to_actor_tables.php": {
+            "created_at": "2026-08-09T11:22:32+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_deleted_at_to_actor_tables"
+        },
+        "2026_08_09_120837_rename_deleted_by_to_pair_shape.php": {
+            "created_at": "2026-08-09T12:08:37+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe rename_deleted_by_to_pair_shape"
+        },
+        "2026_08_10_052037_drop_experience_id_add_portal_site_to_sessions.php": {
+            "created_at": "2026-08-10T05:20:37+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe drop_experience_id_add_portal_site_to_sessions"
+        },
+        "2026_08_10_062042_add_is_portal_to_flash_alerts.php": {
+            "created_at": "2026-08-10T06:20:42+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_is_portal_to_flash_alerts"
+        },
+        "2026_08_12_125303_add_failure_tracking_to_tasks.php": {
+            "created_at": "2026-08-12T12:53:03+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_failure_tracking_to_tasks"
+        },
+        "2026_08_13_161806_drop_user_role_id_from_users_table.php": {
+            "created_at": "2026-08-13T16:18:06+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe drop_user_role_id_from_users_table"
+        },
+        "2026_08_18_145643_add_timezone_auto_to_login_users_table.php": {
+            "created_at": "2026-08-18T14:56:43+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_timezone_auto_to_login_users_table"
+        }
+    }
+}

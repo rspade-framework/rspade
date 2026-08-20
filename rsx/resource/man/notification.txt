@@ -1,0 +1,296 @@
+NOTIFICATION(3)            RSX Framework Manual            NOTIFICATION(3)
+
+NAME
+    notification - Per-user notification system with dropdown UI
+
+SYNOPSIS
+    Send notification with entity reference:
+        use Rsx\Lib\Notification\Notification;
+        use Rsx\Models\Notification_Model;
+
+        Notification::send(
+            Notification_Model::TYPE_PROJECT_CREATED,
+            [$user1_id, $user2_id],
+            $project
+        );
+
+    Send notification with metadata only (no entity):
+        Notification::send(
+            Notification_Model::TYPE_TASK_ASSIGNED,
+            [$assignee_id],
+            null,
+            ['task_title' => $task->title]
+        );
+
+    Get unread count:
+        $count = Notification::get_unread_count();
+
+    Get for dropdown:
+        $result = Notification::get_for_dropdown(5);
+        // ['notifications' => [...], 'total' => 12, 'unread' => 3]
+
+DESCRIPTION
+    The notification system delivers per-user notifications with a dropdown
+    UI in the application header. Each notification type has a renderer that
+    returns structured data (text, URL, optional image).
+
+    Key Features
+        - Per-user notification copies (one row per recipient)
+        - Site-scoped (multi-tenant)
+        - Optional polymorphic entity reference
+        - Read/unread tracking
+        - Automatic expiry (default 21 days)
+        - Self-policing: invalid notifications auto-delete on fetch
+        - Throttled maintenance via Rsx_Throttle
+
+    Components
+        - Notification_Model: Main model with type enums
+        - Notification helper: send(), get_unread_count(), etc.
+        - Notification_Renderer: Render functions per type
+        - Notification_Dropdown: Frontend component
+        - Frontend_Notifications_Controller: Ajax endpoints
+
+    Database Tables
+        notifications    Per-user notification records
+        _throttle        Rate limiting for periodic actions
+
+API REFERENCE
+
+    Notification::send($type, $user_ids, $entity = null, $metadata = [])
+        Send notifications to multiple users.
+
+        Parameters:
+            $type       int     Notification_Model::TYPE_* constant
+            $user_ids   array   Array of login_user IDs to notify
+            $entity     object  Optional: Entity the notification references
+            $metadata   array   Optional: Additional context data
+
+        Returns:
+            array of Notification_Model instances
+
+        The creator is automatically set from the current session.
+        Entity is optional - use metadata for notifications without
+        a primary entity reference.
+
+    Notification::get_unread_count()
+        Get unread notification count for current user.
+
+        Returns:
+            int
+
+    Notification::get_for_dropdown($limit = 5)
+        Get notifications for dropdown display.
+
+        Parameters:
+            $limit      int     Max notifications to return (default 5)
+
+        Returns:
+            array with keys:
+                notifications   Rendered notification data
+                total           Total notification count
+                unread          Unread count
+
+        Self-polices invalid notifications during retrieval.
+
+    Notification::mark_all_read()
+        Mark all notifications as read for current user.
+
+        Returns:
+            int (number marked)
+
+    Notification::mark_read($notification_id)
+        Mark a single notification as read.
+
+        Returns:
+            bool (true if found and marked)
+
+    Notification::expire_old()
+        Delete expired notifications. Called automatically via throttle.
+
+        Returns:
+            int (number deleted)
+
+NOTIFICATION TYPES
+    Types are defined as enums in Notification_Model with a renderer
+    property containing FQCN::method that renders the notification.
+
+    Standard types:
+        TYPE_CLIENT_CREATED     1
+        TYPE_CONTACT_CREATED    10
+        TYPE_PROJECT_CREATED    20
+        TYPE_TASK_ASSIGNED      30
+
+    Adding Custom Types
+        Add to the $enums array in Notification_Model:
+
+            public static $enums = [
+                'type_id' => [
+                    // ... existing types ...
+                    100 => [
+                        'constant' => 'TYPE_INVOICE_SENT',
+                        'label' => 'Invoice Sent',
+                        'renderer' => 'Rsx\\Lib\\Notification\\Notification_Renderer::invoice_sent',
+                    ],
+                ],
+            ];
+
+        Then add the renderer method.
+
+RENDERER PATTERN
+    Each notification type has a renderer method that returns structured
+    data (NOT HTML like action_log). This allows flexible display.
+
+    Return structure:
+        [
+            'text' => 'John created project "Website Redesign"',
+            'url' => '/projects/123',       // optional, for click navigation
+            'image_url' => '/avatars/1.jpg' // optional, for display
+        ]
+
+    Example renderer:
+        class Notification_Renderer
+        {
+            public static function project_created(Notification_Model $n): array
+            {
+                $creator = $n->creator();
+                $creator_name = $creator ? $creator->email : 'Someone';
+                $project = $n->entity;     // morphTo relation, read as a property
+
+                if (!$project) {
+                    return static::result("{$creator_name} created a project (deleted)");
+                }
+
+                $url = Rsx::Route('Projects_View_Action', $project->id);
+                $text = "{$creator_name} created project \"{$project->name}\"";
+
+                return static::result($text, $url);
+            }
+
+            protected static function result($text, $url = null, $image_url = null): array
+            {
+                return ['text' => $text, 'url' => $url, 'image_url' => $image_url];
+            }
+        }
+
+    Key points:
+    - Methods are static, receive Notification_Model instance
+    - Return array with text, url, image_url keys
+    - Handle missing entities gracefully
+    - Use metadata when entity not available
+
+SELF-POLICING
+    Notifications with entity references automatically validate on fetch.
+    If the entity no longer exists, the notification is deleted.
+
+    This happens in:
+    - Notification::get_for_dropdown() - validates all fetched notifications
+    - Notification_Model::fetch() - validates single notification
+
+    Notifications without entity references are always valid.
+
+RSX_THROTTLE
+    The Rsx_Throttle utility rate-limits periodic per-user actions.
+
+    Usage:
+        use App\RSpade\Core\Throttle\Rsx_Throttle;
+
+        if (Rsx_Throttle::check('NOTIFICATION_EXPIRE_CHECK', $user_id, minutes: 30)) {
+            Notification::expire_old();
+        }
+
+    API:
+        Rsx_Throttle::check($action_key, $user_id, $minutes = 30)
+            Returns true if action should run, atomically marks as executed.
+            First-time calls always return true.
+
+        Rsx_Throttle::reset($action_key, $user_id)
+            Force reset for testing.
+
+    The notification controller uses throttle to run expire_old() every
+    30 minutes per user during get_count() calls.
+
+FRONTEND COMPONENT
+    The Notification_Dropdown component displays a bell icon with badge
+    and Bootstrap dropdown.
+
+    Features:
+        - Unread count badge (hides when 0)
+        - Dropdown with notification list
+        - Click notification to navigate and mark read
+        - "Mark all read" button
+        - "Show all (X more)" link when total > limit
+        - Auto-refresh on SPA navigation (spa:dispatch event)
+
+    Layout integration:
+        <Notification_Dropdown $sid="notification_dropdown" />
+
+    Already included in Frontend_Spa_Layout header.
+
+AJAX ENDPOINTS
+    Frontend_Notifications_Controller provides:
+
+        get_count()
+            Returns: { count: int }
+            Runs throttled expiry check.
+
+        get_dropdown({ limit: int })
+            Returns: { notifications: [...], total: int, unread: int }
+
+        mark_all_read()
+            Returns: { marked: int }
+
+        mark_read({ id: int })
+            Returns: { success: bool }
+
+CONFIGURATION
+    In /rsx/resource/config/rsx.php:
+
+        'notifications' => [
+            'default_expiry_days' => 21,
+        ],
+
+BEST PRACTICES
+
+    When to Send
+        Send notifications in controller POST handlers after success:
+
+            $project->save();
+            Action_Log::record(Action_Log_Model::TYPE_PROJECT_CREATED, $project);
+            Notification::send(
+                Notification_Model::TYPE_PROJECT_CREATED,
+                $team_member_ids,
+                $project
+            );
+
+    Entity vs Metadata
+        Use entity reference when:
+        - Notification should link to the entity
+        - Notification should auto-delete if entity deleted
+
+        Use metadata only when:
+        - No specific entity to link
+        - Entity might be deleted but notification still relevant
+        - Performance matters (no validation overhead)
+
+    Determining Recipients
+        The send() method takes an array of user IDs. Your application
+        logic determines who to notify:
+
+            // Notify all users except the actor
+            $notify_ids = User_Model::where('site_id', $site_id)
+                ->where('id', '!=', Session::get_user_id())
+                ->pluck('id')
+                ->toArray();
+
+            Notification::send($type, $notify_ids, $entity);
+
+FILES
+    /rsx/models/notification_model.php              Main model
+    /rsx/lib/notification/notification.php          Helper class
+    /rsx/lib/notification/notification_renderer.php Render functions
+    /rsx/app/frontend/notifications/                Controller
+    /rsx/theme/components/notification/             Dropdown component
+    /system/app/RSpade/Core/Throttle/Rsx_Throttle.php  Rate limiting
+
+SEE ALSO
+    action_log(3), enum(3), model_fetch(3)

@@ -1,0 +1,7 @@
+<Define:Clients_Index_Action>
+<Page_Scaffold>
+    <Slot:main>
+        <Clients_DataGrid />
+    </Slot:main>
+</Page_Scaffold>
+</Define:Clients_Index_Action>

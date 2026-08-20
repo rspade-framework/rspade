@@ -1,0 +1,30 @@
+<%--
+Record_Table - compact record list table with optional whole-row navigation
+
+default content - the authored <thead> / <tbody>. Give a row a
+    <tr data-href="/url"> to make the WHOLE row navigate; clicks on real
+    interactive elements inside it (a, button, input, select, label) are
+    respected and do NOT trigger row navigation.
+
+The single shared record-list look. Place inside a <Section $flush=true> so the
+table sits edge-to-edge (R2 - the section owns the flush, the table never
+cancels padding from inside).
+
+Usage:
+    <Section $title="Projects" $count=_count $flush=true>
+        <Slot:body>
+            <Record_Table>
+                <thead><tr><th>Name</th><th>Status</th></tr></thead>
+                <tbody>
+                    <tr data-href="<%= Rsx.Route('Projects_View_Action', _p.id) %>">
+                        <td><%= _p.name %></td>
+                        <td><Status_Badge $label=_p.status__label $badge=_p.status__badge /></td>
+                    </tr>
+                </tbody>
+            </Record_Table>
+        </Slot:body>
+    </Section>
+--%>
+<Define:Record_Table tag="table">
+    <%= content() %>
+</Define:Record_Table>

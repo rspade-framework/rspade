@@ -1,0 +1,5 @@
+<Define:Page_Header_Left>
+  <div>
+    <%= content() %>
+  </div>
+</Define:Page_Header_Left>

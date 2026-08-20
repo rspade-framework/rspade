@@ -1,0 +1,38 @@
+<%--
+Parent_Selector_Input
+
+Composite form input for a task's polymorphic parent (taskable). A type <select>
+(None / Task / Project / Client / User) drives a nested Ajax_Entity_Select_Input
+that searches the chosen entity type via Frontend_Tasks_Controller.search_parents.
+Changing the type reloads the entity options (and clears the current selection).
+
+val() get/set is `{type: 'Project_Model'|null, id: int|null}` and is
+timing-indifferent per the Form_Input_Abstract contract (the base buffers a
+pre-ready val() and applies it at _mark_ready). Fires 'input' (user changes only)
+and 'val' (all changes) with the {type,id} object.
+
+Flat submission: two mirror hidden inputs (name="taskable_type"/"taskable_id")
+carry the value to the controller in the SAME flat shape it already reads -
+Rsx_Form.vals() collects hidden [name] inputs directly, so no controller change is
+needed. The composite's own val() (the {type,id} object) rides under its $name and
+is ignored by the controller.
+
+$exclude_id - a task id whose subtree is excluded from Task-type options (edit
+              mode passes the task's own id to prevent a circular chain).
+--%>
+<Define:Parent_Selector_Input>
+    <select $sid="type" class="form-select Parent_Selector_Input__type">
+        <option value="None">No parent</option>
+        <option value="Task_Model">Task</option>
+        <option value="Project_Model">Project</option>
+        <option value="Client_Model">Client</option>
+        <option value="User_Model">User</option>
+    </select>
+
+    <div $sid="entity_wrap" class="Parent_Selector_Input__entity">
+        <Ajax_Entity_Select_Input $sid="entity" $parent_type="Project_Model" $placeholder="Search for a parent..." />
+    </div>
+
+    <input type="hidden" $sid="h_type" name="taskable_type" />
+    <input type="hidden" $sid="h_id" name="taskable_id" />
+</Define:Parent_Selector_Input>

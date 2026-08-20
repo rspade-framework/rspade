@@ -1,0 +1,149 @@
+NAME
+    width_group - synchronized min-width for element groups
+
+SYNOPSIS
+    $(".selector").width_group("group-name")
+    $.width_group_destroy("group-name")
+    $.width_group_recalculate("group-name")
+    $.width_group_recalculate()
+
+DESCRIPTION
+    Makes multiple elements share the same min-width, determined by the widest
+    element in the group. Useful for button groups, card layouts, navigation
+    items, or any UI where elements should have consistent widths.
+
+    Elements are tracked individually by DOM reference, not by selector. The
+    same group name can be used across multiple width_group() calls to add
+    more elements to an existing group.
+
+    Calculation occurs immediately on call and on window resize (debounced
+    100ms). Elements removed from the DOM are automatically pruned from
+    tracking on each calculation cycle.
+
+API
+    $(".selector").width_group("group-name")
+
+        Adds matched elements to a named width group. All elements in the
+        group will have their min-width set to match the widest element.
+        Returns the jQuery object for chaining.
+
+        Each element can only belong to one width group at a time:
+        - If already in the same group: no-op (idempotent)
+        - If in a different group: moved to the new group
+
+        Example:
+            $(".toolbar .btn").width_group("toolbar-buttons");
+
+    $.width_group_destroy("group-name")
+
+        Removes all tracking for the named group. Clears min-width styles
+        from elements still in the DOM. Removes the resize listener if no
+        groups remain.
+
+        Example:
+            $.width_group_destroy("toolbar-buttons");
+
+    $.width_group_recalculate("group-name")
+
+        Manually triggers recalculation for a specific group. Useful after
+        dynamically changing element content (text, icons, etc.).
+
+        Example:
+            $(".btn-save").text("Saving...");
+            $.width_group_recalculate("toolbar-buttons");
+
+    $.width_group_recalculate()
+
+        Recalculates all width groups.
+
+AUTOMATIC CLEANUP
+    On each resize or manual recalculate, elements are checked for DOM
+    presence using element.isConnected. Disconnected elements are removed
+    from tracking automatically.
+
+    When all elements in a group are gone, the group is destroyed. When all
+    groups are destroyed, the resize listener is removed. This prevents
+    memory leaks during SPA navigation.
+
+    Explicit $.width_group_destroy() calls are optional but can be used for
+    immediate cleanup.
+
+COMPONENT INTEGRATION
+    When width_group() is called, it automatically finds child components
+    within each element using shallowFind('.Component'). For each component
+    found, it listens for the 'ready' event and triggers a debounced
+    recalculation when the component becomes ready.
+
+    This handles cases where a width group contains components that load
+    asynchronously - the widths will be recalculated once the component
+    content is rendered.
+
+    All recalculation triggers (resize, component ready) share the same
+    debounced function (100ms) to prevent excessive recalculations.
+
+HOW IT WORKS
+    1. On width_group() call, elements are added to a named registry
+    2. Calculation runs immediately:
+       a. Remove min-width from all elements (measure natural width)
+       b. Find max scrollWidth across all connected elements
+       c. Apply max as min-width to all connected elements
+    3. Child components found via shallowFind('.Component') have their
+       ready events listened to for debounced recalculation
+    4. On window resize (debounced 100ms), recalculate all groups
+    5. Disconnected elements are pruned on each calculation
+
+EXAMPLES
+    Button group with consistent widths:
+
+        <div class="action-buttons">
+            <button class="btn">Save</button>
+            <button class="btn">Cancel</button>
+            <button class="btn">Delete Forever</button>
+        </div>
+
+        // All buttons match width of "Delete Forever"
+        $(".action-buttons .btn").width_group("actions");
+
+    Adding elements to existing group:
+
+        // Initial buttons
+        $(".primary-actions .btn").width_group("nav-buttons");
+
+        // Later, add secondary buttons to same group
+        $(".secondary-actions .btn").width_group("nav-buttons");
+
+    Recalculate after content change:
+
+        async function save() {
+            const $btn = $(".btn-save");
+            const original = $btn.text();
+
+            $btn.text("Saving...");
+            $.width_group_recalculate("form-buttons");
+
+            await Controller.save(data);
+
+            $btn.text(original);
+            $.width_group_recalculate("form-buttons");
+        }
+
+    Card layout with equal-width headers:
+
+        <div class="dashboard-cards">
+            <div class="card">
+                <h3 class="card-title">Revenue</h3>
+                ...
+            </div>
+            <div class="card">
+                <h3 class="card-title">Active Users</h3>
+                ...
+            </div>
+        </div>
+
+        $(".dashboard-cards .card-title").width_group("card-titles");
+
+FILES
+    /system/app/RSpade/Core/Js/Width_Group.js
+
+SEE ALSO
+    jquery, responsive, jqhtml

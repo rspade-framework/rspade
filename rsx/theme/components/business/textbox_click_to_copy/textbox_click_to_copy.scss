@@ -1,0 +1,34 @@
+/**
+ * Textbox_Click_To_Copy - Styles for copyable text input component
+ *
+ * Provides hover effects for the input field to indicate interactivity.
+ */
+
+.Textbox_Click_To_Copy {
+    // Default state - no shadow, smooth transition
+    box-shadow: 0 0 0 0 rgba($primary-color, 0);
+    transition: box-shadow $transition-duration-slow ease-out;
+    border-radius: $border-radius-md;
+
+    // Hover effect on both input and button when hovering over either
+    &:hover {
+        input {
+            background-color: rgba($warning-color, 0.1); // Light amber tint
+        }
+
+        button {
+            background-color: rgba($warning-color, 0.1); // Light amber tint
+        }
+    }
+
+    // Active/pressed state - light blue ring appears instantly on click
+    &:active {
+        box-shadow: 0 0 0 3px rgba($primary-color, 0.5) !important;
+        transition: box-shadow 0s; // Instant on press
+    }
+
+    // Make clipboard icon bold
+    i.bi-clipboard {
+        font-weight: bold;
+    }
+}

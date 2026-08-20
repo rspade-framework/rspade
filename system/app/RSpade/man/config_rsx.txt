@@ -1,0 +1,577 @@
+CONFIG_RSX(1)                  RSpade Manual                  CONFIG_RSX(1)
+
+NAME
+    config/rsx.php - RSX framework configuration file
+
+SYNOPSIS
+    config('rsx.mode')                       # read one key
+    config('rsx.tasks.global_max_workers')   # read a nested key
+    config('rsx.portal', [])                 # read a whole section
+
+DESCRIPTION
+    RSX configuration lives in TWO files that are deep-merged at boot:
+
+        system/config/rsx.php        Framework defaults (this page)
+        rsx/resource/config/rsx.php  Application overrides
+
+    system/config/rsx.php ships with the framework and holds the
+    operational defaults every RSpade install needs. An application
+    customizes behavior in rsx/resource/config/rsx.php; it never edits
+    the framework file. Both are plain PHP files returning one array, read
+    through Laravel's config() helper under the 'rsx' namespace.
+
+    Unlike Laravel, which spreads settings across many config/*.php files
+    and wires features through service providers, RSX keeps its framework
+    settings in this single file, discovers code through the manifest, and
+    exposes overrides through the one user file above. Prefer config() over
+    env(): env() is only for deployment-specific secrets/hostnames
+    (DB_PASSWORD, APP_URL, ...); application behavior belongs in config.
+
+TWO-TIER MERGE
+    Rsx_Framework_Provider::register() loads system/config/rsx.php as the
+    base, then deep-merges rsx/resource/config/rsx.php over it via
+    array_merge_deep():
+
+    - Scalar values     User value REPLACES the framework value.
+    - Array values      Combined (framework entries + user entries).
+    - Nested arrays     Recursively merged.
+
+    So a user 'bundle_aliases' block ADDS to the framework aliases rather
+    than replacing them, while a user 'mode' scalar overrides outright.
+    The user file is optional; absent, pure framework defaults apply.
+
+    A third, test-runner-only layer merges last: if the RSX_ADDITIONAL_CONFIG
+    env var points at a PHP config file, its array is merged on top of the
+    user config (used by Rsx_Test_Command to inject per-run overrides).
+
+    App-developer detail: rsx/resource/config/CLAUDE.md.
+
+    Keys that are application PREFERENCES rather than framework
+    requirements were moved OUT of the framework file into user config
+    (console_debug outputs/filters, log_browser_errors, response
+    defaults, development.auto_rename_files, and more). The
+    framework file only carries what the framework itself must have to run.
+
+APPLICATION MODE
+    'mode' => env('RSX_MODE', 'development')
+
+    Authoritative source of truth for application mode: development, debug,
+    or production. Drives minification, sourcemaps, console_debug stripping,
+    and sealed-build behavior. See: php artisan rsx:man app_mode
+
+EXTERNAL API
+    'api' => [
+        'log_retention_days' => 30,
+    ]
+
+    log_retention_days   Days of _api_request_log rows kept; older rows
+                         pruned daily by Api_Cleanup_Service.
+
+    See: php artisan rsx:man external_api
+
+MANIFEST AND BUNDLE PIPELINE
+    'manifest_modules'   Modules run DURING manifest scanning to process
+                         file types (Blade, SCSS). PHP and JS are handled
+                         directly in Manifest.php.
+    'manifest_support'   Modules run AFTER the manifest is built to add
+                         metadata needing the full index (Route, Portal
+                         route/SPA, Model, Jqhtml, SPA, Api_Endpoint).
+    'integrations'       Integration service providers ('providers') plus
+                         per-integration config (e.g. jqhtml compiler
+                         cache/ttl/source_maps).
+    'bundle_processors'  Processors that transform files during bundle
+                         compilation (Scss, Jqhtml).
+    'required_bundles'   Bundles prepended to every bundle's include list.
+                         Default: ['jquery', 'lodash', 'core', 'jqhtml'].
+    'bundle_aliases'     Short name => Bundle class map for use in include
+                         arrays. Framework: core, jquery, lodash,
+                         bootstrap5, jqhtml.
+
+    'manifest' => [
+        'scan_directories' => [...],   # dirs scanned for RSX code
+        'excluded_files' => [...],     # filenames skipped anywhere
+        'excluded_dirs' => [...],      # path segments skipped in scans
+    ]
+
+    scan_directories     Base dirs indexed (rsx, app/RSpade/Core,
+                         Integrations, Bundles, ...). Relative to base_path().
+    excluded_files       CLAUDE.md, .placeholder, .DS_Store, .gitkeep, ...
+    excluded_dirs        vendor, node_modules, storage, .git, public,
+                         resource, Core/Manifest, playwright, _archive.
+
+    NOTE: minification and sourcemaps are decided by application MODE
+    (Manifest::_should_minify() etc.), NOT by any config key here.
+
+ROUTING AND DISPATCH
+    'routing' => [
+        'asset_dirs' => ['public', 'assets', 'static', 'dist', 'build'],
+        'handler_priority' => [
+            'controller' => 1, 'file' => 2, 'asset' => 3, 'custom' => 4,
+        ],
+    ]
+
+    asset_dirs           Directories checked for static assets.
+    handler_priority     Dispatch handler ordering (lower = first).
+
+    'login_redirect' => [
+        'excluded_prefixes' => ['/login', '/logout'],
+        'portal_excluded_prefixes' => [
+            '/login', '/logout', '/register',
+            '/password/reset', '/request-access', '/impersonate',
+        ],
+    ]
+
+    Login-flow route prefixes a validated ?redirect= target may never
+    point at (loop prevention). portal_excluded_prefixes is the portal-side
+    list in portal-namespace terms. See: php artisan rsx:man login_redirect
+
+    'exception_handlers' => [ ... ]
+
+    Ordered handler chain run when exceptions occur (Cli 10, Ajax 20,
+    Api 25, Playwright 30, Rsx dispatch bootstrapper 1000). Lower priority
+    runs first; a handler returns a response or null to pass along.
+
+HTTP MIDDLEWARE
+    'middleware' => [
+        'global'  => [],
+        'web'     => [],
+        'api'     => [],
+        'aliases' => [],
+    ]
+
+    The sanctioned seam for an application's own HTTP middleware.
+    system/app/Http/Kernel.php is a FRAMEWORK-OWNED file - every framework
+    update hard-syncs it and the tamper gate refuses a pull while it carries
+    a local edit - so an app never registers middleware by editing the
+    kernel. It declares it here and the kernel folds it in at bootstrap.
+
+    global               Appended to the global stack (runs on every request).
+    <group>              Appended to that middleware GROUP. The key must name
+                         a group the kernel declares ('web', 'api'); anything
+                         else is a loud error, not a new group.
+    aliases              alias => class map, merged beside the framework's
+                         route-middleware aliases.
+
+    APPEND-ONLY, deliberately. Declared middleware runs AFTER the framework
+    stack, at the end of the group, or beside the existing aliases. There is
+    no spelling that reorders or removes framework middleware; needing that
+    is a framework change request, not a config key. (Same philosophy as
+    csp.additional_sources: widen, never narrow.)
+
+    Validation is loud, at bootstrap, naming what is wrong:
+    - a class that does not exist                RuntimeException, class named
+    - an unknown group key                       RuntimeException, valid keys listed
+    - an alias already bound to another class    RuntimeException, BOTH classes named
+    Declaring a class or alias that is already present is a silent no-op, so
+    the block is idempotent.
+
+    A ':parameters' suffix is honored (Throttle::class.':api'); the class part
+    is what gets existence-checked.
+
+    The framework declares none - the block ships empty.
+
+CLIENT PORTAL
+    'portal' => [
+        'domain' => null,                  # dedicated host; null = prefix
+        'prefix' => '/_portal',            # path used when no domain
+        'session_lifetime_days' => 30,
+        'default_site_id' => 1,
+        'invitation_expiry_days' => 7,     # user config default: 14
+        'password_min_length' => 8,
+        'password_reset_expiry_hours' => 1,
+    ]
+
+    Framework defaults for the parallel portal experience. The template app
+    overrides several of these (e.g. PORTAL_DOMAIN from .env,
+    invitation_expiry_days => 14). See: php artisan rsx:man portal
+
+PUBLIC DIRECTORY SECURITY
+    'public' => [
+        'ignore_patterns' => [
+            'public_ignore.json', '.git', '.env', '.env.*',
+            '*.php', '*.sh', '*.py', '*.rb', '*.conf',
+            '*.ini', '*.sql', '*.bak', '*.tmp', '*~',
+        ],
+    ]
+
+    Gitignore-style patterns ALWAYS blocked from HTTP access under
+    /rsx/public/. Apps append more via user config (arrays merge).
+
+TURNSTILE
+    'turnstile' => [
+        'enabled'    => env('TURNSTILE_ENABLED', false),
+        'site_key'   => env('TURNSTILE_SITE_KEY'),    # public
+        'secret_key' => env('TURNSTILE_SECRET_KEY'),  # server-only
+        'verify_timeout_seconds' => 30,
+    ]
+
+    Cloudflare Turnstile human verification. enabled is the ONLY input
+    that decides whether the feature is active - application mode has no
+    bearing on it, which is what lets an endpoint call
+    Rsx_Turnstile::validate() unconditionally.
+
+    site_key is PUBLIC and ships to the browser as
+    window.rsxapp.turnstile, but only when enabled; secret_key is the
+    siteverify credential and is never exported. Enabling with either key
+    empty throws (a half-configured install is a deployment fault, not a
+    form error).
+
+    verify_timeout_seconds bounds the outbound siteverify call. A
+    SANCTIONED timeout, owner-approved 2026-08-12: expiry degrades to FAIL
+    CLOSED (rejected, user retries), never to an accepted-without-
+    verification pass. See: php artisan rsx:man turnstile
+
+CONTENT SECURITY POLICY
+    'csp' => [
+        'enabled'            => true,
+        'report_only'        => true,
+        'additional_sources' => [],
+    ]
+
+    Every dispatched HTML page carries a composed per-realm policy. enabled
+    false emits no header anywhere. report_only true (the default) sends
+    Content-Security-Policy-Report-Only: violations are POSTed to /_csp-report
+    and appended to storage/logs/csp_violations.log, and nothing is blocked -
+    flip it to false to enforce once that log stays clean.
+
+    additional_sources (directive => [sources]) is merged WIDEN-ONLY and exists
+    ONLY for TRANSITIVE externals: origins a declared script goes on to fetch
+    by itself, which no declaration can enumerate. A resource the page loads
+    directly belongs in a *.externals.php declaration, from which the whitelist
+    derives automatically. object-src is refused outright (it is 'none'
+    hardening, and appending would loosen it). Downstream config deep-merges
+    additively, so an app's array widens the framework's.
+
+    See: php artisan rsx:man csp
+    See: php artisan rsx:man external_resources
+
+ANALYTICS (template app)
+    'analytics' => [
+        'measurement_id' => env('GOOGLE_ANALYTICS_ID', ''),
+    ]
+
+    Lives in rsx/resource/config/rsx.php, not the framework file - it belongs
+    to the template app's worked example (rsx/lib/analytics/). A GA4 id
+    ('G-XXXXXXXXXX'); EMPTY MEANS OFF, which is how the template ships:
+    nothing is fetched. Set it and the staff app loads gtag.js lazily through
+    the external-resources registry, in sealed builds only (a developer's page
+    loads are not traffic). Enabling it also means uncommenting the
+    csp.additional_sources stanza beside it - gtag.js pulls further Google
+    origins at runtime that no declaration can name.
+
+DEVELOPMENT AND CODE QUALITY
+    'development' => [
+        'debug' => env('RSX_DEBUG', env('APP_DEBUG', false)),
+        'log_dispatches' => env('RSX_LOG_DISPATCHES', false),
+        'show_route_details' => env('RSX_SHOW_ROUTE_DETAILS', env('APP_DEBUG', false)),
+    ]
+
+    Diagnostic flags for debugging (detailed errors, dispatch logging,
+    route-match detail on error pages).
+
+    'code_quality' => [
+        'is_framework_developer' => env('IS_FRAMEWORK_DEVELOPER', false),
+        'root_whitelist' => [...],          # PHP/JS files allowed in root
+        'rsx_test_whitelist' => [...],      # test files allowed loose in rsx/
+        'suffix_exempt_classes' => [...],   # classes exempt from suffix rules
+    ]
+
+    is_framework_developer   Gates framework-developer-only capabilities
+                             (e.g. testing rules in app/RSpade/temp).
+                             SAFETY FLAG - never override to bypass a block.
+
+    'ide_integration' => [
+        'bridge_path' => 'storage/rsx-ide-bridge',
+        'enabled' => env('RSX_IDE_SERVICES_ENABLED', APP_ENV !== 'production'),
+    ]
+
+    bridge_path   Where the IDE local-file grant token lives (OUTSIDE the
+                  docroot; keep it that way).
+    enabled       Master switch for the VS Code / IDE bridge (dev-only by
+                  default; hard-off in production unless opted in).
+
+JAVASCRIPT
+    'javascript' => [
+        'babel' => [
+            'transform_enabled' => env('BABEL_TRANSFORM', true),
+            'target' => env('BABEL_TARGET', 'modern'),  # modern|es6|es5
+            'cache_dir' => 'storage/rsx-tmp/babel_cache',
+        ],
+        'decorators' => true,
+    ]
+
+    Babel transform of decorators, transform target, and cache directory.
+    Private fields (#private) use native browser support, not transpilation.
+
+CONSOLE DEBUG
+    'console_debug' => [
+        'enabled' => env('CONSOLE_DEBUG_ENABLED', true),
+        'filter_mode' => 'all',   # all|whitelist|blacklist|specific
+    ]
+
+    The framework file carries ONLY the master switch and default filter
+    mode. Output destinations (cli/web/ajax/laravel_log), whitelist,
+    blacklist, specific_channel, include_benchmark/location/backtrace, and
+    enable_get_trace all live in USER config (application preferences).
+    Per-mode stripping is driven by RSX_MODE (production strips every
+    console_debug() call site). See: php artisan rsx:man console_debug
+
+FILE SUBSYSTEM
+    'attachments' => [
+        'handlers' => [],                     # SECURITY ALLOWLIST
+        'zip_request_retention_hours' => 24,
+    ]
+
+    handlers   Simple class-name allowlist of external byte-residency
+               handlers. The framework REFUSES to instantiate a
+               handler_class not listed here (fail loud). Apps register
+               their handlers in user config.
+
+    'files' => [
+        'storage_root' => null,               # test-isolation root override
+        'document_mime_by_extension' => [...], # ext => canonical mime
+    ]
+
+    storage_root                Absolute root for the file subsystem;
+                                null = storage_path(). Set only by the test
+                                runner - never in a real deployment.
+    document_mime_by_extension  Extension => mime map that drives PROCESSING
+                                (viewer/rendition/extractor/thumbnail routing),
+                                NOT serving. Extension wins over the byte sniff
+                                for documents. Apps may extend it.
+
+    'libreoffice' => [
+        'enabled' => env('LIBREOFFICE_ENABLED', true),
+        'binary_path' => env('LIBREOFFICE_BINARY_PATH', null),  # null = autodetect
+        'max_concurrent' => 2,        # 0 = unlimited
+        'timeout' => 30,              # seconds per render
+        'slot_wait_timeout' => 30,    # seconds to wait for a slot
+    ]
+
+    Headless LibreOffice rendering of Office documents to raster previews.
+    Off/failure degrades to the generic extension icon.
+
+    'search' => [
+        'enabled' => env('SEARCH_ENABLED', true),
+        'extractor_version' => 2,
+        'extractors' => [ mime-glob => Extractor_Class, ... ],
+        'pdftotext_binary_path' => env('PDFTOTEXT_BINARY_PATH', null),
+        'timeout' => 30,
+        'max_text_bytes' => 2 * 1024 * 1024,   # 2MB, over-cap truncated
+    ]
+
+    Background full-text extraction pipeline into _search_indexes (keyed on
+    the deduplicated blob). Bump extractor_version then
+    rsx:search:reindex --below-version=N to re-extract.
+    See: php artisan rsx:man document_search
+
+    'preview' => [
+        'viewers' => [ mime-glob => Viewer_Component, ... ],  # '*' => Icon_Viewer
+        'convertible' => [ ...office mimes... ],
+        'quota_max_bytes' => 200 * 1024 * 1024,   # 200MB LRU cap
+        'rendition_timeout' => 60,                # seconds per soffice->PDF
+    ]
+
+    Server-side viewer resolution + cached soffice->PDF rendition pipeline
+    for the Document_Preview component. First matching viewer glob wins.
+
+    'thumbnails' => [
+        'presets' => [ name => ['type'=>'cover'|'fit','width'=>int,'height'=>int] ],
+        'renderers' => [ mime-glob => Renderer_Class, ... ],
+        'renderer_max_bytes' => 50 * 1024 * 1024,  # skip render above this
+        'quotas' => [
+            'preset_max_bytes' => 100 * 1024 * 1024,   # 100MB (scheduled LRU)
+            'dynamic_max_bytes' => 50 * 1024 * 1024,   # 50MB (synchronous LRU)
+        ],
+        'max_dynamic_size' => 800,                 # doubled at 2x generation
+        'touch_on_read' => env('THUMBNAILS_TOUCH_ON_READ', true),
+        'touch_interval' => env('THUMBNAILS_TOUCH_INTERVAL', 600),  # 10 min
+    ]
+
+    Two-tier thumbnail cache: named presets + ad-hoc dynamic sizes, both
+    LRU-evicted. presets ship profile/gallery/icon_small/icon_large.
+
+TASK SYSTEM
+    'tasks' => [
+        'global_max_workers' => env('RSX_TASK_MAX_WORKERS', 3),
+        'worker_heartbeat_ttl' => 90,
+        'default_timeout' => 1800,             # 30 min
+        'cleanup_stuck_after' => 1800,         # 30 min
+        'temp_directory_default_ttl' => 3600,  # 1 hour
+        'task_retention_days' => 30,
+        'queues' => [
+            'default'   => ['max_workers' => 1],
+            'scheduled' => ['max_workers' => 1],
+        ],
+    ]
+
+    Unified task execution: worker concurrency, timeouts, retention, and
+    per-queue worker caps. global_max_workers bounds the single shared
+    pool. See: php artisan rsx:man tasks
+
+LOCKS
+    'locks' => [
+        'server_host' => env('LOCK_SERVER_HOST', '127.0.0.1'),
+        'server_port' => env('LOCK_SERVER_PORT', 6210),
+        'connect_retries' => 3,
+        'connect_retry_delay_ms' => 1000,
+    ]
+
+    Where PHP dials the rsx-lockd daemon, which serves every WEB-CLUSTER
+    lock. System locks are flock() on this box and are not configured here.
+
+    server_host/server_port are the CONNECT side and must agree with the
+    daemon's own listen side in system/bin/rsx-lockd/lockd.conf (or the
+    project-root lockd.conf that overrides it). The Node daemon reads that
+    JSON file directly and has no access to Laravel's config, so the two
+    are kept in sync BY HAND. They are legitimately different VALUES - the
+    daemon binds 0.0.0.0:6210, PHP dials 127.0.0.1:6210 - so change the
+    PORT on both sides together.
+
+    connect_retries/connect_retry_delay_ms are plain literals, not env():
+    the common failure is a daemon mid-supervisor-restart, which is over in
+    about a second. A rejected hello is a wrong APP_KEY and is never
+    retried. There is no lock TIMEOUT key - a lock wait defaults to forever
+    and is a per-call argument. See: php artisan rsx:man locks
+
+REALTIME
+    'realtime' => [
+        'enabled' => env('REALTIME_ENABLED', false),
+        'ws_port' => env('REALTIME_WS_PORT', 6200),
+        'load_gate_timeout_ms' => 1500,
+        'stale_reload_after_ms' => 3600000,
+    ]
+
+    WebSocket notification system. ws_port is ALSO read straight from .env
+    by the Node relay (no Laravel config cache) - keep them in sync.
+    load_gate_timeout_ms caps how long a component's first load waits for
+    its subscription. stale_reload_after_ms is how long a tab may be
+    disconnected or suspended before a successful reconnect forces a full
+    page reload (resync fixes stale data, not a stale JS bundle); 0
+    disables it.
+
+    Also read from .env by the Node relay only: REALTIME_PHP_ORIGIN
+    (default http://127.0.0.1) - where the relay reaches PHP to report
+    newly-live subscriptions. A deployment fact, like the FPC proxy's
+    backend host. See: php artisan rsx:man realtime
+
+FULL PAGE CACHE
+    'fpc' => [
+        'enabled' => env('SSR_FPC_ENABLED', false),
+        'ttl_mins' => env('FPC_TTL_MINS', 0),        # 0 = never expire
+        'proxy_port' => env('FPC_PROXY_PORT', 3200), # advisory mirror
+    ]
+
+    Node reverse proxy caching #[FPC] pages in Redis. The proxy reads
+    FPC_* / REDIS_* directly from .env. See: php artisan rsx:man fpc
+
+MAIL AND SMS
+    'mail' => [
+        'retry_max' => 6,
+        'retry_backoff_minutes' => [2, 4, 8, 15, 30, 60],
+        'from_address' => env('MAIL_FROM_ADDRESS', 'noreply@example.com'),
+        'from_name' => null,
+        'unsubscribe_secret' => null,   # null = derived from app.key
+    ]
+
+    Framework defaults for the email queue. Real outbound delivery is not
+    yet wired; the send task marks processed emails HELD_BACK.
+    See: php artisan rsx:man email
+
+    'sms' => [
+        'provider' => env('SMS_PROVIDER', null),      # null = held-back
+        'from_number' => env('SMS_FROM_NUMBER', null),
+        'credentials' => [ ...provider-specific env() ... ],
+        'retry_max' => 6,
+        'retry_backoff_minutes' => [2, 4, 8, 15, 30, 60],
+    ]
+
+    Mirror of the mail config for the SMS queue. Also not yet delivering;
+    processed messages are marked HELD_BACK. Keep secrets in .env.
+
+DATETIME
+    'datetime' => [
+        'default_timezone' => env('RSX_DEFAULT_TIMEZONE', 'America/Chicago'),
+        'time_interval' => 15,       # Schedule_Input dropdown minutes
+        'default_duration' => 60,    # Schedule_Input new-event minutes
+    ]
+
+    Timezone resolution: login_users.timezone (staff user preference) ->
+    sites.timezone (the tenant's own default) -> default_timezone above ->
+    hardcoded America/Chicago. A PORTAL request has no user tier - portal
+    accounts carry no timezone column - so it starts at the site.
+
+    default_timezone is therefore the LAST-RESORT default, reached only when
+    neither the user nor the site declares one. login_users.timezone_auto
+    (default 1) lets the browser set tier 1 on the first signed-in page load.
+    See: php artisan rsx:man time
+
+DEPENDENCIES
+    'dependencies' => [
+        'exposed_composer' => [ 'laravel/framework', 'guzzlehttp/guzzle', ... ],
+        'exposed_npm' => [ 'dompurify', 'google-libphonenumber' ],
+    ]
+
+    Framework packages formally exposed to application code: requiring one
+    via rsx:composer/rsx:npm records it as provided-by-framework instead of
+    installing a duplicate. See: php artisan rsx:man dependencies
+
+USER CONFIG KEYS (rsx/resource/config/rsx.php)
+    The application override file carries app identity and preference keys
+    that have no framework default (plus overrides of any framework key
+    above). These are application-owned, documented here for orientation:
+
+    name, description        Application identity used in UI/layouts.
+    default_user             Dev auto-fill login (email/password).
+    js_model_base_class      Custom JS base class for generated model stubs.
+    console_debug            outputs, filter_mode, whitelist, blacklist,
+                             specific_channel, include_*, enable_get_trace.
+    log_browser_errors       Send browser JS errors to the Laravel log.
+    response                 default_view, error_views, cors.
+    notifications            default_expiry_days.
+    auth                     signup_mode, verification_required,
+                             invite_expiration_days (template-app).
+
+CONFIG VS ENVIRONMENT
+    Config files (version-controlled)   Application behavior: worker counts,
+                                        thumbnail presets, retention days,
+                                        viewer registries.
+    Environment (.env, not committed)   Deployment-specific values: secrets,
+                                        hostnames, feature toggles per host
+                                        (DB_PASSWORD, APP_URL, REALTIME_*).
+
+    Many keys wrap env() so a single value can be tuned per host, but the
+    RULE stands: reach for env() only for deployment-specific values;
+    everything else belongs in config.
+
+RSX VS LARAVEL
+    Laravel spreads configuration across many config/*.php files and wires
+    features through service providers published per package. RSX keeps its
+    framework settings in system/config/rsx.php, discovers code through the
+    manifest, and offers exactly one override file
+    (rsx/resource/config/rsx.php) deep-merged at boot. Framework defaults
+    stay separate from application overrides so a framework pull never
+    stomps app settings, and an app never edits framework files.
+
+TROUBLESHOOTING
+    An override is not taking effect
+        Confirm the key is under the 'rsx' namespace and the nesting path
+        matches exactly. Remember scalars replace but arrays MERGE - a user
+        array ADDS to framework entries rather than replacing them.
+
+    A value looks wrong at runtime
+        The effective value is the MERGED result. Read it with
+        config('rsx.<path>'); do not assume the framework default applies
+        if the user file (or RSX_ADDITIONAL_CONFIG during a test run) sets
+        the same key.
+
+    An env() override does nothing
+        The key may not read env() at all (many are plain literals). Check
+        the actual default in system/config/rsx.php before setting a var.
+
+SEE ALSO
+    app_mode, console_debug, dispatch, external_api, login_redirect, portal,
+    document_search, tasks, realtime, fpc, email, time, dependencies, locks,
+    turnstile, csp, external_resources
+
+CONFIG_RSX(1)                  RSpade Manual                  CONFIG_RSX(1)

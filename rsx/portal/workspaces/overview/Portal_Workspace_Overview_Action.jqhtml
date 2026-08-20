@@ -1,0 +1,54 @@
+<Define:Portal_Workspace_Overview_Action tag="div">
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main><Loading_Spinner $message="Loading overview..." /></Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Workspace"
+                $back_label="Back to Dashboard"
+                $back_url="<%= Rsx_Portal.Route('Portal_Dashboard_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <% const v = this.data.workspace.vitals || {}; %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Section $title="Overview">
+                <View_Fields>
+                    <View_Field $label="Status">
+                        <% if (v.status_label) { %>
+                            <Status_Badge $label=v.status_label $badge=v.status_badge />
+                        <% } else { %>
+                            <Empty_Value />
+                        <% } %>
+                    </View_Field>
+                    <View_Field $label="Your role">
+                        <% if (v.role_label) { %>
+                            <span class="badge badge-outline-secondary"><%= v.role_label %></span>
+                        <% } else { %>
+                            <Empty_Value />
+                        <% } %>
+                    </View_Field>
+                    <View_Field $label="Engagement type">
+                        <% if (v.engagement_type) { %><%= v.engagement_type %><% } else { %><Empty_Value /><% } %>
+                    </View_Field>
+                    <View_Field $label="Primary contact">
+                        <% if (v.primary_contact) { %><%= v.primary_contact %><% } else { %><Empty_Value /><% } %>
+                    </View_Field>
+                    <View_Field $label="Client since">
+                        <% if (v.client_since) { %><%= Rsx_Time.format_date(v.client_since) %><% } else { %><Empty_Value /><% } %>
+                    </View_Field>
+                    <View_Field $label="Member since">
+                        <% if (v.member_since) { %><%= Rsx_Time.format_date(v.member_since) %><% } else { %><Empty_Value /><% } %>
+                    </View_Field>
+                </View_Fields>
+            </Section>
+        </Slot:main>
+    </Page_Scaffold>
+<% } %>
+</Define:Portal_Workspace_Overview_Action>

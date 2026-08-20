@@ -1,0 +1,126 @@
+*** SUPERSEDED 2026-08-03 by parent_call_chaining_08_03.txt - DO NOT FOLLOW ***
+
+    This change has been REVERSED. booted() is NO LONGER `final`, and the
+    __booted_site_model() extension hook described below NO LONGER EXISTS. The
+    forgotten-parent::booted() footgun is now caught framework-wide by the new
+    default parent-call chaining rule (PHP-PARENT-CHAIN-01), so booted() is a
+    plain overridable method again.
+
+    - If you have NOT yet acted on this document: IGNORE it entirely and follow
+      parent_call_chaining_08_03.txt instead (override booted() and call
+      parent::booted() first).
+    - If you already migrated your models to __booted_site_model(): you must
+      convert them BACK to booted() + parent::booted() - see
+      parent_call_chaining_08_03.txt, ACTION REQUIRED step 1.
+
+    The original (now-reversed) text is preserved below for reference only.
+--------------------------------------------------------------------------------
+
+RSX_SITE_MODEL_ABSTRACT: booted() IS NOW FINAL (site-isolation seal)
+Date: 2026-07-28
+
+SUMMARY
+    Rsx_Site_Model_Abstract::booted() - the method that installs the cross-tenant
+    isolation controls on every site-scoped model - is now `final`. Site-scoped
+    models that overrode booted() to register their own model event hooks will
+    FATAL at class load ("Cannot override final method") until they are migrated
+    to the new __booted_site_model() extension hook. This affects any app model that
+    extends Rsx_Site_Model_Abstract, directly or through an app-defined base
+    (e.g. an Audited_Site_Model_Abstract of your own).
+
+THE CHANGE
+    Rsx_Site_Model_Abstract::booted() installs three security controls plus a
+    defensive cross-check:
+
+        1. the 'site' global scope (WHERE site_id = <current_site>) - the read
+           isolation filter;
+        2. a creating hook that forces site_id from the session;
+        3. a saving hook that validates site_id (blocks cross-site + re-homing);
+        (4. a retrieved hook that double-checks the scope held.)
+
+    Previously a subclass could override booted() to add its own hooks and, if it
+    forgot `parent::booted();`, SILENTLY drop all of the above. That is a
+    fail-open confidentiality defect: cross-tenant reads become possible
+    (Model::find(<foreign id>) returns a foreign-site row) with no exception, no
+    lint, and no failing test unless someone happens to write a two-site
+    cross-tenant read test.
+
+    To make that mistake impossible, booted() is sealed. It installs the
+    protections and then calls a new, empty, overridable extension point:
+
+        protected static function __booted_site_model(): void {}
+
+    A subclass registers its own model hooks in __booted_site_model() and NEVER
+    touches booted() - there is no parent call to forget, because the base has
+    already installed the protections before __booted_site_model() runs.
+
+THE FIX
+    In /system/ (arrives automatically via the submodule, nothing to copy):
+      - app/RSpade/Core/Database/Models/Rsx_Site_Model_Abstract.php
+          booted() is now `final`, and calls static::__booted_site_model() after
+          installing the protections; a new empty __booted_site_model() hook is the
+          sanctioned override point.
+      - app/RSpade/CodeQuality/Rules/PHP/SiteModelBootedChain_CodeQualityRule.php
+          new rsx:check rule PHP-SITE-BOOTED-01 (HIGH) flags any site-model
+          subclass that defines booted().
+
+ACTION REQUIRED
+    Find every model in your app that extends Rsx_Site_Model_Abstract (directly,
+    or via an app base class that itself extends it) AND overrides booted():
+
+        grep -rn "function booted" rsx/models/ rsx/
+
+    Each such override is now a LOAD FATAL. For each one:
+
+      1. Rename the override from booted() to __booted_site_model(), typed void.
+      2. DELETE the `parent::booted();` call - the sealed base already installs
+         the site protections; you keep ONLY your own hooks.
+
+    BEFORE (fatals under the seal):
+
+        class Contact_Model extends Rsx_Site_Model_Abstract
+        {
+            protected static function booted()
+            {
+                parent::booted();                       // <-- easy to forget
+                static::creating(function ($model) {
+                    $model->slug = Str::slug($model->name);
+                });
+            }
+        }
+
+    AFTER (correct):
+
+        class Contact_Model extends Rsx_Site_Model_Abstract
+        {
+            protected static function __booted_site_model(): void
+            {
+                static::creating(function ($model) {    // your hooks ONLY
+                    $model->slug = Str::slug($model->name);
+                });
+            }
+        }
+
+    If your app has its OWN site-model base that overrides booted() to add shared
+    hooks (an Audited_Site_Model_Abstract-style class), it moves to
+    __booted_site_model() the same way - and its OWN subclasses must also use
+    __booted_site_model(), never booted().
+
+    A model that had NO booted() override needs no change - it already inherits
+    the sealed base and its protections unchanged.
+
+WHY IT MATTERS
+    A single forgotten `parent::booted();` used to remove cross-tenant read
+    isolation on that model - every read of the entity, everywhere, could return
+    another tenant's rows, silently. The seal makes dropping the site scope
+    structurally impossible: a subclass cannot touch booted() at all.
+
+VERIFICATION
+    - php artisan rsx:check   -> PHP-SITE-BOOTED-01 flags any remaining booted()
+      override on a site-scoped model (HIGH), with the rename instruction.
+    - Load any page / run any request: a lingering booted() override fatals at
+      class load, so a clean boot confirms all overrides were migrated.
+    - Two-site cross-tenant read test: seed a row owned by site B, switch the
+      session to site A, and assert Model::find(<site-B id>) returns null (and
+      that Model::without_site_scope(fn() => Model::find(<id>)) still finds it -
+      proving the row exists and was scoped out, not deleted).

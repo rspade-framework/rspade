@@ -1,0 +1,823 @@
+
+NAME
+    acls - Role-based access control with supplementary permissions
+
+SYNOPSIS
+    PHP (server-side):
+        Permission::has_permission(User_Model::PERM_MANAGE_SITE_USERS)
+        Permission::has_role(User_Model::ROLE_SITE_ADMIN)
+        Permission::require_permission(User_Model::PERM_MANAGE_SITE_USERS)  // throws on failure
+        Permission::require_role(User_Model::ROLE_SITE_ADMIN)               // throws on failure
+        $user->has_permission(User_Model::PERM_EDIT_DATA)
+        $user->get_resolved_permissions()  // All permissions as array
+        $user->can_admin_role($target_user->role_id)
+
+    JavaScript (client-side):
+        Permission.has_permission(User_Model.PERM_EDIT_DATA)
+        Permission.has_any_permission([User_Model.PERM_EDIT_DATA, User_Model.PERM_VIEW_DATA])
+        Permission.has_all_permissions([...])
+        Permission.has_role(User_Model.ROLE_MANAGER)
+        Permission.can_admin_role(User_Model.ROLE_USER)
+
+    Attaching all of it to a surface (see AUTH GATES, and auth_gates(7)):
+        #[Auth_Check] on the Permission method makes it a nameable gate
+        #[Auth('can_manage_users')] on the route/endpoint/action enforces it
+
+DESCRIPTION
+    RSpade provides a role-based access control (RBAC) system where:
+
+    1. Users have a primary role on their site membership (users.role_id)
+    2. Roles grant a predefined set of permissions
+    3. Supplementary permissions can GRANT or DENY specific permissions per-user
+    4. Permission checks resolve: role grants -> DENY override -> GRANT override
+
+    Key design principles:
+
+    Identity vs Membership
+        login_users = identity (email, password, one per person)
+        users = site membership (role, permissions, many per login_user)
+
+        Roles and permissions attach to site memberships (users table),
+        not login identities. One person can have different roles on
+        different sites.
+
+    Integer Constants
+        All roles and permissions are integer constants, not strings.
+        This provides type safety, IDE autocompletion, and works with
+        the RSX enum system for magic properties.
+
+    Hierarchical Roles
+        Roles are hierarchical. Higher roles inherit all permissions
+        from lower roles. Role IDs are ordered by privilege level
+        (lower ID = more privilege).
+
+    Supplementary Permissions
+        Individual users can have permissions granted or denied beyond
+        their role defaults. DENY always wins over role grants. GRANT
+        adds permissions the role doesn't provide.
+
+ARCHITECTURE
+
+    Database Tables
+
+        users (site membership)
+            role_id             Primary role for this site membership
+            ...                 Other membership fields
+
+        user_permissions (supplementary)
+            user_id             FK to users
+            permission_id       Which permission constant
+            is_grant            1 = GRANT, 0 = DENY
+
+    Permission Resolution Order
+
+        1. Check if user role is DISABLED -> deny all
+        2. Check user_permissions for explicit DENY -> deny if found
+        3. Check user_permissions for explicit GRANT -> allow if found
+        4. Check role's default permissions -> allow if included
+        5. Deny (permission not granted)
+
+    Role Hierarchy
+
+        ID   Constant            Label           Can Admin Roles
+        ---  --------            -----           ---------------
+        100  ROLE_DEVELOPER      Developer       200-800 (system only)
+        200  ROLE_ROOT_ADMIN     Root Admin      300-800 (system only)
+        300  ROLE_SITE_OWNER     Site Owner      400-800
+        400  ROLE_SITE_ADMIN     Site Admin      500-800
+        500  ROLE_MANAGER        Manager         600-800
+        600  ROLE_USER           User            (none)
+        700  ROLE_VIEWER         Viewer          (none)
+        800  ROLE_DISABLED       Disabled        (none)
+
+        IDs are 100-based for future expansion. Lower ID = higher privilege.
+        "Can Admin Roles" prevents privilege escalation (Site Admin can't
+        create Site Owner). Developer and Root Admin are system-assigned only.
+
+PERMISSIONS
+
+    Core Permissions (granted by role)
+
+        ID  Constant                    Granted By Default To
+        --  --------                    ---------------------
+        1   PERM_MANAGE_SITES_ROOT      Developer, Root Admin only
+        2   PERM_MANAGE_SITE_BILLING    Site Owner+
+        3   PERM_MANAGE_SITE_SETTINGS   Site Admin+
+        4   PERM_MANAGE_SITE_USERS      Site Admin+
+        5   PERM_VIEW_USER_ACTIVITY     Manager+
+        6   PERM_EDIT_DATA              User+
+        7   PERM_VIEW_DATA              Viewer+
+
+    Supplementary Permissions (not granted by any role by default)
+
+        ID  Constant                    Purpose
+        --  --------                    -------
+        8   PERM_API_ACCESS             Allow API key creation/usage
+        9   PERM_DATA_EXPORT            Allow bulk data export
+
+    Role-Permission Matrix
+
+        Permission              Dev  Root Owner Admin Mgr  User View Dis
+        ----------              ---  ---- ----- ----- ---  ---- ---- ---
+        MANAGE_SITES_ROOT        X    X
+        MANAGE_SITE_BILLING      X    X    X
+        MANAGE_SITE_SETTINGS     X    X    X     X
+        MANAGE_SITE_USERS        X    X    X     X
+        VIEW_USER_ACTIVITY       X    X    X     X     X
+        EDIT_DATA                X    X    X     X     X    X
+        VIEW_DATA                X    X    X     X     X    X    X
+        API_ACCESS               -    -    -     -     -    -    -
+        DATA_EXPORT              -    -    -     -     -    -    -
+
+        Legend: X = granted by role, - = must be granted individually
+
+MODEL IMPLEMENTATION
+
+    User_Model Definition
+
+        class User_Model extends Rsx_Model_Abstract
+        {
+            // Role constants (100-based, lower = higher privilege)
+            const ROLE_DEVELOPER = 100;
+            const ROLE_ROOT_ADMIN = 200;
+            const ROLE_SITE_OWNER = 300;
+            const ROLE_SITE_ADMIN = 400;
+            const ROLE_MANAGER = 500;
+            const ROLE_USER = 600;
+            const ROLE_VIEWER = 700;
+            const ROLE_DISABLED = 800;
+
+            // Permission constants
+            const PERM_MANAGE_SITES_ROOT = 1;
+            const PERM_MANAGE_SITE_BILLING = 2;
+            const PERM_MANAGE_SITE_SETTINGS = 3;
+            const PERM_MANAGE_SITE_USERS = 4;
+            const PERM_VIEW_USER_ACTIVITY = 5;
+            const PERM_EDIT_DATA = 6;
+            const PERM_VIEW_DATA = 7;
+            const PERM_API_ACCESS = 8;
+            const PERM_DATA_EXPORT = 9;
+
+            public static $enums = [
+                'role_id' => [
+                    300 => [
+                        'constant' => 'ROLE_SITE_OWNER',
+                        'label' => 'Site Owner',
+                        'permissions' => [2, 3, 4, 5, 6, 7],
+                        'can_admin_roles' => [400, 500, 600, 700, 800],
+                    ],
+                    // ... additional roles
+                ],
+            ];
+
+            // Get all resolved permissions (role + supplementary applied)
+            public function get_resolved_permissions(): array
+            {
+                if ($this->role_id === self::ROLE_DISABLED) {
+                    return [];
+                }
+                $permissions = $this->role_id__permissions ?? [];
+                // Add supplementary GRANTs, remove supplementary DENYs
+                // ... (see User_Model for full implementation)
+                return $permissions;
+            }
+
+            public function has_permission(int $permission): bool
+            {
+                return in_array($permission, $this->get_resolved_permissions(), true);
+            }
+
+            public function can_admin_role(int $role_id): bool
+            {
+                return in_array($role_id, $this->role_id__can_admin_roles ?? [], true);
+            }
+        }
+
+    Magic Properties (via enum system, BEM-style double underscore)
+
+        $user->role_id__label           // "Site Admin"
+        $user->role_id__permissions     // [3,4,5,6,7]
+        $user->role_id__can_admin_roles // [400,500,600,700,800]
+
+PERMISSION CLASS API
+
+    These static facade methods are inherited from the framework base class
+    App\RSpade\Core\Permission\Permission_Abstract - every RSX application's
+    Permission class (rsx/permission.php) extends it and gets them for free.
+    An app's own Permission class only adds domain-specific helpers on top (see
+    "Custom Permission Methods" under ROUTE PROTECTION); it never redeclares
+    these primitives. All resolve against the current session user.
+
+    Static Methods (use current session user)
+
+        Permission::has_permission(int $permission): bool
+            Check if current logged-in user has permission.
+            Returns false if not logged in or no site selected.
+
+            if (Permission::has_permission(User_Model::PERM_MANAGE_SITE_USERS)) {
+                // Show user management UI
+            }
+
+        Permission::has_role(int $role_id): bool
+            Check if current user has at least the specified role.
+            "At least" means same or higher privilege (lower role_id).
+
+            if (Permission::has_role(User_Model::ROLE_SITE_ADMIN)) {
+                // User is Site Admin or higher (Owner, Root)
+            }
+
+        Permission::can_admin_role(int $role_id): bool
+            Check if current user can administer users with the given role.
+            Prevents privilege escalation. Returns false if not logged in.
+
+        Permission::get_user(): ?User_Model
+            Get current user's site membership record.
+            Returns null if not logged in or no site selected.
+
+            $user = Permission::get_user();
+            if ($user && $user->has_permission(User_Model::PERM_EDIT_DATA)) {
+                // ...
+            }
+
+        Permission::require_permission(int $permission, string $message = 'Unauthorized'): void
+            Fail-loud variant of has_permission(). Throws
+            AjaxUnauthorizedException (HTTP 403) when the current user lacks the
+            permission; returns normally when the check passes. Use inside an
+            Ajax endpoint to abort instead of branching on a boolean.
+
+            #[Ajax_Endpoint]
+            public static function delete_user(Request $request, array $params = [])
+            {
+                Permission::require_permission(User_Model::PERM_MANAGE_SITE_USERS);
+                // ... reached only when authorized
+            }
+
+        Permission::require_role(int $role_id, string $message = 'Unauthorized'): void
+            Fail-loud variant of has_role(). Throws AjaxUnauthorizedException
+            (HTTP 403) when the current user is below the given role level.
+
+        Contrast the two calling styles:
+
+            // Branching style - return an error response early
+            if (!Permission::has_permission(User_Model::PERM_MANAGE_SITE_USERS)) {
+                return response_error(Ajax::ERROR_UNAUTHORIZED);
+            }
+
+            // Fail-loud style - throw (403), the framework formats the response
+            Permission::require_permission(User_Model::PERM_MANAGE_SITE_USERS);
+
+    Instance Methods (on User_Model)
+
+        $user->has_permission(int $permission): bool
+            Check if this specific user has permission.
+
+        $user->get_resolved_permissions(): array
+            Get all resolved permission IDs for this user.
+            Applies role defaults + grants - denies.
+
+        $user->can_admin_role(int $role_id): bool
+            Check if user can create/edit users with given role.
+
+        $user->has_supplementary_grant(int $permission): bool
+            Check if user has explicit GRANT for permission.
+
+        $user->has_supplementary_deny(int $permission): bool
+            Check if user has explicit DENY for permission.
+
+JAVASCRIPT PERMISSION CLASS
+
+    The Permission class provides client-side permission checking using
+    pre-resolved permissions from window.rsxapp.user.resolved_permissions.
+
+    This array is computed server-side and includes role defaults with
+    supplementary grants added and denies removed, ensuring JS checks
+    match PHP exactly.
+
+    Static Methods
+
+        Permission.is_logged_in(): boolean
+            Check if user is authenticated.
+
+            if (Permission.is_logged_in()) {
+                // Show authenticated UI
+            }
+
+        Permission.get_user(): Object|null
+            Get current user object from rsxapp.
+
+        Permission.has_permission(permission): boolean
+            Check if user has specific permission.
+
+            if (Permission.has_permission(User_Model.PERM_EDIT_DATA)) {
+                // Show edit button
+            }
+
+        Permission.has_any_permission(permissions): boolean
+            Check if user has ANY of the listed permissions.
+
+            if (Permission.has_any_permission([
+                User_Model.PERM_EDIT_DATA,
+                User_Model.PERM_VIEW_DATA
+            ])) {
+                // User can view or edit
+            }
+
+        Permission.has_all_permissions(permissions): boolean
+            Check if user has ALL of the listed permissions.
+
+            if (Permission.has_all_permissions([
+                User_Model.PERM_MANAGE_SITE_USERS,
+                User_Model.PERM_VIEW_USER_ACTIVITY
+            ])) {
+                // User can manage users AND view activity
+            }
+
+        Permission.has_role(role_id): boolean
+            Check if user has at least the specified role level.
+            Lower role_id = higher privilege.
+
+            if (Permission.has_role(User_Model.ROLE_MANAGER)) {
+                // User is Manager or higher (Admin, Owner, etc.)
+            }
+
+        Permission.can_admin_role(role_id): boolean
+            Check if user can administer users with given role.
+
+            if (Permission.can_admin_role(User_Model.ROLE_USER)) {
+                // Show role assignment dropdown including User role
+            }
+
+        Permission.get_resolved_permissions(): number[]
+            Get array of all permission IDs the user has.
+
+        Permission.<check_name>(): boolean
+            GENERATED, one per #[Auth_Check] method. Reads the grants map,
+            never the network, so a check is spelled identically in both
+            languages and its composite logic has exactly ONE implementation
+            (the PHP body). Hand-written JS twins of check logic are
+            forbidden - dual implementations drift.
+
+        Permission.can_access(target): boolean
+            True when every gate on the TARGET surface passes. See AUTH GATES.
+
+    Data Source
+
+        The Permission class reads from window.rsxapp.user.resolved_permissions,
+        which is populated via User_Model::toArray() from get_resolved_permissions().
+        Returns empty array if user is not authenticated.
+
+        The generated check methods and can_access() read window.rsxapp.auth
+        instead - the grants-only map of check names that passed for this user
+        (see rsxapp(3)).
+
+AUTH GATES
+
+    The Declarative Layer Over This System
+
+        Roles and permissions answer "what may this user do". AUTH GATES are
+        the layer that attaches those answers to DISPATCHABLE SURFACES -
+        every #[Route], #[SPA], #[Ajax_Endpoint], #[Ajax_Endpoint_Model_Fetch],
+        #[Api_Endpoint] method and every @route JS action. Full treatment:
+
+            php artisan rsx:man auth_gates
+
+        Surfaces are CLOSED BY DEFAULT: one carrying no gate does not deploy -
+        the manifest build FAILS, naming the file and member. There is no
+        attribute-free spelling of "open"; a public page declares the built-in
+        'public' check. Nothing is left to a code-quality heuristic, and
+        pre_dispatch() no longer performs authorization anywhere.
+
+            #[Route('/settings/users')]
+            #[Auth('can_manage_users')]
+            public static function users(Request $request, array $params = []) { ... }
+
+    Gates Are Permission Methods - #[Auth_Check] Marks Them
+
+        The gate layer adds NO new authorization vocabulary. A name inside
+        #[Auth(...)] resolves to a public static method of that name on the
+        realm's Permission class - the same class documented on this page.
+        #[Auth_Check] marks which of its methods are usable as gates:
+
+            namespace Rsx;
+
+            class Permission extends Permission_Abstract
+            {
+                #[Auth_Check]
+                public static function can_manage_users(): bool
+                {
+                    return static::has_permission(User_Model::PERM_MANAGE_SITE_USERS);
+                }
+
+                #[Auth_Check]
+                public static function is_site_owner(): bool
+                {
+                    return static::has_role(User_Model::ROLE_SITE_OWNER);
+                }
+            }
+
+        A marked method must be public static, PARAMETERLESS, declared
+        ': bool', uniquely named within its realm, and cheap (it runs once per
+        page render to build the client export; results memoize per request).
+        Marking is what makes it referenceable from #[Auth], exported to
+        window.rsxapp.auth, and mirrored as a generated JS
+        Permission.can_manage_users().
+
+        This one-line-helper indirection is why role/permission checks reach
+        surfaces through named helpers rather than directly: attribute
+        arguments cannot carry class constants, so #[Auth('has_permission',
+        PERM_X)] is structurally impossible - and 'can_manage_users' names
+        intent where a role id would read as a magic number.
+
+    What Stays In The Body
+
+        The parameterized primitives on this page - has_permission(int),
+        has_role(int), can_admin_role(int), require_permission(),
+        require_role() - are NOT gates and carry no #[Auth_Check]. They are
+        the building blocks gates are made of, and they remain fully usable
+        inline in both languages exactly as documented above.
+
+        The division of labor on every data-serving function:
+
+            #[Auth(...)] gates   ->  may this user use this surface AT ALL
+            function body        ->  which RECORDS may they touch, and how
+
+        Record ownership, membership scoping, record state and cross-record
+        invariants are NOT gates (they depend on WHICH row, not on who the
+        user is) and stay inline, where require_permission()/require_role()
+        keep their role.
+
+    Link Visibility
+
+        Permission::can_access('Controller::method' | 'Some_Action') (PHP)
+        and Permission.can_access(target) (JS) return true when every gate on
+        the TARGET passes. Authorization for a destination is declared once,
+        ON the destination, and every link derives its visibility from that
+        declaration - so a sidebar cannot lie. See auth_gates(7).
+
+SUPPLEMENTARY PERMISSIONS
+
+    Purpose
+
+        Supplementary permissions allow per-user exceptions to role defaults:
+
+        - GRANT: Give a permission the role doesn't include
+        - DENY: Remove a permission the role normally includes
+
+        Common use cases:
+        - Grant API access to specific users regardless of role
+        - Deny export access to a user who normally has it
+        - Temporary elevated permissions during onboarding
+
+    Database Table
+
+        user_permissions
+            id              BIGINT PRIMARY KEY
+            user_id         BIGINT NOT NULL (FK to users)
+            permission_id   INT NOT NULL
+            is_grant        TINYINT(1) NOT NULL (1=GRANT, 0=DENY)
+            created_at      TIMESTAMP
+            updated_at      TIMESTAMP
+
+            UNIQUE KEY (user_id, permission_id)
+
+    Management API
+
+        // Grant a permission
+        User_Permission_Model::grant($user_id, User_Model::PERM_API_ACCESS);
+
+        // Deny a permission
+        User_Permission_Model::deny($user_id, User_Model::PERM_DATA_EXPORT);
+
+        // Remove supplementary (revert to role default)
+        User_Permission_Model::remove($user_id, User_Model::PERM_API_ACCESS);
+
+        // Get all supplementary permissions for user
+        $supplementary = User_Permission_Model::for_user($user_id);
+
+    Resolution Priority
+
+        DENY always wins. Order of precedence:
+
+        1. Explicit DENY -> permission denied
+        2. Explicit GRANT -> permission granted
+        3. Role default -> permission granted if in role
+        4. Not granted -> permission denied
+
+        Example: User is Site Admin (has PERM_MANAGE_SITE_USERS by role)
+
+        - No supplementary -> has permission (from role)
+        - GRANT added -> has permission (redundant but harmless)
+        - DENY added -> NO permission (DENY overrides role)
+        - Both GRANT and DENY -> NO permission (DENY wins)
+
+EXAMPLES
+
+    Example 1: Check Permission in Controller
+
+        #[Ajax_Endpoint]
+        public static function delete_user(Request $request, array $params = [])
+        {
+            if (!Permission::has_permission(User_Model::PERM_MANAGE_SITE_USERS)) {
+                return response_error(Ajax::ERROR_UNAUTHORIZED, 'Cannot manage users');
+            }
+
+            $target_id = $params['user_id'];
+            $target = User_Model::find($target_id);
+
+            // Check can admin this user's role
+            $current = Permission::get_user();
+            if (!$current->can_admin_role($target->role_id)) {
+                return response_error(Ajax::ERROR_UNAUTHORIZED, 'Cannot modify this user');
+            }
+
+            $target->delete();
+            return ['success' => true];
+        }
+
+    Example 2: Conditional UI Based on Permissions
+
+        // In controller, pass permissions to view
+        return rsx_view('Settings_Users', [
+            'can_create' => Permission::has_permission(User_Model::PERM_MANAGE_SITE_USERS),
+            'can_export' => Permission::has_permission(User_Model::PERM_DATA_EXPORT),
+        ]);
+
+        // In jqhtml template
+        <% if (this.args.can_create) { %>
+            <button @click=this.create_user>Add User</button>
+        <% } %>
+
+    Example 3: Role Assignment Validation
+
+        #[Ajax_Endpoint]
+        public static function update_user_role(Request $request, array $params = [])
+        {
+            $target = User_Model::find($params['user_id']);
+            $new_role_id = $params['role_id'];
+
+            $current = Permission::get_user();
+
+            // Can't change own role
+            if ($target->id === $current->id) {
+                return response_error(Ajax::ERROR_VALIDATION, 'Cannot change own role');
+            }
+
+            // Must be able to admin both current and new role
+            if (!$current->can_admin_role($target->role_id)) {
+                return response_error(Ajax::ERROR_UNAUTHORIZED, 'Cannot modify this user');
+            }
+
+            if (!$current->can_admin_role($new_role_id)) {
+                return response_error(Ajax::ERROR_UNAUTHORIZED, 'Cannot assign this role');
+            }
+
+            $target->role_id = $new_role_id;
+            $target->save();
+
+            return ['success' => true];
+        }
+
+    Example 4: Grant Supplementary Permission
+
+        // Admin grants API access to a regular user
+        $user = User_Model::find($user_id);
+
+        // Verify current user can admin this user
+        if (!Permission::get_user()->can_admin_role($user->role_id)) {
+            throw new Exception('Unauthorized');
+        }
+
+        User_Permission_Model::grant($user->id, User_Model::PERM_API_ACCESS);
+
+        // User now has API access despite being a regular User role
+
+    Example 5: Check Multiple Permissions
+
+        // User needs EITHER permission
+        $can_view = Permission::has_permission(User_Model::PERM_VIEW_DATA)
+                 || Permission::has_permission(User_Model::PERM_EDIT_DATA);
+
+        // User needs BOTH permissions
+        $can_admin = Permission::has_permission(User_Model::PERM_MANAGE_SITE_SETTINGS)
+                  && Permission::has_permission(User_Model::PERM_MANAGE_SITE_USERS);
+
+ADDING NEW PERMISSIONS
+
+    1. Add constant to User_Model:
+
+        const PERM_NEW_FEATURE = 10;
+
+    2. Add to role definitions in $enums if role should grant it:
+
+        400 => [  // ROLE_SITE_ADMIN
+            'permissions' => [
+                // ... existing
+                self::PERM_NEW_FEATURE,
+            ],
+        ],
+
+    3. Run rsx:constants:regenerate to regenerate stubs
+
+    4. Use in code:
+
+        if (Permission::has_permission(User_Model::PERM_NEW_FEATURE)) {
+            // ...
+        }
+
+ADDING NEW ROLES
+
+    1. Add constant (maintain hierarchy order, 100-based):
+
+        const ROLE_SUPERVISOR = 450;  // Between Admin (400) and Manager (500)
+
+    2. Add to $enums with permissions and can_admin_roles:
+
+        450 => [
+            'constant' => 'ROLE_SUPERVISOR',
+            'label' => 'Supervisor',
+            'permissions' => [
+                self::PERM_VIEW_USER_ACTIVITY,
+                self::PERM_EDIT_DATA,
+                self::PERM_VIEW_DATA,
+            ],
+            'can_admin_roles' => [500, 600, 700, 800],
+        ],
+
+    3. Update can_admin_roles for roles above:
+
+        400 => [  // ROLE_SITE_ADMIN
+            'can_admin_roles' => [450, 500, 600, 700, 800],  // Add new role ID
+        ],
+
+    4. Run migration if role_id column needs updating
+
+    5. Run rsx:constants:regenerate
+
+FRAMEWORK IMPLEMENTATION DETAILS
+
+    This section is for framework developers modifying the ACL system.
+
+    Core Files
+
+        system/app/RSpade/Core/Models/User_Model.php
+            Role and permission constants
+            $enums definition with role metadata
+            has_permission(), has_role(), can_admin_role() methods
+            Supplementary permission lookup + per-request instance cache
+
+        system/app/RSpade/Core/Permission/Permission_Abstract.php
+            Framework base class providing the Permission facade:
+            get_user(), is_logged_in(), has_permission(), has_role(),
+            can_admin_role(), require_permission(), require_role()
+
+        rsx/permission.php
+            App Permission class (extends Permission_Abstract). The facade
+            primitives are inherited, not redeclared here. This class is where
+            app-specific domain helpers (can_*/is_*) belong.
+
+        system/app/RSpade/Core/Models/User_Permission_Model.php
+            Supplementary permissions CRUD
+            grant(), deny(), remove() static methods
+            Per-user cache generation counter for same-request invalidation
+
+    Session Integration
+
+        Permission::get_user() retrieves current site membership:
+
+            1. Get login_user_id from Session::get_user_id()
+            2. Get site_id from Session::get_site_id()
+            3. Query users WHERE login_user_id AND site_id
+            4. Cache result for request duration
+
+    Caching Strategy
+
+        Supplementary permissions are cached on the User_Model instance:
+
+            1. First has_permission() call loads all user_permissions
+            2. Stored in User_Model instance property
+            3. Subsequent checks use cached data
+
+        The cache is invalidated within the same request. User_Permission_Model
+        keeps a per-process generation counter keyed by user_id
+        (_current_generation() / _bump_generation()); grant(), deny() and
+        remove() advance it. User_Model records the generation its cached
+        permissions were loaded at, and _load_supplementary_permissions()
+        reloads when the counter has advanced. So a grant/deny/remove is visible
+        to an already-loaded User_Model instance later in the same request. The
+        counter is in-memory only (never persisted, not shared across
+        processes) - it exists solely to invalidate instance caches, which never
+        survive a request.
+
+    Enum Integration
+
+        The $enums system provides magic properties:
+
+            $user->role_id__permissions     // Array from enum definition
+            $user->role_id__can_admin_roles // Array from enum definition
+            $user->role_id__label           // String label
+
+        These are resolved via Rsx_Model_Abstract::__get()
+
+    Permission Metadata As Enum
+
+        The enum system is fully generic and is NOT restricted to the users
+        table or to the label/constant keys. You can attach an $enums entry to
+        User_Permission_Model (a non-users-table, pivot-style model) keyed on
+        permission_id, with arbitrary app-defined metadata keys beyond
+        constant/label, and that metadata reaches both PHP and JS:
+
+            // On User_Permission_Model (app override) or User_Model
+            public static $enums = [
+                'permission_id' => [
+                    User_Model::PERM_API_ACCESS => [
+                        'constant'    => 'PERM_API_ACCESS',
+                        'label'       => 'API Access',
+                        'description' => 'Allow API key creation and usage',
+                        'category'    => 'integration',   // custom key
+                        'switch_role' => true,            // custom key
+                    ],
+                    // ...
+                ],
+            ];
+
+        Custom keys pass through with no allowlist:
+
+            PHP:  $perm->permission_id__category      // "integration"
+                  $perm->permission_id__switch_role   // true
+                  (resolved by Rsx_Model_Abstract::__get(), which returns any
+                   $column . '__' . $key present in the definition)
+
+            JS:   Permission_Model.permission_id__enum(id).category
+                  (Database_BundleIntegration exports the whole $enums array to
+                   the model's JS stub verbatim, so every custom key is present)
+
+        One confirmed caveat - IDE autocomplete only, not runtime:
+        rsx:constants:regenerate emits @property-read docblock lines only for
+        __label and __constant, NOT for custom keys.
+        Custom keys work perfectly at runtime in both PHP and JS; they simply
+        have no generated @property-read hint, so an IDE won't autocomplete
+        them. This is not new to permission metadata - it is equally true of
+        User_Model's existing custom role_id keys (permissions, can_admin_roles).
+
+FUTURE ENHANCEMENTS
+
+    Attribute-Based Permission Checks
+
+        Future goal: Declare permissions directly in route attributes.
+
+            #[Route('/settings/users')]
+            #[RequiresPermission(User_Model::PERM_MANAGE_SITE_USERS)]
+            public static function users(...)
+
+        This section will be replaced with implementation details when
+        attribute-based permission checking is complete.
+
+    Custom Filters
+
+        Future goal: Allow permission modifications based on context.
+
+        Use cases:
+            - Site-level feature toggles (site disables user management)
+            - Subscription limits (free plan removes export permission)
+            - Time-based access (permission valid only during hours)
+            - Feature flags (A/B testing permission-gated features)
+
+        Architecture concept:
+
+            Role Permissions
+                    v
+            Custom Filters (modify permission set)
+                    v
+            Supplementary GRANT/DENY
+                    v
+            Final Permission Decision
+
+        Filters would be registered callbacks that receive the permission
+        set and context, returning modified permissions. This allows
+        dynamic permission modification without changing role definitions.
+
+        This section will be replaced with implementation details when
+        custom filters are implemented.
+
+MIGRATION FROM LEGACY
+
+    If upgrading from a system without ACLs:
+
+    1. Add role_id column to users table (default ROLE_USER)
+    2. Create user_permissions table
+    3. Assign appropriate roles to existing users
+    4. Mark the Permission helpers you need with #[Auth_Check] and declare
+       #[Auth(...)] on every surface (the build enumerates what is missing)
+    5. Test with rsx:debug --user= to verify
+
+SEE ALSO
+    auth_gates  - The declarative gate layer over this system (#[Auth],
+                  #[Auth_Check], can_access, closed-by-default enforcement)
+    auth        - Authentication system (login, sessions, invitations)
+    enums       - Enum system for role/permission metadata
+    routing     - Route declaration and type-safe URL generation
+    session     - Session management and user context
+    rsxapp      - Global JS object carrying resolved_permissions and the
+                  granted auth-gate map
+
+RSpade 1.0                            January 2026                            ACLS(7)

@@ -1,0 +1,154 @@
+# Translation of ISO 3166-3 to Romanian; Moldavian; Moldovan
+# Codes for the representation of names of countries and their subdivisions
+# Part 3: Code for formerly used names of countries
+# .
+# This file is distributed under the same license as the iso-codes package.
+# .
+# Copyright ©
+# Alastair McKinstry <mckinstry@debian.org>, 2004.
+# Eddy Petrișor <eddy.petrisor@gmail.com>, 2004, 2006-2009.
+# Andrei Popescu <andreimpopescu@gmail.com>, 2010.
+# Lucian Adrian Grijincu <lucian.grijincu@gmail.com>, 2010.
+# Remus-Gabriel Chelu <remusgabriel.chelu@disroot.org>, 2023.
+msgid ""
+msgstr ""
+"Project-Id-Version: iso_3166-3\n"
+"Report-Msgid-Bugs-To: https://salsa.debian.org/iso-codes-team/iso-codes/"
+"issues\n"
+"POT-Creation-Date: 2023-02-24 21:26+0100\n"
+"PO-Revision-Date: 2023-12-28 20:07+0000\n"
+"Last-Translator: Remus-Gabriel Chelu <remusgabriel.chelu@disroot.org>\n"
+"Language-Team: Romanian <https://hosted.weblate.org/projects/iso-codes/"
+"iso-3166-3/ro/>\n"
+"Language: ro\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n==1 ? 0 : (n==0 || (n%100 > 0 && n%100 < "
+"20)) ? 1 : 2;\n"
+"X-Generator: Weblate 5.4-dev\n"
+"X-Launchpad-Export-Date: 2010-08-16 11:01+0000\n"
+
+#. Name for AIDJ
+msgid "French Afars and Issas"
+msgstr "Teritoriul francez al triburilor Afar și Issa"
+
+#. Name for ANHH
+msgid "Netherlands Antilles"
+msgstr "Antilele olandeze"
+
+#. Name for BQAQ
+msgid "British Antarctic Territory"
+msgstr "Teritoriul britanic din Antarctica"
+
+#. Name for BUMM
+msgid "Burma, Socialist Republic of the Union of"
+msgstr "Birmania, Republica socialistă de uniune a"
+
+#. Name for BYAA
+msgid "Byelorussian SSR Soviet Socialist Republic"
+msgstr "Republica sovietică socialistă Bielorusă"
+
+#. Name for CSHH
+msgid "Czechoslovakia, Czechoslovak Socialist Republic"
+msgstr "Cehoslovacia, Republica socialistă Cehoslovacă"
+
+#. Name for CSXX
+msgid "Serbia and Montenegro"
+msgstr "Serbia și Muntenegru"
+
+#. Name for CTKI
+msgid "Canton and Enderbury Islands"
+msgstr "Insulele Canton și Enderbury"
+
+#. Name for DDDE
+msgid "German Democratic Republic"
+msgstr "Republica democrată Germană"
+
+#. Name for DYBJ
+msgid "Dahomey"
+msgstr "Dahomey"
+
+#. Name for FQHH
+msgid "French Southern and Antarctic Territories"
+msgstr "Teritoriile sudice și antarctice franceze"
+
+#. Name for FXFR
+msgid "France, Metropolitan"
+msgstr "Franța, Metropolitană"
+
+#. Name for GEHH
+msgid "Gilbert and Ellice Islands"
+msgstr "Insulele Gilbert și Ellice"
+
+#. Name for HVBF
+msgid "Upper Volta, Republic of"
+msgstr "Volta Superioară, Republica"
+
+#. Name for JTUM
+msgid "Johnston Island"
+msgstr "Insulele Johnston"
+
+#. Name for MIUM
+msgid "Midway Islands"
+msgstr "Insulele Midway"
+
+#. Name for NHVU
+msgid "New Hebrides"
+msgstr "Noile Hebride"
+
+#. Name for NQAQ
+msgid "Dronning Maud Land"
+msgstr "Ținutul reginei Maud"
+
+#. Name for NTHH
+msgid "Neutral Zone"
+msgstr "Zonă neutră"
+
+#. Name for PCHH
+msgid "Pacific Islands (trust territory)"
+msgstr "Insulele din Pacific (teritoriu sub protecția Națiunilor Unite)"
+
+#. Name for PUUM
+msgid "US Miscellaneous Pacific Islands"
+msgstr "Diverse insule din Pacific aparținând SUA"
+
+#. Name for PZPA
+msgid "Panama Canal Zone"
+msgstr "Zona canalului Panama"
+
+#. Name for RHZW
+msgid "Southern Rhodesia"
+msgstr "Rodesia de Sud"
+
+#. Name for SKIN
+msgid "Sikkim"
+msgstr "Sikkim"
+
+#. Name for SUHH
+msgid "USSR, Union of Soviet Socialist Republics"
+msgstr "URSS, Uniunea republicilor sovietice socialiste"
+
+#. Name for TPTL
+msgid "East Timor"
+msgstr "Timorul de Est"
+
+#. Name for VDVN
+msgid "Viet-Nam, Democratic Republic of"
+msgstr "Vietnam, Republica democrată"
+
+#. Name for WKUM
+msgid "Wake Island"
+msgstr "Insula Wake"
+
+#. Name for YDYE
+msgid "Yemen, Democratic, People's Democratic Republic of"
+msgstr "Yemen, Republica populară democrată"
+
+#. Name for YUCS
+msgid "Yugoslavia, (Socialist) Federal Republic of"
+msgstr "Iugoslavia, Republica (socialistă) federală"
+
+#. Name for ZRCD
+msgid "Zaire, Republic of"
+msgstr "Zair, Republica"

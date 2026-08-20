@@ -1,0 +1,39 @@
+<%--
+Select_Ajax_Input
+
+Dropdown select widget that loads options via Ajax.
+Extends Select_Input with Ajax data loading capability.
+
+$data - Ajax endpoint URL that returns array of options
+$placeholder - Placeholder option text (default: "Please wait...")
+$disabled - Boolean to disable the select
+$seeder - Seeder function name for test data
+
+Widget interface:
+- val() - Get/set selected value (handles pre-initialization calls)
+- seed() - Fills with random value
+
+Features:
+- Loads options asynchronously from endpoint during on_load()
+- Shows "Please wait..." while loading
+- Handles val() calls before initialization completes
+- Re-renders with actual options once loaded
+--%>
+<Define:Select_Ajax_Input extends="Select_Input">
+    <select $sid="input" <% if (this.args.disabled) { %>disabled<% } %>>
+        <% if (!this.data.select_values || this.data.select_values.length === 0) { %>
+            <option value=""><%= this.args.placeholder || 'Please wait...' %></option>
+        <% } else { %>
+            <% if (this.args.placeholder) { %>
+                <option value=""><%= this.args.placeholder %></option>
+            <% } %>
+            <% for (let opt of this.data.select_values) { %>
+                <% if (typeof opt === 'object') { %>
+                    <option value="<%= opt.value %>" <% if (this.data.value == opt.value) { %>selected<% } %>><%= opt.label %></option>
+                <% } else { %>
+                    <option value="<%= opt %>" <% if (this.data.value == opt) { %>selected<% } %>><%= opt %></option>
+                <% } %>
+            <% } %>
+        <% } %>
+    </select>
+</Define:Select_Ajax_Input>

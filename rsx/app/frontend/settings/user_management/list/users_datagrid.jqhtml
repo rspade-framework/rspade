@@ -1,0 +1,81 @@
+<%-- User Management DataGrid Component --%>
+
+<Define:Users_DataGrid
+    extends="DataGrid_Abstract"
+    $data_source=Frontend_Settings_User_Management_Controller.datagrid_fetch
+    $sort="id"
+    $order="desc"
+    $per_page=15
+    class="card DataGrid">
+
+    <Slot:DG_Card_Header>
+        <Card_Title>User List</Card_Title>
+        <Card_Header_Right>
+            <Search_Input $sid="filter_input" $placeholder="Search users..." />
+            <button class="btn btn-secondary btn-sm">Filter</button>
+        </Card_Header_Right>
+    </Slot:DG_Card_Header>
+
+    <Slot:DG_Table_Header>
+        <tr>
+            <th style="width: 40px;">
+                <input class="form-check-input" type="checkbox" $sid="select_all">
+            </th>
+            <th $sortby="id">ID</th>
+            <th $sortby="first_name">Name</th>
+            <th $sortby="email">Email</th>
+            <th>Status</th>
+            <th>Phone</th>
+            <th $sortby="role_id">Role</th>
+            <th $sortby="created_at">Created</th>
+            <th style="width: 120px;">Actions</th>
+        </tr>
+    </Slot:DG_Table_Header>
+
+    <Slot:row>
+        <tr data-href="<%= Rsx.Route('Settings_User_Management_View_Action', row.id) %>">
+            <td>
+                <input class="form-check-input row-checkbox" type="checkbox" value="<%= row.id %>">
+            </td>
+            <td>
+                #U<%= String(row.id).padStart(3, '0') %>
+            </td>
+            <td>
+                <% if (row.first_name || row.last_name) { %>
+                    <%= row.first_name %> <%= row.last_name %>
+                <% } else { %>
+                    <em class="text-muted">No name set</em>
+                <% } %>
+            </td>
+            <td>
+                <%= row.email %>
+            </td>
+            <td>
+                <% if (row.invitation_status === 'accepted') { %>
+                    <span class="badge bg-success">Active</span>
+                <% } else if (row.invitation_status === 'expired') { %>
+                    <span class="badge bg-danger">Expired</span>
+                <% } else { %>
+                    <span class="badge bg-warning">Invited</span>
+                <% } %>
+            </td>
+            <td><%= row.phone || '-' %></td>
+            <td>
+                <% if (row.role_id__label) { %>
+                    <span class="badge bg-primary"><%= row.role_id__label %></span>
+                <% } else { %>
+                    <span class="badge bg-secondary">No role</span>
+                <% } %>
+            </td>
+            <td><%= Rsx_Time.format_date(row.created_at) %></td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <a class="btn btn-outline-primary" href="<%= Rsx.Route('Settings_User_Management_View_Action', row.id) %>" title="View">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                </div>
+            </td>
+        </tr>
+    </Slot:row>
+
+</Define:Users_DataGrid>

@@ -1,0 +1,57 @@
+// Callout - inline alert banner (icon + title / body / actions).
+.Callout {
+    display: flex;
+    align-items: flex-start;
+    gap: $spacing-3;
+    padding: var(--card-pad-y) var(--card-pad-x);
+    background: $background-light;
+    border: $border-width solid $border-color;
+    border-left-width: $border-width-thick * 2; // colored accent edge
+    border-radius: $border-radius-md;
+
+    &__icon {
+        font-size: $font-size-lg;
+        line-height: 1.4;
+    }
+
+    &__content {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    &__title {
+        font-weight: $font-weight-semibold;
+        color: $text-color;
+    }
+
+    &__body {
+        margin-top: $spacing-1;
+        color: $text-muted;
+        font-size: $font-size-sm;
+    }
+
+    &__actions {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: $spacing-2;
+    }
+
+    &--danger {
+        border-left-color: $danger-color;
+
+        .Callout__icon,
+        .Callout__title {
+            color: $danger-color;
+        }
+    }
+
+    &--warning {
+        border-left-color: $warning-color;
+
+        .Callout__icon,
+        .Callout__title {
+            color: $warning-color;
+        }
+    }
+}

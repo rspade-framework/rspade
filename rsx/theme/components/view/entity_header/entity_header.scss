@@ -1,0 +1,42 @@
+// Entity_Header - the entity identity header. Owns the title/chip/meta rhythm.
+.Entity_Header {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-2; // 8px between title row, subtitle, meta
+
+    &__top {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: $spacing-3; // 12px between title and the chip cluster
+    }
+
+    &__title {
+        margin: 0;
+        font-size: $font-size-2xl; // 24px
+        font-weight: $font-weight-semibold;
+        line-height: $line-height-tight;
+        color: $gray-900;
+    }
+
+    &__chips {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: $spacing-2;
+    }
+
+    &__subtitle {
+        font-size: $font-size-base;
+        color: $text-color;
+    }
+
+    &__meta {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: $spacing-2 $spacing-3;
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+}

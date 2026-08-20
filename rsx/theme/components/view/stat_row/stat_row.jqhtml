@@ -1,0 +1,25 @@
+<%--
+Stat_Row - a money / numeric stat line: label left, mono value right
+
+<Slot:label> - the stat label (required)
+<Slot:value> - the numeric / money value; rendered monospaced + right-aligned (required)
+$strong_label - totals emphasis: bolder label, larger value, a divider above [optional]
+$alert - red value for a figure that needs attention (amount due, overdue) [optional]
+
+The one money-line shape - an invoice's Subtotal / Tax / Total, a remaining
+balance. Distinct from Kpi_Cell (a big telemetry CELL): Stat_Row is a
+single label:value LINE with a monospaced, tabular-aligned value. Stack rows
+directly (each owns its own row padding; $strong_label draws the divider above
+the total). $provisional (amber estimate styling) is reserved - no invoice
+figure is a computed estimate yet; add it as an additive arg when one is.
+
+Usage:
+    <Stat_Row><Slot:label>Subtotal</Slot:label><Slot:value><%= _money(sub) %></Slot:value></Stat_Row>
+    <Stat_Row $strong_label=true>
+        <Slot:label>Total</Slot:label><Slot:value><%= _money(total) %></Slot:value>
+    </Stat_Row>
+--%>
+<Define:Stat_Row tag="div">
+    <div class="Stat_Row__label"><%= content('label') %></div>
+    <div class="Stat_Row__value"><%= content('value') %></div>
+</Define:Stat_Row>

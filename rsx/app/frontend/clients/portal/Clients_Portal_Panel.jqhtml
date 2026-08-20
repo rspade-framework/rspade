@@ -1,0 +1,316 @@
+<Define:Clients_Portal_Panel>
+<% if (this.data.loading) { %>
+    <Loading_Spinner $message="Loading portal..." />
+<% } else if (this.data.error_data) { %>
+    <Callout $variant="danger" $icon="bi bi-exclamation-triangle">
+        <Slot:title>Could not load portal data</Slot:title>
+        <Slot:body>Reload the page to try again.</Slot:body>
+    </Callout>
+<% } else { %>
+    <%
+        const _members = this.data.members;
+        const _pending = this.data.pending_invites;
+        const _documents = this.data.documents;
+        const _deleted_documents = this.data.deleted_documents;
+        const _projects = this.data.projects;
+        const _announcements = this.data.announcements;
+        const _active = this.data.threads_active;
+        const _closed = this.data.threads_closed;
+        const _has_members = _members.length > 0;
+        const _visible_projects = _projects.filter((p) => p.portal_visible).length;
+    %>
+
+    <%-- Members --%>
+    <Section $title="Members" $count=_members.length $flush=true>
+        <Slot:actions>
+            <button $sid="add-member-btn" class="btn btn-primary btn-sm">
+                <i class="bi bi-person-plus"></i> Add Member
+            </button>
+        </Slot:actions>
+        <Slot:body>
+            <% if (_members.length === 0 && _pending.length === 0) { %>
+                <Empty_State $icon="bi bi-people">
+                    <Slot:title>No portal members yet</Slot:title>
+                    <Slot:body>Add contacts to grant them access to this client's portal.</Slot:body>
+                </Empty_State>
+            <% } else { %>
+                <Record_Table>
+                    <thead>
+                        <tr><th>Contact</th><th>Role</th><th>Status</th><th>Last Login</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        <% for (const member of _members) { %>
+                        <tr>
+                            <td>
+                                <% if (member.contact_name && member.contact_id) { %>
+                                    <a href="<%= Rsx.Route('Contacts_View_Action', member.contact_id) %>"><%= member.contact_name %></a>
+                                <% } else if (member.contact_name) { %>
+                                    <%= member.contact_name %>
+                                <% } else { %>
+                                    <Empty_Value />
+                                <% } %>
+                                <span class="text-muted small d-block"><%= member.email %></span>
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm w-auto" data-role-membership="<%= member.membership_id %>">
+                                    <% for (const opt of Portal_Membership_Model.role_id__enum_select()) { %>
+                                        <option value="<%= opt.value %>" <% if (opt.value === member.role_id) { %>selected<% } %>><%= opt.label %></option>
+                                    <% } %>
+                                </select>
+                            </td>
+                            <td><Status_Badge $label="Active" $badge="bg-success" /></td>
+                            <td>
+                                <% if (member.last_login) { %>
+                                    <%= Rsx_Time.relative(member.last_login) %>
+                                <% } else { %>
+                                    <span class="text-muted">Never</span>
+                                <% } %>
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-danger" data-disable-access="<%= member.membership_id %>" title="Disable Access">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <% } %>
+
+                        <% for (const invite of _pending) { %>
+                        <tr class="Clients_Portal_Panel__pending-row">
+                            <td>
+                                <% if (invite.contact_id) { %>
+                                    <a href="<%= Rsx.Route('Contacts_View_Action', invite.contact_id) %>"><%= invite.contact_name %></a>
+                                <% } else { %>
+                                    <%= invite.contact_name %>
+                                <% } %>
+                                <span class="text-muted small d-block"><%= invite.email %></span>
+                            </td>
+                            <td><span class="text-muted small">Viewer</span></td>
+                            <td><Status_Badge $label="Invited" $badge="bg-info text-dark" /></td>
+                            <td><span class="text-muted small">Expires <%= Rsx_Time.relative(invite.expires_at) %></span></td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary" data-resend-invite="<%= invite.contact_id %>" title="Resend Invite">
+                                    <i class="bi bi-envelope"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" data-revoke-invite="<%= invite.invitation_id %>" title="Cancel Invite">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <% } %>
+                    </tbody>
+                </Record_Table>
+            <% } %>
+        </Slot:body>
+    </Section>
+
+    <%-- Documents --%>
+    <Section $title="Documents" $count=_documents.length $flush=true>
+        <Slot:actions>
+            <button $sid="upload-doc-btn" class="btn btn-primary btn-sm">
+                <i class="bi bi-upload"></i> Upload Document
+            </button>
+        </Slot:actions>
+        <Slot:body>
+            <input type="file" $sid="doc-file-input" class="d-none">
+            <% if (_documents.length === 0) { %>
+                <Empty_State $icon="bi bi-file-earmark-arrow-up">
+                    <Slot:title>No documents yet</Slot:title>
+                    <Slot:body>Upload a document to share it with this client's portal.</Slot:body>
+                </Empty_State>
+            <% } else { %>
+                <Record_Table>
+                    <thead>
+                        <tr><th>Document</th><th>Uploaded</th><th>Portal visibility</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        <% for (const doc of _documents) { %>
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <img src="<%= doc.thumbnail_url %>" alt="<%= doc.name %>" class="Clients_Portal_Panel__doc-thumb">
+                                    <a href="<%= doc.download_url %>" download><%= doc.name %></a>
+                                </div>
+                            </td>
+                            <td>
+                                <% if (doc.uploaded_at) { %>
+                                    <span class="text-muted small"><%= Rsx_Time.relative(doc.uploaded_at) %></span>
+                                <% } else { %>
+                                    <Empty_Value />
+                                <% } %>
+                            </td>
+                            <td>
+                                <% if (doc.shared_with.length === 0) { %>
+                                    <Status_Badge $label="Not shared" $badge="bg-warning text-dark" />
+                                <% } else { %>
+                                    <Status_Badge $label="Shared with client" $badge="bg-success" />
+                                <% } %>
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary" data-share-doc="<%= doc.attachment_id %>" title="Share">
+                                    <i class="bi bi-share"></i> Share
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" data-delete-doc="<%= doc.attachment_id %>" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <% } %>
+                    </tbody>
+                </Record_Table>
+            <% } %>
+        </Slot:body>
+    </Section>
+
+    <%-- Recently Deleted documents (retention window: restore, or let the framework
+         disposal task permanently destroy them after the retention period). Only shown
+         when there is something to recover. --%>
+    <% if (_deleted_documents.length > 0) { %>
+    <Section $title="Recently Deleted" $count=_deleted_documents.length $flush=true>
+        <Slot:body>
+            <Record_Table>
+                <thead>
+                    <tr><th>Document</th><th>Deleted</th><th>Deleted By</th><th></th></tr>
+                </thead>
+                <tbody>
+                    <% for (const doc of _deleted_documents) { %>
+                    <tr>
+                        <td><%= doc.name %></td>
+                        <td>
+                            <% if (doc.deleted_at) { %>
+                                <span class="text-muted small"><%= Rsx_Time.relative(doc.deleted_at) %></span>
+                            <% } else { %>
+                                <Empty_Value />
+                            <% } %>
+                        </td>
+                        <td>
+                            <span class="text-muted small"><Record_Author $author=doc.deleted_by_author /></span>
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-success" data-restore-doc="<%= doc.attachment_id %>" title="Restore">
+                                <i class="bi bi-arrow-counterclockwise"></i> Restore
+                            </button>
+                        </td>
+                    </tr>
+                    <% } %>
+                </tbody>
+            </Record_Table>
+        </Slot:body>
+    </Section>
+    <% } %>
+
+    <%-- Requests --%>
+    <Section $title="Requests" $flush=true>
+        <Slot:actions>
+            <button $sid="new-request-btn" class="btn btn-primary btn-sm" <% if (!_has_members) { %>disabled title="Add portal members before creating a request"<% } %>>
+                <i class="bi bi-plus-lg"></i> New Request
+            </button>
+        </Slot:actions>
+        <Slot:body>
+            <% if (_active.length === 0 && _closed.length === 0) { %>
+                <Empty_State $icon="bi bi-chat-left-dots">
+                    <Slot:title>No requests yet</Slot:title>
+                    <Slot:body>Start a request to collect documents and exchange messages with this client.</Slot:body>
+                </Empty_State>
+            <% } else { %>
+                <Record_Table>
+                    <thead>
+                        <tr><th>Request</th><th>Messages</th><th>Last activity</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        <% for (const thread of _active) { %>
+                        <tr data-href="<%= Rsx.Route('Clients_Request_Thread_Action', {id: this.args.client_id, thread_id: thread.id}) %>">
+                            <td><%= thread.title %></td>
+                            <td><%= thread.message_count %></td>
+                            <td><%= Rsx_Time.relative(thread.last_activity_at) %></td>
+                            <td>
+                                <% if (thread.needs_review_count > 0) { %>
+                                    <span class="badge bg-info text-dark">Needs Review (<%= thread.needs_review_count %>)</span>
+                                <% } %>
+                                <Status_Badge $label=thread.status_label $badge=thread.badge />
+                            </td>
+                        </tr>
+                        <% } %>
+                        <% for (const thread of _closed) { %>
+                        <tr data-href="<%= Rsx.Route('Clients_Request_Thread_Action', {id: this.args.client_id, thread_id: thread.id}) %>">
+                            <td class="text-muted"><%= thread.title %></td>
+                            <td class="text-muted"><%= thread.message_count %></td>
+                            <td class="text-muted"><%= Rsx_Time.relative(thread.last_activity_at) %></td>
+                            <td><Status_Badge $label=thread.status_label $badge=thread.badge /></td>
+                        </tr>
+                        <% } %>
+                    </tbody>
+                </Record_Table>
+            <% } %>
+        </Slot:body>
+    </Section>
+
+    <%-- Announcements --%>
+    <Section $title="Announcements">
+        <div class="mb-3">
+            <label class="form-label">Title</label>
+            <input type="text" class="form-control" $sid="announcement-title" maxlength="255" placeholder="Announcement title">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Message</label>
+            <textarea class="form-control" $sid="announcement-body" rows="3" placeholder="Write your announcement..."></textarea>
+        </div>
+        <div class="d-flex justify-content-end">
+            <button $sid="announcement-post-btn" class="btn btn-primary btn-sm" <% if (!_has_members) { %>disabled title="Add portal members before posting"<% } %>>
+                <i class="bi bi-megaphone"></i> Post to <%= _members.length %> <%= _members.length === 1 ? 'member' : 'members' %>
+            </button>
+        </div>
+
+        <% if (_announcements.length > 0) { %>
+            <div class="Clients_Portal_Panel__announcement-list">
+                <% for (const announcement of _announcements) { %>
+                    <div class="Clients_Portal_Panel__announcement">
+                        <div class="Clients_Portal_Panel__announcement-title"><%= announcement.title %></div>
+                        <div class="Clients_Portal_Panel__announcement-body"><%br= announcement.body %></div>
+                        <div class="Clients_Portal_Panel__announcement-meta text-muted small">
+                            <% if (announcement.is_published && announcement.published_at) { %>
+                                Posted <%= Rsx_Time.relative(announcement.published_at) %>
+                            <% } else { %>
+                                Draft
+                            <% } %>
+                        </div>
+                    </div>
+                <% } %>
+            </div>
+        <% } %>
+    </Section>
+
+    <%-- Projects --%>
+    <Section $title="Portal Projects" $flush=true>
+        <Slot:actions>
+            <span class="text-muted small"><%= _visible_projects %> of <%= _projects.length %> visible</span>
+        </Slot:actions>
+        <Slot:body>
+            <% if (_projects.length === 0) { %>
+                <Empty_State $icon="bi bi-folder">
+                    <Slot:title>No projects yet</Slot:title>
+                    <Slot:body>Projects assigned to this client can be made visible in the portal here.</Slot:body>
+                </Empty_State>
+            <% } else { %>
+                <Record_Table>
+                    <thead>
+                        <tr><th>Project</th><th>Status</th><th class="text-center">Visible on Portal</th></tr>
+                    </thead>
+                    <tbody>
+                        <% for (const project of _projects) { %>
+                        <tr>
+                            <td><a href="<%= Rsx.Route('Projects_View_Action', project.id) %>"><%= project.name %></a></td>
+                            <td><Status_Badge $label=project.status__label $badge=project.status__badge /></td>
+                            <td class="text-center">
+                                <div class="form-check form-switch d-inline-block">
+                                    <input class="form-check-input" type="checkbox" data-toggle-project="<%= project.id %>" <% if (project.portal_visible) { %>checked<% } %>>
+                                </div>
+                            </td>
+                        </tr>
+                        <% } %>
+                    </tbody>
+                </Record_Table>
+            <% } %>
+        </Slot:body>
+    </Section>
+<% } %>
+</Define:Clients_Portal_Panel>

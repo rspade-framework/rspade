@@ -1,0 +1,185 @@
+<Define:Portal_Request_Thread_Action tag="div">
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main><Loading_Spinner $message="Loading request..." /></Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Request"
+                $back_label="Back to Requests"
+                $back_url="<%= Rsx_Portal.Route('Portal_Workspace_Requests_Action', this.args.id) %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <%
+        const _thread = this.data.thread;
+        const _timeline = this.data.timeline;
+        const _members = this.data.participants.members || [];
+        const _staff = this.data.participants.staff || [];
+        const _needs_review = this.data.needs_review;
+        const _accepted = this.data.accepted;
+        const _has_review = _needs_review.length > 0;
+    %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Card_Widget>
+                <Entity_Header>
+                    <Slot:title><%= _thread.title %></Slot:title>
+                    <Slot:chips>
+                        <Status_Badge $label=_thread.status_label $badge=_thread.badge />
+                    </Slot:chips>
+                </Entity_Header>
+
+                <Section $title="Messages" $flush=true>
+                    <% if (_timeline.length === 0) { %>
+                        <Empty_State $icon="bi bi-chat-left-text">
+                            <Slot:title>No messages yet</Slot:title>
+                            <Slot:body>Messages exchanged on this request will appear here.</Slot:body>
+                        </Empty_State>
+                    <% } else { %>
+                        <% for (const entry of _timeline) { %>
+                            <div class="Portal_Request_Thread_Action__entry">
+                                <% if (entry.type === 'event') { %>
+                                    <div class="Portal_Request_Thread_Action__event">
+                                        <span class="Portal_Request_Thread_Action__event-text">
+                                            <% if (entry.from_label) { %>
+                                                <%= entry.from_label %> &rarr; <%= entry.to_label %>
+                                            <% } else { %>
+                                                <%= entry.to_label %>
+                                            <% } %>
+                                            <span class="text-muted">by <%= entry.actor_name %></span>
+                                            <span class="text-muted">&middot; <%= Rsx_Time.relative(entry.created_at) %></span>
+                                        </span>
+                                    </div>
+                                <% } else { %>
+                                    <Author_Meta_Row $name=entry.author_name>
+                                        <Slot:author>
+                                            <strong><%= entry.author_name %></strong>
+                                            <% if (entry.author_email) { %>
+                                                <span class="text-muted small">&lt;<%= entry.author_email %>&gt;</span>
+                                            <% } %>
+                                        </Slot:author>
+                                        <Slot:time><%= Rsx_Time.format_datetime(entry.created_at) %></Slot:time>
+                                    </Author_Meta_Row>
+                                    <% if (entry.body) { %>
+                                        <div class="Portal_Request_Thread_Action__post-body"><%br= entry.body %></div>
+                                    <% } %>
+                                    <% if (entry.documents && entry.documents.length > 0) { %>
+                                        <div class="Portal_Request_Thread_Action__chips">
+                                            <% for (const doc of entry.documents) { %>
+                                                <span class="Portal_Request_Thread_Action__chip" data-document="<%= doc.id %>" title="<%= doc.name %>">
+                                                    <i class="bi bi-paperclip"></i>
+                                                    <span class="Portal_Request_Thread_Action__chip-name"><%= doc.name %></span>
+                                                    <span class="badge <%= doc.badge %>"><%= doc.review_label %></span>
+                                                </span>
+                                            <% } %>
+                                        </div>
+                                    <% } %>
+                                <% } %>
+                            </div>
+                        <% } %>
+                    <% } %>
+                </Section>
+
+                <% if (_thread.is_closed) { %>
+                    <Section $title="Reply">
+                        <p class="text-muted mb-0">This request is closed. Your firm will start a new request to continue.</p>
+                    </Section>
+                <% } else if (!_thread.can_collaborate) { %>
+                    <Section $title="Reply">
+                        <p class="text-muted mb-0">You have view-only access to this workspace. Ask a collaborator on your team to reply.</p>
+                    </Section>
+                <% } else { %>
+                    <Section $title="Reply">
+                        <div class="mb-3">
+                            <textarea class="form-control" $sid="reply-body" rows="3" placeholder="Write a reply..."></textarea>
+                        </div>
+
+                        <input type="file" $sid="reply-file-input" class="d-none" multiple>
+                        <div class="Portal_Request_Thread_Action__pending" $sid="pending-attachments"></div>
+
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                            <button $sid="attach-btn" class="btn btn-outline-secondary btn-sm" type="button">
+                                <i class="bi bi-paperclip"></i> Attach Files
+                            </button>
+                            <button $sid="send-btn" class="btn btn-primary btn-sm" type="button">
+                                <i class="bi bi-send"></i> Send
+                            </button>
+                        </div>
+                    </Section>
+                <% } %>
+            </Card_Widget>
+        </Slot:main>
+
+        <Slot:sidebar>
+            <Detail_Sidebar>
+                <Sidebar_Kpi_Group>
+                    <Kpi_Cell $alert=_has_review>
+                        <Slot:label>Needs Review</Slot:label>
+                        <Slot:value><%= _needs_review.length %></Slot:value>
+                    </Kpi_Cell>
+                    <Kpi_Cell>
+                        <Slot:label>Accepted</Slot:label>
+                        <Slot:value><%= _accepted.length %></Slot:value>
+                    </Kpi_Cell>
+                </Sidebar_Kpi_Group>
+
+                <% if (_members.length === 0 && _staff.length === 0) { %>
+                    <div class="Portal_Request_Thread_Action__group">
+                        <label class="text-muted small d-block mb-1">Participants</label>
+                        <span class="text-muted small">No participants</span>
+                    </div>
+                <% } %>
+                <% if (_members.length > 0) { %>
+                    <div class="Portal_Request_Thread_Action__group">
+                        <label class="text-muted small d-block mb-1">Client members</label>
+                        <People_List $sid="members-list" $people=_members $clickable=true />
+                    </div>
+                <% } %>
+                <% if (_staff.length > 0) { %>
+                    <div class="Portal_Request_Thread_Action__group">
+                        <label class="text-muted small d-block mb-1">Staff</label>
+                        <People_List $sid="staff-list" $people=_staff $clickable=true />
+                    </div>
+                <% } %>
+
+                <div class="Portal_Request_Thread_Action__group">
+                    <label class="text-muted small d-block mb-1">Needs Review</label>
+                    <% if (_needs_review.length === 0) { %>
+                        <span class="text-muted small">Nothing to review.</span>
+                    <% } else { %>
+                        <div class="Portal_Request_Thread_Action__people">
+                            <% for (const doc of _needs_review) { %>
+                                <div class="Portal_Request_Thread_Action__media-row" data-document="<%= doc.id %>" title="<%= doc.name %>">
+                                    <img src="<%= doc.thumbnail_url %>" alt="<%= doc.name %>" class="Portal_Request_Thread_Action__thumb">
+                                    <span class="Portal_Request_Thread_Action__media-name"><%= doc.name %></span>
+                                </div>
+                            <% } %>
+                        </div>
+                    <% } %>
+                </div>
+
+                <div class="Portal_Request_Thread_Action__group">
+                    <label class="text-muted small d-block mb-1">Accepted</label>
+                    <% if (_accepted.length === 0) { %>
+                        <span class="text-muted small">No accepted documents.</span>
+                    <% } else { %>
+                        <div class="Portal_Request_Thread_Action__people">
+                            <% for (const doc of _accepted) { %>
+                                <div class="Portal_Request_Thread_Action__media-row" data-document="<%= doc.id %>" title="<%= doc.name %>">
+                                    <img src="<%= doc.thumbnail_url %>" alt="<%= doc.name %>" class="Portal_Request_Thread_Action__thumb">
+                                    <span class="Portal_Request_Thread_Action__media-name"><%= doc.name %></span>
+                                </div>
+                            <% } %>
+                        </div>
+                    <% } %>
+                </div>
+            </Detail_Sidebar>
+        </Slot:sidebar>
+    </Page_Scaffold>
+<% } %>
+</Define:Portal_Request_Thread_Action>

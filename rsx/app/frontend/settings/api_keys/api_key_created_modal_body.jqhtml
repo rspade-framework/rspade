@@ -1,0 +1,41 @@
+<%--
+Api_Key_Created_Modal_Body - Success message for API key creation with copyable key
+
+Modal body component that displays the newly created API key for the user to copy.
+The full key is only shown this one time - it cannot be retrieved later.
+
+Arguments:
+- $name (string, required): The key name
+- $api_key (string, required): The full plaintext API key
+
+Usage:
+    <Api_Key_Created_Modal_Body $name="Production API" $api_key="rsk_live_abc123..." />
+
+Layout:
+- Warning about one-time display
+- Key name display
+- Copyable text input with copy button
+--%>
+<Define:Api_Key_Created_Modal_Body tag="div">
+    <div class="mb-4">
+        <div class="alert alert-warning d-flex align-items-start">
+            <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+            <div>
+                <strong>Important:</strong> Copy this key now. You won't be able to see it again!
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label fw-bold">Key Name</label>
+        <div class="text-muted"><%= this.args.name %></div>
+    </div>
+
+    <div class="mb-0">
+        <label class="form-label fw-bold">API Key</label>
+        <Textbox_Click_To_Copy $value="<%= this.args.api_key %>" />
+        <small class="form-text text-muted d-block mt-2">
+            Click the input or copy button to copy the API key to clipboard.
+        </small>
+    </div>
+</Define:Api_Key_Created_Modal_Body>

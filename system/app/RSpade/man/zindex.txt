@@ -1,0 +1,50 @@
+NAME
+    zindex - RSpade z-index layering scale, extends Bootstrap 5 defaults
+
+Z-INDEX STANDARDS
+=================
+
+RSpade z-index scale, extending Bootstrap 5 defaults.
+
+SCALE
+-----
+z-index   Layer              Purpose
+-------   -----              -------
+auto/0    Base               Normal page content flow
+1000      Dropdown           Page-level dropdowns (Bootstrap)
+1020      Sticky             Sticky headers (Bootstrap)
+1030      Fixed              Fixed navbars (Bootstrap)
+1040      Modal backdrop     (Bootstrap)
+1050      Modal              (Bootstrap)
+1070      Popover            (Bootstrap)
+1080      Tooltip            (Bootstrap)
+1090      Toast              Notifications (Bootstrap)
+1100      Modal children     Dropdowns/selects inside modals
+1200      Flash alerts       Application flash messages
+9000+     System/Debug       Error overlays, debug panels
+
+USAGE
+-----
+Page elements: Use auto/default stacking. Rarely need explicit z-index.
+
+Modal children (1100):
+  Components that render dropdowns to <body> (TomSelect, datepickers)
+  need z-index > modal (1050) to appear above the modal.
+
+Flash alerts (1200):
+  Application-level notifications that should appear above modals.
+
+System (9000+):
+  Reserved for framework-level UI: uncaught error displays, debug tools.
+  Application code should not use this range.
+
+ADDING NEW LAYERS
+-----------------
+Gaps between values are intentional. When adding new layers:
+1. Use existing Bootstrap value if applicable
+2. Otherwise, slot into appropriate range with buffer space
+3. Document here
+
+SEE ALSO
+--------
+Bootstrap z-index: https://getbootstrap.com/docs/5.3/layout/z-index/

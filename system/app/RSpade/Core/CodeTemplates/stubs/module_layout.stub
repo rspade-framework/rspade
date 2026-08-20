@@ -1,0 +1,96 @@
+@rsx_id('{{ layout_class }}')
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>@yield('title', '{{ module_title }}') - {{ config('rspade.name', 'RSX') }}</title>
+
+    {{-- Bootstrap Icons --}}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    {{-- Bundle includes --}}
+    {!! {{ bundle_class }}::render() !!}
+</head>
+
+<body class="{{ rsx_body_class() }}">
+    {{-- Header Navigation --}}
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
+        <div class="container-fluid">
+            {{-- Brand --}}
+            <a class="navbar-brand fw-bold" href="{{ Rsx::Route('{{ module_class }}_Index_Controller') }}">
+                {{ module_title }}
+            </a>
+
+            {{-- Mobile Toggle --}}
+            <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            {{-- Main Navigation --}}
+            <div class="collapse navbar-collapse" id="navbarMain">
+                {{-- Left Side Navigation --}}
+                <ul class="navbar-nav me-auto">
+                    {{--
+                    Example navigation items with active state detection:
+                    The active class is added using request()->is() to match URL patterns
+                    --}}
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->is('{{ module_name }}') || request()->is('{{ module_name }}/index') ? 'active' : '' }}"
+                           href="{{ Rsx::Route('{{ module_class }}_Index_Controller') }}">
+                            <i class="bi bi-house-door"></i> Home
+                        </a>
+                    </li>
+
+                    {{-- Add more navigation items here following the same pattern --}}
+                    {{--
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->is('{{ module_name }}/feature*') ? 'active' : '' }}"
+                           href="{{ Rsx::Route('{{ module_class }}_Feature_Controller') }}">
+                            <i class="bi bi-star"></i> Feature
+                        </a>
+                    </li>
+                    --}}
+                </ul>
+
+                {{-- Right Side Navigation --}}
+                <div class="d-flex align-items-center">
+                    {{-- User Profile Dropdown --}}
+                    @if(\App\RSpade\Core\Session\Session::is_logged_in())
+                        <div class="dropdown">
+                            <button type="button" class="btn btn-dark btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="bi bi-person-circle"></i>
+                                {{ explode('@', \App\RSpade\Core\Session\Session::get_user()->email)[0] }}
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow">
+                                <li><a class="dropdown-item" href="#">
+                                    <i class="bi bi-person"></i> Profile
+                                </a></li>
+                                <li><a class="dropdown-item" href="#">
+                                    <i class="bi bi-gear"></i> Settings
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ Rsx::Route('Login_Index_Controller::#logout') }}">
+                                    <i class="bi bi-box-arrow-right"></i> Sign Out
+                                </a></li>
+                            </ul>
+                        </div>
+                    @else
+                        <a class="btn btn-outline-light btn-sm" href="{{ Rsx::Route('Login_Index_Controller::#show_login') }}">
+                            Login
+                        </a>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    {{-- Main Content Area --}}
+    <main class="main-content">
+        {{-- Flash alerts render themselves client-side; nothing to declare here. --}}
+
+        @yield('content')
+    </main>
+</body>
+</html>

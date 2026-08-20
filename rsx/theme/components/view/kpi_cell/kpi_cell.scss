@@ -1,0 +1,48 @@
+// Kpi_Cell - one compact bordered KPI cell.
+.Kpi_Cell {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-1;
+    padding: $spacing-2 $spacing-3; // 8px 12px
+    border: $border-width solid $border-color;
+    border-radius: $border-radius-md;
+    background: $background-light;
+
+    &__label {
+        font-size: $font-size-xs;
+        font-weight: $font-weight-medium;
+        color: $text-muted;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    &__value {
+        font-size: $font-size-xl; // 20px
+        font-weight: $font-weight-semibold;
+        line-height: 1.1;
+        color: $gray-900;
+    }
+
+    &__sub {
+        font-size: $font-size-xs;
+        color: $text-muted;
+    }
+
+    // $alert: the number needs attention (overdue, negative).
+    &--alert {
+        border-color: $danger-color;
+
+        .Kpi_Cell__value {
+            color: $danger-color;
+        }
+    }
+
+    // $clickable: the cell jumps to its tab.
+    &--clickable {
+        cursor: pointer;
+
+        &:hover {
+            border-color: $primary-color;
+        }
+    }
+}

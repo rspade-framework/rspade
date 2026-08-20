@@ -1,0 +1,76 @@
+<Define:System_Email_Recipients_Action>
+<Page_Scaffold>
+    <Slot:main>
+        <% if (this.data.loading) { %>
+            <Loading_Spinner $message="Loading recipients..." />
+        <% } else { %>
+            <Section $title="Email Recipients" $count=this.data.total $flush=true>
+                <Slot:actions>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control" $sid="search-input" placeholder="Search by email...">
+                        <button class="btn btn-secondary" $sid="search-btn"><i class="bi bi-search"></i></button>
+                    </div>
+                </Slot:actions>
+                <Slot:body>
+                    <% if (this.data.rows.length === 0) { %>
+                        <Empty_State $icon="bi bi-person-lines-fill">
+                            <Slot:title>No recipients tracked yet</Slot:title>
+                            <Slot:body>Recipients are created automatically when emails are sent.</Slot:body>
+                        </Empty_State>
+                    <% } else { %>
+                        <Record_Table>
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th class="text-center">Block Notifications</th>
+                                    <th class="text-center">Block Marketing</th>
+                                    <th class="text-center">Block All</th>
+                                    <th>Sent</th>
+                                    <th>Failed</th>
+                                    <th>Last Sent</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% for (const row of this.data.rows) { %>
+                                <tr>
+                                    <td>
+                                        <%= row.email %>
+                                        <% if (row.unsubscribed_at) { %>
+                                            <span class="d-block text-danger small">Unsubscribed <%= Rsx_Time.relative(row.unsubscribed_at) %></span>
+                                        <% } %>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="form-check form-switch d-inline-block">
+                                            <input class="form-check-input" type="checkbox" data-toggle-block="<%= row.id %>" data-field="is_blocked_notification" <% if (row.is_blocked_notification) { %>checked<% } %>>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="form-check form-switch d-inline-block">
+                                            <input class="form-check-input" type="checkbox" data-toggle-block="<%= row.id %>" data-field="is_blocked_marketing" <% if (row.is_blocked_marketing) { %>checked<% } %>>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="form-check form-switch d-inline-block">
+                                            <input class="form-check-input" type="checkbox" data-toggle-block="<%= row.id %>" data-field="is_blocked_all" <% if (row.is_blocked_all) { %>checked<% } %>>
+                                        </div>
+                                    </td>
+                                    <td><%= row.total_sent %></td>
+                                    <td><%= row.total_failed %></td>
+                                    <td>
+                                        <% if (row.last_sent_at) { %>
+                                            <%= Rsx_Time.relative(row.last_sent_at) %>
+                                        <% } else { %>
+                                            <Empty_Value />
+                                        <% } %>
+                                    </td>
+                                </tr>
+                                <% } %>
+                            </tbody>
+                        </Record_Table>
+                    <% } %>
+                </Slot:body>
+            </Section>
+        <% } %>
+    </Slot:main>
+</Page_Scaffold>
+</Define:System_Email_Recipients_Action>

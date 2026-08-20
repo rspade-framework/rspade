@@ -1,0 +1,141 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "RSX: Check Formatter Dependencies",
+      "type": "shell",
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-ExecutionPolicy", "Bypass",
+          "-File", "${workspaceFolder}/.vscode/ide_setup/check_setup.ps1"
+        ]
+      },
+      "linux": {
+        "command": "${workspaceFolder}/.vscode/ide_setup/check_setup.sh"
+      },
+      "osx": {
+        "command": "${workspaceFolder}/.vscode/ide_setup/check_setup.sh"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new",
+        "showReuseMessage": false,
+        "clear": true
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "RSX: Setup Formatter (First Run)",
+      "type": "shell",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/.vscode/ide_setup/setup.py"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new",
+        "showReuseMessage": false,
+        "clear": true
+      }
+    },
+    {
+      "label": "RSX: Check Setup on Open",
+      "type": "shell",
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-ExecutionPolicy", "Bypass",
+          "-File", "${workspaceFolder}/.vscode/ide_setup/check_setup.ps1"
+        ]
+      },
+      "linux": {
+        "command": "${workspaceFolder}/.vscode/ide_setup/check_setup.sh"
+      },
+      "osx": {
+        "command": "${workspaceFolder}/.vscode/ide_setup/check_setup.sh"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new",
+        "showReuseMessage": false,
+        "clear": true,
+        "close": true
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
+    },
+    {
+      "label": "RSX: Install Laravel Pint",
+      "type": "shell",
+      "command": "composer",
+      "args": [
+        "require",
+        "laravel/pint",
+        "--dev"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "RSX: Test PHP Formatter",
+      "type": "shell",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/.vscode/formatters/orchestrator.py",
+        "${file}"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "RSpade: Install Extension",
+      "type": "shell",
+      "command": "code",
+      "args": [
+        "--install-extension",
+        "${workspaceFolder}/app/RSpade/Extension/rspade-framework.vsix"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new",
+        "showReuseMessage": false,
+        "clear": true
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      }
+    }
+  ]
+}

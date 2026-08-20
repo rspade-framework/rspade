@@ -1,0 +1,106 @@
+SESSION TOKEN IMMUTABILITY + window.rsxapp.cache_key
+Date: 2026-07-24
+
+SUMMARY
+    Two coupled core changes:
+
+    1. Session tokens are now IMMUTABLE for the life of a session. A session_token
+       (and its csrf_token) STRING is minted EXACTLY ONCE - when a new session row
+       is created because the presented cookie matches no row (or there is no
+       cookie). Logging in, logging out, switching sites, and beginning/ending
+       impersonation are now PURE RECORD UPDATES of the existing row - they never
+       regenerate the token/csrf. The SAME-value token cookie is still re-emitted
+       on every response (sliding 365-day expiry refresh); only the VALUE is
+       immutable. This applies to BOTH the staff Session and the portal
+       Portal_Session (the portal's claim_impersonation() handoff - which points the
+       browser at a DIFFERENT session row - is the sole place a different value is
+       ever set).
+
+    2. A new field window.rsxapp.cache_key replaces the CLIENT-side derivation of the
+       Rsx_Storage scope key. cache_key is a 32-char md5 computed SERVER-side over
+       the same ingredients Rsx.scope_key() used to join (session_hash + user id +
+       site id + build_key). Rsx.scope_key() now simply returns
+       window.rsxapp.cache_key.
+
+    This is a Category 2 change: the code lives entirely in /system/ core and arrives
+    automatically via the submodule. It is documented because downstream app code may
+    (a) rely on the old rotate-on-login behavior or carry workarounds for the
+    post-login cookie-desync it caused, and (b) read window.rsxapp.session_hash to
+    derive its own storage scope.
+
+THE CHANGE
+
+    1. No token rotation on identity change.
+       - Session::set_login_user_id(), begin_impersonation(), stop_impersonation()
+         and Portal_Session::set_portal_user_id() no longer call random_bytes() to
+         re-mint session_token/csrf_token, so the cookie value never changes. They
+         update login_user_id / portal_user_id / impersonation columns, bump version,
+         and save. The token and csrf stay byte-identical.
+       - Session::init() / Portal_Session::init() still re-emit the SAME token
+         cookie on each response (the sliding 365-day expiry refresh is retained -
+         re-sending an identical value can never desync the browser from the row).
+         A NEW token value is only ever set by __activate()'s create-new-session
+         branch and the portal claim handoff.
+       - Rationale: RSX tokens are server-minted only and never adopted from the
+         client, so rotation-at-login bought nothing against session fixation (a
+         planted cookie matches no row and gets a fresh server token, or is the
+         attacker's own session) while introducing a cookie-desync race on in-place
+         identity swaps ("become"-style double set_login_user_id). Removing rotation
+         eliminates that race by construction.
+
+    2. window.rsxapp.cache_key (new) - the Rsx_Storage scope suffix.
+       - Rsx_Bundle_Abstract::_compute_cache_key($session_hash, $user_id, $site_id,
+         $build_key) computes it: append each truthy ingredient, join with '_' (empty
+         parts skipped), md5.
+       - Rsx.scope_key() now returns window.rsxapp.cache_key || '' (single accessor,
+         unchanged consumers: Rsx_Storage, Jqhtml_Integration).
+       - window.rsxapp.session_hash STAYS. It remains an ingredient of cache_key and
+         is still compared directly by the SPA session-validation endpoint
+         (Spa_Session_Controller::get_state) to detect session changes. Only the
+         STORAGE-SCOPE derivation moved server-side.
+
+THE FIX
+    Lives entirely in /system/ core (Session.php, Portal_Session.php,
+    Rsx_Bundle_Abstract.php, Rsx.js, Rsx_Storage.js) and reaches you via the
+    submodule - nothing to copy.
+
+ACTION REQUIRED
+    Audit your OWN app code for these patterns:
+
+    1. Storage scoping off session_hash. If any of your app JS derives a cache/scope
+       key from window.rsxapp.session_hash directly, switch to Rsx.scope_key() (or
+       read window.rsxapp.cache_key). Do NOT hand-assemble session_hash + user + site
+       + build yourself - that logic is now server-side and authoritative.
+
+    2. Workarounds for post-login cookie desync. If you added any compensating logic
+       around a "become another user"/double set_login_user_id flow to cope with the
+       old token rotation re-emitting the cookie mid-request (forced reloads, cookie
+       re-reads, retry-on-CSRF-mismatch shims), REMOVE it. An in-place user swap
+       never changes the cookie value and cannot desync. Other open tabs still detect the swap via
+       the SPA session-validation user.id comparison, and the forced full-page reload
+       recomputes a new cache_key that clears the previous user's scoped storage.
+
+    3. Assumptions that the token/csrf rotates on login. If any app code asserts or
+       depends on a NEW session_token or csrf after login/impersonation (e.g. a test,
+       or a "the old token is now dead" assumption), update it: the token and csrf
+       are stable for the life of the session.
+
+    Mark this change fulfilled once your app code is audited:
+
+        php artisan rsx:framework:upstream_changes:mark session_token_immutability_07_24 --fulfilled
+
+VERIFICATION
+    - Create an anonymous session, then log in on that same cookie: the login
+      response emits NO Set-Cookie: rsx, the DB row keeps the same session_token +
+      csrf_token, and login_user_id is now set (version bumped). The framework http
+      test session_token_immutability.sh asserts exactly this.
+    - window.rsxapp.cache_key is a 32-char md5 and Rsx.scope_key() === it (check via
+      rsx:debug --eval).
+    - Two different users on the same session/build produce different cache_key
+      values (so Rsx_Storage clears the prior user's scoped keys on the forced
+      reload).
+
+SEE ALSO
+    php artisan rsx:man session          SECURITY / Token Immutability
+    php artisan rsx:man storage          SCOPING SYSTEM (cache_key)
+    php artisan rsx:man rsxapp           cache_key field

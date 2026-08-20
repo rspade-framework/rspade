@@ -1,0 +1,61 @@
+<%--
+Edit_User_Modal_Form - Modal form for editing user information
+
+Allows admins to update user profile information for existing users.
+
+Fields:
+- id (hidden): User ID
+- email (required): User's email address
+- first_name (required): User's first name
+- last_name (required): User's last name
+- role_id (required): User's role (Owner/Admin/Member/Viewer)
+- phone (optional): User's phone number
+
+Form follows Rsx_Form pattern with Form_Field + input components.
+Validation handled server-side, errors displayed via Form_Utils.
+--%>
+<Define:Edit_User_Modal_Form>
+
+  <Rsx_Form $controller="Frontend_Settings_User_Management_Controller" $method="save_user" $data="<%= JSON.stringify(this.args.data) %>">
+
+    <Hidden_Input $name="id" />
+
+    <div class="mb-3">
+      <Form_Field $label="Email Address" $required=true>
+        <Text_Input $name="email" $type="email" $placeholder="user@example.com" $max_length=User_Model.field_length('email') $autofocus=true />
+      </Form_Field>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <Form_Field $label="First Name" $required=true>
+          <Text_Input $name="first_name" $max_length=User_Model.field_length('first_name') />
+        </Form_Field>
+      </div>
+      <div class="col-md-6 mb-3">
+        <Form_Field $label="Last Name" $required=true>
+          <Text_Input $name="last_name" $max_length=User_Model.field_length('last_name') />
+        </Form_Field>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <Form_Field $label="Role" $required=true>
+        <Select_Input $name="role_id" $options="<%= JSON.stringify([
+          {value: 3, label: 'Member'},
+          {value: 2, label: 'Admin'},
+          {value: 1, label: 'Owner'},
+          {value: 4, label: 'Viewer'}
+        ]) %>" />
+      </Form_Field>
+    </div>
+
+    <div class="mb-3">
+      <Form_Field $label="Phone Number">
+        <Phone_Text_Input $name="phone" $placeholder="(555) 123-4567" />
+      </Form_Field>
+    </div>
+
+  </Rsx_Form>
+
+</Define:Edit_User_Modal_Form>

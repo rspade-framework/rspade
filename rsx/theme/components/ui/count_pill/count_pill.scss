@@ -1,0 +1,16 @@
+// Count_Pill - tiny neutral count pill (replaces "(N)" text suffixes)
+.Count_Pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 $spacing-2; // 8px
+    border-radius: $border-radius-full;
+    background: $gray-200;
+    color: $text-muted;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    line-height: 1;
+    vertical-align: middle;
+}

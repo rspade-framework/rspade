@@ -1,0 +1,88 @@
+# /node_modules  # We commit node_modules to ensure consistent dependencies
+# /vendor  # We commit vendor to ensure consistent dependencies
+/public/hot
+/public/storage
+/public/css
+/public/js
+/public/build
+/public/webfonts
+# .env  # Keeping in git for now
+.env.backup
+.env.production
+.env.replaced_by_healer
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+/.idea
+# /.vscode  # Keeping in git for shared settings
+/.fleet
+/.vapor
+.DS_Store
+._*
+Thumbs.db
+
+# Storage directory (except cdn-cache which is committed)
+/storage/*
+!/storage/rsx-build/
+/storage/rsx-build/*
+!/storage/rsx-build/cdn-cache/
+
+# Hand-made snapshots of storage/ taken while debugging the clean/build scenarios.
+# Three of these (7,410 files of pure build output - php_reflection JSON, compiled
+# scss, formatter caches) were committed years ago and then shipped in every release
+# inventory, where they made up 98% of the non-owned entries: they camouflaged real
+# damage 490-to-1 and could fail a completeness check that had no power to repair
+# them (field report, 2026-08-11). The glob is deliberately narrow - it names the shape
+# that actually leaked rather than guessing at future ones.
+/storage_cli_clean_*/
+
+# Supervisor files
+supervisord.log*
+supervisord.pid*
+*.log
+*.pid
+
+# Local settings
+**/claude/settings.local.json
+**/.claude/settings.local.json
+
+# RSX Framework
+.rsx-manifest-cache
+.migrating
+._rsx_helper.php
+_ide_helper.php
+
+# Cross-filesystem atomic-write staging dirs (file_put_contents_safe / rsx:clean)
+.tmp_*/
+
+# Build artifacts
+/build/cache/
+/build/temp/
+/build/
+/ace_reference/
+.php-cs-fixer.cache
+runonsave_debug.log
+test-*
+__pycache__
+
+# system/.env is NOT ignored, deliberately.
+#
+# It is framework space: always a SYMLINK to ../.env, the project-root file where
+# a developer's actual configuration lives. Tracking the symlink is what makes it
+# survive a clone - and it must, because Laravel boots from system/. Ignoring it
+# meant a fresh checkout had no link at all, artisan seeded a real file from
+# .env.dist in its place, and the application then read that template forever
+# while every configured value sat unread in the root .env (field failure,
+# 2026-08-20).
+#
+# Nothing secret is committed by this: the tracked object is a symlink whose
+# content is the literal string "../.env". The real file it points at is root
+# space and is ignored there.
+docs.dev/*/node_modules/
+docs.dev/ace_reference/vendor/
+.rspade_last_commit_for_publish
+
+# VS Code workspace file (user-specific)
+rspade.code-workspace

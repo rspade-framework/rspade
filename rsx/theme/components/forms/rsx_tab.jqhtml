@@ -1,0 +1,28 @@
+<%--
+Rsx_Tab
+
+Individual tab component that integrates with Rsx_Tabs for form-aware error handling.
+
+$id - Tab identifier (used for URL hash and targeting)
+$label - Tab label text
+$icon - Optional Bootstrap icon class (e.g., "bi-building")
+
+Features:
+- Automatically registers with parent Rsx_Tabs component
+- Counts validation errors in child Form_Field components
+- Renders as Bootstrap tab pane
+- Works independently or within Rsx_Tabs container
+
+Usage:
+<Rsx_Tabs>
+    <Rsx_Tab $sid="basic-info" $label="Basic Information" $icon="bi-building">
+        <Form_Field $label="Name"><Text_Input $name="name" /></Form_Field>
+    </Rsx_Tab>
+    <Rsx_Tab $sid="address" $label="Address" $icon="bi-geo-alt">
+        <Form_Field $label="Street"><Text_Input $name="street" /></Form_Field>
+    </Rsx_Tab>
+</Rsx_Tabs>
+--%>
+<Define:Rsx_Tab class="tab-pane fade" role="tabpanel">
+    <%= content() %>
+</Define:Rsx_Tab>

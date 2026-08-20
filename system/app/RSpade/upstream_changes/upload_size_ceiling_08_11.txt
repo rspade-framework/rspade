@@ -1,0 +1,144 @@
+CATEGORY: 1 - ACTION REQUIRED (grep your app once, replace every hardcoded limit)
+TITLE: The upload size ceiling is now ONE configurable number, enforced on both sides
+       and printable in either language - stop hardcoding "Max size 25MB"
+DATE: 2026-08-11
+
+--------------------------------------------------------------------------------
+WHY YOU ARE READING THIS
+--------------------------------------------------------------------------------
+
+Until this release the framework enforced NO upload size limit at all. /_upload
+checked that a file was present and that PHP had received it successfully, and
+nothing else. The only real ceiling was PHP's own ini, which rejects an oversized
+body before your application ever sees it - and did so with a bare "No file
+uploaded" that is indistinguishable from a form bug.
+
+Meanwhile every upload UI in the wild carries a number someone typed by hand:
+
+    <div class="form-text">Max size 25MB.</div>
+    if (file.size > 10 * 1024 * 1024) { ... }
+
+Those numbers were never checked against anything. They are wrong the day the
+limit changes and NOTHING BREAKS to tell you - the label just quietly lies, and
+the check either refuses a file the server would have accepted or waves through
+one the server will refuse minutes later, after the user has finished uploading
+it.
+
+There is now one number, and two functions that render it.
+
+--------------------------------------------------------------------------------
+THE NUMBER
+--------------------------------------------------------------------------------
+
+    config('rsx.files.max_file_size')          PHP, bytes
+    window.rsxapp.files.max_file_size          JS, bytes, ALWAYS injected
+
+Enforced by /_upload BEFORE your file.upload.authorize gate runs (413, naming the
+offending size and the limit), and checked again by Ajax.upload() client-side so
+an over-size file is refused before it is sent rather than after.
+
+THE DEFAULT IS DERIVED FROM YOUR php.ini, NOT INVENTED. It resolves to the
+SMALLER of upload_max_filesize and post_max_size, read from the running SAPI.
+Both bind - one caps the file, the other caps the request body carrying it - and
+a framework ceiling ABOVE the ini cannot be enforced at all, because PHP discards
+an oversized body before userland. If neither is set, or either reads as
+unlimited, it falls back to 100 MB.
+
+So on most boxes this is already correct with no configuration: RAISE YOUR
+php.ini and the framework limit follows. Note php-fpm and CLI read DIFFERENT
+php.ini files; the fpm one governs uploads.
+
+To pin a deliberate application ceiling instead, set it in
+rsx/resource/config/rsx.php:
+
+    'files' => [
+        'max_file_size' => 25 * 1024 * 1024,   // bytes
+    ],
+
+0 means NO framework ceiling, leaving only PHP's. Client code must read 0 as
+UNLIMITED, never as "reject everything".
+
+--------------------------------------------------------------------------------
+DO THIS ONCE: REPLACE EVERY HARDCODED LIMIT
+--------------------------------------------------------------------------------
+
+Find them:
+
+    grep -rniE "max.?size|maximum.*(MB|GB)|[0-9]+ ?\* ?1024 ?\* ?1024" rsx/
+
+Two shapes to fix.
+
+1.  A DISPLAYED limit - the notice under a file input, a tooltip, help text.
+    Replace the number with the function. Both languages, identical output:
+
+        PHP / Blade
+            <div class="form-text">Max size {{ Ajax::max_file_size_human() }}.</div>
+
+        jqhtml
+            Max size <%= Ajax.max_file_size_human() %>.
+
+        JS
+            const label = Ajax.max_file_size_human();     // "100 MB"
+
+    Rounding is chosen for a LABEL: whole MB up to 1 GB, one decimal from 1 GB to
+    10 GB (so 1.2 GB does not read as "1 GB"), whole GB above that, whole KB
+    below 1 MB. An uncapped limit renders as "Unlimited". PHP and JS produce
+    byte-identical strings, so a server-rendered notice and a component-rendered
+    one cannot disagree.
+
+    This is NOT bytes_to_human(). That one is a faithful 2-decimal rendering of
+    an ACTUAL size ("1.22 GB"), which is what you want when reporting the file
+    someone just uploaded. max_file_size_human() is a round number for a limit.
+
+2.  An ENFORCED limit - a size check in a component or a
+    file.upload.authorize handler.
+
+    If the number was only ever meant to mirror the server, DELETE IT. Both
+    /_upload and Ajax.upload() already enforce the ceiling; a second copy is a
+    second thing to keep in sync.
+
+    If you genuinely want a TIGHTER cap in one place (a 2 MB avatar on a system
+    that allows 100 MB documents), keep it but derive it, so it can never exceed
+    what the server will accept:
+
+        JS
+            const framework = window.rsxapp.files.max_file_size || Infinity;
+            const max_bytes = Math.min(framework, 2 * 1024 * 1024);
+            if (file.size > max_bytes) {
+                Flash.error(`Maximum ${Ajax.bytes_to_size_label(max_bytes)}`);
+            }
+
+        PHP (a file.upload.authorize handler)
+            $max_bytes = min(
+                (int) config('rsx.files.max_file_size') ?: PHP_INT_MAX,
+                2 * 1024 * 1024
+            );
+
+    Ajax::bytes_to_size_label() / Ajax.bytes_to_size_label() render YOUR number
+    with the same rounding, so a tighter app cap still reads like the rest.
+
+--------------------------------------------------------------------------------
+WHILE YOU ARE THERE: A CONFIG KEY THAT NEVER EXISTED
+--------------------------------------------------------------------------------
+
+The framework's own Core/Files/CLAUDE.md documented this under rsx.attachments:
+
+    'max_upload_size' => 10 * 1024 * 1024, // 10MB
+
+NO code has ever read that key. If you copied it into
+rsx/resource/config/rsx.php expecting a 10 MB limit, you have not had one -
+delete it and use rsx.files.max_file_size. The stale documentation is corrected
+in this release.
+
+--------------------------------------------------------------------------------
+ALSO IN THIS RELEASE
+--------------------------------------------------------------------------------
+
+A request over post_max_size still never reaches your application, but it no
+longer reports "No file uploaded". It now says which limit discarded it, how big
+the body was, and that php-fpm and CLI read separate ini files.
+
+The template app's Profile_Photo_Input is the worked example if you want one to
+copy: its $max_size arg is now an OPTIONAL tighter cap in MB (it used to default
+to a hardcoded 25 MB the server had never agreed to), and the notice it prints
+renders whichever limit actually binds.

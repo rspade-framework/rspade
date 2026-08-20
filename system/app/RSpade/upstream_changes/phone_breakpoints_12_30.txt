@@ -1,0 +1,172 @@
+PHONE-SM AND PHONE-LG BREAKPOINTS - MIGRATION GUIDE
+Date: 2024-12-30
+
+SUMMARY
+    New granular phone breakpoints added to the responsive system. The existing
+    `phone` breakpoint (0-799px) remains as a composite covering all phones,
+    similar to how `mobile` covers all non-desktop sizes. Two new breakpoints
+    provide finer control:
+
+        phone-sm    0 - 399px       Small phones, compact screens
+        phone-lg    400 - 799px     Large phones, phablets
+
+    This mirrors the desktop pattern where `desktop` is the composite and
+    `desktop-sm`, `desktop-md`, `desktop-lg`, `desktop-xl` provide granularity.
+
+BREAKPOINT SUMMARY (UPDATED)
+
+    Tier 1 - Semantic:
+        mobile      0 - 1023px      Phone + tablet combined
+        desktop     1024px+         All desktop sizes
+
+    Tier 2 - Granular:
+        phone       0 - 799px       All phones (composite)
+        phone-sm    0 - 399px       Small phones, compact screens
+        phone-lg    400 - 799px     Large phones, phablets
+        tablet      800 - 1023px    Tablets portrait
+        desktop-sm  1024 - 1199px   Laptops, small monitors
+        desktop-md  1200 - 1639px   Standard monitors (1080p)
+        desktop-lg  1640 - 2199px   Large monitors (1440p)
+        desktop-xl  2200px+         Ultra-wide monitors, 4K
+
+    Breakpoints: 400, 800, 1024, 1200, 1640, 2200
+
+AFFECTED FILES
+
+    Framework files (already updated):
+        rsx/theme/variables.scss    New $bp-phone-lg variable, updated $grid-breakpoints
+        rsx/theme/responsive.scss   New mixins: phone-sm, phone-lg, phone-lg-up
+
+    Application files requiring migration:
+        rsx/theme/variables.scss    Add $bp-phone-lg, update $grid-breakpoints
+        rsx/theme/responsive.scss   Add new mixins
+
+CHANGES REQUIRED
+
+    1. Update variables.scss
+       -------------------------------------------------------------------------
+       Add the new breakpoint variable and update $grid-breakpoints.
+
+       Add after existing breakpoint comments:
+
+       $bp-phone-lg: 400px;
+       $bp-tablet: 800px;
+       $bp-desktop: 1024px;
+       $bp-desktop-md: 1200px;
+       $bp-desktop-lg: 1640px;
+       $bp-desktop-xl: 2200px;
+
+       Update $grid-breakpoints to include phone-sm and phone-lg:
+
+       $grid-breakpoints: (
+           xs: 0,
+           mobile: 0,
+           phone: 0,
+           phone-sm: 0,
+           phone-lg: 400px,
+           tablet: 800px,
+           desktop: 1024px,
+           desktop-sm: 1024px,
+           desktop-md: 1200px,
+           desktop-lg: 1640px,
+           desktop-xl: 2200px
+       );
+
+    2. Update responsive.scss
+       -------------------------------------------------------------------------
+       Add the new mixins after the existing @mixin phone definition:
+
+       @mixin phone-sm {
+           @media (max-width: #{$bp-phone-lg - 0.02px}) {
+               @content;
+           }
+       }
+
+       @mixin phone-lg {
+           @media (min-width: $bp-phone-lg) and (max-width: #{$bp-tablet - 0.02px}) {
+               @content;
+           }
+       }
+
+       Add in the "and up" mixins section:
+
+       @mixin phone-lg-up {
+           @media (min-width: $bp-phone-lg) {
+               @content;
+           }
+       }
+
+       Update CSS custom properties in :root:
+
+       :root {
+           --bp-phone-lg: #{$bp-phone-lg};     // 400px
+           --bp-tablet: #{$bp-tablet};         // 800px
+           --bp-desktop: #{$bp-desktop};       // 1024px
+           --bp-desktop-md: #{$bp-desktop-md}; // 1200px
+           --bp-desktop-lg: #{$bp-desktop-lg}; // 1640px
+           --bp-desktop-xl: #{$bp-desktop-xl}; // 2200px
+       }
+
+NEW CLASSES AVAILABLE
+
+    Bootstrap utility classes are auto-generated from $grid-breakpoints:
+
+        .col-phone-sm-12        Full width on small phones
+        .col-phone-lg-6         Half width on large phones
+        .d-phone-sm-none        Hide on small phones
+        .d-phone-lg-block       Show as block on large phones
+        .p-phone-sm-2           Padding 2 on small phones
+        .m-phone-lg-3           Margin 3 on large phones
+
+USAGE EXAMPLES
+
+    Different layouts for small vs large phones:
+
+        .my-component {
+            // Default (all sizes)
+            font-size: 16px;
+
+            @include phone-sm {
+                // Compact layout for small phones
+                font-size: 14px;
+                padding: 8px;
+            }
+
+            @include phone-lg {
+                // More spacious for larger phones
+                font-size: 15px;
+                padding: 12px;
+            }
+        }
+
+    Responsive grid with phone granularity:
+
+        <div class="row">
+            <div class="col-phone-sm-12 col-phone-lg-6 col-tablet-4 col-desktop-3">
+                Card
+            </div>
+        </div>
+
+    Hide element on small phones only:
+
+        <div class="d-phone-sm-none">
+            This content is hidden on small phones (< 400px)
+        </div>
+
+VERIFICATION
+
+    1. Compile bundles and verify no SCSS errors:
+       php artisan rsx:bundle:compile Frontend_Bundle
+
+    2. Test the new breakpoints:
+       - Resize browser to < 400px, verify phone-sm styles apply
+       - Resize browser to 400-799px, verify phone-lg styles apply
+       - Verify phone (composite) still works for 0-799px range
+
+    3. Test Bootstrap classes:
+       - Add class="col-phone-sm-12 col-phone-lg-6" to element
+       - Verify layout changes at 400px breakpoint
+
+REFERENCE
+
+    php artisan rsx:man responsive   - Full responsive system documentation

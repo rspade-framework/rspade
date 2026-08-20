@@ -1,0 +1,42 @@
+<%--
+Php_Exception_Error_Page_Component
+
+Displays PHP exceptions that occurred during Ajax requests.
+Shows the error message, file, line number, and expandable backtrace.
+
+$error_data - The error object with metadata containing file, line, error, backtrace
+--%>
+<Define:Php_Exception_Error_Page_Component class="text-center py-5">
+    <div class="Php_Exception_Error_Page_Component__icon">
+        <i class="bi bi-bug-fill text-danger" style="font-size: 4rem;"></i>
+    </div>
+    <h3 class="Php_Exception_Error_Page_Component__title">PHP Exception</h3>
+    <p class="Php_Exception_Error_Page_Component__subtitle">An error occurred while loading data from the server.</p>
+
+    <div class="Php_Exception_Error_Page_Component__details">
+        <div class="Php_Exception_Error_Page_Component__message">
+            <%= this.args.error_data.message || this.args.error_data.metadata?.error || 'Unknown error' %>
+        </div>
+        <div class="Php_Exception_Error_Page_Component__location">
+            <span class="Php_Exception_Error_Page_Component__file"><%= this.args.error_data.metadata?.file || 'Unknown file' %></span>
+            <span class="Php_Exception_Error_Page_Component__line">line <%= this.args.error_data.metadata?.line || '?' %></span>
+        </div>
+    </div>
+
+    <% if (this.args.error_data.metadata?.backtrace && this.args.error_data.metadata.backtrace.length > 0) { %>
+        <div class="Php_Exception_Error_Page_Component__backtrace">
+            <div class="Php_Exception_Error_Page_Component__backtrace-label">Stack Trace</div>
+            <JS_Tree_Debug_Component
+                $data=this.args.error_data.metadata.backtrace
+                $expand_depth=2
+            />
+        </div>
+    <% } %>
+
+    <% this.handle_retry = () => window.location.reload(); %>
+    <div class="Php_Exception_Error_Page_Component__actions">
+        <button class="btn btn-primary" @click=this.handle_retry>
+            Try Again
+        </button>
+    </div>
+</Define:Php_Exception_Error_Page_Component>

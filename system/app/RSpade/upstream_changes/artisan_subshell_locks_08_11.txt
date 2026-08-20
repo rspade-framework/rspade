@@ -1,0 +1,143 @@
+ARTISAN SUBPROCESSES MUST GO THROUGH Rsx_Artisan (LOCK INHERITANCE)
+===================================================================
+
+Category 2 - REQUIRED CODE CHANGE in your application.
+Applies to: any app code that spawns `php artisan` from PHP.
+Date: 2026-08-11
+
+
+WHY THIS IS NOT OPTIONAL
+------------------------
+
+A cluster lock belongs to a socket CONNECTION. A subprocess is a different process, so it
+opens its own connection and is a stranger to the lock daemon - INCLUDING a stranger to its
+own parent.
+
+That matters because a site write lock is acquired IMPLICITLY. The first save()/insert()/
+update() against any site-scoped model takes cluster:SITE_<id>, and holds it until the
+PROCESS exits. So this shape:
+
+    $record->save();                                   // takes cluster:SITE_1, silently
+    passthru('php artisan some:command');              // child also writes to that site
+
+...produces a child that queues behind its own parent while the parent blocks in waitpid
+waiting for the child. Neither can ever move.
+
+rsx-lockd cannot detect that cycle. Its deadlock detector walks the wait-for graph over lock
+state, and the parent's half of this cycle is an OS waitpid, not a lock wait. There is no
+error, no timeout, and no log line - the process tree simply stops.
+
+This is not hypothetical. It wedged an RSpade framework test run for twelve hours on
+2026-08-11, and the same shape was live in sixteen framework call sites.
+
+
+WHAT CHANGED
+------------
+
+rsx-lockd gained LOCK GROUPS. A connection may name a group at handshake time; a connection
+whose group already holds a lock is granted it immediately instead of queueing.
+
+`App\RSpade\Core\Console\Rsx_Artisan` is now the sanctioned way to spawn artisan from PHP.
+Its synchronous methods attach the parent's group to the child, so the child inherits rather
+than deadlocks.
+
+`ARTISAN-SPAWN-01` (rsx:check, severity critical) flags the old spellings.
+
+
+FIND YOUR CALL SITES
+--------------------
+
+    grep -rn "artisan" --include="*.php" rsx/ \
+      | grep -E "passthru|shell_exec|exec_safe|proc_open|system|popen|\bexec\("
+
+Or just run the check, which is the authoritative answer:
+
+    php artisan rsx:check
+
+
+CONVERT THEM
+------------
+
+    use App\RSpade\Core\Console\Rsx_Artisan;
+
+    // was: passthru('php artisan rsx:bundle:compile', $exit_code);
+    $exit_code = Rsx_Artisan::passthru('rsx:bundle:compile');
+
+    // was: exec_safe('php artisan migrate --force', $output, $exit_code);
+    $output = [];
+    $exit_code = Rsx_Artisan::run('migrate', ['--force'], $output);
+
+    // was: shell_exec('php artisan my:worker > /dev/null 2>&1 &');
+    Rsx_Artisan::dispatch_detached('my:worker');
+
+THE COMMAND NAME AND ITS ARGUMENTS ARE SEPARATE. Pass argv tokens as an array and let
+Rsx_Artisan escape each one - do not hand it a command string:
+
+    Rsx_Artisan::passthru('rsx:prod:build', ['--force', '--authorized']);   // right
+    Rsx_Artisan::passthru('rsx:prod:build --force');                        // WRONG
+
+You also stop having to get two things right that every hand-rolled spawn eventually gets
+wrong: the absolute artisan path (a bare `php artisan` resolves against the CALLER's cwd)
+and the PHP binary (PHP_BINARY under php-fpm is the fpm executable, which cannot run a
+script - so a web-triggered spawn silently does nothing).
+
+
+SYNCHRONOUS PROPAGATES. ASYNCHRONOUS DOES NOT. READ THIS BEFORE USING THE OPT-IN.
+---------------------------------------------------------------------------------
+
+passthru() and run() ALWAYS hand this process's lock group to the child. There is no way to
+turn that off, because there is no case where a blocked parent wants its child to deadlock
+against it.
+
+dispatch_detached() returns immediately, so by default it does NOT propagate. Its opt-in is
+spelled out in full:
+
+    Rsx_Artisan::dispatch_detached('my:command', [], $propagate_locks_and_i_will_wait = true);
+
+Passing true is a PROMISE that you will wait for that process before continuing your own
+critical section - an orchestrator running several children in parallel and joining them.
+If you pass it and do not wait, two live processes hold the same lock while both believe
+they are exclusive, which is precisely the failure the lock daemon exists to prevent. It
+will not error. It will corrupt quietly.
+
+
+ENVIRONMENT vs INVOCATION INTENT
+--------------------------------
+
+Rsx_Artisan::run() takes an $env array. It is for ENVIRONMENT facts - which database, which
+mode - and never for invocation intent, which rides as an argv flag (standing owner ruling):
+
+    Rsx_Artisan::run('migrate', ['--force'], $output, ['DB_DATABASE' => $test_db]);   // right
+    Rsx_Artisan::run('migrate', [], $output, ['FORCE' => '1']);                        // WRONG
+
+
+WHAT IS NOT AFFECTED
+--------------------
+
+- `Artisan::call('some:command')` - runs IN THIS PROCESS on THIS connection, already
+  reentrant, needs nothing from this change, and is not flagged.
+- Shell scripts that call `php artisan`. A shell script holds no locks, so there is nothing
+  to inherit. Leave them alone.
+- Spawning anything that is not artisan (composer, node, a system binary). Out of scope.
+
+
+IF A TEST OF YOURS SPAWNS ARTISAN DELIBERATELY
+----------------------------------------------
+
+A test whose SUBJECT is the artisan entry point itself - the pre-boot argv handling, a
+maintenance gate - should keep its raw spawn, because Rsx_Artisan would insert its own
+command-line construction (including an extra internal flag) between the test and the thing
+under test. Grant a file-level exception WITH A RATIONALE:
+
+    // @ARTISAN-SPAWN-01-EXCEPTION - artisan IS the subject under test here; the helper
+    // would inject a --_lock-group token into the very argv this test asserts about.
+
+The framework does exactly this in three of its own test files. Do not use this to silence
+ordinary application code - there the deadlock is real and the helper is the fix.
+
+
+VERIFY
+------
+
+    php artisan rsx:check              # zero ARTISAN-SPAWN-01 violations
+    php artisan rsx:man locks          # LOCK GROUPS section, for the full model

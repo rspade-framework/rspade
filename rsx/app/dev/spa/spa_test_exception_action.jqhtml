@@ -1,0 +1,17 @@
+<Define:Dev_Spa_Test_Exception_Action>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <h1>Exception Test Page</h1>
+            <p class="lead">This page throws an exception in on_ready() to test error handling.</p>
+
+            <div class="alert alert-warning">
+                <strong>Expected behavior:</strong> This content renders first (on_render), then on_ready() throws an exception.
+                You should see a "Fatal Error" box prepended above this content.
+            </div>
+        </div>
+    </div>
+</div>
+
+</Define:Dev_Spa_Test_Exception_Action>

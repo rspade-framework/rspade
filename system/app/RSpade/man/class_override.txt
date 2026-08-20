@@ -1,0 +1,258 @@
+# Class Override System
+
+## NAME
+
+class_override - Override framework classes with application-specific versions
+
+## SYNOPSIS
+
+Copy a framework class to your rsx/ directory with the same class name:
+
+    # Override User_Model
+    cp system/app/RSpade/Core/Models/User_Model.php rsx/models/user_model.php
+
+    # Edit the copy to customize behavior
+    nano rsx/models/user_model.php
+
+    # Manifest automatically detects and activates override
+
+## DESCRIPTION
+
+The class override system allows developers to replace framework classes with
+custom implementations. When a class with the same name exists in both rsx/
+and app/RSpade/, the manifest automatically:
+
+1. Renames the framework file to .upstream (e.g., User_Model.php.upstream)
+2. Uses the rsx/ version as the authoritative class
+3. Rebuilds to reflect the change
+
+This enables customization without forking the entire framework.
+
+## HOW IT WORKS
+
+During manifest build, when duplicate class names are detected:
+
+    Framework file: app/RSpade/Core/Models/User_Model.php
+    Override file:  rsx/models/user_model.php
+
+    Result:
+    - app/RSpade/Core/Models/User_Model.php renamed to .upstream
+    - rsx/models/user_model.php becomes the active class
+
+The .upstream file preserves the original for reference and framework updates.
+
+## COMMON OVERRIDE TARGETS
+
+These framework classes are commonly overridden to add application-specific
+fields, relationships, or behavior:
+
+    User_Model          - Add custom user fields, relationships, methods
+    User_Profile_Model  - Extend profile with application-specific data
+    Site_Model          - Add site-specific settings or relationships
+
+Location of originals:
+
+    system/app/RSpade/Core/Models/User_Model.php
+    system/app/RSpade/Core/Models/User_Profile_Model.php
+    system/app/RSpade/Core/Models/Site_Model.php
+
+## CREATING AN OVERRIDE
+
+1. Copy the framework file to rsx/:
+
+        cp system/app/RSpade/Core/Models/User_Model.php rsx/models/user_model.php
+
+2. Update the namespace in your copy:
+
+        namespace Rsx\Models;  // Was: namespace App\RSpade\Core\Models;
+
+3. Modify the class as needed (add fields, methods, relationships)
+
+4. Run manifest build or load any page (triggers automatic rebuild):
+
+        php artisan rsx:manifest:build
+
+5. Verify the override is active:
+
+        php artisan tinker --execute="echo Manifest::php_find_class('User_Model');"
+        # Output: rsx/models/user_model.php
+
+## EXAMPLE: EXTENDING USER_MODEL
+
+    <?php
+
+    namespace Rsx\Models;
+
+    use App\RSpade\Core\Database\Models\Rsx_Model_Abstract;
+
+    class User_Model extends Rsx_Model_Abstract
+    {
+        protected $table = 'users';
+
+        public static $enums = [
+            'role_id' => [
+                1 => ['constant' => 'ROLE_ADMIN', 'label' => 'Administrator'],
+                2 => ['constant' => 'ROLE_USER', 'label' => 'User'],
+            ],
+        ];
+
+        // Add application-specific relationships
+        public function projects()
+        {
+            return $this->hasMany(Project_Model::class, 'owner_id');
+        }
+
+        // Add custom methods
+        public function can_access_admin(): bool
+        {
+            return $this->role_id === self::ROLE_ADMIN;
+        }
+
+        // Include all original User_Model functionality...
+    }
+
+## FRAMEWORK UPDATES
+
+When updating the framework with `php artisan rsx:framework:pull`:
+
+1. The override artifacts (.upstream files, use-header rewrites in framework
+   files) are known to the updater as framework-authored churn - the manifest
+   records every such mutation in the marker store at
+   storage/rsx-framework/, so the tamper gate never mistakes them for
+   your edits.
+2. The update hard-syncs the framework-owned zones (rsync --delete of
+   app/RSpade/ and friends from the new release), which simply overwrites
+   the rewritten importers and removes the .upstream files.
+3. Your rsx/ override remains unchanged (rsx/ is never touched by an update).
+4. On the next manifest build, override detection runs again.
+5. The updated framework file is re-renamed to .upstream and the importers
+   are re-rewritten - and re-recorded in the marker store.
+
+No git operations, cleanup passes, or manual resets are involved; the churn
+is erased and recreated as a matter of course. See rsx:man rsx_upstream for
+the full update contract.
+
+To see what changed in the framework version after an update:
+
+    diff rsx/models/user_model.php \
+         system/app/RSpade/Core/Models/User_Model.php.upstream
+
+## REMOVING AN OVERRIDE
+
+To revert to the framework version:
+
+1. Delete your override file:
+
+        rm rsx/models/user_model.php
+
+2. Restore the framework file:
+
+        mv system/app/RSpade/Core/Models/User_Model.php.upstream \
+           system/app/RSpade/Core/Models/User_Model.php
+
+3. Rebuild manifest:
+
+        php artisan rsx:manifest:build
+
+## HOW REFERENCES KEEP RESOLVING
+
+An override renames the framework file to .upstream, yet code all over the
+framework still refers to the ORIGINAL framework class - by simple name, by
+`use` import, or (rarely) by inline FQCN. Three cooperating layers keep every
+such reference resolving to your override, plus one scoped tolerance that makes
+the composer layer's transient miss harmless.
+
+1. MANIFEST SIMPLE-NAME LOADER + USE-FIXER
+
+    RSX enforces unique simple class names, so the manifest indexes classes by
+    simple name and the RSX autoloader (a separately registered spl loader)
+    resolves `User_Model` to whichever file currently defines it - your rsx/
+    copy after an override. When it loads that file it also class_alias()es the
+    requested FQCN (e.g. App\RSpade\Core\Models\User_Model) to the actual class
+    (Rsx\Models\User_Model), so the old fully-qualified name keeps working. The
+    manifest's Php_Fixer additionally rewrites `use` statements to point at the
+    rsx/ location before the rename happens, so imports never dangle.
+
+2. COMPOSER CLASSMAP + THE REBUILD VALIDATOR/DUMP
+
+    Composer's committed classmap (vendor/composer/autoload_classmap.php) is a
+    static file. The instant an override renames a framework file to .upstream,
+    that classmap is stale: it still maps the framework FQCN to the now-missing
+    .php path. Composer's ClassLoader returns a classmap entry WITHOUT checking
+    the file exists and then bare-`include`s it - a missing-file include is a PHP
+    warning that returns false, after which spl_autoload falls through to the RSX
+    loader in layer 1. So the miss is self-correcting at runtime.
+
+    To keep the on-disk data honest, the manifest rebuild - immediately after the
+    override rename/restore pass settles - validates the classmap against the
+    filesystem and, if any entry points at a missing file, runs a blocking
+    `composer dump-autoload` to regenerate it. This is dev/rebuild-only work
+    (sealed prod builds never auto-rebuild, and rsx:prod:build already regenerates
+    the composer autoloader). After the dump, composer no longer maps the stale
+    FQCN and resolution goes cleanly through PSR-4 miss -> layer 1.
+
+3. RSX FALLBACK LOADER + FQCN ALIASING
+
+    When composer declines (or misses), the RSX autoloader takes over: it looks
+    up the simple name in the manifest, requires the real file, and class_alias()es
+    the requested FQCN to it. This is the layer that ultimately makes the old
+    framework FQCN an alias of your override.
+
+SCOPED INCLUDE-WARNING TOLERANCE (why this is not a fail-loud violation)
+
+    Layer 2's "harmless" include warning is only harmless if it stays a warning.
+    Laravel's HandleExceptions promotes warnings to fatal ErrorExceptions, which
+    would abort the autoload mid-flight before layer 3 ever runs. The RSX
+    autoloader therefore installs a scoped error-handler carve-out that swallows
+    EXACTLY the include/include_once warning originating from composer's
+    vendor/composer/ClassLoader.php (identified by the error's file path). Every
+    other warning, every other error level, and warnings from any other file keep
+    their existing fail-loud behavior by delegating to the previous handler. If
+    the RSX loader ALSO cannot resolve the class, PHP's normal "Class not found"
+    fatal still fires - loud and accurate.
+
+    This is a narrow tolerance for one well-understood, self-correcting composer
+    behavior, not a silent fallback: the RSX fallback+alias layer is the intended
+    resolver, and the only thing suppressed is composer's misleading fatal.
+
+HYGIENE INVARIANT
+
+    Framework code should prefer `use` imports (which the Php_Fixer maintains) over
+    inline `\App\RSpade\...\Class` FQCNs. With the tolerance + validator in place an
+    inline FQCN to an overridden class no longer crashes, but imports keep the
+    dependency graph legible and grep-able. Inline FQCNs are hygiene debt, not a
+    correctness bug.
+
+## LIMITATIONS
+
+- Only works for classes in rsx/ overriding app/RSpade/ classes
+- Both files must define the same class name
+- Cannot override multiple framework classes with one file
+- JavaScript classes do NOT support this override pattern - a duplicate JS
+  class name is a hard fatal build error, not an override
+
+## TROUBLESHOOTING
+
+### Override not detected
+
+Ensure class names match exactly. Check with:
+
+    grep -r "^class " rsx/models/user_model.php
+    grep -r "^class " system/app/RSpade/Core/Models/User_Model.php
+
+### Missing methods after override
+
+Your override replaces the entire class. Copy all needed functionality from
+the .upstream file or extend from a different base class.
+
+### Framework file not renamed
+
+Run a clean manifest build:
+
+    php artisan rsx:manifest:build --clean
+
+## SEE ALSO
+
+rsx_upstream(7) - Framework update management
+manifest_api(7) - Manifest system documentation
+model(7) - Model documentation

@@ -1,0 +1,543 @@
+    jQuery Extensions - RSpade framework extensions and overrides to jQuery
+
+SYNOPSIS
+    // Standard click handler with automatic preventDefault
+    $('.btn').click(function(e) {
+        console.log('Button clicked');
+    });
+
+    // Escape hatch for native behavior (rare)
+    $('.nav-link').click_allow_default(function(e) {
+        analytics.track('click');
+        // Link navigation happens
+    });
+
+    // Other jQuery helpers
+    if ($('.element').exists()) { ... }
+    if ($('.element').is_in_viewport()) { ... }
+    $('.form').checkValidity();
+
+DESCRIPTION
+    RSpade extends jQuery with utility methods and overrides default behaviors
+    to provide sensible defaults for modern web applications. The most significant
+    change is the .click() override that automatically calls e.preventDefault()
+    to prevent accidental page navigation and form submission.
+
+    Unlike vanilla jQuery where developers must remember to call preventDefault
+    in nearly every click handler, RSpade makes the correct behavior automatic.
+    This eliminates a common source of bugs where forgotten preventDefault calls
+    cause unwanted page reloads or navigation.
+
+    Philosophy:
+    - Prevent default is correct 95% of the time
+    - Escape hatch available for the 5% case
+    - Fail toward the safe behavior (no navigation)
+    - Make the common case trivial
+
+BLOCKED: $.ajax()
+
+    $.ajax() is OVERRIDDEN TO THROW. So are the shorthands built on it
+    ($.get, $.post, $.getJSON, $.load). There is no flag, option, or escape
+    hatch that re-enables them - a raw XHR is never the right call in RSpade.
+
+    Every server call goes through a declared endpoint instead. A PHP method
+    carrying #[Ajax_Endpoint] (plus its mandatory #[Auth]) is auto-callable
+    from JavaScript as Controller.method():
+
+        // WRONG - throws immediately
+        $.ajax({url: '/save', data: {id: 1}});
+
+        // RIGHT
+        const result = await My_Controller.save({id: 1});
+
+    The generated stub carries the CSRF token, the site/portal channel, the
+    unified error contract, and the batching/dedup layer; a hand-rolled XHR
+    carries none of them. File uploads go through Ajax.upload(form_data) for
+    the same reason - a raw fetch('/_upload') hardcodes the staff path and
+    sends no CSRF token.
+
+    See rsx:man ajax_error_handling for the error contract and
+    rsx:man controller for declaring endpoints.
+
+CLICK OVERRIDE
+
+    .click(handler)
+        Attach click handler that automatically calls e.preventDefault()
+
+        This prevents:
+        - Link navigation (<a href>)
+        - Form submission (<button type="submit">)
+        - Default button actions
+
+        Usage:
+            $('.delete-btn').click(function(e) {
+                delete_record($(this).data('id'));
+                // No need for e.preventDefault() - automatic
+            });
+
+            $('a.modal-trigger').click(function(e) {
+                open_modal();
+                // Link won't navigate - preventDefault called
+            });
+
+    .click() (no handler)
+        Trigger click event - native behavior unchanged
+
+        Usage:
+            $('.hidden-button').click(); // Triggers click
+
+    .click_allow_default(handler)
+        Escape hatch for native click behavior without preventDefault
+
+        Use this ONLY when you explicitly need default browser behavior.
+        Examples: analytics tracking before navigation, conditional preventDefault
+
+        Usage:
+            $('.external-link').click_allow_default(function(e) {
+                analytics.track('external_click', this.href);
+                // Navigation happens after handler
+            });
+
+            $('button[type=submit]').click_allow_default(function(e) {
+                if (!validate_form()) {
+                    e.preventDefault(); // Conditionally prevent
+                }
+                // Otherwise allows form submission
+            });
+
+    .click_async(handler)
+        Attach an async click handler with automatic button busy-state.
+
+        On click the element enters a busy state via Button_Utils: its rendered
+        size is locked, its content is swapped for a CSS-animated loader, and
+        interaction is blocked with the btn--submitting class (pointer-events:
+        none - deliberately NOT the disabled attribute). The handler runs, and
+        the busy state clears when the returned promise settles.
+
+        Contract:
+        - Throws immediately if handler is not a function.
+        - Auto preventDefault, like .click(). Returns this (chainable).
+        - Re-entrant clicks are ignored while a run is in flight (covers
+          .trigger('click') and double-taps that slip past pointer-events).
+        - On settle the busy state clears only if the element is still in the
+          DOM. A handler that navigates the SPA away detaches the button before
+          its promise resolves; the detached node is left untouched (no error).
+        - The handler's rejection is not caught. It escapes as an unhandled
+          rejection and reaches the global handler (console + flash), exactly
+          like any other uncaught async error.
+
+        Usage:
+            $('.save-btn').click_async(async function(e) {
+                await My_Controller.save(form.vals());
+                // Button shows a loader until this resolves, then restores
+            });
+
+        When to use: this is the RECOMMENDED binding for any button whose click
+        triggers a server-side action while the screen the button lives on
+        stays visible (send an email, sync a record, kick a task, toggle a
+        state). Without it the user clicks and nothing changes until the Ajax
+        round-trip completes. It is unnecessary where existing chrome already
+        provides feedback: Rsx_Form submit buttons and Modal.form() buttons
+        get a busy-state from their own machinery, and an action that
+        immediately navigates away replaces the screen anyway.
+
+JQUERY HELPERS
+
+    Element Existence and State
+
+        .exists()
+            Returns true if jQuery selector matched any elements
+
+            if ($('.error-message').exists()) {
+                console.log('Error message present');
+            }
+
+        .is_visible()
+            Returns true if element is visible (not display:none or hidden)
+
+            if ($('.modal').is_visible()) {
+                $('.modal').fadeOut();
+            }
+
+        .is_in_dom()
+            Returns true if element exists in and is attached to the DOM
+
+            if ($('.dynamic-element').is_in_dom()) {
+                // Element is live in the page
+            }
+
+        .is_in_viewport()
+            Returns true if element is currently visible in the viewport
+
+            $('.lazy-image').each(function() {
+                if ($(this).is_in_viewport()) {
+                    load_image($(this));
+                }
+            });
+
+    Scrolling
+
+        .scroll_up_to(speed = 0)
+            Scrolls page up to bring element into view if it's above viewport
+
+            $('.error-field').scroll_up_to(300);
+
+    Element Information
+
+        .tagname()
+            Returns lowercase tag name of element
+
+            if ($element.tagname() === 'a') {
+                // It's a link
+            }
+
+        .is_external()
+            Returns true if link href is external to current domain
+            Only works on <a> elements
+
+            if ($('a').is_external()) {
+                $(this).attr('target', '_blank');
+            }
+
+    Component-Aware DOM Traversal
+
+        .shallowFind(selector)
+            Finds child elements matching the selector that don't have another
+            element of the same class as a parent between them and the component.
+
+            Useful for finding direct widget children in nested component trees
+            without accidentally selecting widgets from nested child components.
+
+            Example:
+                Component_A
+                +-- div
+                    +-- Widget (found)
+                        +-- span
+                            +-- Widget (not found - has Widget parent)
+
+            $('.Component_A').shallowFind('.Widget')
+            // Returns only the first Widget
+
+            Use case - Finding form widgets without selecting nested widgets:
+                this.$.shallowFind('.Form_Field').each(function() {
+                    // Only processes fields directly in this form,
+                    // not fields in nested sub-forms
+                });
+
+        .closest_sibling(selector)
+            Searches for elements within progressively higher ancestor containers.
+            Similar to .closest() but searches within ancestors instead of
+            matching the ancestors themselves. Stops searching at <body> tag.
+
+            Useful for component-to-component communication when components need
+            to find related sibling or cousin components without knowing the
+            exact DOM structure.
+
+            Algorithm:
+            1. Get current element's parent
+            2. Search within parent using parent.find(selector)
+            3. If found, return results
+            4. If not found, move to parent's parent and repeat
+            5. Stop when reaching <body> (searches body but not beyond)
+            6. Return empty jQuery object if nothing found
+
+            Example DOM structure:
+                <body>
+                  <div class="form-section">
+                    <div class="row">
+                      <div class="Country_Select_Input"></div>
+                    </div>
+                    <div class="another-row">
+                      <div class="State_Select_Input"></div>
+                    </div>
+                  </div>
+                </body>
+
+            $('.Country_Select_Input').closest_sibling('.State_Select_Input')
+            // Finds State_Select_Input by searching up to form-section
+
+            Use case - Country selector updating state selector:
+                on_ready() {
+                    if (this.tom_select) {
+                        this.tom_select.on('change', () => {
+                            const state_input = this.$el.closest_sibling('.State_Select_Input');
+                            if (state_input.exists()) {
+                                const widget = state_input.component();
+                                widget.set_country_code(this.val());
+                            }
+                        });
+                    }
+                }
+
+    Form Validation
+
+        .checkValidity()
+            Returns true if form/field passes HTML5 validation
+
+            if ($('form').checkValidity()) {
+                submit_form();
+            }
+
+        .reportValidity()
+            Triggers browser's native validation UI, returns validity
+
+            if (!$('form').reportValidity()) {
+                return; // Browser shows validation errors
+            }
+
+        .requestSubmit()
+            Programmatically submit form (triggers validation)
+
+            $('form').requestSubmit();
+
+    Focus Selector
+
+        :focus pseudo-selector
+            Select element that currently has focus
+
+            if ($('input').is(':focus')) {
+                // Input is focused
+            }
+
+            $('input:focus').addClass('active');
+
+BUTTON BUSY-STATE (Button_Utils)
+
+    Button_Utils is the core static class behind .click_async(). It manages the
+    "submitting" busy-state on a button or other clickable element: it locks the
+    element's rendered size, stashes the original inner HTML, swaps in a
+    CSS-animated loader, and blocks interaction with the btn--submitting class.
+    It never sets the disabled attribute (that would change form semantics).
+
+    Most code should use .click_async(), which drives Button_Utils
+    automatically. Call the API directly only for busy-states not tied to a
+    click (e.g. a long operation kicked off elsewhere).
+
+    Button_Utils.set_submitting($el)
+        Enter the busy state. Idempotent - a no-op on an element already
+        submitting. Operates on every matched element.
+
+            Button_Utils.set_submitting($('.save-btn'));
+
+    Button_Utils.clear_submitting($el)
+        Leave the busy state: restore the original HTML, remove the class,
+        unlock the size. No-op when the element is not submitting.
+
+            Button_Utils.clear_submitting($('.save-btn'));
+
+    Button_Utils.is_submitting($el)
+        Returns true if the (first matched) element is currently submitting.
+
+            if (!Button_Utils.is_submitting($btn)) { ... }
+
+    Loader theming (downstream apps)
+        The loader is styled in the framework's Button_Utils.scss and restyled
+        entirely via CSS custom properties - an app never edits or overrides
+        the core styles themselves. Defaults:
+            --btn-submitting-loader-color      currentColor
+            --btn-submitting-loader-size       1em
+            --btn-submitting-loader-thickness  2px
+            --btn-submitting-loader-speed      0.6s
+
+        currentColor means the loader automatically matches the button text
+        color on every variant (btn-primary, btn-outline-*, links), and 1em
+        scales it with the button's font size - most apps need no styling at
+        all. To restyle, set the properties in your app's theme SCSS (e.g.
+        rsx/theme/theme.scss or a component's own SCSS), scoped as broadly or
+        narrowly as needed:
+
+            // App-wide: slower, thicker loader
+            :root {
+                --btn-submitting-loader-speed: 1s;
+                --btn-submitting-loader-thickness: 3px;
+            }
+
+            // One component's buttons only
+            .My_Widget {
+                --btn-submitting-loader-color: #{$primary-color};
+            }
+
+    Width Synchronization
+
+        .width_group(name)
+            Adds the matched elements to a named group whose members all take
+            the min-width of the widest member. Companions:
+            $.width_group_destroy(name), $.width_group_recalculate(name?).
+
+            Full contract: rsx:man width_group
+
+RSPADE VS VANILLA JQUERY
+
+    Click Handlers
+
+        Vanilla jQuery:
+            $('.btn').click(function(e) {
+                e.preventDefault(); // Must remember this
+                do_something();
+            });
+
+        RSpade:
+            $('.btn').click(function(e) {
+                do_something(); // preventDefault automatic
+            });
+
+    Existence Checks
+
+        Vanilla jQuery:
+            if ($('.element').length > 0) { ... }
+
+        RSpade:
+            if ($('.element').exists()) { ... }
+
+    Form Validation
+
+        Vanilla jQuery:
+            if ($('form')[0].checkValidity()) { ... }
+
+        RSpade:
+            if ($('form').checkValidity()) { ... }
+
+WHEN TO USE .click_allow_default()
+
+    Valid use cases (rare):
+
+    1. Analytics tracking before navigation
+        $('a.external').click_allow_default(function(e) {
+            analytics.track('external_link');
+            // Let navigation happen
+        });
+
+    2. Conditional preventDefault
+        $('button[type=submit]').click_allow_default(function(e) {
+            if (!validate_form()) {
+                e.preventDefault();
+            }
+        });
+
+    3. Progressive enhancement fallbacks
+        $('a[href="/fallback"]').click_allow_default(function(e) {
+            if (ajax_available()) {
+                e.preventDefault();
+                load_via_ajax();
+            }
+            // Otherwise let href work
+        });
+
+    Invalid use cases (use standard .click() instead):
+
+    - Opening modals (don't need navigation)
+    - Triggering actions (don't need navigation)
+    - Ajax requests (don't need navigation)
+    - Any case where you don't want the browser's default behavior
+
+MIGRATION FROM VANILLA JQUERY
+
+    When porting jQuery code to RSpade:
+
+    1. Remove explicit preventDefault calls in click handlers
+        Before:
+            $('.btn').click(function(e) {
+                e.preventDefault();
+                do_action();
+            });
+
+        After:
+            $('.btn').click(function(e) {
+                do_action();
+            });
+
+    2. Identify legitimate native behavior needs
+        If you have click handlers that SHOULD allow navigation/submission,
+        switch to .click_allow_default()
+
+    3. Replace existence checks
+        Before: if ($('.el').length > 0)
+        After:  if ($('.el').exists())
+
+    4. Replace form validation
+        Before: $('form')[0].checkValidity()
+        After:  $('form').checkValidity()
+
+EXAMPLES
+
+    Modal Trigger
+        // Opens modal without navigating
+        $('a.open-modal').click(function(e) {
+            const modal_id = $(this).data('modal');
+            $(`#${modal_id}`).fadeIn();
+        });
+
+    Delete Button
+        // Deletes record without form submission
+        $('.delete-btn').click(function(e) {
+            const id = $(this).data('id');
+            if (confirm('Delete this record?')) {
+                delete_record(id);
+            }
+        });
+
+    External Link with Tracking
+        // Tracks click then allows navigation
+        $('a.external').click_allow_default(function(e) {
+            analytics.track('external_link', {
+                url: this.href,
+                text: $(this).text()
+            });
+        });
+
+    Conditional Form Submit
+        // Only prevents submit if validation fails
+        $('form button[type=submit]').click_allow_default(function(e) {
+            if (!validate_custom_rules()) {
+                e.preventDefault();
+                show_errors();
+            }
+        });
+
+    Lazy Loading on Scroll
+        $(window).on('scroll', function() {
+            $('.lazy-image').each(function() {
+                if ($(this).is_in_viewport() && !$(this).data('loaded')) {
+                    const src = $(this).data('src');
+                    $(this).attr('src', src).data('loaded', true);
+                }
+            });
+        });
+
+TROUBLESHOOTING
+
+    Problem: Links not navigating when they should
+    Solution: Use .click_allow_default() instead of .click()
+
+    Problem: Form submitting unexpectedly
+    Solution: This shouldn't happen - .click() prevents submission by default
+              If using .click_allow_default(), add explicit e.preventDefault()
+
+    Problem: .exists() not working
+    Solution: Ensure Rsx_Jq_Helpers is loaded - check browser console for errors
+
+    Problem: Want to use .on('click') to avoid preventDefault
+    Solution: Don't do this - it defeats the framework's safety. If you need
+              native behavior, use .click_allow_default() to make intent explicit
+
+IMPLEMENTATION NOTES
+
+    The click override is implemented in:
+        /app/RSpade/Core/Js/Rsx_Jq_Helpers.js
+
+    Native jQuery .click() is preserved as:
+        $.fn._click_native()
+
+    The override applies to all elements, not just links and buttons. This is
+    intentional - preventDefault is harmless on elements without default actions
+    and ensures consistency across the codebase.
+
+SEE ALSO
+    width_group.txt - .width_group(name) / $.width_group_destroy() /
+                      $.width_group_recalculate(): synchronize min-width across a
+                      named group of elements (widest wins). Documented separately;
+                      it is a jQuery extension like the helpers above.
+    jqhtml.txt - JQHTML component system
+    controller.txt - Controller click handlers
+    ajax_error_handling.txt - the endpoint error contract ($.ajax is blocked)
+    error_handling.txt - JavaScript error patterns

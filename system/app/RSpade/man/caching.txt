@@ -1,0 +1,373 @@
+==================
+
+RSpade provides two caching strategies for different use cases:
+
+1. **Request-scoped caching** - RsxCache::once()
+2. **Build-scoped caching** - RsxCache::remember()
+
+Both use closures for cache-or-generate patterns, providing clean syntax
+for wrapping expensive operations.
+
+
+REQUEST-SCOPED CACHING (RsxCache::once)
+========================================
+
+Simplest caching strategy - stores values in static property for request duration.
+
+WHEN TO USE:
+- Expensive calculations called multiple times per request
+- Data that doesn't need persistence across requests
+- No Redis overhead needed
+- No locking needed (single process, single request)
+
+CHARACTERISTICS:
+- Lives in PHP memory (static array)
+- No serialization overhead
+- Zero lock contention
+- Cleared automatically at end of request
+- No expiration (request lifetime only)
+
+SYNTAX:
+    $data = RsxCache::once($key, function() {
+        return expensive_calculation();
+    });
+
+EXAMPLES:
+
+    // Avoid re-calculating same value multiple times in request
+    function get_user_permissions($user_id) {
+        return RsxCache::once("user_permissions:{$user_id}", function() use ($user_id) {
+            // This expensive query only runs once per request
+            return User_Model::find($user_id)
+                ->permissions()
+                ->with('roles')
+                ->get();
+        });
+    }
+
+    // Called multiple times, but calculation only happens once
+    $perms1 = get_user_permissions(123);  // Runs query
+    $perms2 = get_user_permissions(123);  // Returns cached
+    $perms3 = get_user_permissions(123);  // Returns cached
+
+    // Safe to call from different parts of codebase
+    class Dashboard_Controller {
+        public static function index(Request $request, array $params = []) {
+            $perms = get_user_permissions($user_id);  // May use cache
+            // ...
+        }
+    }
+
+    class Sidebar_Component extends Jqhtml_Component {
+        public function on_load() {
+            $perms = get_user_permissions($this->args->user_id);  // May use cache
+        }
+    }
+
+
+BUILD-SCOPED CACHING (RsxCache::remember)
+==========================================
+
+Redis-based caching with a stampede lock and automatic build key prefixing.
+
+WHEN TO USE:
+- Expensive operations that don't change often
+- Data shared across multiple requests/processes
+- Need to prevent cache stampede
+- Want automatic invalidation on code deployment
+
+CHARACTERISTICS:
+- Stored in Redis with build key prefix
+- Survives across requests until manifest rebuild
+- Advisory write lock prevents stampede
+- Automatic double-check after lock acquisition
+- Optional expiration time
+- Serialization/deserialization automatic
+
+SYNTAX:
+    // Never expires (default)
+    $data = RsxCache::remember($key, function() {
+        return expensive_operation();
+    });
+
+    // Expires after specified seconds
+    $data = RsxCache::remember($key, function() {
+        return expensive_operation();
+    }, $seconds);
+
+LOCKING BEHAVIOR:
+
+When cache miss occurs:
+1. Fast check (no lock) - returns if cached
+2. Acquire a SYSTEM lock 'cache_build:<key>' (flock, this box only)
+3. Check again (another process may have built it)
+4. Execute callback if still missing
+5. Store result in Redis
+6. Release lock
+
+This prevents stampede: if 100 requests hit at once, only one builds cache
+while others wait for lock, then use the built cache.
+
+The lock is deliberately a SYSTEM lock, not a web-cluster one: the Redis cache
+is per-box, so a duplicate build on another server is wasted work rather than
+corruption, and paying a network round trip to prevent it would cost more than
+it saves. The callback may take as long as it likes - the lock has no lease and
+cannot expire underneath it. See `rsx:man locks`.
+
+EXAMPLES:
+
+    // Cache expensive API response forever (until deployment)
+    function get_product_catalog() {
+        return RsxCache::remember('product_catalog', function() {
+            return External_Api::fetch_all_products();
+        });
+    }
+
+    // Cache with 1 hour expiration
+    function get_trending_products() {
+        return RsxCache::remember('trending_products', function() {
+            return Product_Model::where('views', '>', 1000)
+                ->orderBy('views', 'desc')
+                ->limit(10)
+                ->get();
+        }, RsxCache::HOUR);
+    }
+
+    // Complex calculation cached per user
+    function get_user_dashboard_data($user_id) {
+        return RsxCache::remember("dashboard_data:{$user_id}", function() use ($user_id) {
+            return [
+                'stats' => User_Stats::calculate($user_id),
+                'recent_activity' => Activity::for_user($user_id)->limit(20)->get(),
+                'recommendations' => Recommendation_Engine::generate($user_id),
+            ];
+        }, RsxCache::DAY);
+    }
+
+    // Expensive join query
+    function get_all_users_with_permissions() {
+        return RsxCache::remember('users_with_permissions', function() {
+            // This might take 500ms, but only runs once per deployment
+            return DB::select("
+                SELECT u.*, GROUP_CONCAT(p.name) as permissions
+                FROM users u
+                LEFT JOIN user_permissions up ON u.id = up.user_id
+                LEFT JOIN permissions p ON up.permission_id = p.id
+                GROUP BY u.id
+            ");
+        });
+    }
+
+
+EXPIRATION CONSTANTS
+====================
+
+RsxCache provides constants for common expiration times:
+
+    RsxCache::NO_EXPIRATION  // 0 - never expire (default)
+    RsxCache::HOUR           // 3600 seconds
+    RsxCache::DAY            // 86400 seconds
+    RsxCache::WEEK           // 604800 seconds
+
+EXAMPLES:
+
+    RsxCache::remember($key, $callback);                    // Never expires
+    RsxCache::remember($key, $callback, null);              // Never expires
+    RsxCache::remember($key, $callback, RsxCache::HOUR);    // 1 hour
+    RsxCache::remember($key, $callback, RsxCache::DAY);     // 1 day
+    RsxCache::remember($key, $callback, 300);               // 5 minutes
+    RsxCache::remember($key, $callback, 86400 * 30);        // 30 days
+
+
+CACHE KEY NAMING
+================
+
+Use descriptive keys with context:
+
+GOOD:
+    user:123:permissions
+    product_catalog:category_5
+    dashboard_stats:2024-10
+    api_response:github_user:hansonw
+
+BAD:
+    permissions
+    cache1
+    temp
+    data
+
+
+CACHE INVALIDATION
+==================
+
+BUILD-SCOPED CACHE:
+- Automatically cleared on manifest rebuild (code deployment)
+- Build key prefix ensures old cache invisible after deployment
+- Manual clear: RsxCache::delete($key)
+- Clear all: RsxCache::clear()
+
+REQUEST-SCOPED CACHE:
+- Automatically cleared at end of request
+- No manual clearing needed/possible
+
+
+WHEN TO USE WHICH
+=================
+
+USE RsxCache::once() FOR:
++ Expensive calculations called multiple times in one request
++ Avoiding duplicate work within single request
++ Simple in-memory caching
++ Getter functions that might be called from multiple places
++ Component data loading that might trigger multiple times
+
+USE RsxCache::remember() FOR:
++ Database queries that don't change often
++ External API calls
++ Expensive computations shared across requests
++ Product catalogs, configuration data
++ Analytics/reporting data
++ Anything where cache stampede is a concern
+
+
+ANTI-PATTERNS
+=============
+
+DON'T cache user-specific sensitive data without user ID in key:
+    - RsxCache::remember('user_data', fn() => get_current_user_data());
+    + RsxCache::remember("user_data:{$user_id}", fn() => get_user_data($user_id));
+
+DON'T use request-scoped cache for data that should persist:
+    - RsxCache::once('product_catalog', fn() => fetch_all_products());
+    + RsxCache::remember('product_catalog', fn() => fetch_all_products());
+
+DON'T use short expiration when you want build-scoped:
+    - RsxCache::remember($key, $callback, 60);  // Why expire if it's build data?
+    + RsxCache::remember($key, $callback);      // Let manifest rebuild clear it
+
+DON'T wrap fast operations:
+    - RsxCache::once('user_id', fn() => RsxAuth::id());
+    + $user_id = RsxAuth::id();  // Already fast, no caching needed
+
+DON'T use external side effects in callback:
+    - RsxCache::remember($key, function() {
+        Log::info('Building cache');  // Don't do this
+        send_email_notification();     // Definitely don't do this
+        return calculate_data();
+    });
+
+
+ADVANCED PATTERNS
+=================
+
+LAYERED CACHING:
+
+Combine once() and remember() for two-level caching:
+
+    function get_user_permissions($user_id) {
+        // Request-scoped cache (fastest)
+        return RsxCache::once("user_permissions:{$user_id}", function() use ($user_id) {
+            // Build-scoped cache (fast)
+            return RsxCache::remember("user_permissions:{$user_id}", function() use ($user_id) {
+                // Database query (slow)
+                return User_Model::find($user_id)->permissions()->get();
+            }, RsxCache::HOUR);
+        });
+    }
+
+First call:  Database query -> Store in Redis -> Store in memory -> Return
+Second call (same request): Memory -> Return
+Third call (different request): Redis -> Store in memory -> Return
+
+CONDITIONAL CACHING:
+
+    function get_data($use_cache = true) {
+        if (!$use_cache) {
+            return fetch_fresh_data();
+        }
+
+        return RsxCache::remember('data', function() {
+            return fetch_fresh_data();
+        });
+    }
+
+CACHE WARMING:
+
+    // In deployment script or scheduled job
+    function warm_critical_caches() {
+        RsxCache::remember('product_catalog', fn() => Product::all());
+        RsxCache::remember('site_config', fn() => Config::load_all());
+        RsxCache::remember('menu_structure', fn() => Menu::build_tree());
+    }
+
+
+DEBUGGING
+=========
+
+Check if data is cached:
+
+    if (RsxCache::exists($key)) {
+        // Cached
+    }
+
+View cache statistics:
+
+    $stats = RsxCache::stats();
+    // Returns: total_keys, used_memory, maxmemory, etc.
+
+Manually clear cache:
+
+    RsxCache::delete($key);      // Clear specific key
+    RsxCache::clear();           // Clear all build-scoped cache
+
+Note: Request-scoped cache (once) is not inspectable - it's just a static array
+that lives for the request duration.
+
+
+PERFORMANCE CHARACTERISTICS
+============================
+
+RsxCache::once():
+- Speed: Microseconds (array lookup)
+- Overhead: None (simple array)
+- Scalability: Single process only
+
+RsxCache::remember():
+- Speed: 1-2ms (Redis, Unix socket)
+- Overhead: Serialization + lock acquisition on miss
+- Scalability: Shared across all processes
+
+Cache build with lock:
+- First miss: Lock wait + callback execution + storage
+- Concurrent misses: All wait for lock, first builds, rest use result
+- Hit after build: 1-2ms (no lock needed)
+
+
+MAINTENANCE MODE
+================
+
+While maintenance mode is up (rsx:maintenance:enable, or a framework-update window) redis
+is STOPPED, and RsxCache degrades instead of failing:
+
+- Reads (get, get_persistent, exists) return the default / false. Silently: a miss is a
+  normal cache outcome and logging every one would drown the log.
+- Writes (set, set_persistent, delete, increment, decrement, clear) are DROPPED and leave
+  ONE warning line in the Laravel log per process ("maintenance mode: redis write skipped").
+  Nothing already in the cache is mutated by the window.
+
+This is mandatory, not a nicety: the manifest auto-rebuild and the polymorphic type-ref
+registry hit the cache on the FIRST artisan boot after files change, so without it even the
+first step of a framework update would fatal. Outside maintenance mode a refused redis
+connection stays exactly as loud as ever (shouldnt_happen).
+
+See `rsx:man maintenance_mode`.
+
+
+RELATED SYSTEMS
+===============
+
+See also:
+- php artisan rsx:man locks       - RsxLocks cluster/system advisory locking
+- php artisan rsx:man maintenance_mode - behavior while the services are stopped
+- php artisan rsx:man manifest_build - Manifest build key system
+- /system/app/RSpade/Core/REDIS_USAGE.md - Redis database allocation

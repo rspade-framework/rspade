@@ -1,0 +1,335 @@
+PORTAL: THE FRAMEWORK NOW ASKS THE REQUEST'S EXPERIENCE, NOT THE STAFF SESSION
+Date: 2026-08-09 (corrected + extended 2026-08-10)
+Category: 2 (framework-core behavior change - audit your own code)
+
+SUMMARY
+    The close-out sweep of the identity/session/polymorphic epic audited every
+    Session:: call site in the framework and the template app against the final
+    one-table session architecture. It found places where framework code asked
+    the STAFF session facade a question that belongs to whichever experience is
+    actually being served, and fixed them - first seven call sites (upload,
+    preview, attachment claim, mail, realtime x3), then, in the correction batch
+    that follows it, THE TENANT BOUNDARY ITSELF plus the remaining site seams,
+    and experience scoping for flash alerts.
+
+    You get the fixes automatically. What you may have to do by hand is AUDIT
+    YOUR OWN CODE, because several of them change what your handlers receive or
+    what your data is scoped to - silently, with no error and no failed build.
+    If you have compensating workarounds for the old behavior, this is where you
+    find and remove them.
+
+    Full evidence, per-file verdict tables and the findings that were RECORDED
+    rather than fixed:
+        docs.dev/audits/portal_realm_session_audit_2026_08_09.md   (in the
+        framework monorepo; the summary below is self-contained)
+
+THE ONE RULE BEHIND ALL SEVEN
+    Fork on the EXPERIENCE OF THE REQUEST:
+
+        App\RSpade\Core\Portal\Rsx_Portal::is_portal_request()
+
+    NEVER on who happens to be signed in:
+
+        Portal_Session::is_logged_in()      <-- WRONG as an experience test
+
+    "A portal user is logged in" is an IDENTITY test and it gets both directions
+    wrong - and MORE wrong now that a browser has ONE session carrying both
+    identities at once (see upstream_changes/session_table_merge_08_09.txt). An
+    anonymous portal caller (a public portal page, your invite or register flow, a
+    portal tab that logged out) falls into the STAFF branch and is handed the
+    staff user, the staff tenant and staff-shaped authorization on a portal page.
+    A staff caller whose browser is also signed into the portal falls into the
+    PORTAL branch and gets the portal tenant on a staff page. Both are
+    data-exposure shapes, not cosmetic ones.
+
+    On the previous two-cookie design this misrouting could also reach
+    Session::get_session_id() and MINT a second session, setting a staff cookie on
+    a portal response. That specific failure is structurally impossible now (one
+    cookie, one row), but the identity-vs-experience confusion behind it is not -
+    which is why the rule still stands.
+
+    If you have written this predicate anywhere in your own app, fix it there
+    too. Grep for it:
+
+        grep -rn "Portal_Session::is_logged_in()" rsx/ | grep -v "rsx/portal/"
+
+    A hit INSIDE your portal tree is usually fine (there the realm is not in
+    question). A hit in shared code, an event handler, a service, or a model is
+    the shape to check.
+
+--------------------------------------------------------------------------------
+ACTION REQUIRED - audit these four, in this order
+--------------------------------------------------------------------------------
+
+1. YOUR file.upload.authorize HANDLER  (highest value - it is mandatory, so you
+   have one)
+
+    WHAT CHANGED
+        /_upload builds its gate payload and derives site_id by REALM now, not
+        by portal-login state. Two behaviors changed:
+
+          - An ANONYMOUS upload on a portal request now reports
+            'user' => null (the portal user) and resolves site_id from
+            Portal_Session. It used to report the STAFF user and the staff site.
+            Note it previously answered HTTP 400 "Unable to resolve a site for
+            this upload" whenever the staff site was 0 - if you worked around
+            that by requiring login on public portal upload forms, the
+            workaround is no longer needed.
+
+          - A STAFF upload made from a browser that ALSO holds a portal cookie
+            now correctly reports the staff user and the staff site. It used to
+            report the PORTAL user and stamp the attachment with the PORTAL's
+            site.
+
+    WHAT TO DO
+        Open your handler (usually rsx/handlers/File_Upload_Handlers.php) and
+        confirm it still says what you mean. Specifically:
+
+          - If it type-checks the 'user' key (instanceof User_Model, a role
+            lookup, ->role_id), make sure a Portal_User_Model or null arriving
+            on a portal request produces the answer you intend rather than an
+            accidental deny-everything or allow-everything.
+          - If it compensates for the old crossover ("if a portal user is
+            present, treat it as a portal upload"), DELETE that - the framework
+            now hands you a realm-honest payload and your compensation will
+            fight it.
+
+        The framework's own template handler is the worked example; it uses a
+        deliberate staff-OR-portal disjunction and needed no change.
+
+2. YOUR file.thumbnail.authorize HANDLER
+
+    WHAT CHANGED
+        File_Preview_Controller::get_preview_info is #[Auth_Realm('any')], so a
+        portal page's <Document_Preview> reaches it as a genuine PORTAL request.
+        Its gate payload's 'user' key used to be a staff-facade read - null on a
+        portal domain, or THE STAFF USER in prefix mode, where the same browser is
+        usually signed into the staff app too. It is now experience-honest.
+
+    WHY THIS ONE MATTERS MOST
+        If your handler authorizes previews by inspecting $data['user'], you
+        were granting portal viewers access on the strength of a staff user's
+        permissions whenever a staff session happened to be present in the same
+        browser. Re-read the handler with that in mind, then re-test a portal
+        preview while NOT logged in as staff in the same browser - that is the
+        case that used to behave differently and now does not.
+
+3. ANY CODE THAT CLAIMS AN UPLOAD FROM A PORTAL ENDPOINT
+
+    WHAT CHANGED
+        File_Attachment_Model::can_user_assign_this_file() compares the
+        attachment's site against the CURRENT EXPERIENCE's site now. /_upload
+        always stamped a portal upload with the portal site, so the claim check
+        was asking a different facade than the stamp came from and could only
+        succeed when the staff identity happened to be on the same tenant.
+
+    WHAT TO DO
+        If you have a portal endpoint that claims an uploaded file (attach_to /
+        add_to after find_by_key), re-test it. If you added a workaround -
+        setting the staff site before claiming, or skipping
+        can_user_assign_this_file() because it "never passes in the portal" -
+        remove it. Claims that legitimately failed before will now succeed,
+        which is the point, but it does mean a code path you may have treated as
+        dead is live again.
+
+4. PORTAL-TRIGGERED EMAIL
+
+    WHAT CHANGED
+        Rsx_Mail::send() and the blocklist API (is_blocked / block / unblock /
+        block_all) resolve the site by realm. A send from a portal request is
+        now filed under the PORTAL's site.
+
+    WHY IT MATTERS
+        That site does two things: it stamps the _email_queue row, and it drives
+        the Email_Recipient_Model::is_blocked($site_id, ...) unsubscribe lookup.
+        Under the old behavior a portal-triggered NOTIFICATION or MARKETING
+        email consulted the wrong site's blocklist - so a recipient who had
+        unsubscribed could still be mailed. TRANSACTIONAL sends were unaffected
+        (they always deliver).
+
+    WHAT TO DO
+        - If your app reads _email_queue rows filtered by site (an admin screen,
+          a report, a metric), portal-originated mail now appears under a
+          different site_id than before. Historical rows are NOT rewritten.
+        - If you called Rsx_Mail::block()/unblock() from portal code, the
+          blocklist entries it wrote went to the wrong site. Check
+          _email_recipients for rows whose site_id looks wrong for the address,
+          and re-create them under the correct site if a user's unsubscribe was
+          silently ineffective.
+        - CLI is not a portal request, so your queue drain and any console
+          sending are unchanged.
+
+--------------------------------------------------------------------------------
+NO ACTION - fixed, listed so you can recognize the behavior change
+--------------------------------------------------------------------------------
+
+5. Realtime::connection_token()
+        Picked the facade by portal-login state, so an unauthenticated portal page
+        was stamped as a staff connection (and, on the old two-cookie design,
+        minted a staff session opening a socket). It now forks by EXPERIENCE for
+        the identity and the site, while session_id is resolved once - one browser,
+        one session - and gated on has_session() so opening a socket never creates
+        a session as a side effect. The token's session_id may be null where it
+        previously was a freshly-minted id; null was already part of the documented
+        token contract, and only the Node relay reads it. The connection 'realm'
+        stamp survives with a precise meaning: which EXPERIENCE the page was minted
+        on, so a portal-property change refreshes portal tabs and leaves staff tabs
+        on the same session alone.
+
+6. Realtime::_current_site_id()
+        Same predicate, same fix - and note the two tenants are now genuinely
+        different columns (site_id is staff, portal_site_id is portal). A
+        not-signed-in portal visitor subscribing to a public topic was handed the
+        staff site, and the relay's site-match then rejected every subscribe. If you have a public (unauthenticated)
+        portal surface with a realtime subscription that "just never worked",
+        try it again.
+
+7. Realtime_Emissions::_resolve_site_id()
+        The fallback used when a $realtime model has NO site_id column of its
+        own. On a portal request it used the staff session's site; it now uses
+        the portal's. Frames for such models were being routed to the wrong
+        tenant's connections on a multi-tenant install.
+
+--------------------------------------------------------------------------------
+THE SITE SEAMS - THE TENANT BOUNDARY IS REALM-AWARE NOW (2026-08-10)
+--------------------------------------------------------------------------------
+
+    An earlier revision of this document told you NOT to touch your
+    Main::init() site declaration, because the ORM's tenant boundary still read
+    the staff facade and that line was accidentally holding the portal up. THAT
+    IS NOW FIXED. Read this section instead; it supersedes that instruction.
+
+8. Rsx_Site_Model_Abstract::get_current_site_id()   (the big one)
+
+    WHAT CHANGED
+        The tenant boundary for EVERY site-scoped model - it feeds the site
+        global scope, the forced site_id on create, the cross-site save and
+        retrieve fatals, save(), insert, and the site write lock - now asks
+        Rsx_Portal::is_portal_request() first:
+
+            portal request -> Portal_Session::get_site_id()
+                              (the site YOUR app declared for the portal;
+                               THROWS if it declared none)
+            otherwise      -> Session::get_site_id()   (unchanged)
+
+        Before this, a portal request was scoped by whatever tenant the
+        co-resident STAFF cookie happened to be on (prefix mode - correct only
+        by coincidence on a mono-site install, a cross-tenant read/write
+        primitive on a multi-tenant one), or by site 0 on a portal DOMAIN, where
+        the portal simply could not work.
+
+    ACTION REQUIRED - three things, in this order
+
+    a) MAKE SURE YOU DECLARE THE PORTAL SITE. If you have not adopted
+       Portal_Session::set_site_id() (normally in Portal_Main::init()), your
+       portal now throws on its first site-scoped query, with a message naming
+       the call and `php artisan rsx:man portal`. That refusal is deliberate: a
+       portal that does not know its tenant must not pick one.
+
+    b) YOUR Main::init() SITE DECLARATION IS NOW STAFF-ONLY IN EFFECT, and you
+       may treat it as such. Nothing portal rides on it any more. You do NOT
+       have to change it - a plain `Session::set_site_id($n)` there is still the
+       right way to declare the STAFF app's tenancy (and the CLI default) - but
+       the comment we shipped telling you it was load-bearing for the portal is
+       obsolete, and guarding it with is_portal_request() no longer breaks
+       portal login. We proved that by neutralizing the line entirely and
+       running a full portal form login plus site-scoped portal Ajax.
+
+    c) REMOVE PORTAL-SIDE COMPENSATION. Grep your portal tree for code that was
+       working around the old behavior:
+
+           grep -rn "Session::set_site_id" rsx/portal/ rsx/
+           grep -rn "without_site_scope\|withoutGlobalScope" rsx/portal/
+           grep -rn "where('site_id'" rsx/portal/
+
+       Any staff-facade site write made from portal code to "fix" scoping, any
+       manual site_id predicate added because the scope was wrong, and any
+       without_site_scope() escape hatch opened for that reason should go. They
+       now FIGHT the correct scope: a hand-written where('site_id', ...) on top
+       of a correctly-scoped query is at best redundant and at worst an
+       impossible predicate returning nothing.
+
+9. Rsx_Time, Rsx_Sms, Rsx_Settings, Rsx_Throttle
+
+    WHAT CHANGED
+        The same fork, at the four remaining site seams:
+
+        Rsx_Time      - get_site_timezone() and the site tier of
+                        get_user_timezone() resolve the PORTAL's site on a
+                        portal request. And there is no user tier there:
+                        portal_users has no timezone column, so a portal page
+                        renders in the SITE's zone. It used to fall through to
+                        config('rsx.datetime.default_timezone') on a portal
+                        domain, or - worse, in prefix mode - render a client
+                        portal page in the STAFF user's personal timezone.
+                        The memo is now keyed on the experience too.
+
+        Rsx_Sms       - site stamps the queue row and drives the
+                        Sms_Recipient_Model::is_blocked() opt-out lookup;
+                        identical to the Rsx_Mail change in item 4 above.
+
+        Rsx_Settings  - a site-scoped setting read or written on a portal
+                        request lands under the portal's site. Passing an
+                        explicit $site_id still wins, unchanged.
+
+        Rsx_Throttle  - the (site_id, user_id, action_key) bucket is keyed on
+                        the portal's site. NOTE the identity half is still a
+                        LOGIN user id by contract; if you write the first portal
+                        throttle (a portal login rate limit is the obvious one),
+                        you decide how to keep portal_users.id out of the staff
+                        id space - a realm-qualified action_key is the cheapest
+                        answer.
+
+    WHAT TO DO
+        - If you display timestamps in your portal, re-check them: they now
+          follow the portal site's timezone. If you compensated by converting
+          zones by hand in portal templates or controllers, remove it.
+        - If you send SMS from portal code, re-test the opt-out path and check
+          _sms_recipients for rows filed under the wrong site (same remedy as
+          the email blocklist in item 4).
+        - If you adopted Rsx_Settings, re-check any site-scoped key your portal
+          reads or writes; values written from portal code before this release
+          are under the STAFF site and are not migrated.
+
+10. FLASH ALERTS ARE EXPERIENCE-SCOPED (_flash_alerts.is_portal)
+
+    WHAT CHANGED
+        A new column, is_portal, is stamped from Rsx_Portal::is_portal_request()
+        when an alert is queued and filtered when it is read. One browser has
+        one session shared by both experiences, so before this an alert queued
+        by a portal page was delivered to whichever page of that browser
+        rendered NEXT - including a staff admin screen showing "Welcome to the
+        Client Portal". The per-session cap is now per (session_id, is_portal),
+        so a runaway queue in one experience cannot evict the other's messages.
+        The migration ships with the release; existing rows default to staff and
+        live at most a minute anyway.
+
+    ACTION REQUIRED
+        Only if you query _flash_alerts directly. The API (Flash_Alert::success
+        / error / info / warning, get_pending_messages) is unchanged and does
+        the right thing on its own.
+
+            grep -rn "_flash_alerts" rsx/
+
+        A direct read must now carry the experience predicate as well as the
+        session id, or it will consume the other experience's messages:
+
+            ->where('session_id', $session_id)
+            ->where('is_portal', $is_portal)      // <-- add this
+
+        A direct WRITE (do not do this - use Flash_Alert) must stamp it.
+
+11. STILL OUTSTANDING - the file-SERVING routes
+
+    /_download/:key, /_inline/:key, /_download_zip/:key, /_thumbnail/*,
+    /_icon_by_extension/:extension, /_preview/pdf/:key and /_preview/pdfjs.mjs
+    carry #[Route] only - no #[Portal_Route], unlike /_upload. In prefix mode a
+    portal page's <img src="/_inline/..."> or PDF fetch therefore lands on the
+    STAFF channel, and your file.download.authorize handler sees a staff user
+    (or null) for a file a PORTAL user is viewing. On a portal DOMAIN they 404
+    outright, so portal images, downloads and PDF previews do not load at all.
+
+    This is an architectural decision (extend the whole file-serving family the
+    way /_upload was done), not a facade bug, and it is deliberately not changed
+    here. If you are planning a portal DOMAIN deployment, raise it before you
+    build against it - that topology has still never been exercised end to end.

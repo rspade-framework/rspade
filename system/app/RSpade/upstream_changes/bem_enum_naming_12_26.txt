@@ -1,0 +1,298 @@
+BEM-STYLE ENUM MAGIC PROPERTY NAMING - MIGRATION GUIDE
+Date: 2025-12-26
+
+SUMMARY
+    Enum magic properties and methods now use BEM-style double underscore naming
+    to separate field names from property/method names. This makes enum properties
+    immediately distinguishable from regular model attributes and enables reliable
+    grep searches across the codebase.
+
+    Old: $model->status_id_label, Model::status_id_enum_val()
+    New: $model->status_id__label, Model::status_id__enum()
+
+AFFECTED FILES
+    All files that access enum magic properties or static enum methods:
+    - PHP files using $model->field_property magic properties
+    - PHP files using Model::field_enum_val(), field_enum_select(), etc.
+    - JavaScript files using model.field_property instance properties
+    - JavaScript files using Model.field_enum_val(), field_enum_select(), etc.
+    - Blade templates with enum property access
+    - jqhtml templates with enum property access
+
+CHANGES REQUIRED
+
+    1. Instance Magic Properties (PHP and JavaScript)
+       Change single underscore between field and property to double underscore.
+
+       BEFORE:
+           $project->status_id_label
+           $project->status_id_badge
+           $user->role_id_permissions
+           project.status_id_label
+           user.role_id_badge
+
+       AFTER:
+           $project->status_id__label
+           $project->status_id__badge
+           $user->role_id__permissions
+           project.status_id__label
+           user.role_id__badge
+
+    2. Static Enum Methods (PHP)
+       Change single underscore to double underscore before method suffix.
+
+       BEFORE:
+           User_Model::role_id_enum_val()
+           User_Model::role_id_enum_select()
+           User_Model::role_id_enum_labels()
+           User_Model::role_id_enum_ids()
+
+       AFTER:
+           User_Model::role_id__enum()
+           User_Model::role_id__enum_select()
+           User_Model::role_id__enum_labels()
+           User_Model::role_id__enum_ids()
+
+    3. Static Enum Methods (JavaScript)
+       Change single underscore to double underscore before method suffix.
+       Note: field_enum_val() is renamed to field__enum().
+
+       BEFORE:
+           Project_Model.status_id_enum_val()
+           Project_Model.status_id_enum_val(Project_Model.STATUS_ACTIVE)
+           Project_Model.status_id_enum_select()
+           Project_Model.status_id_enum_labels()
+           Project_Model.status_id_enum_ids()
+
+       AFTER:
+           Project_Model.status_id__enum()
+           Project_Model.status_id__enum(Project_Model.STATUS_ACTIVE)
+           Project_Model.status_id__enum_select()
+           Project_Model.status_id__enum_labels()
+           Project_Model.status_id__enum_ids()
+
+    4. Model Docblocks
+       Run the model-codegen command to regenerate docblocks with new naming.
+
+       php artisan rsx:constants:regenerate
+
+       This updates @property-read and @method annotations in model files.
+
+    5. Remove Instance field_enum_val Property Access (REMOVED FEATURE)
+       The instance property $model->field_enum_val has been removed entirely.
+       Use the static method instead: Model::field__enum($model->field)
+
+       BEFORE:
+           $current_enum = $project->status_id_enum_val;
+           $badge = $current_enum['badge'];
+
+       AFTER:
+           $badge = $project->status_id__badge;
+           // Or for full metadata:
+           $current_enum = Project_Model::status_id__enum($project->status_id);
+
+SEARCH AND REPLACE PATTERNS
+
+    Use these regex patterns to find occurrences that need updating:
+
+    PHP instance properties:
+        Search:  \$\w+->\w+_(?:label|badge|constant|icon|[a-z_]+)(?!\w)
+        (Review each match - only change if it's an enum property)
+
+    PHP static methods:
+        Search:  ::\w+_enum_val\(
+        Replace: ::$1__enum(
+
+        Search:  ::\w+_enum_select\(
+        Replace: ::$1__enum_select(
+
+        Search:  ::\w+_enum_labels\(
+        Replace: ::$1__enum_labels(
+
+        Search:  ::\w+_enum_ids\(
+        Replace: ::$1__enum_ids(
+
+    JavaScript instance properties:
+        Search:  \.\w+_(?:label|badge|constant|icon|[a-z_]+)(?!\w|_)
+        (Review each match - only change if it's an enum property)
+
+    JavaScript static methods:
+        Search:  \.\w+_enum_val\(
+        Replace: .$1__enum(
+
+FETCH() ANTI-ALIASING POLICY (ENFORCED BY PHP-ALIAS-01)
+
+    fetch() exists for SECURITY (removing private data), not aliasing.
+    The PHP-ALIAS-01 code quality rule now enforces this at manifest-time.
+
+    VALID PATTERNS IN FETCH()
+
+    1. Security removal (the primary purpose of fetch):
+
+        $data = $model->toArray();
+        unset($data['password_hash']);
+        unset($data['api_secret']);
+        return $data;
+
+    2. Model method with MATCHING name:
+
+        // Method name MUST match the key
+        $data['full_name'] = $model->full_name();
+        $data['formatted_address'] = $model->formatted_address();
+        $data['unread_count'] = $model->unread_count();
+
+        // The method must be defined on the model:
+        public function full_name(): string {
+            return trim($this->first_name . ' ' . $this->last_name);
+        }
+
+    3. Conditional with matching property/method or literals:
+
+        // Both ternary branches must use matching name or be literals
+        $data['secret'] = $user->is_admin ? $model->secret : null;
+        $data['jazz'] = $model->jazz_allowed() ? $model->jazz : 'Not permitted';
+        $data['notes'] = $can_view ? $model->notes : '[REDACTED]';
+
+    INVALID PATTERNS (Violations)
+
+    1. Enum property aliasing:
+
+        WRONG:
+            $data['type_label'] = $model->type_id__label;
+            $data['status_badge'] = $model->status_id__badge;
+
+        RIGHT:
+            // Don't add these - they're already in toArray() automatically
+            // Access them in JavaScript with full BEM-style names:
+            contact.type_id__label
+            contact.status_id__badge
+
+    2. Date formatting:
+
+        WRONG:
+            $data['created_formatted'] = $model->created_at->format('M d, Y');
+            $data['updated_human'] = $model->updated_at->diffForHumans();
+
+        RIGHT:
+            // Dates are always YYYY-mm-dd, datetimes are ISO UTC
+            // Format on client with Rsx_Date/Rsx_Time:
+            Rsx_Date.format(contact.created_at)
+            Rsx_Time.relative(contact.updated_at)
+
+    3. Relationship plucking without method:
+
+        WRONG:
+            $data['client_name'] = $model->client->name;
+
+        RIGHT:
+            // Create a model method:
+            public function client_name(): ?string {
+                return $this->client?->name;
+            }
+            // Then in fetch:
+            $data['client_name'] = $model->client_name();
+
+    4. Inline computations:
+
+        WRONG:
+            $data['is_owner'] = $model->user_id === Session::get_user_id();
+
+        RIGHT:
+            // Create a model method:
+            public function is_owner(): bool {
+                return $this->user_id === Session::get_user_id();
+            }
+            // Then in fetch:
+            $data['is_owner'] = $model->is_owner();
+
+    5. Redundant explicit assignments:
+
+        WRONG:
+            $data['id'] = $model->id;
+            $data['name'] = $model->name;
+
+        RIGHT:
+            // Remove these lines - toArray() already includes all fields
+
+    6. Mismatched method names:
+
+        WRONG:
+            $data['addr'] = $model->formatted_address();
+
+        RIGHT:
+            $data['formatted_address'] = $model->formatted_address();
+
+    REFACTORING EXISTING CODE
+
+    If you have fetch() methods with aliasing, refactor as follows:
+
+    Step 1: Identify the alias type
+
+        - Enum property alias → Remove it (automatic via toArray)
+        - Date formatting → Remove it (format on client)
+        - Computed value → Extract to model method
+        - Redundant assignment → Remove it
+
+    Step 2: For computed values, create model methods
+
+        BEFORE (in fetch):
+            $data['display_name'] = $model->first_name . ' ' . $model->last_name;
+            $data['is_expired'] = $model->expires_at < now();
+
+        AFTER (in model):
+            public function display_name(): string {
+                return $this->first_name . ' ' . $this->last_name;
+            }
+
+            public function is_expired(): bool {
+                return $this->expires_at < now();
+            }
+
+        AFTER (in fetch):
+            $data['display_name'] = $model->display_name();
+            $data['is_expired'] = $model->is_expired();
+
+    Step 3: Update JavaScript to use proper names
+
+        BEFORE:
+            contact.type_label
+            project.created_formatted
+
+        AFTER:
+            contact.type_id__label
+            Rsx_Date.format(project.created_at)
+
+    ESCAPE HATCH: CONTROLLER AJAX ENDPOINTS
+
+    If you truly need custom response formatting that doesn't fit the model
+    serialization pattern, use a controller Ajax endpoint instead. Controllers
+    are NOT checked by PHP-ALIAS-01 - they are the escape hatch for custom
+    responses like reference data formatting:
+
+        // This is fine in a controller:
+        #[Ajax_Endpoint]
+        public static function get_options(...) {
+            return Model::all()->map(fn($m) => [
+                'value' => $m->id,
+                'label' => $m->name,
+            ]);
+        }
+
+VERIFICATION
+
+    1. Search for old patterns:
+       grep -r "_enum_val\(" rsx/
+       grep -r "_enum_select\(" rsx/
+       grep -r "_label[^_]" rsx/  # Review matches for enum properties
+
+    2. Verify bundle compiles without errors:
+       php artisan rsx:bundle:compile --all
+
+    3. Run the application and verify:
+       - Dropdowns populate correctly (using __enum_select())
+       - Labels display correctly (using __label properties)
+       - Badge classes apply correctly (using __badge properties)
+
+REFERENCE
+    php artisan rsx:man enum      - Complete enum documentation
+    php artisan rsx:man model_fetch - Model fetch and anti-aliasing policy

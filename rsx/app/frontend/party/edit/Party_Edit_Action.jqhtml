@@ -1,0 +1,96 @@
+<Define:Party_Edit_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading party..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Party"
+                $back_label="Go back to Parties"
+                $back_url="<%= Rsx.Route('Party_Index_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <%
+        const t = this.data.type_id;
+        let _type_title = 'Group';
+        if (t === Party_Model.TYPE_PERSON) _type_title = 'Person';
+        else if (t === Party_Model.TYPE_COMPANY) _type_title = 'Company';
+    %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Rsx_Form $data="<%= JSON.stringify(this.data.form_data) %>" $controller="Frontend_Party_Controller" $method="save">
+                <% if (this.data.is_edit) { %>
+                    <Hidden_Input $name="id" />
+                <% } %>
+                <Hidden_Input $name="type_id" />
+
+                <Card_Widget>
+                    <%-- Type-specific fields (live on the detail table) --%>
+                    <Section $title=_type_title>
+                        <% if (t === Party_Model.TYPE_PERSON) { %>
+                            <Form_Field $label="First Name" $required=true>
+                                <Text_Input $name="first_name" $max_length=Party_Model.field_length('first_name') />
+                            </Form_Field>
+                            <Form_Field $label="Last Name" $required=true>
+                                <Text_Input $name="last_name" $max_length=Party_Model.field_length('last_name') />
+                            </Form_Field>
+                            <Form_Field $label="Title">
+                                <Text_Input $name="title" $max_length=Party_Model.field_length('title') />
+                            </Form_Field>
+                            <Form_Field $label="Date of Birth">
+                                <Text_Input $name="date_of_birth" $type="date" $max_length=-1 />
+                            </Form_Field>
+                        <% } else if (t === Party_Model.TYPE_COMPANY) { %>
+                            <Form_Field $label="Legal Name" $required=true>
+                                <Text_Input $name="legal_name" $max_length=Party_Model.field_length('legal_name') />
+                            </Form_Field>
+                            <Form_Field $label="Tax Identifier">
+                                <Text_Input $name="tax_identifier" $max_length=Party_Model.field_length('tax_identifier') />
+                            </Form_Field>
+                            <Form_Field $label="Industry">
+                                <Text_Input $name="industry" $max_length=Party_Model.field_length('industry') />
+                            </Form_Field>
+                            <Form_Field $label="Employees">
+                                <Text_Input $name="employee_count" $type="number" $max_length=-1 />
+                            </Form_Field>
+                        <% } else { %>
+                            <Form_Field $label="Group Name" $required=true>
+                                <Text_Input $name="name" $max_length=Party_Model.field_length('name') />
+                            </Form_Field>
+                        <% } %>
+                    </Section>
+
+                    <%-- Universal fields (every party has these) --%>
+                    <Section $title="Contact">
+                        <Form_Field $label="Email">
+                            <Text_Input $name="email" $type="email" $max_length=Party_Model.field_length('email') />
+                        </Form_Field>
+                        <Form_Field $label="Phone">
+                            <Text_Input $name="phone" $max_length=Party_Model.field_length('phone') />
+                        </Form_Field>
+                        <Form_Field $label="Notes">
+                            <Text_Input $name="notes" $type="textarea" $max_length=-1 $rows=3 />
+                        </Form_Field>
+                    </Section>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="<%= Rsx.Route('Party_Index_Action') %>" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Save Party
+                        </button>
+                    </div>
+                </Card_Widget>
+            </Rsx_Form>
+        </Slot:main>
+    </Page_Scaffold>
+<% } %>
+</Define:Party_Edit_Action>

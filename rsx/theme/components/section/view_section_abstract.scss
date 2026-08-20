@@ -1,0 +1,10 @@
+// View_Section_Abstract - the single home of section/card chrome.
+// Stamped on the root of every concrete section (Section, Card_Widget,
+// Detail_Sidebar) via extends=. Reskin the card look here, once.
+.View_Section_Abstract {
+    background: $card-bg; // #fff
+    border: $border-width solid $border-color;
+    border-radius: $card-border-radius; // 8px
+    box-shadow: $shadow-sm;
+    // No overflow:hidden - dropdowns/popovers inside a section must escape.
+}

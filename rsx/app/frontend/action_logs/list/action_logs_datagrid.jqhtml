@@ -1,0 +1,52 @@
+<%-- Extends Datagrid_Abstract --%>
+
+<Define:Action_Logs_DataGrid
+    extends="DataGrid_Abstract"
+    $data_source=Frontend_Action_Logs_Controller.datagrid_fetch
+    $sort="created_at"
+    $order="desc"
+    $per_page=25
+    class="card DataGrid">
+
+    <Slot:DG_Card_Header>
+        <Card_Title>Activity History</Card_Title>
+        <Card_Header_Right>
+            <Search_Input $sid="filter_input" $placeholder="Search activities..." />
+        </Card_Header_Right>
+    </Slot:DG_Card_Header>
+
+    <Slot:DG_Table_Header>
+        <tr>
+            <th data-sortby="created_at" style="width: 180px;">Date/Time</th>
+            <th style="width: 200px;">Initiator</th>
+            <th style="width: 150px;">Target Type</th>
+            <th>Action</th>
+            <th style="width: 80px;">Details</th>
+        </tr>
+    </Slot:DG_Table_Header>
+
+    <Slot:row>
+        <tr>
+            <td>
+                <%= Rsx_Time.format_datetime(row.created_at) %>
+            </td>
+            <td>
+                <%= row.actor_display || 'System' %>
+            </td>
+            <td>
+                <span class="badge bg-secondary">
+                    <%= row.subject_type_display || '-' %>
+                </span>
+            </td>
+            <td>
+                <%!= row.render || '-' %>
+            </td>
+            <td>
+                <a class="btn btn-outline-primary btn-sm" href="<%= Rsx.Route('Action_Logs_View_Action', row.id) %>" title="View Details">
+                    <i class="bi bi-eye"></i>
+                </a>
+            </td>
+        </tr>
+    </Slot:row>
+
+</Define:Action_Logs_DataGrid>

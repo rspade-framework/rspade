@@ -1,0 +1,116 @@
+<%--
+    Settings Layout - Sublayout for settings pages
+    Provides sidebar navigation that persists across all settings pages.
+
+    Features:
+    - Card-based sidebar with section grouping
+    - Sticky positioning for sidebar
+    - Sign out button
+    - Active state management via NAV_CONFIG in JS
+
+    Used as a sublayout:
+    @layout('Frontend_Spa_Layout')
+    @layout('Settings_Layout')
+    class Settings_Profile_Display_Action extends Spa_Action { }
+--%>
+<Define:Settings_Layout>
+<div class="settings-layout">
+    <%-- Sidebar Navigation --%>
+    <aside class="settings-sidebar">
+        <%-- Main Navigation Card --%>
+        <div class="settings-sidebar__card">
+            <%-- User Settings Section --%>
+            <div class="settings-sidebar__section">
+                <div class="settings-sidebar__section-title">User Settings</div>
+                <a class="settings-sidebar__item" data-page="profile_display"
+                    href="<%= Rsx.Route('Settings_Profile_Display_Action') %>">
+                    <i class="bi bi-person"></i>
+                    <span>Profile</span>
+                </a>
+                <a class="settings-sidebar__item" data-page="profile_edit"
+                    href="<%= Rsx.Route('Settings_Profile_Edit_Action') %>">
+                    <i class="bi bi-pencil"></i>
+                    <span>Edit Profile</span>
+                </a>
+                <a class="settings-sidebar__item" data-page="user_settings"
+                    href="<%= Rsx.Route('Settings_User_Settings_Action') %>">
+                    <i class="bi bi-gear"></i>
+                    <span>Preferences</span>
+                </a>
+                <a class="settings-sidebar__item" data-page="password_security"
+                    href="<%= Rsx.Route('Settings_Password_Security_Action') %>">
+                    <i class="bi bi-shield-lock"></i>
+                    <span>Password & Security</span>
+                </a>
+                <a class="settings-sidebar__item" data-page="api_keys"
+                    href="<%= Rsx.Route('Settings_Api_Keys_Action') %>">
+                    <i class="bi bi-key"></i>
+                    <span>API Keys</span>
+                </a>
+            </div>
+
+            <%--
+                Administration Section. NAV HONESTY: each link asks the DESTINATION
+                whether this user may open it (Permission.can_access reads the target
+                action's own @auth list against the render-time grant map - no rule is
+                restated here), and the whole section hides when none survive, so no
+                heading is left orphaned.
+            --%>
+            <%
+                const _admin = {
+                    users: Permission.can_access('Settings_User_Management_Index_Action'),
+                    groups: Permission.can_access('Settings_Group_Management_Index_Action'),
+                    portal_users: Permission.can_access('Settings_Portal_Users_Index_Action'),
+                    site_settings: Permission.can_access('Settings_Site_Settings_Action'),
+                };
+                const _any_admin = Object.values(_admin).some((allowed) => allowed);
+            %>
+            <% if (_any_admin) { %>
+            <div class="settings-sidebar__section">
+                <div class="settings-sidebar__section-title">Administration</div>
+                <% if (_admin.users) { %>
+                <a class="settings-sidebar__item" data-page="user_management"
+                    href="<%= Rsx.Route('Settings_User_Management_Index_Action') %>">
+                    <i class="bi bi-people"></i>
+                    <span>User Management</span>
+                </a>
+                <% } %>
+                <% if (_admin.groups) { %>
+                <a class="settings-sidebar__item" data-page="group_management"
+                    href="<%= Rsx.Route('Settings_Group_Management_Index_Action') %>">
+                    <i class="bi bi-people-fill"></i>
+                    <span>Group Management</span>
+                </a>
+                <% } %>
+                <% if (_admin.portal_users) { %>
+                <a class="settings-sidebar__item" data-page="portal_users"
+                    href="<%= Rsx.Route('Settings_Portal_Users_Index_Action') %>">
+                    <i class="bi bi-person-badge"></i>
+                    <span>Portal Users</span>
+                </a>
+                <% } %>
+                <% if (_admin.site_settings) { %>
+                <a class="settings-sidebar__item" data-page="site_settings"
+                    href="<%= Rsx.Route('Settings_Site_Settings_Action') %>">
+                    <i class="bi bi-building"></i>
+                    <span>Site Settings</span>
+                </a>
+                <% } %>
+            </div>
+            <% } %>
+
+        </div>
+
+        <%-- Sign Out Card --%>
+        <div class="settings-sidebar__card settings-sidebar__card--signout">
+            <a href="<%= Rsx.Route('Login_Controller::logout') %>" class="settings-sidebar__signout-btn">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Sign Out</span>
+            </a>
+        </div>
+    </aside>
+
+    <%-- Content Area - Actions render here --%>
+    <div class="settings-content" $sid="content"></div>
+</div>
+</Define:Settings_Layout>

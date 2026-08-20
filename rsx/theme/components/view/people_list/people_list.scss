@@ -1,0 +1,66 @@
+// People_List - a calm stacked list of people (avatar + name), never a pill cloud.
+// Owns only the list/row layout; the face is Person_Avatar's, the label is authored data.
+.People_List {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-xs;
+
+    &__row {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        padding: $spacing-xs;
+        border: $border-width solid $border-color;
+        border-radius: $border-radius-sm;
+    }
+
+    // Only an interactive list reacts to the pointer.
+    &__row--clickable {
+        cursor: pointer;
+
+        &:hover {
+            background-color: $gray-100;
+        }
+    }
+
+    &__body {
+        min-width: 0;
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+    }
+
+    &__name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__subtitle {
+        font-size: $font-size-xs;
+        color: $text-muted;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    // Opt-in remove affordance ($removable).
+    &__remove {
+        flex: 0 0 auto;
+        padding: 0;
+        border: 0;
+        background: none;
+        line-height: 1;
+        color: $text-muted;
+        cursor: pointer;
+
+        &:hover {
+            color: $danger-color;
+        }
+    }
+
+    &__empty {
+        color: $text-muted;
+        font-size: $font-size-sm;
+    }
+}

@@ -1,0 +1,102 @@
+NAME
+    man - RSX manual page system
+
+SYNOPSIS
+    php artisan rsx:man              # List all available topics
+    php artisan rsx:man <topic>      # Display documentation for topic
+    php artisan rsx:man responsive   # Example: show responsive docs
+
+DESCRIPTION
+    The man page system provides detailed technical documentation for RSX
+    framework features and project-specific implementations. These documents
+    serve as immediate reference when detailed understanding of any subsystem
+    is necessary.
+
+    Man pages are plain text files following Unix man page conventions:
+    terse, complete, expert-level documentation with code examples.
+
+DIRECTORY STRUCTURE
+    Documentation is loaded from multiple directories in priority order:
+
+        /rsx/resource/man/       Project-specific docs (highest priority)
+        /system/docs/man/        User docs
+        /system/app/RSpade/man/  Framework docs (lowest priority)
+
+    When the same filename exists in multiple directories, the higher
+    priority version is used. This allows projects to override framework
+    documentation when customizations require different instructions.
+
+PROJECT-SPECIFIC DOCUMENTATION
+    The /rsx/resource/man/ directory contains documentation specific to the
+    current project. Create man pages here for:
+
+        - Custom features built on top of the framework
+        - Project-specific configuration or patterns
+        - Implementation details unique to this application
+        - Overrides of framework behavior
+
+    To override a framework man page, create a file with the same name in
+    /rsx/resource/man/. The project version will be displayed instead of
+    the framework version.
+
+FILE FORMAT
+    Man pages use plain text with these conventions:
+
+        - Section headers in ALL CAPS on their own line
+        - Code examples indented with 4 spaces
+        - No markdown, no Unicode, no box-drawing characters
+        - ASCII only for maximum compatibility
+
+    Standard sections:
+
+        NAME        Feature name and one-line description
+        SYNOPSIS    Quick usage example
+        DESCRIPTION Overview and purpose
+        USAGE       Detailed instructions
+        EXAMPLES    Code samples
+        SEE ALSO    Related documentation
+
+EXAMPLES
+    List all available documentation:
+
+        php artisan rsx:man
+
+    View documentation for a specific topic:
+
+        php artisan rsx:man jqhtml
+        php artisan rsx:man bundle_api
+        php artisan rsx:man responsive
+
+    Partial matching works:
+
+        php artisan rsx:man bundle    # Matches bundle_api
+        php artisan rsx:man spa       # Matches spa
+
+CREATING MAN PAGES
+    Framework man pages go in /system/app/RSpade/man/*.txt
+    Project man pages go in /rsx/resource/man/*.txt
+
+    See /rsx/resource/man/CLAUDE.md for detailed writing guidelines.
+
+    Template:
+
+        NAME
+            feature_name - brief description
+
+        SYNOPSIS
+            Most common usage example
+
+        DESCRIPTION
+            What the feature does, why it exists.
+
+        USAGE
+            Step-by-step instructions.
+
+        EXAMPLES
+            Real code examples.
+
+        SEE ALSO
+            Related topics
+
+SEE ALSO
+    jqhtml, bundle_api, spa, coding_standards

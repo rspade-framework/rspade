@@ -1,0 +1,40 @@
+<%--
+Person_Avatar - a person's face: a profile image or a deterministic initials disc
+
+$name (string)          - the person's name; alt text, initials fallback, colour seed [required]
+$avatar_url (nullable)  - profile image URL; shown instead of initials when set [optional]
+$initials (string)      - explicit initials override; derived from $name when absent [optional]
+$size ("sm"|"md"|"lg")  - 28 / 36 / 72px disc; default "md" [optional]
+
+Display-only (no JS file). The initials-disc background is a deterministic hue from
+the initials, so a person reads with a consistent colour everywhere. Consumed by
+Author_Meta_Row and directly wherever a person needs a face (thread participants, the
+contact-card modal). Promoted from the per-page Request/Portal_Participant_Avatar.
+
+Usage:
+    <Person_Avatar $name="Lisa Brown" $avatar_url=_p.avatar_url $size="sm" />
+--%>
+<Define:Person_Avatar tag="span">
+  <% const _size = this.args.size === 'sm' ? 'sm' : (this.args.size === 'lg' ? 'lg' : 'md');
+     const _name = str(this.args.name);
+     // Explicit initials win; otherwise derive from the first two words of the name.
+     let _initials = str(this.args.initials).trim();
+     if (!_initials) {
+         const _parts = _name.trim().split(' ').filter(Boolean);
+         _initials = _parts.slice(0, 2).map((w) => w.charAt(0)).join('');
+     }
+     _initials = (_initials || '?').toUpperCase();
+     // Deterministic background hue from the initials (consistent per person).
+     let _hue = 0;
+     for (let i = 0; i < _initials.length; i++) { _hue = (_hue + _initials.charCodeAt(i) * 37) % 360; }
+     const _bg = 'hsl(' + _hue + ', 45%, 45%)';
+     this.$.addClass('Person_Avatar--' + _size); %>
+  <% if (this.args.avatar_url) { %>
+    <span class="Person_Avatar__disc">
+      <img src="<%= this.args.avatar_url %>" alt="<%= _name %>" class="Person_Avatar__img">
+    </span>
+  <% } else { %>
+    <%-- background-color is inline: a per-person deterministic hue is data, not a token. --%>
+    <span class="Person_Avatar__disc Person_Avatar__disc--initials" style="background-color: <%= _bg %>"><%= _initials %></span>
+  <% } %>
+</Define:Person_Avatar>

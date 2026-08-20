@@ -1,0 +1,21 @@
+<%--
+Detail_Sidebar - entity sidebar wrapper: card chrome + stacking rhythm
+
+default content - sidebar blocks (Sidebar_Kpi_Group, View_Fields, action buttons),
+stacked with the standard block rhythm.
+
+The single card that holds an entity view's sidebar telemetry. KPIs live at the
+TOP (the "At a Glance" pattern), then fact fields, then actions.
+
+Usage:
+    <Detail_Sidebar>
+        <Sidebar_Kpi_Group> ... </Sidebar_Kpi_Group>
+        <View_Fields> ... </View_Fields>
+        <button class="btn btn-primary">Edit</button>
+    </Detail_Sidebar>
+--%>
+<Define:Detail_Sidebar extends="View_Section_Abstract" class="View_Section_Abstract">
+    <div class="Detail_Sidebar__body">
+        <%= content() %>
+    </div>
+</Define:Detail_Sidebar>

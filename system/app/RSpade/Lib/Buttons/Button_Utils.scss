@@ -1,0 +1,38 @@
+/*
+ * Button_Utils - busy-state loader styles
+ *
+ * Applied by Button_Utils.set_submitting(). The `btn--submitting` class blocks
+ * interaction (pointer-events) while a click handler runs; the spinner is the
+ * loader swapped in for the element's content.
+ *
+ * Themeable via CSS custom properties (override them on .btn--submitting or any
+ * ancestor). Defaults are self-contained so core never depends on theme SCSS:
+ *   --btn-submitting-loader-color      default currentColor (inherits text color)
+ *   --btn-submitting-loader-size       default 1em (scales with the button font)
+ *   --btn-submitting-loader-thickness  default 2px
+ *   --btn-submitting-loader-speed      default 0.6s
+ */
+
+.btn--submitting {
+    // Block all interaction while busy. Deliberately NOT the disabled attribute.
+    pointer-events: none;
+}
+
+.Button_Utils__spinner {
+    display: inline-block;
+    box-sizing: border-box;
+    width: var(--btn-submitting-loader-size, 1em);
+    height: var(--btn-submitting-loader-size, 1em);
+    vertical-align: middle;
+    border: var(--btn-submitting-loader-thickness, 2px) solid transparent;
+    border-top-color: var(--btn-submitting-loader-color, currentColor);
+    border-right-color: var(--btn-submitting-loader-color, currentColor);
+    border-radius: 50%;
+    animation: button_utils_spin var(--btn-submitting-loader-speed, 0.6s) linear infinite;
+}
+
+@keyframes button_utils_spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

@@ -1,0 +1,76 @@
+<%-- Portal Users DataGrid Component --%>
+
+<Define:Portal_Users_DataGrid
+    extends="DataGrid_Abstract"
+    $data_source=Frontend_Settings_Portal_Users_Controller.datagrid_fetch
+    $sort="id"
+    $order="desc"
+    $per_page=15
+    class="card DataGrid">
+
+    <Slot:DG_Card_Header>
+        <Card_Title>Portal Users</Card_Title>
+        <Card_Header_Right>
+            <Search_Input $sid="filter_input" $placeholder="Search by email..." />
+        </Card_Header_Right>
+    </Slot:DG_Card_Header>
+
+    <Slot:DG_Table_Header>
+        <tr>
+            <th $sortby="id">ID</th>
+            <th $sortby="email">Email</th>
+            <th $sortby="status_id">Status</th>
+            <th>Clients</th>
+            <th $sortby="last_login">Last Login</th>
+            <th style="width: 220px;">Actions</th>
+        </tr>
+    </Slot:DG_Table_Header>
+
+    <Slot:row>
+        <tr>
+            <td>#P<%= String(row.id).padStart(3, '0') %></td>
+            <td>
+                <%= row.email %>
+                <% if (row.contact_name) { %>
+                    <div class="text-muted small"><%= row.contact_name %></div>
+                <% } %>
+            </td>
+            <td><span class="badge <%= row.status_id__badge %>"><%= row.status_id__label %></span></td>
+            <td>
+                <% if (row.memberships.length === 0) { %>
+                    <span class="text-muted">-</span>
+                <% } else { %>
+                    <div class="Portal_Users_DataGrid__memberships">
+                        <% for (const m of row.memberships) { %>
+                            <span class="Portal_Users_DataGrid__membership">
+                                <a href="<%= Rsx.Route('Clients_View_Action', m.client_id) %>#tab=portal"><%= m.client_name %></a>
+                                <span class="badge <%= m.role_id__badge %>"><%= m.role_id__label %></span>
+                            </span>
+                        <% } %>
+                    </div>
+                <% } %>
+            </td>
+            <td>
+                <% if (row.last_login) { %>
+                    <%= Rsx_Time.relative(row.last_login) %>
+                <% } else { %>
+                    <span class="text-muted">Never</span>
+                <% } %>
+            </td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <% if (row.status_id === Portal_User_Model.STATUS_SUSPENDED) { %>
+                        <button class="btn btn-outline-success" type="button" data-portal-action="reactivate" data-portal-user="<%= row.id %>" title="Reactivate account">
+                            <i class="bi bi-play-circle"></i> Reactivate
+                        </button>
+                    <% } else { %>
+                        <button class="btn btn-outline-secondary" type="button" data-portal-action="suspend" data-portal-user="<%= row.id %>" title="Ban this account entirely (global)">
+                            <i class="bi bi-slash-circle"></i> Suspend Account
+                        </button>
+                    <% } %>
+                </div>
+            </td>
+        </tr>
+    </Slot:row>
+
+</Define:Portal_Users_DataGrid>

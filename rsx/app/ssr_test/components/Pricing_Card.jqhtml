@@ -1,0 +1,49 @@
+<%--
+Pricing_Card
+
+A pricing plan card with feature list.
+Exercises: nested Card components, loops, conditionals, JSON parsing.
+
+$name     - Plan name (e.g., "Professional")
+$price    - Numeric price (e.g., 79)
+$period   - Billing period (e.g., "mo")
+$features - JSON string array of feature names
+$popular  - Boolean, highlights as recommended plan
+--%>
+<Define:Pricing_Card>
+    <%
+        const features = JSON.parse(this.args.features || '[]');
+        const is_popular = this.args.popular === true || this.args.popular === 'true';
+    %>
+    <Card>
+        <% if (is_popular) { %>
+            <div class="Pricing_Card__badge">
+                <span class="badge bg-primary">Most Popular</span>
+            </div>
+        <% } %>
+
+        <Card_Header>
+            <Card_Title><%= this.args.name %></Card_Title>
+        </Card_Header>
+
+        <div class="text-center py-3">
+            <span class="h1 mb-0">$<%= this.args.price %></span>
+            <span class="text-muted">/<%= this.args.period %></span>
+        </div>
+
+        <ul class="list-unstyled mb-0">
+            <% for (const feature of features) { %>
+                <li class="py-1">
+                    <span class="text-success me-2">&#10003;</span>
+                    <%= feature %>
+                </li>
+            <% } %>
+        </ul>
+
+        <Card_Footer>
+            <button class="btn <%= is_popular ? 'btn-primary' : 'btn-outline-primary' %> w-100">
+                Choose <%= this.args.name %>
+            </button>
+        </Card_Footer>
+    </Card>
+</Define:Pricing_Card>

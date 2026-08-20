@@ -1,0 +1,16 @@
+<%--
+External_Link - Link to external website with globe icon
+
+Displays a clickable link to an external website with a globe icon.
+Automatically converts short URLs (domain.com) to full URLs (http://domain.com).
+
+$href - The URL to link to (can be with or without protocol)
+$label - Optional label text to display (defaults to short URL)
+
+Usage:
+<External_Link $href="acmegroup.com" />
+<External_Link $href="https://example.com" $label="Visit Example" />
+--%>
+<Define:External_Link tag="a" target="_blank">
+    <i class="bi bi-globe"></i> <%= this.args.label || full_url_to_short_url(this.args.href) %>
+</Define:External_Link>

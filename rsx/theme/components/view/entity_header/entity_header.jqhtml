@@ -1,0 +1,36 @@
+<%--
+Entity_Header - entity identity header: title + chips + subtitle + meta
+
+<Slot:title> - the H1 entity name (required)
+<Slot:chips> - the status / classification chip row (Status_Badge + outline chips) [optional]
+<Slot:subtitle> - a secondary line under the title [optional]
+<Slot:meta> - the meta row: ids, dates, the "Part of: <parent>" idiom [optional]
+
+Slot-first: an identity header's content always carries structure (chips,
+links, emphasis), so there is no plain-text title arg - the title is authored
+in <Slot:title>.
+
+Usage:
+    <Entity_Header>
+        <Slot:title><%= _client.name %></Slot:title>
+        <Slot:chips>
+            <Status_Badge $model="Client_Model" $status_id=_client.status_id />
+            <span class="badge badge-outline-secondary"><%= _client.priority__label %></span>
+        </Slot:chips>
+        <Slot:meta>Client <%= _client.client_id_formatted %> &middot; Created <%= _created %></Slot:meta>
+    </Entity_Header>
+--%>
+<Define:Entity_Header>
+    <div class="Entity_Header__top">
+        <h1 class="Entity_Header__title"><%= content('title') %></h1>
+        <% if (this.args._slots && this.args._slots.chips) { %>
+            <div class="Entity_Header__chips"><%= content('chips') %></div>
+        <% } %>
+    </div>
+    <% if (this.args._slots && this.args._slots.subtitle) { %>
+        <div class="Entity_Header__subtitle"><%= content('subtitle') %></div>
+    <% } %>
+    <% if (this.args._slots && this.args._slots.meta) { %>
+        <div class="Entity_Header__meta"><%= content('meta') %></div>
+    <% } %>
+</Define:Entity_Header>

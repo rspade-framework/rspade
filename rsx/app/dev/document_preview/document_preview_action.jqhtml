@@ -1,0 +1,58 @@
+<Define:Dev_Document_Preview_Action>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <h1>Document Preview</h1>
+            <p class="lead">Render an attachment through the Document_Preview component and inspect its extracted text.</p>
+        </div>
+    </div>
+
+    <% if (this.data.loading) { %>
+        <div class="alert alert-info mt-3">Loading attachments...</div>
+    <% } else if (this.data.error) { %>
+        <div class="alert alert-danger mt-3"><strong>Error:</strong> <%= this.data.error %></div>
+    <% } else { %>
+        <div class="row mt-3">
+            <div class="col-12 col-desktop-8">
+                <%-- Attachment picker --%>
+                <div class="mb-3">
+                    <label class="form-label small">Attachment</label>
+                    <select $sid="select" class="form-select">
+                        <option value="">-- Select an attachment --</option>
+                        <% for (const a of this.data.attachments) { %>
+                            <option value="<%= a.id %>"><%= a.file_name %> (<%= a.mime_type || 'unknown' %>) [#<%= a.id %>]</option>
+                        <% } %>
+                    </select>
+                </div>
+
+                <%-- Pagination controls --%>
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <button $sid="prev" class="btn btn-sm btn-outline-secondary" disabled>
+                        <i class="bi bi-chevron-left"></i> Prev
+                    </button>
+                    <span $sid="indicator" class="text-muted small">No document loaded</span>
+                    <button $sid="next" class="btn btn-sm btn-outline-secondary" disabled>
+                        Next <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+
+                <%-- Preview surface --%>
+                <div $sid="preview_host" class="border rounded bg-light" style="width: 800px; max-width: 100%; height: 70vh; overflow: auto;">
+                    <div class="d-flex align-items-center justify-content-center h-100 text-muted">
+                        Select an attachment to preview.
+                    </div>
+                </div>
+
+                <%-- Extracted text --%>
+                <div class="mt-4">
+                    <label class="form-label small mb-1">Extracted Text</label>
+                    <div $sid="status" class="text-muted small mb-1">Extraction status: --</div>
+                    <textarea $sid="text" class="form-control" rows="10" readonly placeholder="No extracted text"></textarea>
+                </div>
+            </div>
+        </div>
+    <% } %>
+</div>
+
+</Define:Dev_Document_Preview_Action>

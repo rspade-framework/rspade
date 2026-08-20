@@ -1,0 +1,445 @@
+    coding_standards - RSX framework coding conventions and standards
+
+SYNOPSIS
+    Naming conventions, code organization, and design philosophy for RSX development
+
+DESCRIPTION
+    The RSX framework enforces specific coding standards to maintain consistency,
+    readability, and framework compatibility. These standards ensure code is
+    maintainable and follows the framework's architectural principles.
+
+NAMING CONVENTIONS
+    Methods and Variables:
+        - Use underscore_case for all methods and variables
+        - Examples: user_name, calculate_total(), get_user_data()
+
+    Constants:
+        - Use UPPERCASE_WITH_UNDERSCORES
+        - Examples: MAX_UPLOAD_SIZE, DEFAULT_TIMEOUT
+
+    Classes in /rsx/ Directory:
+        - Use Like_This_With_Underscores format
+        - Examples: Index_Controller, User_Model, Frontend_Bundle
+        - Matches RSX naming patterns for auto-discovery
+
+    Classes in /system/app/RSpade/ (Framework):
+        - Use Like_This_With_Underscores where appropriate
+        - Exception: When extending Laravel classes, use Laravel's PascalCase
+        - Default for framework internals: PascalCase (existing Laravel convention)
+
+    Critical Rule - Case-Sensitive Files:
+        NEVER create files with same name but different case in same directory.
+        Examples to avoid: Helpers.php and helpers.php
+        This breaks Windows/macOS compatibility and triggers critical errors.
+
+FILENAME CONVENTIONS
+
+    Basic Rule:
+        Filenames in rsx/ should match their class/ID name (case-insensitive).
+        Example: class Frontend_Calendar -> frontend_calendar.php
+
+    Short Name Pattern (Preferred):
+        When directory structure provides context, filenames can use "short names"
+        that omit prefix parts represented by the directory path.
+
+        Requirements for valid short names:
+        - Class/ID must have 3+ segments (2-segment names must use full filename)
+        - Short name must have 2+ segments minimum
+        - Directory path must contain the omitted prefix parts as contiguous sequence
+
+        Algorithm: Filename is valid if [directory parts] + [filename parts] = [class parts]
+
+        Example 1 - Clean prefix removal:
+            Class: Frontend_Calendar_Event
+            Directory: rsx/app/frontend/calendar/
+            Valid filenames:
+            - calendar_event.blade.php (removes 'frontend')
+            - frontend_calendar_event.blade.php (full name also valid)
+
+        Example 2 - Partial overlap pattern:
+            Class: Frontend_Settings_Account
+            Directory: rsx/app/frontend/settings/account/
+            Valid filenames:
+            - settings_account.blade.php (removes 'frontend', overlaps 'settings')
+            - frontend_settings_account.blade.php (full name also valid)
+
+            Why settings_account is valid:
+            - Directory contains: [rsx, app, frontend, settings, account]
+            - Filename parts: [settings, account]
+            - Can we reconstruct class from dir + filename? YES
+              -> Directory has 'frontend' prefix
+              -> Filename 'settings_account' matches remaining parts
+              -> frontend + settings_account = Frontend_Settings_Account +
+
+        Example 3 - Too short (invalid):
+            Class: Frontend_Calendar
+            Directory: rsx/app/frontend/calendar/
+            Invalid: calendar.blade.php (only 1 segment - not allowed)
+            Required: frontend_calendar.blade.php (must use full name)
+
+    Partial Overlap Rationale:
+        Allows semantic redundancy when it improves clarity. In nested directories,
+        repeating the immediate parent directory name in the filename provides
+        essential context without requiring the full prefix chain.
+
+        Example benefits:
+        - settings/account/settings_account.php is clearer than account/account.php
+        - Filename alone (settings_account) indicates it's account settings
+        - Maintains file prefix grouping for related files
+
+FILENAME CONVENTION EXCEPTIONS
+    @FILENAME-CONVENTION-EXCEPTION Marker:
+        Add this marker anywhere in a file to exempt it from filename matching rules.
+        The framework will skip all filename convention checks for that file.
+
+        Use cases:
+        - Legacy files being migrated that cannot be renamed yet
+        - Special cases that require non-standard naming
+        - Files with intentional naming that violates conventions
+
+        Example:
+            <?php
+            // @FILENAME-CONVENTION-EXCEPTION
+            // This file has a non-standard name for legacy reasons
+
+            class User_Model { ... }
+
+        Note: File must contain this exact text (case-sensitive) anywhere in contents.
+
+AUTOMATIC FILE RENAMING (DEVELOPMENT)
+    Configuration (config/rsx.php):
+        'development' => [
+            // Auto-rename files to match RSX naming conventions
+            'auto_rename_files' => false,  // Set to true to enable
+
+            // Globally disable all filename convention checks
+            'ignore_filename_convention' => false,  // Set to true to disable
+        ]
+
+    Auto-Rename Behavior (auto_rename_files = true):
+        - During manifest build, files in ./rsx are automatically renamed
+        - Only renames if target filename doesn't already exist
+        - Manifest rebuilds after rename to reflect new file paths
+        - Files with @FILENAME-CONVENTION-EXCEPTION are never renamed
+
+        Examples of auto-renaming:
+        - TestComponent1.jqhtml -> test_component_1.jqhtml
+        - UserController.php -> user_controller.php
+        - MyView.blade.php -> my_view.blade.php
+
+        If target exists: Normal violation thrown (conflict detected)
+
+    Global Disable (ignore_filename_convention = true):
+        - Disables ALL filename convention checks
+        - No violations thrown for any files
+        - Useful for projects with existing non-standard naming
+        - More aggressive than @FILENAME-CONVENTION-EXCEPTION marker
+
+RSPADE FRAMEWORK INTERNAL METHOD NAMING
+    For files in /system/app/RSpade/ only:
+
+    Private and Protected Methods:
+        - MUST start with double underscore: __internal_method()
+        - Purpose: Immediately identifies framework-internal methods
+        - Application code prohibition: Never call methods starting with _
+
+    Public API Methods:
+        - Must NOT start with underscore
+        - These are stable public API for applications
+        - Safe for RSX applications to use
+
+    Example:
+        // In /system/app/RSpade/Core/Something.php
+        public static function public_api_method() { }      // OK for apps
+        private static function __internal_helper() { }     // Framework only
+        protected static function __process_data() { }      // Framework only
+
+    Rationale:
+        - Methods starting with _ may change without notice in updates
+        - Clear separation between stable API and internal implementation
+        - Prevents applications from depending on internal methods
+
+CLASS DESIGN PHILOSOPHY
+    Static by Default:
+        - All classes should be static unless specific reason to instantiate
+        - Classes are namespacing tools, not OOP for the sake of OOP
+        - Direct access from anywhere without instantiation
+
+    Exceptions for Instances:
+        - ORM/Model records (represent database rows)
+        - Resource handles (file handles, connections)
+        - Service connectors needing mocking (AWS, payment gateways)
+        - Artisan commands
+
+    Avoid Dependency Injection:
+        - No DI patterns or factory classes
+        - Exception: Service connectors that need mocking for tests
+        - Utility classes, helpers, managers, processors should be static
+
+STRING MANIPULATION PHILOSOPHY
+    For Source Code Analysis: NO REGEX
+        - Never use regex to parse PHP, JavaScript, or any programming language
+        - Why regex fails for source code:
+          * Cannot distinguish code from comments
+          * Cannot understand syntactic context (strings, blocks, nesting)
+          * Breaks when code formatting changes
+          * Creates unmaintainable parsing logic
+        - Use AST parsers instead: Extend PHP/JS AST functionality in manifest
+          system to generate metadata for runtime analysis
+
+    For General String Operations: Prefer Verbose Clarity
+        - Default approach: Use explicit string functions over regex
+        - Prefer readable multi-line operations:
+
+          // + GOOD - Clear and maintainable
+          $parts = explode('/', $path);
+          $filename = end($parts);
+          $extension = substr($filename, strrpos($filename, '.') + 1);
+
+          // - AVOID - Unreadable regex
+          preg_match('/\/([^\/]+)\.([^.]+)$/', $path, $matches);
+
+    When Simple Regex IS Appropriate:
+        - Well-established validation patterns using proven libraries
+        - Very simple matching: single character classes, basic patterns
+        - Performance-critical operations where regex proven faster AND simple
+
+    Implementation Process:
+        1. Always propose solution to user first before implementing regex
+        2. Justify why string functions aren't sufficient
+        3. Document regex purpose in plain English
+        4. Prefer library solutions over custom regex patterns
+
+    Source Code Analysis Guidelines:
+        - Extend manifest AST parsers to capture needed metadata
+        - Add metadata to manifest cache for runtime analysis
+        - Use reflection and AST data instead of pattern matching
+        - Consult user before any source code parsing implementation
+
+FUNCTION ORGANIZATION PHILOSOPHY
+    Prefer Inline Code with Comments:
+        - Comment above a few lines better than separate methods
+        - Readability from clear comments and logical flow
+        - Not arbitrary function boundaries
+
+    Long Functions Are Acceptable:
+        - When steps are sequential and single-purpose
+        - Clear comments explain the flow
+        - Related logic stays together
+
+    Create Sub-Functions Only When:
+        - Code called from multiple places or multiple times
+        - Operation is significantly complex logical subset
+        - Code needs independent unit testing
+        - Abstraction genuinely improves understanding
+
+    Avoid Functions for the Sake of Functions:
+        - Don't create method to wrap file_get_contents($file)
+        - Don't split sequential operations arbitrarily
+        - Goal: Keep related logic together, not create maze of methods
+
+    Sequential Operations Belong Together:
+        - If step B always follows step A, same function with comments
+        - Not arbitrarily split across multiple methods
+
+OPTIONAL PARAMETERS
+    Public (rsx-developer-facing) functions take their required/obvious arguments as
+    POSITIONAL parameters, followed by a SINGLE optional associative-array of options
+    when optional parameters are appropriate.
+
+    Rules:
+        - NOT a long tail of defaulted positionals (foo($a, $b = null, $c = 1, $d = false)).
+        - NOT native PHP named arguments.
+        - Document every accepted option key in the docblock.
+        - Valueless flags are boolean keys: ['authorized' => true].
+        - No argument-overloading: a positional's meaning must never shift with the
+          argument count (e.g. Modal.alert()'s title-vs-body flip). Kill this for NEW APIs.
+        - JS mirror: a trailing options object with the same documented keys.
+
+        // Good (PHP)
+        // @param array $options { 'site_id'?: int, 'run_as_system'?: bool }
+        public static function dispatch(string $service, string $method, array $params = [],
+                                        array $options = []) { }
+
+        // Good (JS)
+        // options: { short?: bool, on_complete?: fn }
+        countdown(element, target_time, options = {}) { }
+
+        // Avoid
+        public static function dispatch($service, $method, $params = [], $site = 0,
+                                        $user = 0, $system = false, $delay = 0) { }
+
+    Rationale: one obvious call shape, self-documenting keys, no positional bookkeeping,
+    and additive evolution (a new option never shifts an existing signature). Existing
+    non-conforming signatures are swept to this standard as a backlog item (B-57).
+
+FILE STRUCTURE RESTRICTIONS
+    PHP Files Without Classes (in ./rsx directory):
+        PHP utility files without classes may only contain at global scope:
+        - Function definitions
+        - define() calls for constants
+        - namespace declarations
+        - use statements
+        - declare() directives
+        - Comments
+
+        NOT allowed at global scope:
+        - Control structures (if, for, while, switch)
+        - Function calls (except define())
+        - Variable assignments
+        - Object instantiation (new)
+        - Include/require statements
+        - Echo/print statements
+        - Exit/die statements
+
+        Rationale: Classless files are loaded on every request and should
+        only define functions/constants, not execute code. Code that runs
+        on every request should be in Main::init(), pre_dispatch() methods,
+        or implemented in Laravel outside RSX.
+
+        Example Valid PHP Utility File:
+            <?php
+            namespace App\Utils;
+            use App\Models\User;
+
+            declare(strict_types=1);
+
+            define('MAX_LENGTH', 255);
+
+            function format_name(string $name): string {
+                return ucfirst(trim($name));  // Any code allowed inside functions
+            }
+
+    PHP Files With Classes (in ./rsx directory):
+        PHP files with classes may only contain at global scope:
+        - namespace declarations
+        - use statements
+        - Comments
+        - include/require statements with path restrictions:
+          * Allowed: paths not starting with rsx/
+          * Allowed: paths containing /resource/
+          * NOT allowed: paths starting with rsx/ without /resource/
+
+        NOT allowed at global scope:
+        - Function definitions
+        - define() calls for constants
+
+        Example Valid PHP Class File:
+            <?php
+            namespace Rsx\App;
+            use App\Models\User;
+
+            require_once 'vendor/autoload.php';  // OK
+            include 'rsx/app/resource/config.php';  // OK - has /resource/
+
+            class MyClass {
+                // Class implementation
+            }
+
+    JavaScript Files Without Classes:
+        JavaScript utility files without ES6 classes may only contain:
+        - Function declarations (standard or arrow)
+        - Const variables with static values (no function calls)
+        - Functions marked with @decorator
+
+        Static values include:
+        - Literals (strings, numbers, booleans, null)
+        - Binary/unary expressions (e.g., 3 * 365)
+        - Static arrays and objects with literal values
+
+        Example Valid JavaScript Utility File:
+            // Valid constants - static values only
+            const DAYS_IN_YEAR = 365;
+            const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
+
+            // Valid function
+            function formatName(name) {
+                return name.trim().toUpperCase();
+            }
+
+            // Invalid - function call at global scope
+            const timestamp = Date.now();  // NOT ALLOWED
+
+    Enforcement:
+        - Validated at manifest build time
+        - Clear error messages with line numbers
+        - Build fails on violations
+        - Ensures clean, predictable code structure
+
+TEMPORARY FILES CONVENTION
+    Always Suffix with -temp:
+        - Pattern: filename-temp.extension
+        - Examples: test-temp.php, debug-script-temp.js, migration-fix-temp.sql
+
+    Applies To:
+        - One-off scripts
+        - Test files not part of test suite
+        - Temporary implementations or workarounds
+        - Debug utilities
+        - Any file that should be removed later
+
+    Rules:
+        - Purpose: Easy identification of files needing cleanup
+        - Never commit -temp files unless explicitly requested
+        - Helps prevent temporary code from becoming permanent
+
+ROUTING RULES
+    Restricted HTTP Methods:
+        - Only GET and POST methods allowed
+        - PUT, PATCH, DELETE, OPTIONS throw exceptions
+        - Keeps routing simple and explicit
+
+    No Resource Routes:
+        - Route::resource() and Route::apiResource() throw exceptions
+        - Explicit route definitions only
+        - Each route defined individually for clarity
+
+GIT WORKFLOW
+    Staging:
+        - Always use: git add -A
+        - Never selective staging
+        - Ensures all changes are included
+
+EXAMPLES
+    Correct Naming:
+        class User_Profile_Controller {
+            public static function show_profile(Request $request) {
+                $user_data = static::_get_user_info($request->user_id);
+                return view('profile', compact('user_data'));
+            }
+
+            private static function _get_user_info($user_id) {
+                // Framework internal method
+            }
+        }
+
+    String Processing:
+        // Preferred approach
+        $parts = explode('/', $path);
+        $filename = end($parts);
+        $extension = substr($filename, strrpos($filename, '.') + 1);
+
+        // Avoid unless necessary
+        preg_match('/\/([^\/]+)\.([^.]+)$/', $path, $matches);
+
+    Function Organization:
+        // Good: Related steps together with comments
+        public static function process_upload($file) {
+            // Validate file type and size
+            if (!in_array($file->extension(), ['jpg', 'png'])) {
+                throw new Exception('Invalid file type');
+            }
+
+            // Generate unique filename
+            $filename = uniqid() . '.' . $file->extension();
+
+            // Store file and create database record
+            $path = $file->storeAs('uploads', $filename);
+            Upload_Model::create(['filename' => $filename, 'path' => $path]);
+
+            return $filename;
+        }
+
+SEE ALSO
+    error_handling - Error handling patterns and shouldnt_happen()
+    config_rsx - Framework configuration standards

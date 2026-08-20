@@ -1,0 +1,48 @@
+<%--
+Record_Author
+
+Renders WHO wrote a record: an actor's printed name, hyperlinked to their profile when the
+current viewer can reach one. The display half of the actor contract - the framework's
+reference implementation of showing authorship, and the component every "Created by ..." /
+"Updated by ..." line should use.
+
+Args:
+  $author (required, may be null) - the pair produced server-side by
+      Rsx_Model_Abstract::get_created_by_author() / get_updated_by_author():
+      {name: string, url: string|null}, or null for an unattributed record.
+
+Content (optional) - what to render when $author is null. Defaults to "Unknown".
+      Use it when the page knows something better: <Record_Author $author=x>System</Record_Author>.
+
+WHY THE DATA COMES IN AS AN ARG. The name and the URL are BOTH server-side answers: the
+name may belong to a soft-deleted actor, and the URL is resolved through the destination's
+own auth gates for the current realm. There is deliberately no "look up the author of
+record X" endpoint - that would be a new identity-lookup surface over arbitrary records.
+The controller or fetch() that already loaded the record asks for the pair:
+
+    $data['created_by_author'] = $record->get_created_by_author();
+
+    <Record_Author $author=this.data.record.created_by_author />
+
+A NULL url is not an error - it is the documented answer for "no profile page exists, or
+you may not see it", and renders as plain text. A deleted actor renders IDENTICALLY to a
+live one (no "(deleted)" marker): that is the actor contract. A screen that wants to mark
+deleted authorship decorates it itself.
+
+See: php artisan rsx:man actors
+--%>
+<Define:Record_Author tag="span">
+    <%
+        const _author = this.args.author || null;
+        const _placeholder = (content() || '').trim();
+    %>
+    <% if (_author && _author.url) { %>
+        <a class="Record_Author__link" href="<%= _author.url %>"><%= _author.name %></a>
+    <% } else if (_author) { %>
+        <span class="Record_Author__name"><%= _author.name %></span>
+    <% } else if (_placeholder !== '') { %>
+        <span class="Record_Author__unattributed"><%!= _placeholder %></span>
+    <% } else { %>
+        <span class="Record_Author__unattributed">Unknown</span>
+    <% } %>
+</Define:Record_Author>

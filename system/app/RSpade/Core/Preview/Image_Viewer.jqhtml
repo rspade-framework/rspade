@@ -1,0 +1,12 @@
+<%--
+Image_Viewer
+
+Displays an image attachment (the inline url) at its natural aspect ratio, bounded to the
+container. Emits 'preview_loaded' {pages:1, width, height, ratio} once the image decodes. Single "page";
+set_page is a no-op.
+
+Arg: $url (the image source).
+--%>
+<Define:Image_Viewer tag="div">
+    <img $sid="img" class="Image_Viewer__img" alt="">
+</Define:Image_Viewer>

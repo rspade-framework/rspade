@@ -1,0 +1,122 @@
+Rsx_Time::format() REMOVED - MIGRATION GUIDE
+Date: 2026-01-28
+
+SUMMARY
+    The public Rsx_Time::format($time, $format_string) method has been removed
+    from the PHP class and made private (_format). This method accepted a custom
+    PHP date() format string, which had no JavaScript equivalent - the JS side
+    uses Intl.DateTimeFormat with different options.
+
+    To ensure API parity between PHP and JavaScript, use the named formatter
+    methods instead: format_date(), format_time(), format_datetime(), or
+    format_datetime_with_tz().
+
+WHY THIS CHANGE
+
+    1. PHP/JavaScript Parity
+       The format() method took PHP date() format strings (e.g., 'M j, Y g:i A')
+       which have no equivalent in JavaScript. This created an API asymmetry
+       where PHP code couldn't be directly translated to JS.
+
+    2. One-Size-Fits-All Formatters
+       Named formatters enforce consistent date/time display across the
+       application. Instead of developers choosing arbitrary formats, everyone
+       uses the same standard outputs.
+
+    3. Simpler API
+       Four clear methods with predictable output are easier to use than one
+       flexible method requiring format string knowledge.
+
+AFFECTED CODE PATTERNS
+
+    Before (NO LONGER WORKS):
+        Rsx_Time::format($datetime, 'M j, Y');           // Date only
+        Rsx_Time::format($datetime, 'g:i A');            // Time only
+        Rsx_Time::format($datetime, 'M j, Y g:i A');     // Date + time
+        Rsx_Time::format($datetime, 'M j, Y g:i A T');   // With timezone
+        Rsx_Time::format($datetime, 'F j, Y');           // Custom format
+
+    After (USE THESE):
+        Rsx_Time::format_date($datetime);               // "Dec 24, 2025"
+        Rsx_Time::format_time($datetime);               // "3:30 PM"
+        Rsx_Time::format_datetime($datetime);           // "Dec 24, 2025 3:30 PM"
+        Rsx_Time::format_datetime_with_tz($datetime);   // "Dec 24, 2025 3:30 PM CST"
+
+MIGRATION STEPS
+
+    Step 1: Find all usages of Rsx_Time::format()
+    -------------------------------------------------------------------------
+    Search for the old method call:
+
+        grep -rn "Rsx_Time::format(" rsx/ --include="*.php"
+
+    Step 2: Replace with appropriate named formatter
+    -------------------------------------------------------------------------
+    Map your format strings to the equivalent named method:
+
+        Format String           Replacement Method
+        -----------------------------------------------
+        'M j, Y'               format_date()
+        'g:i A'                format_time()
+        'M j, Y g:i A'         format_datetime()
+        'M j, Y g:i A T'       format_datetime_with_tz()
+
+    Step 3: Handle custom formats
+    -------------------------------------------------------------------------
+    If you were using a truly custom format that doesn't match any named
+    formatter, you have two options:
+
+    Option A: Use component extractors to build custom output
+        $month = Rsx_Time::month_human_short($datetime);  // "Dec"
+        $day = Rsx_Time::day($datetime);                  // 24
+        $year = Rsx_Time::year($datetime);                // 2025
+        $custom = "{$month} {$day}, {$year}";             // "Dec 24, 2025"
+
+    Option B: Parse to Carbon for one-off formatting (discouraged)
+        $carbon = Rsx_Time::parse($datetime);
+        $custom = $carbon->format('l, F jS');  // "Wednesday, December 24th"
+
+        Note: Option B breaks PHP/JS parity. Use only when the format is
+        truly unique and not displayed in JavaScript.
+
+AVAILABLE NAMED FORMATTERS
+
+    Both PHP and JavaScript now have identical methods:
+
+    Method                      Output Example
+    -----------------------------------------------
+    format_date()              "Dec 24, 2025"
+    format_time()              "3:30 PM"
+    format_datetime()          "Dec 24, 2025 3:30 PM"
+    format_datetime_with_tz()  "Dec 24, 2025 3:30 PM CST"
+
+    Component extractors (for building custom formats):
+    -----------------------------------------------
+    day()                      24
+    dow()                      3 (0=Sunday, 6=Saturday)
+    dow_human()                "Wednesday"
+    dow_short()                "Wed"
+    month()                    12
+    month_human()              "December"
+    month_human_short()        "Dec"
+    year()                     2025
+    hour()                     15
+    minute()                   30
+
+VERIFICATION
+
+    1. Search for remaining usages:
+       grep -rn "Rsx_Time::format(" rsx/ --include="*.php"
+
+       This should return no results after migration.
+
+    2. Run code quality check:
+       php artisan rsx:check
+
+    3. Test pages displaying dates/times to verify correct output.
+
+REFERENCE
+
+    php artisan rsx:man time    - Complete time/date API documentation
+    Rsx_Time.php                - PHP implementation
+    Rsx_Time.js                 - JavaScript implementation

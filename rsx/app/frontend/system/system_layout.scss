@@ -1,0 +1,104 @@
+.System_Layout {
+    .system-layout {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: $spacing-lg;
+        align-items: start;
+        padding: $spacing-lg;
+
+        @include mobile {
+            grid-template-columns: 1fr;
+            padding: $spacing-md;
+        }
+    }
+
+    .system-sidebar {
+        position: sticky;
+        top: $spacing-md;
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-3;
+
+        @include mobile {
+            position: static;
+        }
+
+        &__card {
+            background: $white;
+            border: $border-width solid rgba($black, 0.125);
+            border-radius: $border-radius-lg;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba($black, 0.075);
+        }
+
+        &__section {
+            &:not(:first-child) {
+                border-top: $border-width solid rgba($black, 0.1);
+            }
+        }
+
+        &__section-title {
+            padding: $spacing-3 $spacing-md;
+            font-size: $font-size-xs;
+            font-weight: $font-weight-semibold;
+            color: $text-muted;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: $background-light;
+        }
+
+        &__item {
+            display: flex;
+            align-items: center;
+            gap: $spacing-3;
+            padding: 10px $spacing-md;
+            color: $gray-800;
+            text-decoration: none;
+            font-size: $font-size-sm;
+            font-weight: $font-weight-medium;
+            transition: background-color $transition-duration-fast, color $transition-duration-fast;
+            border-left: 3px solid transparent;
+
+            &:hover { // @SCSS-ANIM-01-EXCEPTION: anchor tag nav item
+                background: rgba($black, 0.04);
+                color: $gray-800;
+                text-decoration: none;
+            }
+
+            &.active {
+                @include primary-hover-bg(0.1);
+                border-left-color: $primary-color;
+                color: $primary-color;
+            }
+
+            i {
+                width: 18px;
+                height: 18px;
+                font-size: $font-size-base;
+                color: $text-muted;
+                flex-shrink: 0;
+            }
+
+            &.active i {
+                color: $primary-color;
+            }
+        }
+    }
+
+    .system-content {
+        min-height: 400px;
+
+        // Scaffolded reconciliation (semantic view-page refactor, Batch H).
+        // A system action that composes with Page_Scaffold declares
+        // `scaffolded = true`; System_Layout.on_action stamps this modifier on
+        // the content pane. The `.system-layout` grid already frames the pane
+        // (its own $spacing-lg padding + the nav gutter), so the nested
+        // Page_Scaffold must NOT add its own outer padding on top - zeroing
+        // --page-pad in this scope makes the scaffold fill the pane cleanly.
+        // Its 2300px max-width never binds inside the narrower content track.
+        // Mirrors Settings_Layout .settings-content--scaffolded (Batch G).
+        &--scaffolded {
+            --page-pad: 0;
+        }
+    }
+}

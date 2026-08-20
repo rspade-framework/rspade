@@ -1,0 +1,60 @@
+.Portal_Layout {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+
+    &__header {
+        flex-shrink: 0;
+    }
+
+    &__user {
+        color: rgba($white, 0.9);
+    }
+
+    &__subheader {
+        flex-shrink: 0;
+        background: $white;
+    }
+
+    &__subnav {
+        display: flex;
+        gap: 1.25rem;
+    }
+
+    &__content {
+        flex-grow: 1;
+    }
+
+    // The padded page area actions render into (was `.container-fluid.py-4`).
+    &__page {
+        padding: $spacing-lg;
+
+        // Scaffolded reconciliation (semantic view-page refactor, Batch J).
+        // A portal action composing with Page_Scaffold declares `scaffolded = true`;
+        // Portal_Layout.on_action stamps this modifier. The scaffold owns page
+        // max-width/centering + its own --page-pad, so this area yields all
+        // width/padding. Mirrors Frontend_Spa_Layout__page-content--scaffolded
+        // (Batch C); the workspace sublayout reconciles its own pane separately.
+        &--scaffolded {
+            padding: 0;
+        }
+    }
+
+    &__footer {
+        flex-shrink: 0;
+    }
+
+    &__nav-link {
+        color: $gray-700;
+        text-decoration: none;
+
+        &:hover {
+            color: $primary;
+        }
+
+        &.active {
+            font-weight: 600;
+            color: $primary;
+        }
+    }
+}

@@ -1,0 +1,34 @@
+<Define:Api_Key_Bar tag="div">
+<% const key = this.state.key; %>
+<div class="Api_Key_Bar__row">
+    <div class="Api_Key_Bar__status">
+        <% if (key) { %>
+            <span class="Api_Key_Bar__dot Api_Key_Bar__dot--on"></span>
+            <span class="Api_Key_Bar__status-text">Key active</span>
+            <code class="Api_Key_Bar__masked"><%= api_key_mask(key) %></code>
+            <button type="button" $sid="clear" class="Api_Key_Bar__btn Api_Key_Bar__btn--ghost">Clear</button>
+        <% } else { %>
+            <span class="Api_Key_Bar__dot"></span>
+            <span class="Api_Key_Bar__status-text Api_Key_Bar__status-text--muted">No API key set</span>
+        <% } %>
+    </div>
+    <div class="Api_Key_Bar__controls">
+        <input type="text" $sid="input" class="Api_Key_Bar__input" placeholder="Paste an API key (rsk_live_...)" spellcheck="false" autocomplete="off">
+        <button type="button" $sid="use" class="Api_Key_Bar__btn">Use key</button>
+        <button type="button" $sid="mint" class="Api_Key_Bar__btn Api_Key_Bar__btn--accent"><%!= api_icon('key') %><span>Mint temporary key (1h)</span></button>
+    </div>
+</div>
+
+<% if (this.state.minted) { %>
+    <div class="Api_Key_Bar__reveal">
+        <div class="Api_Key_Bar__reveal-label">
+            <%!= api_icon('check') %>
+            <span>New key minted &mdash; copy it now (shown once)<% if (this.state.expires) { %>, expires <%= this.state.expires %><% } %></span>
+        </div>
+        <div class="Api_Key_Bar__reveal-row">
+            <code class="Api_Key_Bar__reveal-key" $sid="minted"><%= this.state.minted %></code>
+            <button type="button" $sid="copy_minted" class="Api_Key_Bar__btn Api_Key_Bar__btn--ghost"><%!= api_icon('copy') %><span>Copy</span></button>
+        </div>
+    </div>
+<% } %>
+</Define:Api_Key_Bar>

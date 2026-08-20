@@ -1,0 +1,45 @@
+.Share_Document_Modal_Form {
+    &__toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $spacing-md;
+        margin-bottom: $spacing-sm;
+    }
+
+    &__count {
+        font-weight: $font-weight-semibold;
+        color: $text-muted;
+        white-space: nowrap;
+    }
+
+    &__filter {
+        max-width: 280px;
+    }
+
+    &__scroll {
+        max-height: 50vh;
+        overflow-y: auto;
+        border: 1px solid $border-color;
+        border-radius: $border-radius-md;
+    }
+
+    &__table {
+        thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: $white;
+        }
+    }
+
+    &__checkbox-col {
+        width: 40px;
+        text-align: center;
+    }
+
+    &__row {
+        cursor: pointer;
+        user-select: none;
+    }
+}

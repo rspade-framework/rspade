@@ -1,0 +1,16 @@
+// Portal_Users_DataGrid - global portal-user admin listing.
+// Component-scoped styles for the client-membership chips in the Clients column.
+
+.Portal_Users_DataGrid {
+    &__memberships {
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-xs;
+    }
+
+    &__membership {
+        display: inline-flex;
+        align-items: center;
+        gap: $spacing-xs;
+    }
+}

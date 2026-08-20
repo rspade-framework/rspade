@@ -1,0 +1,36 @@
+<%--
+Select_State_Input
+
+Specialized select for state/province/region dropdowns with country-specific lists.
+Extends Select_Ajax_Input with state-specific behavior.
+
+$data - Ajax endpoint for state data (optional, defaults to Rsx_Reference_Data_Controller.states())
+$placeholder - Placeholder text (default: "Select State...")
+$country_code - Initial country code (e.g. "US") to load states for
+$disabled - Boolean to disable the select
+
+Features:
+- Loads state list via Ajax based on country code
+- set_country_code(code) method to change country and reload states
+- Remains disabled until country code is set
+- Retains value set via val() until states load
+- Inherits all Select_Ajax_Input behavior (Tom Select, search, loading states, etc.)
+--%>
+<Define:Select_State_Input extends="Select_Ajax_Input">
+    <select $sid="input" <% if (this.args.disabled || !this.data.country_code) { %>disabled<% } %>>
+        <% if (!this.data.select_values || this.data.select_values.length === 0) { %>
+            <option value=""><%= this.args.placeholder || 'Select State...' %></option>
+        <% } else { %>
+            <% if (this.args.placeholder) { %>
+                <option value=""><%= this.args.placeholder %></option>
+            <% } %>
+            <% for (let opt of this.data.select_values) { %>
+                <% if (typeof opt === 'object') { %>
+                    <option value="<%= opt.value %>" <% if (this.data.value == opt.value) { %>selected<% } %>><%= opt.label %></option>
+                <% } else { %>
+                    <option value="<%= opt %>" <% if (this.data.value == opt) { %>selected<% } %>><%= opt %></option>
+                <% } %>
+            <% } %>
+        <% } %>
+    </select>
+</Define:Select_State_Input>

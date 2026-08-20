@@ -1,0 +1,14 @@
+/**
+ * Breadcrumb_Nav Component Styles
+ *
+ * BEM naming: Breadcrumb_Nav__element
+ * Placeholder styling for progressive breadcrumb loading.
+ */
+.Breadcrumb_Nav {
+    &__placeholder {
+        color: $text-muted;
+        opacity: 0.5;
+        font-family: monospace;
+        letter-spacing: 0;
+    }
+}

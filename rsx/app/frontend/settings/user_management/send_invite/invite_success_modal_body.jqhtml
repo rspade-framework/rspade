@@ -1,0 +1,36 @@
+<%--
+Invite_Success_Modal_Body - Success message for user invitation with copyable URL
+
+Modal body component that displays a success message after sending a user invitation,
+along with a copyable invitation URL for testing purposes (until email system is implemented).
+
+Arguments:
+- $invite_url (string, required): The full invitation URL to display
+
+Usage:
+    <Invite_Success_Modal_Body $invite_url="https://example.com/accept-invite?code=abc123" />
+
+Layout:
+- Success message with icon
+- Label for invitation URL
+- Copyable text input with copy button
+--%>
+<Define:Invite_Success_Modal_Body tag="div">
+    <div class="mb-4">
+        <div class="d-flex align-items-center mb-3">
+            <i class="bi bi-check-circle-fill text-success me-2" style="font-size: 1.5rem;"></i>
+            <h5 class="mb-0">Invitation sent!</h5>
+        </div>
+        <p class="text-muted mb-0">
+            The user has been invited to join your organization.
+        </p>
+    </div>
+
+    <div class="mb-0">
+        <label class="form-label fw-bold">Test Invitation URL:</label>
+        <Textbox_Click_To_Copy $value="<%= this.args.invite_url %>" />
+        <small class="form-text text-muted d-block mt-2">
+            Click the input or copy button to copy the invitation URL to clipboard.
+        </small>
+    </div>
+</Define:Invite_Success_Modal_Body>

@@ -1,0 +1,1 @@
+{"version":3,"file":"useEditorUrl.d.ts","sourceRoot":"","sources":["../../src/hooks/useEditorUrl.ts"],"names":[],"mappings":"AAIA,aAAK,KAAK,GAAG;IACT,IAAI,EAAE,MAAM,CAAC;IACb,UAAU,CAAC,EAAE,MAAM,CAAC;CACvB,CAAC;AAEF,MAAM,CAAC,OAAO,UAAU,YAAY,CAAC,EAAC,IAAI,EAAE,UAAc,EAAC,EAAE,KAAK,iBAiBjE"}

@@ -1,0 +1,311 @@
+============================
+
+OVERVIEW
+--------
+This document describes the RSpade database schema organization and the architectural
+principles governing how framework and application data is stored.
+
+Date: 2024-11-18
+Status: Active framework architecture documentation
+
+TABLE NAMING CONVENTIONS
+-------------------------
+RSpade uses table name prefixes to distinguish between different layers of the system:
+
+1. SYSTEM TABLES (underscore prefix: _tablename)
+   - Internal framework infrastructure
+   - Managed entirely by framework subsystems
+   - NOT meant to be accessed directly by application developers
+   - May use direct DB::table() queries (exempt from ORM requirement)
+   - Implementation details hidden from application layer
+
+2. CORE TABLES (no prefix: tablename)
+   - Built-in application infrastructure
+   - Provided by framework but application-facing
+   - Developers query, extend, and build upon these
+   - MUST use ORM models (DB::table() prohibited)
+   - Part of the developer-facing API
+
+3. APPLICATION TABLES (no prefix: tablename)
+   - Created by developers for their specific application
+   - Business domain entities
+   - MUST use ORM models (DB::table() prohibited)
+   - Not shipped with framework (starter template only)
+
+DATABASE ACCESS RULES
+----------------------
+The underscore prefix has enforcement implications:
+
+SYSTEM TABLES (_tablename):
+  - Direct queries allowed: DB::table('_tasks')->where(...)->get()
+  - No ORM model required
+  - Code quality checker (PHP-DB-01) automatically skips these
+  - Framework code optimizes for performance over abstraction
+
+CORE & APPLICATION TABLES (tablename):
+  - Direct queries PROHIBITED
+  - ORM model REQUIRED
+  - Code quality checker enforces this rule
+  - Example: Client_Model::where(...)->get()
+
+CURRENT SYSTEM TABLES
+----------------------
+
+_migrations
+  Purpose: Laravel migration tracking system
+  Managed by: Laravel framework migration subsystem
+  Records: Migration batch history, execution timestamps
+
+_tasks
+  Purpose: Background job queue and scheduled task execution
+  Managed by: RSpade Task system (Task.php, Task_Instance.php)
+  Records: Queued jobs, scheduled tasks, execution logs, status tracking
+  Schema: class, method, params, status, logs, scheduled_for, worker_pid
+
+_file_storage
+  Purpose: Content-addressable blob storage backend
+  Managed by: RSpade File attachment system
+  Records: Deduplicated file blobs indexed by SHA-256 hash
+  Implementation: Single-instance storage pattern - multiple attachments can
+                  reference the same blob. Developers never access this directly.
+
+_file_attachments
+  Purpose: Polymorphic file attachment tracking
+  Managed by: RSpade File attachment API
+  Records: Attachment metadata, relationships, dimensions, upload audit
+  Schema: key (64-hex), file_storage_id (FK), fileable_type/id (polymorphic),
+          fileable_category, site_id, created_by_ip_address
+  Developer API: Attachment methods, not direct table access
+
+_flash_alerts
+  Purpose: Transient flash message queue
+  Managed by: Flash_Alert system
+  Records: Session-scoped UI messages (success, error, warning, info)
+  Lifecycle: Created on one request, displayed on next, then deleted. Read-path
+             expiry at 1 minute; an hourly sweep deletes anything past 30 minutes
+             (Flash_Alert_Cleanup_Service).
+  Schema: session_id, type_id, message, timestamps
+  Notes: session_id is the ONLY session FK in the schema (-> _sessions, ON DELETE
+         CASCADE). It carries the realm too: portal sessions are rows in the same
+         table, and ids are globally unique, so no realm column exists.
+
+_search_indexes
+  Purpose: Full-text search index storage
+  Managed by: RSpade Search system
+  Records: Extracted searchable content from polymorphic entities
+  Schema: indexable_type/id (polymorphic), content (full-text), metadata (JSON),
+          extraction_method, language, site_id
+  Implementation: Automatic extraction from models, search API queries this
+
+CURRENT CORE TABLES
+--------------------
+
+sites
+  Purpose: Multi-tenancy root table
+  Managed by: Multi-tenant subsystem
+  Records: Tenant organizations, each with isolated data space
+  Usage: Developers query to show "available sites", build tenant switchers
+  Schema: name, domain, settings, active status
+
+users
+  Purpose: User account storage
+  Managed by: Authentication subsystem
+  Records: User credentials, profile data, authentication state
+  Usage: Developers extend with additional fields, query for user listings
+  Schema: email, password_hash, name, site_id (FK), active status
+
+login_users
+  Purpose: Authentication identity tracking
+  Managed by: Session system
+  Records: Login credentials with 365-day session persistence
+  Usage: Developers query via Session::get_login_user()
+  Schema: email, password_hash, display_name, last_login, is_active
+
+user_profiles
+  Purpose: Extended user profile information
+  Managed by: User management system
+  Records: Additional user data beyond core authentication
+  Usage: Developers customize profile fields for their application
+  Schema: user_id (FK), bio, avatar, preferences (JSON), custom fields
+
+user_verifications
+  Purpose: Email verification and password reset token storage
+  Managed by: Authentication subsystem
+  Records: Temporary verification codes with expiration
+  Lifecycle: Created on request, validated once, then deleted or expired
+  Schema: user_id (FK), token, type (email_verify, password_reset), expires_at
+
+user_invites
+  Purpose: User invitation system
+  Managed by: User invitation subsystem
+  Records: Pending invitations with expiration (48 hours default)
+  Lifecycle: Created by admin, accepted by invitee, then marked used or expired
+  Schema: site_id (FK), email, token, invited_by (FK), expires_at, accepted_at
+
+ip_addresses
+  Purpose: IP address tracking and audit trail
+  Managed by: Security/audit subsystem
+  Records: IP addresses associated with user actions
+  Usage: Developers query for login history, security audit reports
+  Schema: ip_address, user_id (FK), action_type, created_at
+
+file_attachments (DEPRECATED - will become _file_attachments)
+  See SYSTEM TABLES section above. Currently core, moving to system.
+
+CURRENT APPLICATION TABLES
+---------------------------
+These tables are part of the starter template demonstration application.
+Developers typically replace these with their own domain entities.
+
+clients
+  Purpose: Demo business entity - client/customer records
+  Business domain: B2B SaaS starter template
+  Schema: name, email, phone, address, site_id (FK), status
+
+client_departments
+  Purpose: Demo organizational structure
+  Business domain: Client organization hierarchy
+  Schema: client_id (FK), name, parent_id (FK for nested structure)
+
+contacts
+  Purpose: Demo contact management
+  Business domain: People associated with clients
+  Schema: client_id (FK), name, email, phone, title, site_id (FK)
+
+projects
+  Purpose: Demo project tracking
+  Business domain: Client projects/engagements
+  Schema: client_id (FK), name, description, status, priority, due_date
+
+tasks (NOTE: Confusing name - different from _tasks!)
+  Purpose: Demo user TODO/task list
+  Business domain: User task management
+  Schema: title, description, taskable_type/id (polymorphic), status, priority,
+          assigned_to_user_id (FK), due_date, site_id (FK)
+  WARNING: Name collision with _tasks (background jobs). Consider renaming to
+           user_tasks or todo_items in future versions.
+
+demo_products
+  Purpose: Demo product catalog
+  Business domain: Product/service offerings
+  Schema: name, description, price, sku, category, active status
+
+countries
+  Purpose: Geographic reference data
+  Business domain: International address support
+  Records: ISO country codes and names
+  Note: Reference data table, could be considered infrastructure
+
+regions
+  Purpose: Geographic subdivision reference data
+  Business domain: State/province/region for addresses
+  Records: Country subdivisions
+  Note: Reference data table, could be considered infrastructure
+
+ARCHITECTURAL PRINCIPLES
+-------------------------
+
+1. SEPARATION OF CONCERNS
+   System tables implement framework features invisibly. Core tables provide
+   developer-facing infrastructure. Application tables express business domain.
+
+2. ABSTRACTION BOUNDARIES
+   System table schemas are implementation details. Core table schemas are API
+   contracts. System tables can change without migration pain if APIs remain stable.
+
+3. PERFORMANCE VS CONSISTENCY
+   System tables prioritize performance (direct queries, denormalization OK).
+   Core/Application tables prioritize data integrity (ORM, relationships, validation).
+
+4. MIGRATION STRATEGY
+   All migrations run chronologically when `php artisan migrate` is executed,
+   regardless of whether they affect system, core, or application tables.
+
+   System tables: Migrations written and shipped by framework developers
+   Core tables: Migrations written and shipped by framework developers
+   Application tables: Migrations written by application developers
+
+   When a framework update (rsx:framework:pull) delivers new framework
+   migrations, they run alongside application migrations in date order when
+   migrate is executed (the updater itself runs migrate --framework-only).
+
+5. DOCUMENTATION LEVEL
+   System tables: Internal documentation only
+   Core tables: Full API documentation required
+   Application tables: Developer-documented
+
+FUTURE CONSIDERATIONS
+---------------------
+
+Planned Changes:
+- Rename 'migrations' to '_migrations' (Laravel supports configuring this)
+- Move 'file_attachments' to '_file_attachments' (pure system implementation detail)
+- Consider renaming 'tasks' to 'user_tasks' or 'todo_items' to avoid confusion with '_tasks'
+
+Potential System Tables:
+- _cache (if implementing database cache driver)
+- _jobs (if using database queue driver - currently using '_tasks')
+- _notifications (if implementing notification queue)
+- _websocket_connections (if implementing WebSocket presence tracking)
+
+MIGRATION MECHANICS
+-------------------
+
+When renaming a table to add underscore prefix:
+
+1. Create migration to rename table
+2. Update all Model classes: protected $table = '_newtablename';
+3. Update direct queries in framework code
+4. Update foreign key references in other tables (if any)
+5. Update seeders, factories, tests
+6. Run code quality checker to find missed references
+7. Test all affected subsystems
+
+Example migration:
+  Schema::rename('file_storage', '_file_storage');
+
+The underscore prefix is purely a naming convention - database engines treat
+these identically to non-prefixed tables. The convention exists for developer
+clarity and code quality enforcement.
+
+DEVELOPER GUIDANCE
+------------------
+
+When creating new tables, ask:
+
+Q: Will application developers query this directly?
+   YES -> Core/Application table (no prefix)
+   NO -> System table (underscore prefix)
+
+Q: Is this an implementation detail of a framework subsystem?
+   YES -> System table (underscore prefix)
+   NO -> Core/Application table (no prefix)
+
+Q: Would changing the schema break the developer-facing API?
+   YES -> Core table (no prefix) - schema is part of the API contract
+   NO -> System table (underscore prefix) - implementation detail
+
+Examples:
+- User login sessions? System (_login_sessions) - API is Session:: methods
+- User accounts? Core (users) - developers extend and query this
+- Search index? System (_search_indexes) - API is Search::query()
+- Client records? Application (clients) - business domain entity
+
+CONCLUSION
+----------
+
+The underscore prefix system creates a clear architectural boundary between
+framework implementation details and developer-facing data structures. This
+enables the framework to optimize system tables for performance while maintaining
+API stability, and helps developers understand which tables are theirs to use
+versus which are managed by framework subsystems.
+
+For questions or clarification, consult:
+- /system/app/RSpade/Core/Database/CLAUDE.md - Database subsystem documentation
+- /system/app/RSpade/Core/Task/CLAUDE.md - Task system documentation
+- /system/app/RSpade/Core/Files/CLAUDE.md - File attachment documentation
+- /system/app/RSpade/CodeQuality/CLAUDE.md - Code quality rules including PHP-DB-01
+
+---
+Document maintained by: Framework development team
+Last updated: 2024-11-18

@@ -1,0 +1,30 @@
+<%--
+Select_Input
+
+Dropdown select widget for forms.
+
+$options - Array of options: [{value: 'val', label: 'Label'}, ...] or simple array ['val1', 'val2']
+$placeholder - Placeholder text shown when no selection (handled by TomSelect, not <option>)
+$disabled - Boolean to disable the select (still returns value via val())
+$seeder - Seeder function name for test data
+
+Widget interface:
+- val() - Get/set selected value
+- seed() - Fills with random value
+--%>
+<Define:Select_Input extends="Form_Input_Abstract">
+    <%-- Options render EMPTY (no selected attribute). Value is set via val() after render. --%>
+    <%-- Empty option required for TomSelect to start with no selection (allowEmptyOption:true) --%>
+    <select $sid="input" <% if (this.args.disabled) { %>disabled<% } %>>
+        <option value=""></option>
+        <% if (this.args.options) { %>
+            <% for (let opt of this.args.options) { %>
+                <% if (typeof opt === 'object') { %>
+                    <option value="<%= opt.value %>"><%= opt.label %></option>
+                <% } else { %>
+                    <option value="<%= opt %>"><%= opt %></option>
+                <% } %>
+            <% } %>
+        <% } %>
+    </select>
+</Define:Select_Input>

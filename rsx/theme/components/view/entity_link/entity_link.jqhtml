@@ -1,0 +1,33 @@
+<%--
+Entity_Link - a fetched entity reference chip: type icon + name (+ link)
+
+$model - model class name string, e.g. "Client_Model" [required]
+$id - the entity id to fetch and display [required]
+$no_link - render as plain text (no anchor) - use inside a clickable row [optional]
+$small - compact size [optional]
+$icon - override the type icon class [optional]
+$placeholder - text shown while the name loads (default "------") [optional]
+
+Fetches the record via fetch_cached (non-critical display data) and shows its
+name behind a type icon. Generalizes the former Client_Label / Client_Label_Link
+into one component usable for any model with a view route.
+
+Usage:
+    <Entity_Link $model="Client_Model" $id=_contact.client_id />
+    <Entity_Link $model="Client_Model" $id=row.client_id $no_link=true />
+--%>
+<Define:Entity_Link tag="span">
+    <% const _record = this.data.record; %>
+    <% const _icon = this.args.icon || Entity_Link.icon_for(this.args.model); %>
+    <% const _href = (!this.args.no_link && this.args.id) ? Entity_Link.route_for(this.args.model, this.args.id) : null; %>
+    <i class="Entity_Link__icon <%= _icon %>"></i>
+    <% if (_record && !this.args.no_link && _href) { %>
+        <a class="Entity_Link__name" href="<%= _href %>"><%= _record.name %></a>
+    <% } else if (_record) { %>
+        <span class="Entity_Link__name"><%= _record.name %></span>
+    <% } else if (this.data.loading) { %>
+        <span class="Entity_Link__name Entity_Link__name--muted"><%= this.args.placeholder || '------' %></span>
+    <% } else { %>
+        <span class="Entity_Link__name Entity_Link__name--muted">Unknown</span>
+    <% } %>
+</Define:Entity_Link>

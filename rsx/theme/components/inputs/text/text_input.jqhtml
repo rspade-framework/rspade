@@ -1,0 +1,59 @@
+<%--
+Text_Input
+
+Basic text input widget. Supports various input types (text, email, url, tel, number, textarea).
+
+$type - Input type (default: text). Use "textarea" for multiline text.
+$rows - Number of rows for textarea (default: 3)
+$placeholder - Placeholder text
+$prefix - Text to prepend before input (creates input-group)
+$suffix - Text to append after input (creates input-group)
+$min - Minimum value for number inputs
+$max - Maximum value for number inputs
+$max_length - REQUIRED. Maximum character length. Use Model_Name.field_length('column') for
+              database-driven limits, a numeric value for custom limits, or -1 for unlimited.
+$disabled - Boolean to disable the input (still returns value via val())
+$seeder - Seeder function name (e.g., "first_name" calls Rsx_Random_Values.first_name())
+
+Usage:
+<Text_Input $name="email" $max_length=User_Model.field_length('email') $placeholder="user@example.com" />
+<Text_Input $name="url" $max_length=255 $placeholder="https://example.com" />
+<Text_Input $name="notes" $type="textarea" $max_length=-1 $rows=5 />
+<Text_Input $name="username" $max_length=50 $prefix="@" $placeholder="username" />
+--%>
+<Define:Text_Input extends="Form_Input_Abstract">
+    <% if (this.args.type === 'textarea') { %>
+        <textarea $sid="input"
+                  class="form-control"
+                  rows="<%= this.args.rows || 3 %>"
+                  placeholder="<%= this.args.placeholder || '' %>"
+                  <% if (this.args.max_length > 0) { %>maxlength="<%= this.args.max_length %>"<% } %>
+                  <% if (this.args.disabled) { %>disabled<% } %>></textarea>
+    <% } else if (this.args.prefix || this.args.suffix) { %>
+        <div class="input-group">
+            <% if (this.args.prefix) { %>
+                <span class="input-group-text"><%= this.args.prefix %></span>
+            <% } %>
+            <input $sid="input"
+                   type="<%= this.args.type || 'text' %>"
+                   class="form-control"
+                   placeholder="<%= this.args.placeholder || '' %>"
+                   <% if (this.args.min !== undefined) { %>min="<%= this.args.min %>"<% } %>
+                   <% if (this.args.max !== undefined) { %>max="<%= this.args.max %>"<% } %>
+                   <% if (this.args.max_length > 0) { %>maxlength="<%= this.args.max_length %>"<% } %>
+                   <% if (this.args.disabled) { %>disabled<% } %> />
+            <% if (this.args.suffix) { %>
+                <span class="input-group-text"><%= this.args.suffix %></span>
+            <% } %>
+        </div>
+    <% } else { %>
+        <input $sid="input"
+               type="<%= this.args.type || 'text' %>"
+               class="form-control"
+               placeholder="<%= this.args.placeholder || '' %>"
+               <% if (this.args.min !== undefined) { %>min="<%= this.args.min %>"<% } %>
+               <% if (this.args.max !== undefined) { %>max="<%= this.args.max %>"<% } %>
+               <% if (this.args.max_length > 0) { %>maxlength="<%= this.args.max_length %>"<% } %>
+               <% if (this.args.disabled) { %>disabled<% } %> />
+    <% } %>
+</Define:Text_Input>

@@ -1,0 +1,121 @@
+TEMPLATE_APP(3)                RSX Framework Manual                TEMPLATE_APP(3)
+
+NAME
+    template_app - the RSpade reference application (the /rsx/ starter template)
+
+SYNOPSIS
+    Source in this repo:   /rsx/
+    Distributed standalone: git@git.internal.hanson.xyz:brianhansonxyz/rspade_template_app.git
+    View this page:        php artisan rsx:man template_app
+
+DESCRIPTION
+    Everything in /rsx/ is a working REFERENCE APPLICATION - a runnable, opinionated
+    B2B SaaS built ON TOP of the RSpade framework. It is NOT framework core. The
+    framework (everything under /system/, the App\RSpade\* classes) is the contract;
+    the reference app is one concrete build that exercises that contract end to end.
+
+    Its point is twofold:
+      1. BOOTSTRAP - clone it and you have a real, multi-tenant SaaS skeleton (auth,
+         users, a CRM, a client portal) to delete-down or build-out into your product,
+         instead of starting from an empty Laravel install.
+      2. DEMONSTRATE - it is the canonical worked example of the RSpade API: how to
+         write controllers, SPA actions, models, jqhtml components, the client portal,
+         file sharing, notifications, tasks, and tests the RSpade way. When the docs say
+         "follow an existing pattern", the pattern lives here.
+
+    Framework vs application (the boundary):
+      /system/  framework core - ships as rspade_system; vendored into the app repo
+                as ordinary tracked files (no submodule) and updated via
+                rsx:framework:pull.
+      /rsx/     this reference app - ships as rspade_template_app (and inside the full
+                rspade_project). Yours to change; the framework is not.
+
+WHAT IT INCLUDES
+    Staff application (/rsx/app/, server-rendered + SPA):
+      - Authentication (login, multi-tenant session) and user management.
+      - A CRM: clients, contacts, projects (CRUD modules, DataGrids, forms).
+      - The per-client "Portal" admin page (Clients_Portal_Action): members, documents,
+        requests, announcements, projects.
+    Client portal (/rsx/portal/, the parallel external experience) - see portal(3):
+      - Invite-only onboarding + a self-service access-lookup page.
+      - My Workspaces dashboard (workspaces, "What's New" feed, action-needed and
+        pending-invitation panels).
+      - Per-client workspace (Overview / Documents / Requests).
+      - Client-level document sharing and the Request Threads conversation feature
+        (status lifecycle, document review, participants, notifications).
+    Shared building blocks:
+      - /rsx/models     Eloquent models with enums, fetch()/portal_fetch(), relationships.
+      - /rsx/lib        utilities (action log, formatters, topics, ...).
+      - /rsx/theme      jqhtml component library, SCSS, Bootstrap overrides, inputs.
+      - /rsx/services   background tasks / integrations (Rsx_Service_Abstract).
+      - /rsx/handlers   event/exception handlers (e.g. file-access gates).
+      - /rsx/tests      application test suite (rsx:test).
+      - /rsx/emails     Blade email templates.
+      - main.php, permission.php, portal_main.php, portal_permission.php - app hooks.
+
+WHAT IT DEMONSTRATES (RSpade API surface, by example)
+      Routing/controllers   #[Route] / #[Ajax_Endpoint] / #[SPA], static methods.
+      SPA                    Spa_Action / Spa_Layout, @route/@layout/@spa, sublayouts.
+      Models                 enums (BEM magic props), fetch() security, relationships.
+      jqhtml                 <Define> components, forms, modals, lifecycle, scoped SCSS.
+      Client portal          Portal_Session / Portal_Permission / Portal_Authorizable.
+      Files & sharing        File_Attachment, the client-level Documents share model.
+      Notifications          Portal_Notification_Model feed + emit.
+      Tasks/services, email, type-safe URLs (Rsx::Route), the test framework.
+
+DISTRIBUTION
+    The reference app is published to its OWN repository so downstream users can browse
+    or clone it as a worked example:
+
+        git@git.internal.hanson.xyz:brianhansonxyz/rspade_template_app.git
+
+    bin/publish (the framework publish command) pushes the CONTENTS of /rsx/ to that
+    repo's master on every publish - the repo root IS the rsx/ tree (app/, portal/,
+    models/, theme/, resource/, ...), refreshed each time. The app developer's own
+    resource/CLAUDE.dist.md is shipped as CLAUDE.md at that repo's root.
+
+    In the RUNNABLE project (rspade_project) that same file lands as
+    rsx/resource/CLAUDE.md, and the framework's own always-on knowledge reaches it
+    through two wires - both installed by publish for a fresh clone and healed on every
+    box by system/bin/environment_updates/060_claude_docs.sh:
+
+        rsx/resource/CLAUDE.md      first line is the import
+                                    @../../system/app/RSpade/docs/claude/app.md
+                                    (relative to the REAL file, not the root symlink)
+        .claude/skills/rspade   ->  ../../system/app/RSpade/docs, loaded by Claude Code
+                                    as the namespaced `rspade` plugin
+
+    The knowledge tree itself lives at system/app/RSpade/docs/ (it was under
+    system/docs/ before the knowledge-tree restructure), and the container-era
+    ~/.claude/CLAUDE.md symlink it used to be reached through is RETIRED - 060 removes
+    any that survives.
+
+    Framework-developer-only material is EXCLUDED from the published app (it stays in the
+    dev repo only):
+        resource/research    third-party reference apps + research scratch (multi-GB)
+        resource/archive     archived/superseded code
+        resource/incomplete  unfinished scratch work
+        resource/docs        internal research notes
+        temp, vendor, .git   regenerated/local metadata
+    Anything else under /rsx/ ships. The same cleaned tree is also embedded in the full
+    runnable project, rspade_project (which adds the Laravel scaffolding + the system
+    tree vendored in as ordinary files); rspade_template_app is the app-only,
+    reference-only view.
+
+USING IT
+    - As reference: clone rspade_template_app and read it alongside this framework's man
+      pages; copy the patterns into your own /rsx/.
+    - As a runnable app: use rspade_project (it bundles this app + the framework
+      core vendored in + Laravel scaffolding), then customize /rsx/.
+
+NOTES
+    - The reference app is meant to be CHANGED. Treat the framework (/system/) as
+      upstream and your /rsx/ as yours; pull framework updates, keep your app.
+    - Dev-only conveniences (demo auto-share, debug login auto-fill, seeded demo data)
+      are gated to dev sites and never run in production - see portal(3) "SAMPLE
+      APPLICATION". Strip them when building a real product.
+
+SEE ALSO
+    portal(3), spa(3), crud(3), jqhtml(3), model_fetch(3), enum(3), coding_standards(3)
+
+RSX Framework              Last updated 2026-06-25              TEMPLATE_APP(3)

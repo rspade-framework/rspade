@@ -1,0 +1,5 @@
+<Define:Card_Footer class="card-footer bg-light">
+  <div class="d-flex justify-content-between align-items-center">
+    <%= content() %>
+  </div>
+</Define:Card_Footer>

@@ -1,0 +1,120 @@
+// Portal_Dashboard_Action - the portal activity landing.
+//
+// Page chrome (scaffold, sections, record tables, empty states, status chips) is
+// owned by the semantic vocabulary. What survives is DOMAIN styling only: the
+// pending-invitation rows and the "What's New" NOTIFICATION feed - an unread-aware
+// notification list, a genuinely distinct shape from Feed_Row (a single-line audit
+// event with an icon tile, no unread state, no title/body split). Both are
+// self-dividing lists dropped into a flush Section (each row owns its padding + a
+// hairline; the container styles nothing).
+.Portal_Dashboard_Action {
+
+    // --- Pending invitations (actionable notices) ---
+    &__invite {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $spacing-md;
+        padding: $spacing-sm var(--card-pad-x);
+        border-bottom: $border-width solid $border-color;
+
+        &:last-child {
+            border-bottom: 0;
+        }
+    }
+
+    &__invite-actions {
+        display: flex;
+        gap: $spacing-xs;
+        flex: 0 0 auto;
+    }
+
+    // --- "Action needed" / "My Workspaces" record-table cell truncation ---
+    &__row-title,
+    &__ws-name {
+        display: block;
+        font-weight: $font-weight-medium;
+        max-width: 420px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    // --- "What's New" notification feed (self-dividing, unread-aware) ---
+    &__item {
+        display: flex;
+        align-items: flex-start;
+        gap: $spacing-sm;
+        padding: $spacing-sm var(--card-pad-x);
+        border-bottom: $border-width solid $border-color;
+
+        &:last-child {
+            border-bottom: 0;
+        }
+    }
+
+    // Only actionable rows (have a url or are unread) react to the pointer.
+    &__item--actionable {
+        cursor: pointer;
+
+        &:hover {
+            background-color: $gray-100;
+        }
+    }
+
+    &__item--unread {
+        background-color: rgba($primary-color, 0.04);
+    }
+
+    &__item-marker {
+        flex: 0 0 auto;
+        width: 12px;
+        padding-top: 6px;
+    }
+
+    &__dot {
+        display: block;
+        width: 8px;
+        height: 8px;
+        border-radius: $border-radius-full;
+        background-color: $primary-color;
+    }
+
+    &__item-body {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    &__item-title {
+        font-weight: $font-weight-semibold;
+        color: $gray-900;
+    }
+
+    // An unread item gets a heavier title to draw the eye.
+    &__item--unread &__item-title {
+        font-weight: $font-weight-bold;
+    }
+
+    &__item-text {
+        margin-top: 2px;
+        color: $text-color;
+        font-size: $font-size-sm;
+    }
+
+    &__item-meta {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        margin-top: $spacing-xs;
+        font-size: $font-size-xs;
+        color: $text-muted;
+    }
+
+    &__item-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        color: $primary-color;
+        font-weight: $font-weight-medium;
+    }
+}

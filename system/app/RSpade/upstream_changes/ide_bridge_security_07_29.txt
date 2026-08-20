@@ -1,0 +1,90 @@
+IDE BRIDGE SECURITY REWORK (unauthenticated RCE removed) + EXPORT WHITELIST
+Date: 2026-07-29
+
+SUMMARY
+    The IDE bridge (/_ide/service/*, the endpoints the RSpade VS Code extension talks
+    to) had a CRITICAL flaw: on a dev-mode host reachable over the network it was an
+    UNAUTHENTICATED remote-code-execution surface. Two independent defects combined:
+
+      1. POST /_ide/service/auth/create was unauthenticated and RETURNED the signing
+         keys to any caller, so the request-signature scheme proved nothing.
+      2. The /exec handler validated only the first token of the command string, then
+         interpolated the raw string into a shell -> command injection.
+
+    The bridge also runs BEFORE Laravel boots, so no middleware (Gatekeeper, hostname
+    guard) applied. The only gate was APP_ENV=production; dev mode was wide open.
+
+    This is fixed framework-wide. The auth model is now a LOCAL-FILE GRANT, the RCE
+    endpoints are gone, and a new health check actively proves sensitive files are not
+    web-served. Separately, `rsx:prod:export` was rebuilt as a strict whitelist (it was
+    shipping the IDE token files and the uploaded-file blob store into deployments).
+
+    You MUST upgrade the VS Code extension (below) or IDE integration stops working.
+
+WHAT CHANGED (framework core - arrives via rsx:framework:pull, nothing to copy)
+    - Auth is now a local-file grant. The framework (dev mode only) writes ONE
+      cryptographically-random token file, storage/rsx-ide-bridge/ide-grant-<hex>.token
+      (random name AND random content), OUTSIDE the web docroot. A co-located IDE reads
+      it from local disk and presents the contents in the `X-Ide-Token` header; the
+      server verifies constant-time. Possession proves local read access = the grant.
+    - REMOVED: `auth/create` (no network token minting), the `/exec` and `/command`
+      handlers, request/response SHA1 signing, and the old auth-<session>.json files and
+      `domain.txt` discovery file (auto-deleted on next dev boot).
+    - The three editor refactors (rename class, rename method, sort methods) now use a
+      new, locked-down `/refactor` endpoint: an EXACT-match allowlist of the three
+      `rsx:refactor:*` commands with each argument escapeshellarg'd. It is the only
+      command surface on the bridge and has no injection vector.
+    - Passive guards (an index.php returning 404, an .htaccess deny) are dropped into
+      the bridge dir automatically, defending an Apache-autoindex/misconfig case. The
+      trust chain does NOT rely on file permissions.
+    - Master switch: config('rsx.ide_integration.enabled') (dev-only default). Hard-off
+      in production unless RSX_IDE_SERVICES_ENABLED=true; RSX_IDE_SERVICES_ENABLED=false
+      refuses the bridge in any mode. The `application_domain`/RSX_APPLICATION_DOMAIN
+      config key is GONE (the IDE reads the server URL from APP_URL now).
+    - New rsx:health check "Web Exposure": probes your own APP_URL for a served .env,
+      .git/HEAD, .git/config, and the bridge token dir, content-matched against the real
+      files. A served sensitive file is a hard FAIL (exit 1).
+    - `rsx:prod:export` is now a WHITELIST: it ships source + the sealed build artifacts
+      + a generated .env.dist, and EXCLUDES by default the blob store, thumbnail/rendition
+      caches, the IDE bridge dir, the framework-update store, db backups, logs, and the
+      real .env. (Previously it shipped the IDE tokens and every uploaded file.)
+
+ACTION REQUIRED
+    1. UPGRADE THE VS CODE EXTENSION. The bundled extension
+       (system/app/RSpade/resource/vscode_extension) is now version 0.1.222 and speaks
+       the new grant protocol; an older installed build (which uses auth/create) will
+       fail with 401s. Rebuild + reinstall it with its ./build.sh, or install the new
+       .vsix. If you maintain your OWN fork of the extension, port these client changes:
+         - Read the server URL from the project-root .env `APP_URL` (expand a literal
+           `$HOSTNAME` via os.hostname()); drop any domain.txt discovery.
+         - Read the token from system/storage/rsx-ide-bridge/ide-grant-*.token and send
+           it as the `X-Ide-Token` header. Drop auth/create + request/response signing.
+
+    2. IF YOU OVERRODE the IDE bridge server files (Ide/Services/auth.php or handler.php)
+       or the provider hook, re-apply the framework versions - the old auth/create + exec
+       code MUST NOT remain (that is the RCE). Grep your app:
+         grep -rn "auth/create\|handle_exec_service" rsx/ system/
+
+    3. RE-RUN rsx:health after deploying and after any web-server change. Fix any
+       "Web Exposure" FAIL immediately: point the document root at system/public ONLY,
+       and deny dotfiles/.git/.env at the server.
+
+    4. IF YOU CUSTOMIZED rsx:prod:export, adopt the whitelist model. At minimum confirm
+       your export does NOT contain storage/rsx-ide-bridge, storage/storage (blobs),
+       or the real .env.
+
+    5. Remove any references to RSX_APPLICATION_DOMAIN / ide_integration.application_domain
+       from your .env / config overrides (the key no longer exists).
+
+VERIFICATION
+    - `curl -X POST https://<host>/_ide/service/auth/create` -> 404/blocked (gone).
+    - `curl -X POST https://<host>/_ide/service/exec -d '{"command":"rsx:check; id"}'`
+      -> 404/blocked (gone).
+    - A reflection endpoint with a correct `X-Ide-Token` (contents of the
+      ide-grant-*.token file) -> 200; wrong/absent token -> 401.
+    - `php artisan rsx:health` passes "Web Exposure" (exit 0) on a correctly configured
+      host; deliberately serving .git/.env/storage makes it FAIL (exit 1).
+    - `rsx:prod:export` output contains no storage/rsx-ide-bridge, no blob store, no real
+      .env - and DOES contain system/storage/rsx-build + .env.dist.
+    - The reinstalled VS Code extension resolves classes / formats / runs the editor
+      refactors again.

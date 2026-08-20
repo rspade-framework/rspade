@@ -1,0 +1,118 @@
+CATEGORY: 2 - ACTION REQUIRED (one click, once, per developer machine)
+TITLE: Framework AI knowledge now ships as a skills plugin + a CLAUDE.md import;
+       accept the workspace-trust prompt on your next Claude Code session
+DATE: 2026-08-17
+
+--------------------------------------------------------------------------------
+SUMMARY
+--------------------------------------------------------------------------------
+
+The framework's AI-instruction knowledge has been restructured. It now lives in ONE
+tree inside the framework you already receive:
+
+    system/app/RSpade/docs/
+      .claude-plugin/plugin.json    -> loads as the namespaced `rspade` plugin
+      claude/                       -> the always-on CLAUDE.md fragments
+      skills/                       -> the on-demand skills (jqhtml, forms, models,
+                                       auth, realtime, tasks, files, updates, ...)
+
+Two wires activate it, and BOTH are installed for you automatically by the
+environment update `system/bin/environment_updates/060_claude_docs.sh` (it runs after
+every framework pull, after a successful manifest build, and after a commit):
+
+  1. `rsx/resource/CLAUDE.md` - YOUR file - gains ONE line at the top:
+
+         @../../system/app/RSpade/docs/claude/app.md
+
+     Everything you had already written is preserved below it, byte for byte.
+
+  2. `.claude/skills/rspade` - a symlink to `system/app/RSpade/docs`.
+
+Nothing else changes about how you write code. The knowledge is the same knowledge,
+sorted by where it is TRUE (statements true in your app are in the `app` view; the
+framework-monorepo-only material is not shipped to you at all) and split by tier
+(always-on rules stay always-on; how-to material became skills that load when
+relevant, instead of costing you context on every task).
+
+--------------------------------------------------------------------------------
+ACTION REQUIRED - THE ONE MANUAL STEP
+--------------------------------------------------------------------------------
+
+**Accept the workspace-trust prompt the next time you start Claude Code in this
+project.**
+
+Claude Code asks once, per machine, before it will load a project-scope PLUGIN. The
+skills are delivered as a plugin (rather than as loose skills) specifically so that
+every skill is namespaced - `rspade:jqhtml`, `rspade:forms` - and can therefore never
+collide with, or override, a skill your own team writes in `.claude/skills/`.
+
+If you decline, nothing breaks: the always-on fragments still load through the
+CLAUDE.md import, you simply do not get the on-demand skills.
+
+Verify it took:
+
+    /plugin                 (in Claude Code) -> `rspade` listed
+    ls -l .claude/skills/rspade
+    head -1 rsx/resource/CLAUDE.md           -> the @-import line
+
+--------------------------------------------------------------------------------
+OPTIONAL - COMMITTING THE SYMLINK
+--------------------------------------------------------------------------------
+
+`.claude/skills/rspade` is left UNCOMMITTED. `.claude/` is your team's territory, so
+the framework does not decide what goes in your history. Committing it means every
+teammate and every fresh clone gets the skills without waiting for their first
+framework pull; leaving it uncommitted means each machine acquires it from the
+environment update. Either is fine - the update repairs the symlink if it is missing,
+and NEVER touches it if it is a real directory or points somewhere else (it reports
+and skips instead).
+
+A FRESH clone of the project template already ships both wires in place.
+
+--------------------------------------------------------------------------------
+OPT-OUT
+--------------------------------------------------------------------------------
+
+Skills:      claude plugin disable rspade
+Always-on:   delete the `@../../system/app/RSpade/docs/claude/app.md` line from
+             rsx/resource/CLAUDE.md.
+
+Note the environment update re-adds the import line if it is absent (it cannot tell
+"removed on purpose" from "never installed"). If you want it permanently gone, keep
+the line but neutralize it, e.g. put it inside a fenced code block, or say so in an
+issue and we will add a marker.
+
+--------------------------------------------------------------------------------
+AUTOMATIC CLEANUP - NO ACTION
+--------------------------------------------------------------------------------
+
+The old container-era wiring is retired for you. The dev image used to symlink
+`/root/CLAUDE.md` (or `/root/.claude/CLAUDE.md`) at the framework's shipped
+`CLAUDE.dist.md`. That only ever worked inside the dev container - a production host
+got no framework instructions at all - and it is superseded by the import chain
+above. The environment update removes that symlink WHEN AND ONLY WHEN it points into
+the rspade tree; a real file there, or a symlink of your own, is left strictly alone.
+
+`system/docs/` (the old shipped documentation directory, including
+`system/docs/CLAUDE.dist.md` and the `system/docs/skills/` tree that nothing ever
+loaded) is no longer produced by a release and disappears on the pull that syncs the
+framework tree. Its content was migrated into the new tree and the man pages; nothing
+was dropped. If you ever linked to a path under `system/docs/`, repoint it:
+
+    system/docs/CLAUDE.dist.md   ->  system/app/RSpade/docs/claude/app.md
+    system/docs/skills/<name>/   ->  system/app/RSpade/docs/skills/{shared,app}/<name>/
+
+One man page that used to be stripped from releases now ships:
+`php artisan rsx:man storage_directories` (never join a storage path onto
+`base_path()` - use `storage_path()` / `rsx_project_file_path()`).
+
+--------------------------------------------------------------------------------
+VERIFICATION
+--------------------------------------------------------------------------------
+
+1. Start a Claude Code session in the project and accept the trust prompt.
+2. `/plugin` lists `rspade`; `/context` shows the framework fragments loaded.
+3. Ask something domain-specific ("how do I add a Text_Input with a max length?")
+   and confirm the relevant `rspade:*` skill is consulted.
+4. `head -1 rsx/resource/CLAUDE.md` shows the import; your own notes follow it
+   unchanged.

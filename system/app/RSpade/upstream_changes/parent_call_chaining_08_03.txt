@@ -1,0 +1,141 @@
+DEFAULT PARENT-CALL CHAINING (enforced at manifest build) + booted() REVERSAL
+Date: 2026-08-03
+
+SUPERSEDES: site_model_booted_seal_07_28.txt
+
+SUMMARY
+    Two related framework changes downstream apps must act on:
+
+      1. NEW ENFORCED CONTRACT - method overrides must chain their parent. Any
+         method that overrides a same-named method declared by a manifest-visible
+         ANCESTOR class MUST call parent::<same-method>() somewhere in its body,
+         UNLESS the nearest declaring ancestor method is abstract or marked
+         #[Replaceable]. This is now checked FATALLY at manifest build time by a
+         new rule, PHP-PARENT-CHAIN-01. A violation aborts the build (and
+         re-fires until fixed) - a missing parent call is no longer a silent bug.
+
+      2. THE booted() SEAL IS REVERSED. The 2026-07-28 change that made
+         Rsx_Site_Model_Abstract::booted() `final` and introduced a
+         __booted_site_model() extension hook is GONE. booted() is a normal,
+         overridable method again; the new chaining rule is what now prevents the
+         forgotten-parent::booted() footgun. The name __booted_site_model() no
+         longer exists in the framework. If you migrated your site models to
+         __booted_site_model() when you pulled the seal, you MUST convert them
+         BACK to booted() + parent::booted().
+
+      3. The #[AuthParentCall] attribute is REMOVED. Parent-call chaining is now
+         the default for ALL overrides, so the opt-in marker is obsolete.
+
+THE CHANGE
+    Parent-call chaining is the DEFAULT contract, the inverse of `final`:
+
+        - CHAIN (default): an override calls parent::<method>() - it EXTENDS the
+          parent behavior.
+        - #[Replaceable] (explicit opt-out, on the PARENT method): overriders may
+          fully REPLACE it without calling parent. Marker-only attribute - never
+          define the attribute class.
+
+    PHP-PARENT-CHAIN-01 enforces this at manifest build:
+        - Covers every method the child declares, including __construct and magic
+          methods, static and instance and protected.
+        - Exempt when the nearest declaring ancestor method is abstract, is
+          #[Replaceable], or is a VENDOR method (the manifest never scans vendor/,
+          so overriding an Eloquent method is never flagged).
+        - Nearest-declarer anchoring: an intermediate class that re-declares a
+          method concretely (no #[Replaceable]) re-establishes the obligation for
+          its descendants.
+        - AST-based detection: a comment or string that merely mentions
+          parent::method() does not satisfy it; parent::otherMethod() (wrong name)
+          does not satisfy it.
+
+    Motivating incident: a site model overrode booted() and forgot
+    parent::booted(), which SILENTLY dropped the `site` global scope - a
+    cross-tenant read leak (Model::find(<foreign id>) returning another tenant's
+    row) with no exception, no lint, no failing test. The 07-28 seal tried to fix
+    this by sealing booted(); this change fixes it more generally by enforcing the
+    parent call everywhere, so booted() can go back to being a plain override.
+
+THE FIX
+    Core (/system/) changes arrive automatically via `rsx:framework:pull`; there
+    is nothing in /system/ to copy. The work below is entirely in YOUR OWN code.
+
+ACTION REQUIRED
+
+    1. REVERT any __booted_site_model() overrides back to booted() (only if you
+       adopted the 07-28 seal). Find them:
+
+           grep -rn "__booted_site_model" rsx/
+
+       For each one, rename it back to booted(), typed to match, and make
+       parent::booted() its FIRST statement (the seal told you to DELETE the
+       parent call - you must now add it back, because the base is no longer
+       sealed and only installs its protections when you chain to it):
+
+       BEFORE (seal-era - __booted_site_model, no parent call):
+
+           class Contact_Model extends Rsx_Site_Model_Abstract
+           {
+               protected static function __booted_site_model(): void
+               {
+                   static::creating(function ($model) {
+                       $model->slug = Str::slug($model->name);
+                   });
+               }
+           }
+
+       AFTER (correct - booted() + parent::booted() first):
+
+           class Contact_Model extends Rsx_Site_Model_Abstract
+           {
+               protected static function booted()
+               {
+                   parent::booted();                       // REQUIRED
+                   static::creating(function ($model) {
+                       $model->slug = Str::slug($model->name);
+                   });
+               }
+           }
+
+       If you NEVER adopted the seal (your site models still override booted()),
+       you only need to confirm each such override calls parent::booted() - see
+       step 2. If a site model overrides booted() WITHOUT calling parent::booted(),
+       it now FATALS at manifest build under PHP-PARENT-CHAIN-01 (and, as before,
+       silently loses its tenant isolation until fixed). Add parent::booted().
+
+       If your app has its OWN site-model base (an Audited_Site_Model_Abstract-style
+       class) that overrode booted() / __booted_site_model(), it converts the same
+       way - override booted(), chain parent::booted() first.
+
+    2. AUDIT every override of a framework/app parent method for a missing parent
+       call, not just site models. The rule applies framework-wide. Any override
+       that omits parent::<method>() will FATAL at manifest build unless the parent
+       method is abstract or #[Replaceable]. For each flagged override, decide:
+
+           a) EXTEND (the common case): add the parent::<method>(...) call.
+           b) REPLACE (rare, genuine template method): if you OWN the parent method
+              and it is meant to be fully replaced, mark the PARENT method
+              #[Replaceable]. You cannot mark a framework parent method - if a
+              framework override needs to fully replace a framework parent, that
+              is a framework decision, not an app one.
+
+    3. REMOVE the #[AuthParentCall] attribute wherever it appears in your app - it
+       is deleted framework-wide (the enforcement it opted into is now the default):
+
+           grep -rn "AuthParentCall" rsx/
+
+       Just delete the attribute; the methods it decorated are now covered by the
+       default rule. (This is unrelated to the separately-removed #[Auth] route
+       attribute - see remove_auth_attribute_07_29.txt for that.)
+
+VERIFICATION
+    - `grep -rn "__booted_site_model" rsx/` returns nothing.
+    - `grep -rn "AuthParentCall" rsx/` returns nothing.
+    - Load any page / rebuild the manifest (e.g. `rsx:debug /`): a site model
+      override of booted() that omits parent::booted(), or any other override
+      missing its parent call, FATALS at manifest build with a PHP-PARENT-CHAIN-01
+      violation naming the exact method and the fix. A clean build confirms every
+      override chains (or is legitimately exempt).
+    - Two-site cross-tenant read test (the original regression): seed a row owned
+      by site B, switch the session to site A, assert Model::find(<site-B id>)
+      returns null, and that Model::without_site_scope(fn() => Model::find(<id>))
+      still finds it - proving the row exists and was scoped out, not deleted.

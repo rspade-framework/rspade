@@ -1,0 +1,214 @@
+ACTION_LOG(3)              RSX Framework Manual              ACTION_LOG(3)
+
+NAME
+    action_log - User action history tracking system
+
+SYNOPSIS
+    Record an action:
+        use Rsx\Lib\Action_Log\Action_Log;
+        use Rsx\Models\Action_Log_Model;
+
+        Action_Log::record(Action_Log_Model::TYPE_CLIENT_CREATED, $client);
+
+    Record with related entities:
+        Action_Log::record(
+            Action_Log_Model::TYPE_CONTACT_CREATED,
+            $contact,
+            [
+                [$client, Action_Log_Related_Model::ROLE_MENTIONED],
+            ]
+        );
+
+    Record with metadata:
+        Action_Log::record(
+            Action_Log_Model::TYPE_PROJECT_UPDATED,
+            $project,
+            [],
+            ['changed_fields' => ['status', 'due_date']]
+        );
+
+DESCRIPTION
+    The action log system records user actions for activity history tracking.
+    This is distinct from audit logging - it records what users DID, not what
+    changed in the database.
+
+    Philosophy
+        Action logs should be created in controller POST handlers, not in
+        model events. The frame is "user performed action" not "record was
+        modified." This semantic distinction helps clarify when and how to
+        use this feature correctly.
+
+    Components
+        - Action_Log_Model: Main model storing action entries
+        - Action_Log_Related_Model: Related entities for each action
+        - Action_Log helper class: record() function
+        - Action_Log_Renderer: Render functions per action type
+
+    Database Tables
+        action_logs           Main action log entries
+        action_log_related    Related entities with roles
+
+API REFERENCE
+
+    Action_Log::record($type, $subject, $related = [], $metadata = [])
+        Record an action to the action log.
+
+        Parameters:
+            $type       int     Action_Log_Model::TYPE_* constant
+            $subject    object  The entity being acted upon (model instance)
+            $related    array   Optional: [[model, role_id], ...]
+            $metadata   array   Optional: Additional context data
+
+        Returns:
+            Action_Log_Model instance
+
+        The actor is automatically set from the current session (Login_User).
+        For system actions (no logged-in user), actor will be null.
+
+    Action_Log::get_for_entity($entity, $limit = null)
+        Get action logs where entity is subject or related.
+
+        Parameters:
+            $entity     object  The entity to get logs for
+            $limit      int     Optional: Max number of logs to return
+
+        Returns:
+            Illuminate\Database\Eloquent\Collection
+
+ACTION TYPES
+    Action types are defined as enums in Action_Log_Model with a renderer
+    property containing the FQCN::method that renders the action text.
+
+    Standard types:
+        TYPE_CLIENT_CREATED     1
+        TYPE_CLIENT_UPDATED     2
+        TYPE_CLIENT_DELETED     3
+        TYPE_CONTACT_CREATED    10
+        TYPE_CONTACT_UPDATED    11
+        TYPE_CONTACT_DELETED    12
+        TYPE_PROJECT_CREATED    20
+        TYPE_PROJECT_UPDATED    21
+        TYPE_PROJECT_DELETED    22
+        TYPE_TASK_CREATED       30
+        TYPE_TASK_UPDATED       31
+        TYPE_TASK_DELETED       32
+
+    Adding Custom Types
+        In your model extension, add to the $enums array:
+
+            public static $enums = [
+                'type_id' => parent::$enums['type_id'] + [
+                    100 => [
+                        'constant' => 'TYPE_INVOICE_SENT',
+                        'label' => 'Invoice Sent',
+                        'renderer' => 'App\\Renderers\\Invoice_Renderer::sent',
+                    ],
+                ],
+            ];
+
+RELATED ROLES
+    Related entities have roles indicating their relationship to the action:
+
+        ROLE_ACTOR      1   The entity that performed the action
+        ROLE_TARGET     2   The primary target of the action
+        ROLE_MENTIONED  3   Entity referenced in the action
+
+    The related table enables queries like "show me all actions involving
+    this contact" even when the contact is not the primary subject.
+
+RENDERER PATTERN
+    Each action type has a renderer method that returns HTML with hyperlinks.
+    The renderer FQCN::method is stored in the enum's 'renderer' property.
+
+    Example renderer:
+        class Action_Log_Renderer
+        {
+            public static function client_created(Action_Log_Model $log): string
+            {
+                $actor = $log->actor;      // morphTo relation, read as a property
+                $client = $log->subject;
+                $actor_name = $actor ? htmlspecialchars($actor->email) : 'System';
+
+                if (!$client) {
+                    return "{$actor_name} created a client (deleted)";
+                }
+
+                $link = Rsx::Route('Clients_View_Action', $client->id);
+                $name = htmlspecialchars($client->name);
+
+                return "{$actor_name} created client <a href=\"{$link}\">{$name}</a>";
+            }
+        }
+
+    Key points:
+    - Methods are static and receive the Action_Log_Model instance
+    - Return HTML string (will be rendered unescaped in templates)
+    - Handle deleted subjects gracefully
+    - Use htmlspecialchars() for user-provided content
+    - Use Rsx::Route() for URLs
+
+BEST PRACTICES
+
+    When to Record
+        Record actions in controller POST handlers, after the database
+        operation succeeds:
+
+            $client->save();
+            Action_Log::record(
+                $client_id ? Action_Log_Model::TYPE_CLIENT_UPDATED
+                           : Action_Log_Model::TYPE_CLIENT_CREATED,
+                $client
+            );
+
+        Do NOT record in model events (creating, created, etc.). This
+        conflates user actions with system operations.
+
+    Metadata Usage
+        Use metadata for additional context not needed in the list view
+        but useful in the detail view:
+
+            Action_Log::record(
+                Action_Log_Model::TYPE_PROJECT_UPDATED,
+                $project,
+                [],
+                [
+                    'changed_fields' => ['status', 'due_date'],
+                    'old_status' => 'active',
+                    'new_status' => 'completed',
+                ]
+            );
+
+    Related Entities
+        Use related entities when you need to query by involvement:
+
+            // Contact created under a client
+            Action_Log::record(
+                Action_Log_Model::TYPE_CONTACT_CREATED,
+                $contact,
+                [
+                    [$client, Action_Log_Related_Model::ROLE_MENTIONED],
+                ]
+            );
+
+    Extending for Downstream Apps
+        In downstream applications, extend the base models and renderer:
+
+            class My_Action_Log_Model extends Action_Log_Model
+            {
+                // Add custom types
+            }
+
+            class My_Action_Log_Renderer extends Action_Log_Renderer
+            {
+                // Add custom renderers
+            }
+
+FILES
+    /rsx/models/action_log_model.php           Main model
+    /rsx/models/action_log_related_model.php   Related entities model
+    /rsx/lib/action_log/action_log.php         Helper class
+    /rsx/lib/action_log/action_log_renderer.php  Render functions
+    /rsx/app/frontend/action_logs/             CRUD module
+
+SEE ALSO
+    crud(3), model_fetch(3), enum(3)

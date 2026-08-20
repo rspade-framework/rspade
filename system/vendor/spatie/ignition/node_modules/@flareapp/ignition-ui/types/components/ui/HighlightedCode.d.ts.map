@@ -1,0 +1,1 @@
+{"version":3,"file":"HighlightedCode.d.ts","sourceRoot":"","sources":["../../../src/components/ui/HighlightedCode.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAK,MAAM,OAAO,CAAC;AAc1B,aAAK,KAAK,GAAG;IACT,QAAQ,EAAE,KAAK,CAAC,SAAS,CAAC;IAC1B,QAAQ,EAAE,KAAK,GAAG,MAAM,GAAG,MAAM,CAAC;CACrC,CAAC;AAEF,MAAM,CAAC,OAAO,UAAU,eAAe,CAAC,EAAE,QAAQ,EAAE,QAAQ,EAAE,EAAE,KAAK,eAOpE"}

@@ -1,0 +1,5 @@
+<Define:Card_Title tag="h5" class="mb-0">
+
+    <%= content() %>
+
+</Define:Card_Title>

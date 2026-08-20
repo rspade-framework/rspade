@@ -1,0 +1,22 @@
+// Entity_Link - a fetched entity reference (type icon + name).
+.Entity_Link {
+    display: inline-flex;
+    align-items: baseline;
+    gap: $spacing-1;
+
+    &__icon {
+        color: $text-muted;
+        font-size: 0.9em;
+        align-self: center;
+    }
+
+    &__name {
+        &--muted {
+            color: $text-muted;
+        }
+    }
+
+    &--small {
+        font-size: $font-size-sm;
+    }
+}

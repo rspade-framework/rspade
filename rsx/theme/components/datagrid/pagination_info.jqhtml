@@ -1,0 +1,5 @@
+<Define:Pagination_Info>
+  <div>
+    <small class="text-muted"><%= content() %></small>
+  </div>
+</Define:Pagination_Info>

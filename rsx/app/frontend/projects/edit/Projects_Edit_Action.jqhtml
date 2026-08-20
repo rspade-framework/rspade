@@ -1,0 +1,105 @@
+<Define:Projects_Edit_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading project details..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Project"
+                $back_label="Go back to Projects"
+                $back_url="<%= Rsx.Route('Projects_Index_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Rsx_Form $data="<%= JSON.stringify(this.data.form_data) %>" $controller="Frontend_Projects_Controller" $method="save">
+                <% if (this.data.is_edit) { %>
+                    <Hidden_Input $name="id" />
+                <% } %>
+
+                <Card_Widget>
+                    <Section $title="Project Information">
+                        <Form_Field $label="Project Name" $required=true>
+                            <Text_Input $name="name" $placeholder="Enter project name" $max_length=Project_Model.field_length('name') />
+                        </Form_Field>
+
+                        <Form_Field $label="Description">
+                            <Wysiwyg_Input $name="description" $placeholder="Enter project description..." />
+                        </Form_Field>
+
+                        <% if (this.data.is_edit || this.data.from_client) { %>
+                            <%-- Client is locked (editing or adding from client view) --%>
+                            <Hidden_Input $name="client_id" />
+                            <div class="mb-3">
+                                <label class="form-label">Client</label>
+                                <div><Entity_Link $model="Client_Model" $id="<%= this.data.form_data.client_id %>" /></div>
+                            </div>
+                        <% } else { %>
+                            <%-- Adding new project - show dropdown selector --%>
+                            <Form_Field $label="Client" $required=true>
+                                <Client_Selector_Input $name="client_id" />
+                            </Form_Field>
+                        <% } %>
+
+                        <%-- Parent project (self-referencing hierarchy). Remote-search picker;
+                             in edit mode the project's own id + subtree are excluded (cycle guard). --%>
+                        <Form_Field $label="Parent Project">
+                            <% if (this.data.is_edit) { %>
+                                <Ajax_Entity_Select_Input $name="parent_project_id" $parent_type="Project_Model" $exclude_id="<%= this.data.form_data.id %>" $placeholder="Search projects..." />
+                            <% } else { %>
+                                <Ajax_Entity_Select_Input $name="parent_project_id" $parent_type="Project_Model" $placeholder="Search projects..." />
+                            <% } %>
+                        </Form_Field>
+                    </Section>
+
+                    <Section $title="Team & Contacts">
+                        <Form_Field $label="Assigned Users">
+                            <Checkbox_Multiselect_Input $name="assigned_users" $options="<%= this.data.user_options %>" $empty_text="No users available" />
+                        </Form_Field>
+
+                        <% if (this.data.show_contacts) { %>
+                            <Form_Field $label="Contacts">
+                                <Checkbox_Multiselect_Input $name="contacts" $options="<%= this.data.contact_options %>" $empty_text="No contacts for this client" />
+                            </Form_Field>
+                        <% } %>
+                    </Section>
+
+                    <Section $title="Timeline & Budget">
+                        <Form_Field $label="Start Date">
+                            <Text_Input $name="start_date" $type="date" $max_length=-1 />
+                        </Form_Field>
+                        <Form_Field $label="Due Date">
+                            <Text_Input $name="due_date" $type="date" $max_length=-1 />
+                        </Form_Field>
+                        <Form_Field $label="Budget">
+                            <Text_Input $name="budget" $type="number" $placeholder="0.00" $max_length=-1 />
+                        </Form_Field>
+                    </Section>
+
+                    <Section $title="Notes">
+                        <Form_Field $label="Internal Notes">
+                            <Text_Input $name="notes" $type="textarea" $rows=4 $placeholder="Internal notes about this project..." $max_length=-1 />
+                        </Form_Field>
+                    </Section>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="<%= Rsx.Route('Projects_Index_Action') %>" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Save Project
+                        </button>
+                    </div>
+                </Card_Widget>
+            </Rsx_Form>
+        </Slot:main>
+    </Page_Scaffold>
+<% } %>
+</Define:Projects_Edit_Action>

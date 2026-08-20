@@ -1,0 +1,350 @@
+AUTH GATES ARE MANDATORY ON EVERY SURFACE (closed by default, enforced at build)
+Date: 2026-08-07
+
+SUPERSEDES: remove_auth_attribute_07_29.txt
+
+    That document had you delete an INERT #[Auth] attribute that gated nothing
+    and only rendered in `rsx:routes`. #[Auth] now exists again and is the real
+    enforcement mechanism described below. If you have not yet worked through
+    that document's audit ("every place that relied on #[Auth] to express an
+    access rule has actually been unprotected"), this migration subsumes it -
+    the build will name every one of those surfaces for you.
+
+SUMMARY
+    Authorization in RSpade is now DECLARED on the surface, not written into the
+    code behind it. Every dispatchable surface - every #[Route], #[SPA],
+    #[Ajax_Endpoint], #[Ajax_Endpoint_Model_Fetch], #[Api_Endpoint] method and
+    every @route JS action - must carry an #[Auth(...)] / @auth(...) gate list,
+    and a surface that carries none does not deploy.
+
+    YOUR BUILD WILL FAIL ON THE PULL THAT DELIVERS THIS, and it will keep
+    failing until every surface in your application declares a gate. That is
+    the intended behavior, not a defect: the whole value of "closed by default"
+    is that a half-migrated tree cannot run. Read the fatal message - IT IS YOUR
+    WORKLIST.
+
+    This document is the migration procedure. The system itself is documented in
+    full at:
+
+        php artisan rsx:man auth_gates
+
+WHAT YOU WILL SEE FIRST
+    The next manifest build after the pull aborts with a RuntimeException whose
+    message looks like this (elided; yours lists every violation):
+
+        Auth gate validation failed: 34 violations.
+
+        Every dispatchable surface is CLOSED BY DEFAULT: it dispatches
+        only if it declares a gate and every named check resolves. A
+        surface with no gate does not deploy - there is no attribute-free
+        spelling of open. A public surface declares #[Auth('public')].
+
+          [1] MISSING GATE: Frontend_Clients_Controller::save
+              file:  rsx/app/frontend/clients/frontend_clients_controller.php
+              kind:  ajax (staff realm)
+              what:  declares no #[Auth] / @auth gate, directly or on its
+                     class
+              add:   #[Auth('is_logged_in')]
+                     directly above the method
+
+          [2] MISSING GATE: Clients_Index_Action
+              file:  rsx/app/frontend/clients/list/Clients_Index_Action.js
+              kind:  js_action (staff realm)
+              what:  declares no #[Auth] / @auth gate, directly or on its
+                     class
+              add:   @auth('is_logged_in')
+                     on the action class, beside @route
+
+          ... (one entry per violation)
+
+        AVAILABLE CHECK NAMES - declared with #[Auth_Check] on a public
+        static method of the realm's Permission class:
+
+          staff - rsx/permission.php
+              is_logged_in, public
+          portal - rsx/portal_permission.php
+              is_logged_in, public
+
+        A staff surface resolves names in the staff realm, a portal
+        surface in the portal realm, and an 'any' surface in either.
+        Multiple checks ride in ONE attribute and are AND-ed:
+        #[Auth('is_logged_in', 'can_manage_users')].
+
+        See: php artisan rsx:man auth_gates
+
+    Three violation types appear: MISSING GATE (no gate at all), UNKNOWN CHECK
+    (a name no #[Auth_Check] declares in that realm), and CONTRADICTION (a
+    member declares #[Auth('public')] under a class that declares a restricting
+    gate - gates AND, so the member opens nothing).
+
+    THERE IS NO OFF SWITCH. No config key, no .env value, no flag disables this
+    pass. The pass runs BEFORE the manifest is saved, so nothing is written and
+    artisan is effectively bricked while it fails - EXCEPT for the deliberate
+    escape hatch, which is how you work through the migration:
+
+        php artisan rsx:man auth_gates     (read the design)
+        php artisan rsx:clean              (clear caches)
+        php artisan list / --version       (still run)
+
+    Fix violations, run any artisan command to trigger a rebuild, read the
+    shorter list, repeat. When the list is empty the build passes.
+
+THE SYSTEM IN BRIEF
+    A gate is an ordinary Permission method, MARKED so it can be named:
+
+        // rsx/permission.php
+        class Permission extends Permission_Abstract
+        {
+            #[Auth_Check]
+            public static function can_manage_users(): bool
+            {
+                return static::has_permission(User_Model::PERM_MANAGE_SITE_USERS);
+            }
+        }
+
+    A surface names the checks it requires. ONE attribute, variadic, AND
+    semantics; a class-level gate covers every surface in the class and a
+    method-level one is ADDITIVE (gates can only narrow, never widen):
+
+        #[Auth('is_logged_in')]
+        class Settings_Controller extends Rsx_Controller_Abstract
+        {
+            #[Route('/settings/users')]
+            #[Auth('can_manage_users')]      // logged in AND can_manage_users
+            public static function users(Request $request, array $params = []) { }
+        }
+
+        // JS actions use the decorator twin
+        @route('/settings/users')
+        @layout('Frontend_Layout')
+        @spa('Frontend_Spa_Controller::index')
+        @auth('can_manage_users')
+        class Users_Index_Action extends Spa_Action { }
+
+    The framework evaluates the gates at the seam that owns each surface,
+    BEFORE any of your code runs. Denials are handled for you: a full-page
+    request with no identity gets a 302 to the realm's login with the intended
+    URL captured, an identified-but-denied caller gets a 403 screen, an Ajax
+    caller gets the standard coded unauthorized error, an ORM fetch gets the
+    same generic "not found" a missing row gets, and the SPA renders the
+    unauthorized screen inside the live layout without navigating.
+
+    Two built-in checks exist in both realms: 'public' (always true - the
+    explicit open marker) and 'is_logged_in'.
+
+    Because authorization is declared ON the destination, link visibility can
+    be derived from it. Permission::can_access('Users_Index_Action') (PHP) and
+    Permission.can_access(target) (JS) are true when every gate on that target
+    passes. Tighten a page's gates and every link to it disappears for
+    newly-excluded users, with zero edits at the link sites.
+
+STEP 1 - SET UP YOUR VOCABULARY (do this BEFORE annotating anything)
+    This is the one thinking step in an otherwise mechanical migration, and
+    doing it first is what keeps the result coherent. Annotating surface by
+    surface as you meet them produces a sprawl of near-duplicate checks named
+    after pages.
+
+    1. AUDIT. Walk your codebase and collect every distinct authorization
+       question it currently asks: pre_dispatch login guards, top-of-method
+       Session::is_logged_in() checks, Permission::can_*/is_*/has_*/require_*
+       calls, @auth-exempt and @portal-auth-exempt docblocks, and any inline
+       role or permission comparisons.
+
+    2. DERIVE THE SET. Collapse that inventory into the smallest consistent
+       vocabulary that expresses it. The set should read like your PERMISSION
+       MODEL, not like your sitemap: 'can_manage_users', never
+       'can_use_the_user_list_page'. Most applications land on the built-ins,
+       one check per permission constant actually in use, one per role floor
+       that actually gates something, and a few composites.
+
+    3. DEFINE THEM. Mark the helpers you already have with #[Auth_Check] and
+       add the missing ones, on rsx/permission.php (staff) and
+       rsx/portal_permission.php (portal). Each must be public static,
+       PARAMETERLESS, declared ': bool', uniquely named within its realm, and
+       cheap - every marked check runs once per page render to build the client
+       export (results are memoized per request).
+
+    4. WRITE THE LIST DOWN. Record the resulting vocabulary tersely in your
+       application's own CLAUDE.md - name plus one line on what each check
+       answers - and keep it current as you add gates. This is what lets you
+       (and an agent working in your codebase) pick the right existing check
+       instead of minting a near-duplicate. The template does exactly this in
+       rsx/permission.php's class docblock; your CLAUDE.md is the equivalent
+       for the developers and agents who work above the file.
+
+    Note on syntax: attribute arguments cannot carry class constants, so
+    #[Auth('has_permission', PERM_X)] is structurally impossible. The one-line
+    named helper is the sanctioned - and more readable - way a role or
+    permission check reaches a surface.
+
+STEP 2 - KNOW WHAT IS AND IS NOT A CHECK
+    A gate is USER-SCOPED: its answer depends only on who the caller is
+    (identity, role, resolved permissions, session state, environment). If two
+    requests by the SAME user could get different answers because of WHICH
+    RECORD they touch, it is not a gate.
+
+    IS a check (make it one):
+        - login state
+        - role floors            (can_manage_users -> SITE_ADMIN or better)
+        - permission grants      (can_view_billing -> PERM_MANAGE_SITE_BILLING)
+        - account/plan tier      (trial vs enterprise)
+        - request environment    (CLI vs web, debug site only)
+        - composites of the above
+
+    IS NOT a check (leave it in the function body):
+        - record ownership          ("only your own profile")
+        - membership scoping        ("only clients you belong to")
+        - record state              ("only DRAFT invoices are editable")
+        - cross-record invariants   ("cannot delete a client with open work")
+
+    MINT CHECKS LIBERALLY. Make #[Auth] cover every permission question that
+    does NOT need the specific record in hand. The reason is mechanical: a
+    record-scoped rule cannot run until the record has been fetched, so it can
+    only ever live inside the function - but a user-scoped rule that you leave
+    inline runs AFTER the framework has already admitted the caller, is
+    invisible to can_access() (so your links keep pointing at pages the user
+    cannot open), and has to be re-verified by a human on every review. If a
+    check can be a gate, it should be.
+
+    The division of labor on every data-serving function:
+
+        #[Auth(...)] gates   ->  may this user use this surface AT ALL
+        function body        ->  which RECORDS may they touch, and how
+
+STEP 3 - THE MIGRATION SWEEP
+    With the vocabulary defined, the rest is mechanical.
+
+    1. INVENTORY. From the audit in step 1, you already know where the
+       auth-relevant code is. List your surfaces: route/SPA controller methods,
+       Ajax endpoints, fetch() and fetchable relationships, portal_fetch(), API
+       endpoints, and every JS action.
+
+    2. ANNOTATE EVERY SURFACE. Straight mappings:
+
+           @auth-exempt / @portal-auth-exempt  ->  #[Auth('public')]
+           a pre_dispatch login guard          ->  class-level #[Auth('is_logged_in')]
+           an inline require_x() at the top    ->  that check's name in #[Auth]
+           a JS action                         ->  @auth matching the gates of
+                                                   the endpoints it calls
+
+       Do not skip the JS actions. Every @route action needs @auth; the build
+       fails on them exactly as it does on PHP methods. An action's gates
+       should match what its data endpoints require - otherwise the page loads
+       and then fails piecemeal, which is the flash-then-deny experience the
+       client gate exists to prevent.
+
+       Portal surfaces resolve names in the PORTAL registry. A staff check name
+       on a portal surface (or the reverse) is a build error; the realms never
+       blur.
+
+    3. STRIP THE REDUNDANT, KEEP THE RECORD CHECKS. Delete the inline code the
+       gates now express: pre_dispatch authorization guards (the whole hook, if
+       auth was all it did), top-of-method login and permission re-checks,
+       every @auth-exempt tag. KEEP everything record-scoped exactly where it
+       is - ownership predicates, membership filters, portal_can_read(),
+       record-state rules.
+
+       The test: if deleting an inline check would let a user touch a RECORD
+       they could not touch before, it stays. If it only re-asks a question the
+       gates now answer, it goes.
+
+    4. BUILD UNTIL THE LIST IS EMPTY. Run any artisan command, read the
+       violation list, fix, repeat. The message names the file, the member, the
+       realm and the exact line to add, and ends with every check name defined
+       in each realm - resolving a violation is a copy-paste, not a hunt.
+
+    5. VERIFY AS A ROLE-LIMITED USER. A clean build proves every surface is
+       DECLARED, not that the declarations are RIGHT. Walk your main flows as a
+       low-privilege user (php artisan rsx:debug /path --user=<id>, and
+       --portal --portal-user=<id> for the portal) and check two things:
+       denials happen where you expect, and NAV IS HONEST - links to surfaces
+       the user cannot reach are gone, not broken. Wrapping your nav components
+       in Permission.can_access(target) is what makes the second property
+       automatic; a section that renders nothing when all its items hid
+       themselves avoids orphaned headings.
+
+GOTCHAS
+    pre_dispatch() is no longer an authorization point. It still runs, and a
+    non-null return still halts dispatch, but it runs AFTER the gates and is
+    invisible to can_access(). Keep it for tenant setup, interstitials and
+    redirects; move authorization out of it entirely. This applies to your
+    controllers, to Main::pre_dispatch, and to Portal_Main::pre_dispatch.
+
+    @auth-exempt and @portal-auth-exempt are DEAD SYNTAX. Nothing reads them -
+    not the framework, not any lint rule. Leaving one in place is worse than
+    useless: it reads like protection that is not there. Delete them, and
+    declare #[Auth('public')] where the surface really is public.
+
+    route_is_exempt() is gone. If your portal_permission.php carries the
+    template's old route_is_exempt() helper and portal_main.php calls it,
+    delete both - the gates replace them.
+
+    PHP-AUTH-01 and PORTAL-AUTH-01 are DELETED from rsx:check. They existed to
+    GUESS whether a check was present by pattern-matching method bodies; there
+    is nothing left to guess. Any @PHP-AUTH-01-EXCEPTION or
+    @PORTAL-AUTH-01-EXCEPTION tags in your code are now inert - remove them.
+    The model-fetch rules were slimmed, not deleted: PHP-MODEL-FETCH-01 is now
+    purely structural, and PORTAL-MODEL-FETCH-01 enforces only the record-layer
+    contract (a model exposing portal_fetch() must declare - and call -
+    portal_can_read()).
+
+    PORTAL: the internal-endpoint channel is automatic. The framework
+    transports (/_ajax/:controller/:action, /_ajax/_batch, /_upload) are now
+    served on BOTH channels, so a portal page's Ajax is a genuine PORTAL
+    request - portal CSRF, portal realm, portal_fetch() resolved - in prefix
+    mode as well as domain mode. You do not wire anything: generated controller
+    stubs acquire the channel at call time.
+
+    PORTAL: multipart uploads must go through Ajax.upload(form_data). A raw
+    fetch('/_upload') gets both channel-sensitive details wrong - it hardcodes
+    the staff path (so a portal upload arrives as a staff request) and it sends
+    no CSRF token (multipart uses native fetch, which bypasses the jQuery choke
+    point that normally attaches the header). Search your code for
+    fetch('/_upload') and replace it. A $.ajax upload only needs the channel
+    fix: url: Rsx_Portal.internal_url('/_upload').
+
+    HAND-WRITTEN JS CHECK TWINS ARE FORBIDDEN. The build GENERATES a static on
+    the JS Permission class for every #[Auth_Check], reading the render-time
+    grants map. If you have hand-written JS reimplementing a PHP check's logic,
+    delete it - a generated mirror of the same name will exist, and two
+    implementations of one rule drift. (A hand-written static of the same name
+    wins and suppresses the mirror, which is how 'is_logged_in' works - so a
+    stale twin will silently keep shadowing the real check.)
+
+    window.rsxapp.auth IS GRANTS-ONLY. Only check names that returned TRUE are
+    shipped; denied checks are omitted, never sent as false. Do not write
+    client code that expects to enumerate what a user CANNOT do - absence,
+    denial and nonexistence are deliberately indistinguishable there.
+
+    window.rsxapp.auth_routes IS OFF BY DEFAULT. PHP-route accessibility is
+    exported only when config rsx.auth.export_php_route_grants is true; the
+    default is FALSE and the key is then never defined. If a JS
+    can_access('Some_Controller::method') call logs a console error naming that
+    config key, that is why. Enable it only if your SPA genuinely renders
+    conditional links to PHP-routed pages - links to SPA actions need nothing.
+
+    can_access() takes NO route params, ever. Gates are user-scoped, so a
+    surface is reachable or not regardless of which record's URL you build.
+    Check the surface, then parameterize the href separately.
+
+    UNKNOWN NAMES BEHAVE DIFFERENTLY BY CONTEXT. At a dispatch seam an unknown
+    check name DENIES and logs (a misconfigured surface must not 500 a page).
+    Called programmatically - can_access() with a typo'd target, or a direct
+    evaluation - it THROWS, because a silently hidden link is worse than a loud
+    error.
+
+VERIFICATION
+    1. php artisan rsx:manifest:build completes with no auth violations.
+    2. php artisan rsx:check is clean (and no @PHP-AUTH-01-EXCEPTION or
+       @PORTAL-AUTH-01-EXCEPTION tags remain).
+    3. grep your tree for @auth-exempt, @portal-auth-exempt and
+       route_is_exempt - all three should return nothing.
+    4. grep for fetch('/_upload') - should return nothing.
+    5. rsx:debug a protected page as an authorized user (renders, and its Ajax
+       calls succeed - watch the console for unauthorized errors), then as a
+       role-limited user (denied where expected), then anonymously (redirected
+       to login and returned to the page after signing in).
+    6. Render a nav-bearing page as a role-limited user and confirm links to
+       denied destinations are ABSENT rather than present-and-broken.
+    7. Portal: repeat 5 with --portal --portal-user=<id>, and exercise one
+       upload and one portal_fetch()-backed screen.

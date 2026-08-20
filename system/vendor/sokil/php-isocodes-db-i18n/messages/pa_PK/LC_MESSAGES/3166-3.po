@@ -1,0 +1,152 @@
+# Translation of ISO 3166-3 to Panjabi; Punjabi
+# Codes for the representation of names of countries and their subdivisions
+# Part 3: Code for formerly used names of countries
+# .
+# This file is distributed under the same license as the iso-codes package.
+# .
+# Copyright ©
+# bgo-eiu <huyaqoob+toolforge@gmail.com>, 2022.
+msgid ""
+msgstr ""
+"Project-Id-Version: iso_3166-3\n"
+"Report-Msgid-Bugs-To: https://salsa.debian.org/iso-codes-team/iso-codes/"
+"issues\n"
+"POT-Creation-Date: 2023-02-24 21:26+0100\n"
+"PO-Revision-Date: 2022-10-23 07:05+0000\n"
+"Last-Translator: bgo-eiu <huyaqoob+toolforge@gmail.com>\n"
+"Language-Team: Punjabi (Pakistan) <https://hosted.weblate.org/projects/iso-"
+"codes/iso-3166-3/pa_PK/>\n"
+"Language: pa_PK\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n > 1;\n"
+"X-Generator: Weblate 4.14.2-dev\n"
+
+#. Name for AIDJ
+#, fuzzy
+msgid "French Afars and Issas"
+msgstr "فرانسیسی افار تے ایسا"
+
+#. Name for ANHH
+#, fuzzy
+msgid "Netherlands Antilles"
+msgstr "نیدرلینڈ اینٹیل"
+
+#. Name for BQAQ
+msgid "British Antarctic Territory"
+msgstr ""
+
+#. Name for BUMM
+msgid "Burma, Socialist Republic of the Union of"
+msgstr ""
+
+#. Name for BYAA
+msgid "Byelorussian SSR Soviet Socialist Republic"
+msgstr ""
+
+#. Name for CSHH
+msgid "Czechoslovakia, Czechoslovak Socialist Republic"
+msgstr ""
+
+#. Name for CSXX
+msgid "Serbia and Montenegro"
+msgstr ""
+
+#. Name for CTKI
+msgid "Canton and Enderbury Islands"
+msgstr ""
+
+#. Name for DDDE
+msgid "German Democratic Republic"
+msgstr ""
+
+#. Name for DYBJ
+msgid "Dahomey"
+msgstr ""
+
+#. Name for FQHH
+msgid "French Southern and Antarctic Territories"
+msgstr ""
+
+#. Name for FXFR
+msgid "France, Metropolitan"
+msgstr ""
+
+#. Name for GEHH
+msgid "Gilbert and Ellice Islands"
+msgstr ""
+
+#. Name for HVBF
+#, fuzzy
+msgid "Upper Volta, Republic of"
+msgstr "اپر وولٹا دا گݨراج"
+
+#. Name for JTUM
+msgid "Johnston Island"
+msgstr ""
+
+#. Name for MIUM
+msgid "Midway Islands"
+msgstr "مِڈوے ٹاپو"
+
+#. Name for NHVU
+msgid "New Hebrides"
+msgstr ""
+
+#. Name for NQAQ
+#, fuzzy
+msgid "Dronning Maud Land"
+msgstr "ڈرونِنگ ماؤڈ لینڈ"
+
+#. Name for NTHH
+msgid "Neutral Zone"
+msgstr ""
+
+#. Name for PCHH
+msgid "Pacific Islands (trust territory)"
+msgstr ""
+
+#. Name for PUUM
+msgid "US Miscellaneous Pacific Islands"
+msgstr ""
+
+#. Name for PZPA
+msgid "Panama Canal Zone"
+msgstr ""
+
+#. Name for RHZW
+msgid "Southern Rhodesia"
+msgstr ""
+
+#. Name for SKIN
+msgid "Sikkim"
+msgstr ""
+
+#. Name for SUHH
+msgid "USSR, Union of Soviet Socialist Republics"
+msgstr ""
+
+#. Name for TPTL
+msgid "East Timor"
+msgstr ""
+
+#. Name for VDVN
+msgid "Viet-Nam, Democratic Republic of"
+msgstr ""
+
+#. Name for WKUM
+msgid "Wake Island"
+msgstr ""
+
+#. Name for YDYE
+msgid "Yemen, Democratic, People's Democratic Republic of"
+msgstr ""
+
+#. Name for YUCS
+msgid "Yugoslavia, (Socialist) Federal Republic of"
+msgstr ""
+
+#. Name for ZRCD
+msgid "Zaire, Republic of"
+msgstr ""

@@ -1,0 +1,162 @@
+HEALTH(1)                         RSpade Manual                         HEALTH(1)
+
+NAME
+    health - rsx:health environment/dependency verification and the
+    #[Health_Check] attribute
+
+SYNOPSIS
+    php artisan rsx:health
+    php artisan rsx:health --json
+
+    Declare a check WHERE its feature lives:
+
+        #[Health_Check('Human Label')]
+        public static function my_probe(): array
+        {
+            return ['status' => 'OK', 'detail' => '...'];
+        }
+
+DESCRIPTION
+    rsx:health verifies that every dependency, service, and environment invariant
+    RSpade relies on is installed, reachable, and sane, and reports OK / WARN / FAIL /
+    INFO per check with a remediation hint. The motivating scenario: a client, CI job,
+    or fresh container stands up a copy of the site and needs ONE command that says
+    "this environment can actually run everything" before failures surface deep inside
+    a feature.
+
+    The inventory is not hardcoded. Each check is DECLARED WHERE ITS FEATURE LIVES via
+    a bare #[Health_Check('label')] attribute on a public static method, discovered
+    through the manifest by Health_Check_Runner. A feature that needs soffice registers
+    its own soffice probe, so the health inventory can never drift from the features it
+    covers - and an app declares its OWN checks the same way (that is the point).
+
+    Unlike a Laravel health package with a central registry you keep in sync, RSX finds
+    checks by manifest attribute scan - no registration, no service provider.
+
+COMMAND BEHAVIOR
+    Default: a Check / Status / Detail / Remediation table (house style mirrors
+    rsx:prod:verify), ASCII only, ending in a [OK] or [FAIL] bracket summary.
+
+    --json: a machine-readable payload only:
+        {"generated_at": ..., "ok": bool, "checks": [{label, status, detail, remediation}]}
+
+    Exit code: 1 if and only if at least one FAIL row exists. WARN and INFO NEVER flip
+    the exit code - they are advisory - so a deploy pipeline or container healthcheck
+    can gate on rsx:health while tolerating warnings (e.g. a not-yet-running cron).
+
+    The command is safe on a live site: checks are read-only probes (no destructive
+    tests). A check that throws or returns an out-of-contract shape becomes a single
+    FAIL row naming the offender - one broken check never aborts the rest of the report.
+
+THE #[Health_Check] ATTRIBUTE
+    - Placed on a PUBLIC STATIC method taking no arguments.
+    - Requires a label: #[Health_Check('Human Label')] (a bare marker attribute -
+      NEVER a defined class; reflection metadata only, like #[Route]/#[Task]).
+    - The method must live in a manifest-scanned directory (framework /system or app
+      /rsx) so the attribute scan finds it. Declare it in the FEATURE that owns the
+      dependency, not in a central file.
+    - A missing label fails loud at discovery.
+
+    Return contract - a single row OR a list of rows:
+
+        ['status'      => 'OK' | 'WARN' | 'FAIL' | 'INFO',   // required
+         'detail'      => string,                            // what was found
+         'remediation' => ?string,                           // how to fix (optional)
+         'label'       => ?string]                           // per-row label override
+
+    A single method may return a LIST of rows to report several sub-checks (e.g. PHP
+    version + each extension). With no per-row 'label', later rows inherit the
+    attribute label suffixed #2, #3, ...
+
+    Status meanings:
+        OK     working.
+        WARN   advisory - degraded or unverifiable, but not a hard stop (does not fail
+               the exit code).
+        FAIL   broken - the environment cannot run the feature (fails the exit code).
+        INFO   informational posture, not a pass/fail (e.g. the active RSX mode, or a
+               feature intentionally disabled by config).
+
+    Example (a feature declaring its own dependency probe):
+
+        #[Health_Check('LibreOffice (soffice)')]
+        public static function soffice_available(): array
+        {
+            if (config('rsx.libreoffice.enabled', true) === false) {
+                return ['status' => 'INFO', 'detail' => 'disabled by config'];
+            }
+            $binary = static::find_soffice();
+            if ($binary === null) {
+                return [
+                    'status' => 'FAIL',
+                    'detail' => 'soffice not found',
+                    'remediation' => 'apt-get install -y --no-install-recommends libreoffice',
+                ];
+            }
+            return ['status' => 'OK', 'detail' => 'soffice at ' . $binary];
+        }
+
+FRAMEWORK INVENTORY
+    The framework declares these checks (each in the feature that owns it):
+
+        Application Mode         active RSX_MODE + risky prod-posture warnings
+        Env Symlink              system/.env symlink to root .env intact
+        LibreOffice (soffice)    headless soffice present (or disabled)
+        Lock Server              rsx-lockd listening (INFO under maintenance)
+        MySQL Connectivity       database reachable
+        Node.js                  node binary present (relay, tooling)
+        PHP                      version + required extensions (zip, gd, imagick,
+                                 redis, pdo_mysql)
+        Pending Migrations       schema up to date
+        Playwright / Chromium    Playwright package + browser installed (rsx:debug)
+        Realtime Relay           WebSocket relay reachable when enabled
+        Redis Connectivity       Redis reachable (cache, realtime, task slots)
+        Search Index Backlog     extraction queue depth + failed count
+        Storage Writable         storage/ + feature subdirs writable
+        Task Scheduler Liveness  rsx:task:process cron ticking
+        Turnstile                INFO when disabled; FAIL when enabled with a
+                                 missing key (half-configured install)
+        Web Exposure             sensitive files are NOT web-served (see below)
+        poppler-utils (pdftotext) PDF text-extraction binary present
+
+    An app's own #[Health_Check] methods appear in the same table, ordered by label.
+
+WEB EXPOSURE CHECK
+    Security_Health_Checks::web_exposure() actively PROVES that sensitive files
+    outside system/public are not reachable over HTTP, rather than trusting the
+    docroot config. It fetches each target from the site's OWN APP_URL and
+    CONTENT-MATCHES the response against the real on-disk file (not just the status
+    code - an SPA/catch-all that answers 200 with index.html for unknown paths
+    would false-positive a status-only probe).
+
+    Probed targets (one row each):
+        .env             the project-root .env (matched on its APP_KEY / first
+                         KEY=VALUE line)
+        .git/HEAD        the repo's dumpability canary
+        .git/config      leaks remote URLs (matched on repositoryformatversion)
+        IDE bridge dir   storage/rsx-ide-bridge/ - writes a random throwaway
+                         marker, GETs it via the candidate misconfig URLs, then
+                         deletes it
+
+    Row outcomes:
+        FAIL  the file's real content is served over HTTP -> misconfigured docroot
+              / autoindex. A FAIL flips the exit code to 1.
+        WARN  the site's own APP_URL is unreachable (never a false OK).
+        OK    not web-served, or the file is absent on disk.
+
+    Remediation for a FAIL: point the web-server docroot at system/public ONLY and
+    deny dotfiles/.git/.env. This defense does not rely on file permissions (a
+    stray chmod cannot defeat it).
+
+RSX VS LARAVEL
+    Laravel: a health package with a central config listing checks you maintain.
+    RSX:     #[Health_Check] on a static method, manifest-discovered where the feature
+             lives; the inventory cannot drift from the code.
+
+SEE ALSO
+    rsx:man document_search   the extraction/preview dependencies this gates
+    rsx:man libreoffice       the soffice dependency
+    rsx:man app_mode          RSX modes surfaced by the Application Mode check
+    rsx:man tasks             the scheduler whose liveness is checked
+    rsx:man locks             the lock daemon behind the Lock Server check
+
+HEALTH(1)                         RSpade Manual                         HEALTH(1)

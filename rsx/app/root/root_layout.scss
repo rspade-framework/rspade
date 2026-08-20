@@ -1,0 +1,119 @@
+/**
+ * Root_Layout Styles
+ *
+ * Styles for root administration module layout
+ */
+
+.Root_Layout {
+    // Body styles (body element has .Root_Layout class via rsx_body_class())
+    margin: 0;
+    padding: 0;
+
+    // Sidebar Navigation
+    .app-sidebar {
+        background: $background-light;
+        width: 250px;
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        display: flex;
+        flex-direction: column;
+        z-index: $z-index-dropdown;
+
+        // Brand area (desktop only)
+        .sidebar-brand {
+            padding: $spacing-sm $spacing-lg;
+            height: 57px;
+            border-bottom: $border-width solid var(--bs-border-color);
+            background: $gray-900;
+            display: flex;
+            align-items: center;
+
+            a {
+                font-size: $font-size-xl;
+                font-weight: $font-weight-semibold;
+                color: $white;
+                text-decoration: none;
+
+                &:hover {
+                    color: $gray-200;
+                }
+            }
+        }
+
+        // Sidebar navigation context (Sidebar_Nav owns its own internal styles)
+        .Root_Layout__sidebar-nav {
+            flex: 1;
+            padding: $spacing-md;
+            overflow-y: auto;
+        }
+
+        // Mobile adjustments
+        @include mobile {
+            position: static;
+            width: 100%;
+            border-right: none;
+            border-bottom: $border-width solid var(--bs-border-color);
+        }
+    }
+
+    // Main Content Area
+    .app-content {
+        margin-left: 250px;
+        background: rgb(248, 249, 250);
+        min-height: calc(100vh - 57px);
+
+        @include mobile {
+            margin-left: 0;
+        }
+    }
+
+    // Top Header Navbar
+    .app-header {
+        background: $white;
+        border-bottom: $border-width solid var(--bs-border-color);
+        height: 57px;
+        display: flex;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        z-index: 999;
+
+        .user-profile-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: $gray-200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            i {
+                font-size: $font-size-xl;
+                color: $text-muted;
+            }
+        }
+
+        .form-control {
+            min-width: 200px;
+        }
+    }
+
+    // Page Content
+    .page-content {
+        padding-top: 30px;
+        padding-left: $spacing-xl;
+        padding-right: $spacing-xl;
+        padding-bottom: $spacing-xl;
+
+        @include mobile {
+            padding: $spacing-md;
+        }
+    }
+
+    // Card styling
+    .card {
+        background-color: $white;
+    }
+}

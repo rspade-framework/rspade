@@ -1,0 +1,38 @@
+<%--
+Edit_Group_Modal_Form - Modal form for editing groups
+
+Allows admins to edit existing user groups.
+
+this.args.group_data - Group data including id, name, description, member_ids
+this.args.user_options - Array of {id, label, subtitle?} for member selection
+
+Form follows Rsx_Form pattern with Form_Field + input components.
+Validation handled server-side, errors displayed via Form_Utils.
+--%>
+<Define:Edit_Group_Modal_Form>
+
+  <Rsx_Form $controller="Frontend_Settings_Group_Management_Controller" $method="save_group" $data="<%= JSON.stringify(this.args.group_data) %>">
+
+    <Hidden_Input $name="id" />
+
+    <div class="mb-3">
+      <Form_Field $label="Group Name" $required=true>
+        <Text_Input $name="name" $autofocus=true />
+      </Form_Field>
+    </div>
+
+    <div class="mb-3">
+      <Form_Field $label="Description">
+        <Text_Input $name="description" $type="textarea" $rows="3" />
+      </Form_Field>
+    </div>
+
+    <div class="mb-3">
+      <Form_Field $label="Members">
+        <Checkbox_Multiselect_Input $name="member_ids" $options="<%= this.args.user_options %>" $empty_text="No users available" />
+      </Form_Field>
+    </div>
+
+  </Rsx_Form>
+
+</Define:Edit_Group_Modal_Form>

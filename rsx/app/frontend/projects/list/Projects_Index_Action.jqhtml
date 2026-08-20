@@ -1,0 +1,7 @@
+<Define:Projects_Index_Action>
+<Page_Scaffold>
+    <Slot:main>
+        <Projects_DataGrid />
+    </Slot:main>
+</Page_Scaffold>
+</Define:Projects_Index_Action>

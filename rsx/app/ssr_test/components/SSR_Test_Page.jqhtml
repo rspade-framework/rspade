@@ -1,0 +1,75 @@
+<%--
+SSR_Test_Page
+
+Main test page for jqhtml server-side rendering.
+Exercises nested components, loops, conditionals, and args passing.
+--%>
+<Define:SSR_Test_Page tag="div" class="container py-4">
+
+    <%-- Breadcrumb navigation --%>
+    <Page_Section>
+        <Breadcrumb>
+            <Breadcrumb_Item $href="#">Home</Breadcrumb_Item>
+            <Breadcrumb_Item $href="#">Tests</Breadcrumb_Item>
+            <Breadcrumb_Item $active=true>SSR Test</Breadcrumb_Item>
+        </Breadcrumb>
+    </Page_Section>
+
+    <%-- Page header --%>
+    <Page_Header>
+        <div>
+            <Page_Title>SSR Test Page</Page_Title>
+            <Page_Subtitle>This page was rendered server-side using @jqhtml/ssr</Page_Subtitle>
+        </div>
+    </Page_Header>
+
+    <%-- Stats row --%>
+    <Page_Section>
+        <div class="row g-3">
+            <% for (const stat of this.data.stats) { %>
+                <div class="col-desktop-3 col-6">
+                    <Stat_Card
+                        $value="<%= stat.value %>"
+                        $label="<%= stat.label %>"
+                        $trend="<%= stat.trend %>"
+                    />
+                </div>
+            <% } %>
+        </div>
+    </Page_Section>
+
+    <%-- Pricing section --%>
+    <Page_Section>
+        <h3 class="mb-3">Pricing Plans</h3>
+        <div class="row g-4">
+            <% for (const plan of this.data.plans) { %>
+                <div class="col-desktop-4">
+                    <Pricing_Card
+                        $name="<%= plan.name %>"
+                        $price="<%= plan.price %>"
+                        $period="<%= plan.period %>"
+                        $features="<%= JSON.stringify(plan.features) %>"
+                        $popular="<%= plan.popular %>"
+                    />
+                </div>
+            <% } %>
+        </div>
+    </Page_Section>
+
+    <%-- Team section --%>
+    <Page_Section>
+        <h3 class="mb-3">Our Team</h3>
+        <div class="row g-4">
+            <% for (const member of this.data.team) { %>
+                <div class="col-desktop-3 col-6">
+                    <Team_Card
+                        $name="<%= member.name %>"
+                        $role="<%= member.role %>"
+                        $initials="<%= member.initials %>"
+                    />
+                </div>
+            <% } %>
+        </div>
+    </Page_Section>
+
+</Define:SSR_Test_Page>

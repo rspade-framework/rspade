@@ -1,0 +1,233 @@
+POLYMORPHIC TRANSPARENCY - STOCK morphTo() OVER TYPE-REF COLUMNS, AND POLY-01
+Date: 2026-08-09
+
+SUMMARY
+    Two things changed, and only one of them is automatic.
+
+    Automatic: Laravel's polymorphic relations now work over an RSpade type-ref
+    column. morphTo(), morphOne(), morphMany(), associate(), dissociate(),
+    whereMorphedTo() and whereHasMorph() all resolve the BIGINT discriminator
+    correctly with no framework workaround. The hand-written
+    get_polymorphic_parent() helper on Rsx_Model_Abstract is DELETED.
+
+    Not automatic: a NEW manifest-build-FATAL code-quality rule, POLY-01,
+    rejects Laravel's string-morph pattern - a polymorphic relation whose
+    *_type column is not declared in the owning model's $type_ref_columns. If
+    your app has one, your build will FAIL on the first manifest rebuild after
+    this pull, with the file, the method and the column named.
+
+    Read this document before pulling if your app declares any morph relation.
+
+THE CHANGE
+    RSpade stores a polymorphic discriminator as a BIGINT type-ref id, not a
+    VARCHAR class name. Laravel's morphTo() reads the RAW attribute (bypassing
+    the cast), so it used to receive an integer, fail to resolve it, and crash -
+    hence get_polymorphic_parent().
+
+    Type_Ref_Registry::register_morph_map() now registers every type ref under
+    TWO morph-map aliases pointing at the same class:
+
+        'Contact_Model' => Rsx\Models\Contact_Model::class
+        '4'             => Rsx\Models\Contact_Model::class
+
+    morphTo() resolving a raw `4` is a plain morph-map lookup, so it now lands
+    on the right class. A WRITE still goes out through getMorphClass(), which
+    answers with the CLASS-NAME alias (order in the map is load-bearing), and
+    Rsx_Type_Ref_Cast converts it back to the integer.
+
+    Companion fix: RestrictedEloquentBuilder's type-ref WHERE conversion now
+    also accepts the TABLE-QUALIFIED spelling of its own column
+    ("my_table.thing_type"). Eloquent's morph relations qualify the type column
+    themselves, so without this a morphMany constraint compared an unconverted
+    class-name string against a BIGINT column - which MySQL coerces to 0,
+    silently matching NOTHING. If you previously worked around "morphMany over a
+    type-ref column returns zero rows" with a manual where() query, that
+    workaround is no longer necessary (it still works; see ACTION REQUIRED 3).
+
+    The pair standard is now explicit and enforced: a polymorphic reference is
+    ALWAYS {relation}_type + {relation}_id, both BIGINT, with the _type column
+    declared in $type_ref_columns.
+
+ACTION REQUIRED
+
+    1. FIND AND CONVERT ANY STRING-MORPH RELATION (build-blocking)
+
+       Find every morph relation in your app:
+
+           grep -rn "morphTo(\|morphMany(\|morphOne(\|morphToMany(\|morphedByMany(" rsx/
+
+       For each one, identify the *_type column it uses (Eloquent derives
+       {relation}_type from the relation name unless you passed an explicit
+       column), then check WHICH model must declare it:
+
+           morphTo()               -> the model DECLARING the relation
+           morphOne() / morphMany() -> the RELATED model (argument 1), because
+                                       its table carries the column
+           morphToMany() /
+           morphedByMany()          -> nobody. Unsupported (see step 4).
+
+       If the owning model does not declare the column, convert it:
+
+       a. Seed the registry with every class the column currently names. Ids are
+          auto-created on first use, so one call each, in a migration:
+
+              Type_Ref_Registry::class_to_id('Contact_Model');
+              Type_Ref_Registry::class_to_id('Project_Model');
+
+       b. Map the stored class names to their ids IN PLACE. If your column holds
+          Laravel FQCNs ("App\\Models\\Contact"), reduce to the basename first:
+
+              DB::statement("
+                  UPDATE my_table
+                  SET entity_type = SUBSTRING_INDEX(entity_type, '\\\\', -1)
+                  WHERE entity_type IS NOT NULL
+              ");
+              DB::statement("
+                  UPDATE my_table t
+                  JOIN _type_refs r ON r.class_name = t.entity_type
+                  SET t.entity_type = r.id
+              ");
+
+       c. Decide EXPLICITLY about rows that did not map (their class no longer
+          exists). A value the registry cannot resolve THROWS on read:
+
+              DB::statement("
+                  UPDATE my_table SET entity_type = NULL, entity_id = NULL
+                  WHERE entity_type IS NOT NULL AND entity_type NOT REGEXP '^[0-9]+$'
+              ");
+
+       d. Widen the column. Both halves of the pair are BIGINT:
+
+              DB::statement("ALTER TABLE my_table MODIFY entity_type BIGINT NULL");
+
+       e. Declare it on the owning model:
+
+              protected static $type_ref_columns = ['entity_type'];
+
+       f. Leave the relation exactly as it is - it now works.
+
+       If the table is genuinely EXTERNAL (a third-party schema whose
+       discriminator is not yours to change), suppress the rule instead:
+
+              /**
+               * @POLY-01-EXCEPTION - vendor table, discriminator owned by <system>
+               */
+              public function subject() { return $this->morphTo(); }
+
+    2. REPLACE get_polymorphic_parent() CALLS (build-blocking)
+
+       The helper is gone. Find your callers:
+
+           grep -rn "get_polymorphic_parent" rsx/
+
+       Each one was a method returning a MODEL. Replace it with a real relation
+       and change the CALL SITES from a method call to a property read:
+
+           // BEFORE
+           public function entity()
+           {
+               if (empty($this->entity_type) || empty($this->entity_id)) {
+                   return null;
+               }
+               return $this->get_polymorphic_parent('entity_type', 'entity_id');
+           }
+           // callers: $n->entity()
+
+           // AFTER
+           #[Relationship]
+           public function entity()
+           {
+               return $this->morphTo('entity', 'entity_type', 'entity_id');
+           }
+           // callers: $n->entity
+
+       #[Relationship] is required for the PROPERTY form to resolve (RSpade only
+       treats attributed methods as relations). Calling the method still returns
+       the relation object, which is what you want for
+       ->withTrashed()->first().
+
+       Then update every call site:
+
+           grep -rn -- "->entity()\|->subject()\|->actor()\|->related()" rsx/
+
+       Two behaviour differences to be aware of when you convert:
+
+         - The relation is CACHED on the instance. Reading the property twice is
+           one query, where the old helper re-queried every call. This is an
+           improvement, but if you relied on a second call seeing a value another
+           process just wrote, call the relation method instead
+           ($model->entity()->first()).
+
+         - An INCONSISTENT pair (_type NULL while _id is set) used to return
+           null; it now throws. That state is a data defect - write both columns
+           together or neither. If you have such rows, clean them up in the same
+           migration as step 1c.
+
+    3. RETIRE MANUAL MORPH WORKAROUNDS (optional, recommended)
+
+       Look for hand-rolled resolvers and comments asserting that morph relations
+       do not work here:
+
+           grep -rn "never use morphTo\|morphMany here matches ZERO\|type-ref column (it reads the raw" rsx/
+
+       Those statements are now false. A common workaround shape was resolving a
+       parent by string-concatenating a namespace onto the type name:
+
+           $class = 'Rsx\\Models\\' . $t->taskable_type;   // fragile
+           $parent = $class::find($t->taskable_id);
+
+       That breaks for any model outside your app namespace (User_Model and the
+       other framework-core models live elsewhere) and typically grew a special
+       case for exactly that. Replace it with the relation:
+
+           $parent = $t->taskable;
+
+       A manual where() query standing in for a morphMany is not WRONG - a method
+       named tasks() that returns an ordered Collection is a legitimate design -
+       but the comment justifying it as a type-ref limitation should go.
+
+    4. PIVOT MORPHS ARE UNSUPPORTED (build-blocking if present)
+
+       morphToMany() / morphedByMany() put the discriminator on a PIVOT table
+       that no model owns, so no $type_ref_columns declaration can ever cover it
+       and the column would be a VARCHAR class name. POLY-01 flags them
+       unconditionally.
+
+       Remedy: model the join table as a real RSpade model with its own
+       {relation}_type BIGINT / {relation}_id BIGINT pair declared in
+       $type_ref_columns, and relate to it with morphMany() + belongsTo().
+
+IF THE PULL ITSELF DIES AT THE REBUILD
+
+    POLY-01 is fatal at manifest build, and the pull runs a build. On an app with
+    violations the pull can therefore fail at its rebuild step - and on the updater
+    shipping in THIS release, that leaves system/ holding a synced but UNCOMMITTED
+    framework release. Do NOT run rsx:clean and do NOT make an app commit while it
+    is in that state: either resets system/ to its last commit and silently reverts
+    the whole update (the pre-commit hook runs rsx:clean for you).
+
+    Recover first, then fix the code:
+
+        php artisan rsx:framework:pull --no-rebuild     # sync + commit, no build gate
+
+    With the release committed, fix the violations this document describes and let
+    the development-mode auto-rebuild proceed (or run rsx:manifest:build). The next
+    updater commits the release BEFORE building, so this only applies to the pull
+    that installs this release.
+
+VERIFICATION
+
+    Build clean (POLY-01 is fatal, so a successful build IS the check):
+
+        php artisan rsx:manifest:build
+
+    Then confirm your polymorphic reads resolve, e.g.:
+
+        php artisan rsx:ajax <Controller> <action> --args='{"id":1}'
+
+    and spot-check one converted relation against the database:
+
+        SELECT id, entity_type, entity_id FROM my_table WHERE entity_type IS NOT NULL LIMIT 5;
+        -- entity_type must be an INTEGER; cross-check it in _type_refs
+
+    Full contract: php artisan rsx:man polymorphic

@@ -1,0 +1,42 @@
+<%--
+Textbox_Click_To_Copy - Read-only text input with click-to-copy functionality
+
+A read-only text input field with an integrated copy button. When the user clicks
+anywhere in the input or on the copy icon, the value is copied to the clipboard
+and visual feedback is provided.
+
+Arguments:
+- $value (string, required): The text value to display and copy
+
+Features:
+- Click anywhere in input to copy
+- Copy icon button with visual feedback
+- Success checkmark animation on copy
+- Bootstrap input group styling
+
+Usage:
+    <Textbox_Click_To_Copy $value="https://example.com/invite?code=abc123" />
+
+JavaScript Responsibilities:
+- Handle click-to-copy for both input and button
+- Clipboard API integration
+- Visual feedback (icon swap to checkmark)
+--%>
+<Define:Textbox_Click_To_Copy tag="div" class="input-group" data-tooltip="Click to copy to clipboard">
+    <input
+        $sid="input"
+        type="text"
+        class="form-control"
+        value="<%= this.args.value %>"
+        readonly
+        style="cursor: pointer; transition: background-color 0.2s;"
+    />
+    <button
+        $sid="copy_btn"
+        class="btn btn-outline-secondary"
+        type="button"
+        style="min-width: 60px;"
+    >
+        <i $sid="icon" class="bi bi-clipboard"></i>
+    </button>
+</Define:Textbox_Click_To_Copy>

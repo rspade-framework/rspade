@@ -1,0 +1,223 @@
+NAME
+    responsive - two-tier responsive breakpoint system
+
+SYNOPSIS
+    SCSS Mixins:
+        @include mobile { ... }       // 0 - 1023px
+        @include desktop { ... }      // 1024px+
+        @include phone { ... }        // 0 - 799px
+        @include tablet { ... }       // 800 - 1023px
+        @include desktop-sm { ... }   // 1024 - 1699px
+        @include desktop-md { ... }   // 1700 - 2199px
+        @include desktop-lg { ... }   // 2200px+
+
+    Bootstrap Classes:
+        .col-mobile-6 .col-desktop-4
+        .d-mobile-none .d-desktop-block
+        .col-phone-12 .col-tablet-6 .col-desktop-sm-4
+
+DESCRIPTION
+    RSX uses a custom two-tier responsive system that replaces Bootstrap's
+    default breakpoints (xs/sm/md/lg/xl/xxl) with semantic device names.
+
+    Tier 1 - Semantic (Mobile vs Desktop):
+
+        mobile      0 - 1023px      Phone + tablet combined
+        desktop     1024px+         All desktop sizes
+
+    Tier 2 - Granular Device Classes:
+
+        phone       0 - 799px       Phones, small handhelds
+        tablet      800 - 1023px    Tablets portrait, large phones landscape
+        desktop-sm  1024 - 1699px   Laptops, small monitors
+        desktop-md  1700 - 2199px   Standard monitors (1080p-1440p)
+        desktop-lg  2200px+         Large/ultra-wide monitors, 4K
+
+    The 1024px boundary was chosen because tablets in landscape (iPad Pro
+    at 1366px) should receive desktop layouts.
+
+BREAKPOINT VARIABLES
+    SCSS variables available in any component:
+
+        $bp-mobile-max: 1023px;
+        $bp-desktop-min: 1024px;
+        $bp-phone-max: 799px;
+        $bp-tablet-min: 800px;
+        $bp-tablet-max: 1023px;
+        $bp-desktop-sm-min: 1024px;
+        $bp-desktop-sm-max: 1699px;
+        $bp-desktop-md-min: 1700px;
+        $bp-desktop-md-max: 2199px;
+        $bp-desktop-lg-min: 2200px;
+
+SCSS MIXINS
+    Basic usage:
+
+        .my-component {
+            padding: 1rem;
+
+            @include mobile {
+                padding: 0.5rem;
+            }
+
+            @include desktop {
+                padding: 2rem;
+            }
+        }
+
+    Granular control:
+
+        .sidebar {
+            @include phone {
+                display: none;
+            }
+
+            @include tablet {
+                width: 200px;
+            }
+
+            @include desktop-sm {
+                width: 250px;
+            }
+
+            @include desktop-md-up {
+                width: 300px;
+            }
+        }
+
+    Available mixins:
+
+        @include mobile { }       max-width: 1023px
+        @include desktop { }      min-width: 1024px
+        @include phone { }        max-width: 799px
+        @include tablet { }       800px - 1023px (range)
+        @include tablet-up { }    min-width: 800px
+        @include tablet-down { }  max-width: 1023px
+        @include desktop-sm { }   1024px - 1699px (range)
+        @include desktop-sm-up { } min-width: 1024px
+        @include desktop-md { }   1700px - 2199px (range)
+        @include desktop-md-up { } min-width: 1700px
+        @include desktop-lg { }   min-width: 2200px
+
+BOOTSTRAP UTILITY CLASSES
+    All Bootstrap responsive utilities use the new breakpoint names:
+
+    Grid columns:
+        .col-mobile-12 .col-desktop-6
+        .col-phone-12 .col-tablet-6 .col-desktop-4
+        .col-desktop-sm-4 .col-desktop-md-3 .col-desktop-lg-2
+
+    Display:
+        .d-mobile-none .d-desktop-block
+        .d-phone-none .d-tablet-flex
+        .d-desktop-sm-inline
+
+    Spacing:
+        .p-mobile-2 .p-desktop-4
+        .m-tablet-3 .mt-desktop-5
+
+    Any Bootstrap utility that accepts breakpoint suffixes uses these names.
+
+CUSTOM UTILITY CLASSES
+    Additional visibility helpers:
+
+        .mobile-only      Hidden on desktop (1024px+)
+        .desktop-only     Hidden on mobile (0-1023px)
+        .phone-only       Hidden on tablet and up (800px+)
+        .tablet-only      Hidden on phone and desktop
+        .hide-mobile      Same as d-mobile-none
+        .hide-desktop     Same as d-desktop-none
+        .hide-phone       Same as d-phone-none
+        .hide-tablet      Hidden only in tablet range
+
+CSS CUSTOM PROPERTIES
+    Breakpoints are exposed as CSS variables for JavaScript access:
+
+        :root {
+            --bp-mobile-max: 1023px;
+            --bp-desktop-min: 1024px;
+            --bp-phone-max: 799px;
+            --bp-tablet-min: 800px;
+            --bp-tablet-max: 1023px;
+            --bp-desktop-sm-min: 1024px;
+            --bp-desktop-sm-max: 1699px;
+            --bp-desktop-md-min: 1700px;
+            --bp-desktop-md-max: 2199px;
+            --bp-desktop-lg-min: 2200px;
+        }
+
+    JavaScript access:
+
+        const styles = getComputedStyle(document.documentElement);
+        const desktopMin = styles.getPropertyValue('--bp-desktop-min');
+
+DIFFERENCE FROM BOOTSTRAP
+    Standard Bootstrap 5 uses these breakpoints:
+
+        xs      0
+        sm      576px
+        md      768px
+        lg      992px
+        xl      1200px
+        xxl     1400px
+
+    RSX replaces these entirely. Bootstrap's default utility classes like
+    .d-md-none or .col-lg-6 do NOT work. Use the RSX breakpoint names:
+
+        Bootstrap (doesn't work)    RSX equivalent
+        .col-md-6                   .col-tablet-6 or .col-mobile-6
+        .col-lg-4                   .col-desktop-4
+        .d-md-none                  .d-tablet-none
+        .d-lg-block                 .d-desktop-block
+
+FILES
+    /rsx/theme/variables.scss       Breakpoint variables, $grid-breakpoints
+    /rsx/theme/responsive.scss      Mixins and utility classes
+
+EXAMPLES
+    Responsive layout with sidebar:
+
+        <div class="row">
+            <div class="col-mobile-12 col-desktop-3">
+                <nav class="desktop-only">Sidebar</nav>
+            </div>
+            <div class="col-mobile-12 col-desktop-9">
+                Main content
+            </div>
+        </div>
+
+    Responsive component SCSS:
+
+        .Dashboard_Index_Action {
+            .stats-grid {
+                display: grid;
+                gap: 1rem;
+
+                @include phone {
+                    grid-template-columns: 1fr;
+                }
+
+                @include tablet {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+
+                @include desktop {
+                    grid-template-columns: repeat(4, 1fr);
+                }
+            }
+        }
+
+    Show different content per device:
+
+        <div class="phone-only">
+            <button>Menu</button>
+        </div>
+        <div class="tablet-only">
+            <nav>Compact nav</nav>
+        </div>
+        <div class="desktop-only">
+            <nav>Full navigation</nav>
+        </div>
+
+SEE ALSO
+    scss, bundle_api, jqhtml

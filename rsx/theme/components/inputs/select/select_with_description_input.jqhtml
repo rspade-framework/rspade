@@ -1,0 +1,39 @@
+<%--
+Select_With_Description_Input
+
+Dropdown select widget with muted description text below for the selected option.
+
+$options - Array of options: [{value: 'val', label: 'Label', description: 'Help text'}, ...]
+$placeholder - Placeholder option text (creates empty option at top)
+$disabled - Boolean to disable the select (still returns value via val())
+
+Widget interface:
+- val() - Get/set selected value
+--%>
+<Define:Select_With_Description_Input extends="Form_Input_Abstract">
+    <%
+        // Build lookup map for descriptions
+        this.description_map = {};
+        if (this.args.options) {
+            for (let opt of this.args.options) {
+                if (typeof opt === 'object' && opt.description) {
+                    this.description_map[opt.value] = opt.description;
+                }
+            }
+        }
+    %>
+    <%-- Options render EMPTY (no selected attribute). Value is set via val() after render. --%>
+    <select $sid="input" <% if (this.args.disabled) { %>disabled<% } %>>
+        <option value=""><%= this.args.placeholder || '' %></option>
+        <% if (this.args.options) { %>
+            <% for (let opt of this.args.options) { %>
+                <% if (typeof opt === 'object') { %>
+                    <option value="<%= opt.value %>"><%= opt.label %></option>
+                <% } else { %>
+                    <option value="<%= opt %>"><%= opt %></option>
+                <% } %>
+            <% } %>
+        <% } %>
+    </select>
+    <div $sid="description" class="select-description text-muted mt-1" style="font-size: var(--text-sm);"></div>
+</Define:Select_With_Description_Input>

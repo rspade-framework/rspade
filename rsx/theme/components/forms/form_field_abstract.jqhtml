@@ -1,0 +1,19 @@
+<%--
+Form_Field_Abstract
+
+Abstract base component for form field wrappers. Provides core functionality without visual formatting.
+Extend this to create custom form field wrappers with different visual styles.
+
+$name - Field name (required) - used for form serialization and error display
+$label - Label text (optional) - available for child classes to display
+$required - Boolean (optional) - available for child classes to indicate required fields
+$help - Help text (optional) - available for child classes to display
+
+Child content is the form widget (Text_Input, Select_Input, etc.)
+
+Note: This is an abstract component. Use Form_Field for standard formatted fields,
+or extend this to create custom field wrappers.
+--%>
+<Define:Form_Field_Abstract>
+    <%= content() %>
+</Define:Form_Field_Abstract>

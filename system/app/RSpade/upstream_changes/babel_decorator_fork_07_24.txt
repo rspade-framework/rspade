@@ -1,0 +1,84 @@
+VENDORED BABEL DECORATOR FORK (decorator class-binding white-screen fix)
+Date: 2026-07-24
+
+SUMMARY
+    The JS transform toolchain no longer depends on a fragile decorator-output
+    shape matcher to keep decorated classes reachable in the bundle. Babel's
+    decorator transform is now a vendored, patched fork that emits the class
+    binding at the source. This affects every downstream app: it removes a
+    white-screen failure mode and any local mitigation you may have added, and it
+    makes your npm toolchain version-independent again.
+
+THE BUG / THE CHANGE
+    RSpade concatenates transformed app JS into one shared, non-module bundle
+    scope, so a decorated class MUST keep its module-scope bare-name binding -
+    other files, jqhtml templates, and the SPA registry reference it by bare name.
+
+    Upstream Babel's decorator transform DROPS that binding for a decorated class
+    DECLARATION that has static members (it renames the class to a truncated uid
+    and replaces the statement with a `new (...)()` expression). The framework
+    previously compensated inside js-transformer-server.js with a matcher that
+    recognized Babel's `[_Foo, _initClass] = _applyDecs(...).c` output shape and
+    appended `var Foo = ...;`.
+
+    That matcher was shape-dependent and broke silently: @babel/compat-data
+    7.29.3 moved the transform-destructuring baseline to Safari 14.1, so
+    preset-env (targeting Safari 14) began rewriting the matched array-pattern
+    BEFORE the matcher ran. The matcher missed, the binding was never emitted, the
+    class was never bound, and the first downstream reference threw a
+    ReferenceError - a white screen with no build-time signal. The es5 target was
+    always broken this way. The trigger was a routine npm install picking up a
+    newer @babel/compat-data 7.x.
+
+THE FIX
+    Informational only - this arrives automatically via the framework submodule;
+    there is nothing here to copy.
+
+    - New vendored fork:
+      system/app/RSpade/Core/JsParsers/resource/babel-plugin-decorators/
+      A self-contained esbuild bundle of @babel/plugin-proposal-decorators@7.29.7
+      (+ its closure), @babel/core externalized, with a 7-line patch that emits
+      `var <OriginalName> = <uid>;` at the producer for the dropped-binding case.
+      Carries its own upstream.patch + README.md (regeneration/rebase steps).
+    - js-transformer-server.js: the shape matcher is DELETED. The decorator plugin
+      entry now points at the fork. A fail-closed CONTRACT assertion was added: it
+      records decorated class declarations before transform and throws (naming the
+      class + file) if any lost its program-scope binding after transform, so a
+      future regression fails the build loudly instead of shipping a white screen.
+    - Js_Transformer.php: the transform cache key now folds in a toolchain
+      fingerprint (fork bundle + server script + @babel/core version), so swapping
+      the toolchain invalidates cached transforms automatically.
+
+ACTION REQUIRED
+    1. Pull the framework (rsx:framework:pull) to receive the fork and rewired
+       transformer.
+
+    2. REMOVE any local mitigation you added for the white-screen incident. In
+       particular, delete any host-side bundle-rewrite / post-compile script
+       (the "downstream-style" fix that re-appended `var <Class> = ...` to compiled
+       bundles). It is now redundant and would double-emit the binding. Search
+       your app/deploy scripts for anything that rewrites files under
+       storage/rsx-build/bundles or re-adds class bindings post-build, and remove
+       it.
+
+    3. REMOVE any Babel version pinning you added to dodge the incident (e.g. a
+       pinned @babel/compat-data / @babel/core in a downstream package.json or a
+       lockfile freeze). It is no longer needed - the fork carries its own fix and
+       is independent of the host @babel/compat-data baseline. `npm ci` from any
+       Babel 7.x lockfile is safe again.
+
+    4. Nothing else. Rebuilds pick up the new cache key automatically (the toolchain
+       fingerprint change orphans old cache entries harmlessly); the transform
+       server is spawned per-build and torn down at process end, so no restart is
+       needed.
+
+VERIFICATION
+    - Load any authenticated SPA page with decorated actions
+      (e.g. `php artisan rsx:debug /dashboard --user=1 --console`). The page must
+      render with no ReferenceError / "is not defined" in the console.
+    - Confirm no leftover mitigation: `grep -rn "var .* = _" ` over your deploy
+      scripts should find no bundle-rewriting step, and your downstream
+      package.json should carry no Babel version pin added for this incident.
+    - Optional: the framework's own coverage is `php artisan rsx:test
+      --framework Js_Decorator_Transform_Test` (proves the binding survives at
+      modern/es6/es5 and that the fail-closed assertion trips when it does not).

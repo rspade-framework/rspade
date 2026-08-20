@@ -1,0 +1,7 @@
+<Define:Card class="card">
+
+    <div class="card-body">
+        <%= content() %>
+    </div>
+
+</Define:Card>

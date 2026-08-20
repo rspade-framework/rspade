@@ -1,0 +1,263 @@
+.Api_Docs_Page {
+    // Midnight palette (GitHub-dark family). Defined on the root so every descendant
+    // component inherits these custom properties.
+    --api-bg: #0D1117;
+    --api-surface: #161B26;
+    --api-raised: #1C2333;
+    --api-border: #2A3245;
+    --api-text: #E6EDF3;
+    --api-muted: #8B98AD;
+    --api-accent: #58A6FF;
+    --api-accent-hover: #79B8FF;
+    --api-accent-soft: #13233A;
+    --api-get: #3FB950;
+    --api-post: #58A6FF;
+    --api-danger: #F85149;
+    --api-warn: #D29922;
+    --api-mono: ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, Consolas, monospace;
+
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: var(--api-bg);
+    color: var(--api-text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+
+    &__notice {
+        padding: 40px;
+        color: var(--api-muted);
+        font-size: 15px;
+
+        &--error {
+            color: var(--api-danger);
+        }
+    }
+
+    // -- Header -----------------------------------------------------------
+    &__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        flex-wrap: wrap;
+        padding: 16px 28px;
+        background: var(--api-surface);
+        border-bottom: 1px solid var(--api-border);
+    }
+
+    &__brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    &__brand-mark {
+        font-family: var(--api-mono);
+        font-weight: 700;
+        font-size: 18px;
+        color: var(--api-accent);
+        background: var(--api-accent-soft);
+        border: 1px solid var(--api-border);
+        border-radius: 6px;
+        padding: 2px 8px;
+    }
+
+    &__brand-text {
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+    }
+
+    &__header-controls {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    &__version {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    &__version-caption {
+        color: var(--api-muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+    }
+
+    &__version-select {
+        appearance: none;
+        background: var(--api-raised);
+        color: var(--api-text);
+        border: 1px solid var(--api-border);
+        border-radius: 6px;
+        padding: 6px 30px 6px 12px;
+        font-family: var(--api-mono);
+        font-size: 13px;
+        cursor: pointer;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238B98AD' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+
+        &:hover {
+            border-color: var(--api-accent);
+        }
+
+        &:focus {
+            outline: none;
+            border-color: var(--api-accent);
+            box-shadow: 0 0 0 3px var(--api-accent-soft);
+        }
+    }
+
+    &__catalog-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--api-accent);
+        text-decoration: none;
+        font-size: 13px;
+        padding: 6px 10px;
+        border: 1px solid var(--api-border);
+        border-radius: 6px;
+        background: var(--api-raised);
+
+        &:hover {
+            color: var(--api-accent-hover);
+            border-color: var(--api-accent);
+            background: var(--api-accent-soft);
+        }
+
+        svg {
+            flex: 0 0 auto;
+        }
+    }
+
+    &__keybar-host {
+        background: var(--api-surface);
+        border-bottom: 1px solid var(--api-border);
+        padding: 12px 28px;
+    }
+
+    // -- Body: sidebar + main --------------------------------------------
+    &__body {
+        display: flex;
+        align-items: flex-start;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    &__sidebar {
+        flex: 0 0 300px;
+        width: 300px;
+        align-self: stretch;
+        background: var(--api-surface);
+        border-right: 1px solid var(--api-border);
+        padding: 20px 14px;
+        position: sticky;
+        top: 0;
+        max-height: 100vh;
+        overflow-y: auto;
+    }
+
+    &__nav-group {
+        margin-bottom: 22px;
+    }
+
+    &__nav-title {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        color: var(--api-muted);
+        font-weight: 700;
+        padding: 0 8px 8px;
+    }
+
+    &__nav-link {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        text-decoration: none;
+        color: var(--api-text);
+        margin-bottom: 2px;
+
+        &:hover {
+            background: var(--api-raised);
+        }
+    }
+
+    &__nav-verbs {
+        flex: 0 0 auto;
+        display: flex;
+        gap: 3px;
+    }
+
+    &__nav-path {
+        font-family: var(--api-mono);
+        font-size: 12px;
+        color: var(--api-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    &__nav-link:hover &__nav-path {
+        color: var(--api-text);
+    }
+
+    // -- Method pills -----------------------------------------------------
+    &__pill {
+        display: inline-block;
+        font-family: var(--api-mono);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        padding: 2px 5px;
+        border-radius: 4px;
+        color: #0D1117;
+
+        &--get {
+            background: var(--api-get);
+        }
+
+        &--post {
+            background: var(--api-post);
+        }
+    }
+
+    // -- Main pane --------------------------------------------------------
+    &__main {
+        flex: 1 1 auto;
+        min-width: 0;
+        padding: 28px 32px 80px;
+    }
+
+    &__resource {
+        margin-bottom: 40px;
+    }
+
+    &__resource-title {
+        font-size: 22px;
+        font-weight: 600;
+        margin: 0 0 16px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--api-border);
+    }
+
+    @media (max-width: 1023px) {
+        &__sidebar {
+            display: none;
+        }
+
+        &__main {
+            padding: 20px 16px 60px;
+        }
+    }
+}

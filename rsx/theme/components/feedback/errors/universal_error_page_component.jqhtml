@@ -1,0 +1,126 @@
+<%--
+Universal_Error_Page_Component
+
+Universal error handler that automatically displays the appropriate error component based
+on the error code. This component routes to specialized error displays for each error type,
+providing consistent, professional error UI with zero effort from the developer.
+
+Usage:
+    In your Action's on_load():
+        try {
+            this.data.record = await Controller.get(this.args.id);
+        } catch (e) {
+            this.data.error_data = e;
+        }
+        this.data.loading = false;
+
+    In your template:
+        <% if (this.data.loading) { %>
+            <Loading_Spinner $message="Loading project details..." />
+        <% } else if (this.data.error_data) { %>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Project"
+                $back_label="Go back to Projects"
+                $back_url="<%= Rsx.Route('Projects_Index_Action') %>"
+            />
+        <% } else { %>
+            <!-- Normal content -->
+        <% } %>
+
+Supported Error Types:
+    - Ajax.ERROR_NOT_FOUND - Record doesn't exist
+    - Ajax.ERROR_UNAUTHORIZED - User lacks permission
+    - Ajax.ERROR_AUTH_REQUIRED - User not logged in
+    - Ajax.ERROR_VALIDATION - Form validation failed
+    - Ajax.ERROR_SERVER - Server error (500)
+    - Ajax.ERROR_NETWORK - Connection failed
+    - Ajax.ERROR_PHP_EXCEPTION - PHP exception with file/line/backtrace
+    - Ajax.ERROR_GENERIC - Unexpected error
+    - Ajax.ERROR_FATAL - Fatal error
+
+For more information on the unified error system, see:
+    php artisan rsx:man ajax_error_handling
+
+REQUIRED ARGUMENTS:
+$error_data - The error object from the catch block
+$record_type - Type of record/resource (e.g., "Project", "Contact", "User")
+$back_label - Label for back button (e.g., "Go back to Projects")
+$back_url - URL to navigate back to
+
+OPTIONAL ARGUMENTS:
+$login_redirect_url - Override URL to redirect to after login (defaults to back_url)
+--%>
+<Define:Universal_Error_Page_Component>
+
+    <%
+    // Validate required arguments
+    if (!this.args.error_data) {
+        throw new Error('Universal_Error_Page_Component: $error_data is required');
+    }
+    if (!this.args.record_type) {
+        throw new Error('Universal_Error_Page_Component: $record_type is required (e.g., "Project", "Contact")');
+    }
+    if (!this.args.back_label) {
+        throw new Error('Universal_Error_Page_Component: $back_label is required (e.g., "Go back to Projects")');
+    }
+    if (!this.args.back_url) {
+        throw new Error('Universal_Error_Page_Component: $back_url is required');
+    }
+
+    // Extract arguments
+    const error = this.args.error_data;
+    const record_type = this.args.record_type;
+    const back_label = this.args.back_label;
+    const back_url = this.args.back_url;
+    const login_redirect_url = this.args.login_redirect_url || back_url;
+    %>
+
+    <% if (error.code === Ajax.ERROR_NOT_FOUND) { %>
+        <Not_Found_Error_Page_Component
+            $record_type="<%= record_type %>"
+            $back_label="<%= back_label %>"
+            $back_url="<%= back_url %>"
+            />
+
+    <% } else if (error.code === Ajax.ERROR_UNAUTHORIZED) { %>
+        <Unauthorized_Error_Page_Component
+            $message="<%= error.message %>"
+            $section="<%= record_type %>"
+            />
+
+    <% } else if (error.code === Ajax.ERROR_AUTH_REQUIRED) { %>
+        <Auth_Required_Error_Page_Component
+            $message="<%= error.message %>"
+            $redirect_url="<%= login_redirect_url %>"
+            />
+
+    <% } else if (error.code === Ajax.ERROR_SERVER) { %>
+        <Server_Error_Page_Component
+            $message="<%= error.message %>"
+            />
+
+    <% } else if (error.code === Ajax.ERROR_NETWORK) { %>
+        <Network_Error_Page_Component
+            $message="<%= error.message %>"
+            />
+
+    <% } else if (error.code === Ajax.ERROR_VALIDATION) { %>
+        <Validation_Error_Page_Component
+            $message="<%= error.message %>"
+            $metadata="<%= error.metadata %>"
+            $back_url="<%= back_url %>"
+            />
+
+    <% } else if (error.code === Ajax.ERROR_PHP_EXCEPTION) { %>
+        <Php_Exception_Error_Page_Component
+            $error_data="<%= error %>"
+            />
+
+    <% } else { %>
+        <Generic_Error_Page_Component
+            $error_data="<%= error %>"
+            />
+    <% } %>
+
+</Define:Universal_Error_Page_Component>

@@ -1,0 +1,35 @@
+// Record_Table - the shared compact record-list look.
+.Record_Table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: $font-size-sm;
+
+    thead th {
+        padding: $spacing-2 var(--card-pad-x);
+        text-align: left;
+        font-weight: $font-weight-semibold;
+        color: $text-muted;
+        border-bottom: $border-width-thick solid $border-color;
+        white-space: nowrap;
+    }
+
+    tbody td {
+        padding: $spacing-3 var(--card-pad-x);
+        border-bottom: $border-width solid $border-color;
+        vertical-align: middle;
+        color: $text-color;
+    }
+
+    tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    // Whole-row navigation affordance.
+    tbody tr[data-href] {
+        cursor: pointer;
+
+        &:hover {
+            background: $datagrid-row-hover-bg;
+        }
+    }
+}

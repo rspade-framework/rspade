@@ -1,0 +1,212 @@
+<Define:Tasks_View_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading task details..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Task"
+                $back_label="Go back to Tasks"
+                $back_url="<%= Rsx.Route('Tasks_Index_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <%
+        const _task = this.data.task;
+        const _subtasks = this.data.subtasks;
+        const _activity = this.data.activity;
+        const _open = _task.status === Task_Model.STATUS_PENDING || _task.status === Task_Model.STATUS_IN_PROGRESS;
+        const _overdue = !!_task.due_date && Rsx_Date.is_past(_task.due_date) && _open;
+        const _pri_chip = (_task.priority__badge || 'bg-secondary').replace('bg-', 'badge-outline-');
+        const _has_parent = !!(_task.taskable_type && _task.taskable_id);
+        const _tabs = [
+            { key: 'overview', label: 'Overview' },
+            { key: 'subtasks', label: 'Subtasks', count: _subtasks.length },
+            { key: 'activity', label: 'Activity', count: _activity.length },
+        ];
+    %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Card_Widget>
+                <Entity_Header>
+                    <Slot:title><%= _task.title %></Slot:title>
+                    <Slot:chips>
+                        <Status_Badge $model="Task_Model" $status_id=_task.status $field="status" />
+                        <span class="badge <%= _pri_chip %>"><%= _task.priority__label %></span>
+                    </Slot:chips>
+                    <Slot:meta>
+                        <span>Task #<%= _task.id %></span>
+                        <% if (_has_parent) { %>
+                            <span>Part of: <Entity_Link $model=_task.taskable_type $id=_task.taskable_id $small=true /></span>
+                        <% } %>
+                        <% if (_task.due_date) { %>
+                            <% if (_overdue) { %>
+                                <span class="text-danger">Due <%= Rsx_Date.format(_task.due_date) %> (overdue)</span>
+                            <% } else { %>
+                                <span>Due <%= Rsx_Date.format(_task.due_date) %></span>
+                            <% } %>
+                        <% } %>
+                        <span>Created <%= Rsx_Time.format_date(_task.created_at) %></span>
+                    </Slot:meta>
+                </Entity_Header>
+
+                <Tab_Bar $sid="tabs" $tabs=_tabs $hash="tab" $divided=true />
+
+                <Tab_Panels $sid="panels">
+                    <Tab_Panel $key="overview">
+                        <Section $title="Task Details">
+                            <View_Fields>
+                                <View_Field $label="Status">
+                                    <Status_Badge $model="Task_Model" $status_id=_task.status $field="status" />
+                                </View_Field>
+                                <View_Field $label="Priority">
+                                    <span class="badge <%= _pri_chip %>"><%= _task.priority__label %></span>
+                                </View_Field>
+                                <View_Field $label="Due Date">
+                                    <% if (_task.due_date) { %>
+                                        <% if (_overdue) { %>
+                                            <span class="text-danger"><%= Rsx_Date.format(_task.due_date) %></span>
+                                        <% } else { %>
+                                            <%= Rsx_Date.format(_task.due_date) %>
+                                        <% } %>
+                                    <% } else { %><Empty_Value /><% } %>
+                                </View_Field>
+                                <View_Field $label="Completed">
+                                    <% if (_task.completed_date) { %><%= Rsx_Date.format(_task.completed_date) %><% } else { %><Empty_Value /><% } %>
+                                </View_Field>
+                                <View_Field $label="Estimated Hours">
+                                    <% if (_task.hour_estimate !== null && _task.hour_estimate !== undefined && _task.hour_estimate !== '') { %><%= _task.hour_estimate %><% } else { %><Empty_Value /><% } %>
+                                </View_Field>
+                                <View_Field $label="Assignee">
+                                    <% if (_task.assigned_to_user_id) { %>
+                                        <Entity_Link $model="User_Model" $id=_task.assigned_to_user_id $small=true />
+                                    <% } else { %><Empty_Value /><% } %>
+                                </View_Field>
+                                <View_Field $label="Project">
+                                    <% if (_task.project_id) { %>
+                                        <Entity_Link $model="Project_Model" $id=_task.project_id $small=true />
+                                    <% } else { %><Empty_Value /><% } %>
+                                </View_Field>
+                            </View_Fields>
+                        </Section>
+
+                        <% if (_task.description) { %>
+                        <Section $title="Description">
+                            <%br= _task.description %>
+                        </Section>
+                        <% } %>
+
+                        <% if (_task.notes) { %>
+                        <Section $title="Internal Notes">
+                            <%br= _task.notes %>
+                        </Section>
+                        <% } %>
+                    </Tab_Panel>
+
+                    <Tab_Panel $key="subtasks">
+                        <Section $title="Subtasks" $count=_subtasks.length $flush=true>
+                            <% if (_subtasks.length === 0) { %>
+                                <Empty_State $icon="bi bi-diagram-3">
+                                    <Slot:title>No subtasks yet</Slot:title>
+                                    <Slot:body>Tasks parented to this task will appear here.</Slot:body>
+                                </Empty_State>
+                            <% } else { %>
+                                <Record_Table>
+                                    <thead>
+                                        <tr><th>Title</th><th>Status</th><th>Due Date</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        <% for (const sub of _subtasks) { %>
+                                        <tr data-href="<%= Rsx.Route('Tasks_View_Action', sub.id) %>">
+                                            <td><%= sub.title %></td>
+                                            <td><Status_Badge $label=sub.status__label $badge=sub.status__badge /></td>
+                                            <td>
+                                                <% if (sub.due_date) { %>
+                                                    <% if (sub.is_overdue) { %>
+                                                        <span class="text-danger"><%= Rsx_Date.format(sub.due_date) %></span>
+                                                    <% } else { %>
+                                                        <%= Rsx_Date.format(sub.due_date) %>
+                                                    <% } %>
+                                                <% } else { %><Empty_Value /><% } %>
+                                            </td>
+                                        </tr>
+                                        <% } %>
+                                    </tbody>
+                                </Record_Table>
+                            <% } %>
+                        </Section>
+                    </Tab_Panel>
+
+                    <Tab_Panel $key="activity">
+                        <Section $title="Activity" $count=_activity.length $flush=true>
+                            <% if (_activity.length === 0) { %>
+                                <Empty_State $icon="bi bi-activity">
+                                    <Slot:title>No activity yet</Slot:title>
+                                    <Slot:body>Changes to this task will appear here.</Slot:body>
+                                </Empty_State>
+                            <% } else { %>
+                                <% for (const a of _activity) { %>
+                                    <Feed_Row $icon=a.icon $variant=a.variant>
+                                        <Slot:body><%!= a.html %></Slot:body>
+                                        <Slot:time><%= Rsx_Time.relative(a.created_at) %></Slot:time>
+                                    </Feed_Row>
+                                <% } %>
+                            <% } %>
+                        </Section>
+                    </Tab_Panel>
+                </Tab_Panels>
+            </Card_Widget>
+        </Slot:main>
+
+        <Slot:sidebar>
+            <Detail_Sidebar>
+                <Sidebar_Kpi_Group>
+                    <Kpi_Cell $clickable=true $tab="subtasks" $tooltip="Direct subtasks of this task">
+                        <Slot:label>Subtasks</Slot:label>
+                        <Slot:value><%= _subtasks.length %></Slot:value>
+                    </Kpi_Cell>
+                    <Kpi_Cell $tooltip="This task's own estimate">
+                        <Slot:label>Est. Hours</Slot:label>
+                        <Slot:value><% if (_task.hour_estimate !== null && _task.hour_estimate !== undefined && _task.hour_estimate !== '') { %><%= _task.hour_estimate %><% } else { %>&mdash;<% } %></Slot:value>
+                    </Kpi_Cell>
+                    <Kpi_Cell $clickable=true $tab="activity" $tooltip="Recorded activity for this task">
+                        <Slot:label>Activity</Slot:label>
+                        <Slot:value><%= _activity.length %></Slot:value>
+                    </Kpi_Cell>
+                    <% if (_overdue) { %>
+                    <Kpi_Cell $alert=true $tooltip="This open task is past its due date">
+                        <Slot:label>Overdue</Slot:label>
+                        <Slot:value>Yes</Slot:value>
+                    </Kpi_Cell>
+                    <% } %>
+                </Sidebar_Kpi_Group>
+
+                <View_Fields>
+                    <View_Field $label="Task ID" $inline=true>#<%= _task.id %></View_Field>
+                    <View_Field $label="Created" $inline=true><%= Rsx_Time.format_date(_task.created_at) %></View_Field>
+                    <View_Field $label="Updated" $inline=true><%= Rsx_Time.format_date(_task.updated_at) %></View_Field>
+                </View_Fields>
+
+                <div class="d-grid gap-2">
+                    <a href="<%= Rsx.Route('Tasks_Edit_Action', _task.id) %>" class="btn btn-primary btn-sm">
+                        <i class="bi bi-pencil"></i> Edit Task
+                    </a>
+                </div>
+                <div class="d-flex justify-content-end">
+                    <Action_Menu $label="More task actions">
+                        <button $sid="delete-task" type="button" class="dropdown-item text-danger">
+                            <i class="bi bi-trash"></i> Delete Task
+                        </button>
+                    </Action_Menu>
+                </div>
+            </Detail_Sidebar>
+        </Slot:sidebar>
+    </Page_Scaffold>
+<% } %>
+</Define:Tasks_View_Action>

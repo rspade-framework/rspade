@@ -1,0 +1,19 @@
+// Layout Component Styles
+
+// Page content container width control
+.page-content {
+    // Constrained width (default for most pages - forms, detail views)
+    &--constrained {
+        max-width: $content-max-width;
+        margin: 0 auto;
+    }
+
+    // Wider constrained width (for pages needing more horizontal space)
+    &--constrained-wider {
+        max-width: $content-max-width-wide;
+        margin: 0 auto;
+    }
+
+    // Full width is the default without the modifier class
+    // DataGrid pages, dashboards, and other data-dense pages use this
+}

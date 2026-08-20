@@ -1,0 +1,5 @@
+// Action_Menu - overflow "..." dropdown. The toggle and menu reuse Bootstrap's
+// button + dropdown primitives; this component owns only its wrapper display.
+.Action_Menu {
+    display: inline-block;
+}

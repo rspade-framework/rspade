@@ -1,0 +1,1029 @@
+#!/usr/bin/env php
+<?php
+/**
+ * RSX Code Formatter
+ * 
+ * A PHP code formatter that:
+ * 1. Uses PHP CS Fixer for reliable PHP formatting
+ * 2. Manages use statements with automatic imports
+ * 3. Corrects namespaces based on file path
+ * 
+ * This formatter uses PHP tokenizer and string manipulation
+ * instead of regex for reliability.
+ */
+
+class RsxFormatter
+{
+    private $project_root;
+    private $php_cs_fixer_bin;
+    private $verbose = false;
+    
+    public function __construct()
+    {
+        $this->project_root = dirname(__DIR__, 2); // Go up two directories to project root
+        $this->php_cs_fixer_bin = $this->project_root . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'php-cs-fixer';
+        
+        // Check if PHP CS Fixer is installed
+        if (!file_exists($this->php_cs_fixer_bin)) {
+            $this->error("PHP CS Fixer not found. Run: composer require --dev friendsofphp/php-cs-fixer");
+            exit(1);
+        }
+    }
+    
+    /**
+     * Main entry point
+     */
+    public function run($argv)
+    {
+        // Parse command line arguments
+        $files = [];
+        
+        for ($i = 1; $i < count($argv); $i++) {
+            $arg = $argv[$i];
+            
+            if ($arg === '--verbose' || $arg === '-v') {
+                $this->verbose = true;
+            } elseif ($arg === '--help' || $arg === '-h') {
+                $this->show_help();
+                exit(0);
+            } elseif (substr($arg, 0, 1) !== '-') {
+                $files[] = $arg;
+            }
+        }
+        
+        // If no files specified, format current directory
+        if (empty($files)) {
+            $files = ['.'];
+        }
+        
+        $this->format_files($files);
+    }
+    
+    /**
+     * Check PHP syntax of a file
+     */
+    private function check_php_syntax($file_path)
+    {
+        $command = 'php -l ' . escapeshellarg($file_path) . ' 2>&1';
+        $output = shell_exec($command);
+        return strpos($output, 'No syntax errors detected') !== false;
+    }
+    
+    /**
+     * Format specified files or directories
+     */
+    private function format_files($paths)
+    {
+        foreach ($paths as $path) {
+            // Make path absolute if relative (works on both Windows and Unix)
+            if (!$this->is_absolute_path($path)) {
+                $path = $this->project_root . DIRECTORY_SEPARATOR . $path;
+            }
+            
+            if (is_file($path)) {
+                $this->format_file($path);
+            } elseif (is_dir($path)) {
+                $this->format_directory($path);
+            } else {
+                $this->warning("Path not found: $path");
+            }
+        }
+    }
+    
+    /**
+     * Check if file is in rsx directory
+     */
+    private function is_rsx_file($file_path)
+    {
+        $relative_path = $this->get_relative_path($file_path);
+        // get_relative_path always returns forward slashes for consistency
+        return substr($relative_path, 0, 4) === 'rsx/';
+    }
+    
+    /**
+     * Check if a path is absolute
+     */
+    private function is_absolute_path($path)
+    {
+        // Unix absolute path
+        if (substr($path, 0, 1) === '/') {
+            return true;
+        }
+        // Windows absolute path (C:\ or C:/)
+        if (preg_match('/^[a-zA-Z]:[\\/\\\\]/', $path)) {
+            return true;
+        }
+        return false;
+    }
+    
+    /**
+     * Format a single PHP file
+     */
+    private function format_file($file_path)
+    {
+        // Handle .formatting.tmp files from VS Code
+        $actual_extension = '';
+        if (substr($file_path, -15) === '.formatting.tmp') {
+            // Get the actual extension from before .formatting.tmp
+            $actual_path = substr($file_path, 0, -15);
+            $actual_extension = pathinfo($actual_path, PATHINFO_EXTENSION);
+        }
+        
+        // Skip non-PHP files
+        if ($actual_extension !== 'php' && substr($file_path, -4) !== '.php') {
+            return;
+        }
+        
+        // Skip blade templates
+        if (substr($file_path, -10) === '.blade.php') {
+            return;
+        }
+        
+        $relative_path = $this->get_relative_path($file_path);
+        
+        // Check PHP syntax first
+        if (!$this->check_php_syntax($file_path)) {
+            // Try removing Rsx use directives and test again
+            $content = file_get_contents($file_path);
+            $temp_file = tempnam(sys_get_temp_dir(), 'phpfmt_') . '.php';
+            
+            try {
+                // Remove Rsx use directives for testing
+                $lines = explode("\n", $content);
+                $filtered_lines = [];
+                foreach ($lines as $line) {
+                    $trimmed = trim($line);
+                    if (substr($trimmed, 0, 8) !== 'use Rsx\\') {
+                        $filtered_lines[] = $line;
+                    }
+                }
+                $temp_content = implode("\n", $filtered_lines);
+                
+                file_put_contents($temp_file, $temp_content);
+                
+                if (!$this->check_php_syntax($temp_file)) {
+                    // Both versions have syntax errors
+                    echo "Syntax error preventing auto-formatting\n";
+                    return;
+                }
+            } finally {
+                if (file_exists($temp_file)) {
+                    unlink($temp_file);
+                }
+            }
+        }
+        
+        // Only process RSX files with our custom logic
+        // COMMENTED OUT: Namespace/use fixing moved to Php_Fixer.php in manifest build
+        // if ($this->is_rsx_file($file_path)) {
+        //     if ($this->should_update_rsx_file($file_path)) {
+        //         $this->update_rsx_file($file_path);
+        //     }
+        // }
+        
+        // Then run PHP CS Fixer
+        // On Windows, we need to invoke the PHP script with php
+        // For .formatting.tmp files, try to work around permission issues
+        if (substr($file_path, -15) === '.formatting.tmp') {
+            // For temp files, make a copy that we can definitely write to
+            $work_file = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'rsx_fmt_' . uniqid() . '.php';
+            copy($file_path, $work_file);
+            
+            $command = sprintf(
+                'php %s fix %s --config=%s --quiet',
+                escapeshellarg($this->php_cs_fixer_bin),
+                escapeshellarg($work_file),
+                escapeshellarg($this->project_root . '/.php-cs-fixer.php')
+            );
+            
+            if ($this->verbose) {
+                $command = str_replace('--quiet', '--verbose', $command);
+            }
+            
+            exec($command, $output, $return_code);
+            
+            if ($return_code === 0) {
+                // Copy the formatted content back
+                copy($work_file, $file_path);
+                unlink($work_file);
+                $this->success("✓ Formatted: $relative_path");
+            } else {
+                unlink($work_file);
+                $this->error("✗ Failed to format: $relative_path");
+                if ($this->verbose && !empty($output)) {
+                    foreach ($output as $line) {
+                        $this->output("  $line");
+                    }
+                }
+            }
+        } else {
+            // Regular files - format in place
+            $command = sprintf(
+                'php %s fix %s --config=%s --quiet',
+                escapeshellarg($this->php_cs_fixer_bin),
+                escapeshellarg($file_path),
+                escapeshellarg($this->project_root . '/.php-cs-fixer.php')
+            );
+            
+            if ($this->verbose) {
+                $command = str_replace('--quiet', '--verbose', $command);
+            }
+            
+            exec($command, $output, $return_code);
+            
+            if ($return_code === 0) {
+                $this->success("✓ Formatted: $relative_path");
+            } else {
+                $this->error("✗ Failed to format: $relative_path");
+                if ($this->verbose && !empty($output)) {
+                    foreach ($output as $line) {
+                        $this->output("  $line");
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Format all PHP files in a directory
+     */
+    private function format_directory($dir_path)
+    {
+        $relative_path = $this->get_relative_path($dir_path);
+        $this->info("Formatting directory: $relative_path");
+        
+        // Process RSX files first
+        if ($this->is_rsx_file($dir_path)) {
+            $this->update_rsx_files_in_directory($dir_path);
+        }
+        
+        // Run PHP CS Fixer on the directory
+        // On Windows, we need to invoke the PHP script with php
+        $command = sprintf(
+            'php %s fix %s --config=%s',
+            escapeshellarg($this->php_cs_fixer_bin),
+            escapeshellarg($dir_path),
+            escapeshellarg($this->project_root . '/.php-cs-fixer.php')
+        );
+        
+        if (!$this->verbose) {
+            $command .= ' --quiet';
+        }
+        
+        exec($command, $output, $return_code);
+        
+        if ($return_code === 0) {
+            $this->success("✓ Formatted directory: $relative_path");
+        } else {
+            $this->error("✗ Failed to format directory: $relative_path");
+        }
+        
+        if ($this->verbose && !empty($output)) {
+            foreach ($output as $line) {
+                $this->output("  $line");
+            }
+        }
+    }
+    
+    /**
+     * Check if RSX file needs updating
+     */
+    private function should_update_rsx_file($file_path)
+    {
+        $content = file_get_contents($file_path);
+        
+        // Use tokenizer to check if it has a class
+        $tokens = token_get_all($content);
+        $has_class = false;
+        
+        foreach ($tokens as $token) {
+            if (is_array($token) && $token[0] === T_CLASS) {
+                $has_class = true;
+                break;
+            }
+        }
+        
+        return $has_class;
+    }
+    
+    /**
+     * Update RSX file with proper namespace and use statements
+     */
+    private function update_rsx_file($file_path)
+    {
+        $content = file_get_contents($file_path);
+        $tokens = token_get_all($content);
+        
+        // Find class name
+        $class_name = $this->extract_class_name($tokens);
+        if (!$class_name) {
+            return; // No class found
+        }
+        
+        // Calculate expected namespace from path
+        $expected_namespace = $this->get_namespace_from_path($file_path);
+        
+        // Extract current namespace
+        $current_namespace = $this->extract_namespace($tokens);
+        
+        // Extract existing use statements (non-Rsx ones)
+        $existing_uses = $this->extract_non_rsx_uses($tokens);
+        
+        // Find referenced classes
+        $referenced_classes = $this->find_referenced_classes($tokens, $class_name);
+        
+        // Build manifest and resolve classes
+        $manifest = $this->build_class_manifest();
+        $resolved_uses = $this->resolve_class_references($referenced_classes, $existing_uses, $manifest, $expected_namespace);
+        
+        // Combine all use statements
+        $all_uses = array_unique(array_merge($resolved_uses, $existing_uses));
+        sort($all_uses);
+        
+        // Rebuild the file
+        $new_content = $this->rebuild_file_content($tokens, $expected_namespace, $all_uses);
+        
+        if ($new_content !== $content) {
+            file_put_contents($file_path, $new_content);
+        }
+    }
+    
+    /**
+     * Extract class name from tokens
+     */
+    private function extract_class_name($tokens)
+    {
+        for ($i = 0; $i < count($tokens); $i++) {
+            if (is_array($tokens[$i]) && $tokens[$i][0] === T_CLASS) {
+                // Find the next T_STRING which should be the class name
+                for ($j = $i + 1; $j < count($tokens); $j++) {
+                    if (is_array($tokens[$j]) && $tokens[$j][0] === T_STRING) {
+                        return $tokens[$j][1];
+                    }
+                }
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Extract namespace from tokens
+     */
+    private function extract_namespace($tokens)
+    {
+        for ($i = 0; $i < count($tokens); $i++) {
+            if (is_array($tokens[$i]) && $tokens[$i][0] === T_NAMESPACE) {
+                $namespace = '';
+                $i++; // Move past T_NAMESPACE
+                
+                while ($i < count($tokens) && $tokens[$i] !== ';') {
+                    if (is_array($tokens[$i])) {
+                        // Handle PHP 8's T_NAME_QUALIFIED token
+                        if (defined('T_NAME_QUALIFIED') && $tokens[$i][0] === T_NAME_QUALIFIED) {
+                            $namespace .= $tokens[$i][1];
+                        }
+                        // Handle PHP 8's T_NAME_FULLY_QUALIFIED token
+                        elseif (defined('T_NAME_FULLY_QUALIFIED') && $tokens[$i][0] === T_NAME_FULLY_QUALIFIED) {
+                            $namespace .= $tokens[$i][1];
+                        }
+                        // Handle older PHP versions
+                        elseif ($tokens[$i][0] === T_STRING || $tokens[$i][0] === T_NS_SEPARATOR) {
+                            $namespace .= $tokens[$i][1];
+                        }
+                    }
+                    $i++;
+                }
+                
+                return trim($namespace);
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Extract non-Rsx use statements
+     */
+    private function extract_non_rsx_uses($tokens)
+    {
+        $uses = [];
+        $class_found = false;
+        
+        $i = 0;
+        while ($i < count($tokens)) {
+            // Stop looking after we find the class
+            if (is_array($tokens[$i]) && $tokens[$i][0] === T_CLASS) {
+                break;
+            }
+            
+            if (is_array($tokens[$i]) && $tokens[$i][0] === T_USE) {
+                $use_statement = '';
+                $j = $i + 1; // Start after T_USE
+                
+                while ($j < count($tokens) && $tokens[$j] !== ';') {
+                    if (is_array($tokens[$j])) {
+                        // Handle PHP 8's T_NAME_QUALIFIED token
+                        if (defined('T_NAME_QUALIFIED') && $tokens[$j][0] === T_NAME_QUALIFIED) {
+                            $use_statement .= $tokens[$j][1];
+                        }
+                        // Handle PHP 8's T_NAME_FULLY_QUALIFIED token
+                        elseif (defined('T_NAME_FULLY_QUALIFIED') && $tokens[$j][0] === T_NAME_FULLY_QUALIFIED) {
+                            $use_statement .= $tokens[$j][1];
+                        }
+                        // Handle older PHP versions
+                        elseif ($tokens[$j][0] === T_STRING || $tokens[$j][0] === T_NS_SEPARATOR) {
+                            $use_statement .= $tokens[$j][1];
+                        }
+                    }
+                    $j++;
+                }
+                
+                $use_statement = trim($use_statement);
+                
+                // Only keep non-Rsx uses
+                if ($use_statement && substr($use_statement, 0, 4) !== 'Rsx\\') {
+                    $uses[] = $use_statement;
+                }
+                
+                // Move past the entire use statement
+                $i = $j;
+            }
+            $i++;
+        }
+        
+        return $uses;
+    }
+    
+    /**
+     * Find referenced classes in tokens
+     */
+    private function find_referenced_classes($tokens, $current_class)
+    {
+        $classes = [];
+        $i = 0;
+        
+        while ($i < count($tokens)) {
+            $token = $tokens[$i];
+            
+            if (is_array($token)) {
+                // Check for extends/implements
+                if ($token[0] === T_EXTENDS || $token[0] === T_IMPLEMENTS) {
+                    $i++;
+                    while ($i < count($tokens) && $tokens[$i] !== '{' && $tokens[$i] !== ',' && $tokens[$i] !== ';') {
+                        if (is_array($tokens[$i]) && $tokens[$i][0] === T_STRING) {
+                            $classes[] = $tokens[$i][1];
+                        }
+                        $i++;
+                    }
+                }
+                // Check for static calls (ClassName::method)
+                elseif ($token[0] === T_STRING && $i + 1 < count($tokens) && is_array($tokens[$i + 1]) && $tokens[$i + 1][0] === T_DOUBLE_COLON) {
+                    $class_name = $token[1];
+                    if ($class_name !== 'self' && $class_name !== 'parent' && $class_name !== 'static') {
+                        $classes[] = $class_name;
+                    }
+                }
+                // Check for new ClassName
+                elseif ($token[0] === T_NEW) {
+                    $i++;
+                    while ($i < count($tokens) && is_array($tokens[$i]) && $tokens[$i][0] === T_WHITESPACE) {
+                        $i++;
+                    }
+                    if ($i < count($tokens) && is_array($tokens[$i]) && $tokens[$i][0] === T_STRING) {
+                        $classes[] = $tokens[$i][1];
+                    }
+                }
+                // Check for instanceof
+                elseif ($token[0] === T_INSTANCEOF) {
+                    $i++;
+                    while ($i < count($tokens) && is_array($tokens[$i]) && $tokens[$i][0] === T_WHITESPACE) {
+                        $i++;
+                    }
+                    if ($i < count($tokens) && is_array($tokens[$i]) && $tokens[$i][0] === T_STRING) {
+                        $classes[] = $tokens[$i][1];
+                    }
+                }
+                // Check for catch blocks
+                elseif ($token[0] === T_CATCH) {
+                    $i++;
+                    while ($i < count($tokens) && $tokens[$i] !== '(') {
+                        $i++;
+                    }
+                    $i++; // Skip (
+                    while ($i < count($tokens) && $tokens[$i] !== ')') {
+                        if (is_array($tokens[$i]) && $tokens[$i][0] === T_STRING) {
+                            $classes[] = $tokens[$i][1];
+                        }
+                        $i++;
+                    }
+                }
+                // Check for type hints in function parameters and return types
+                elseif ($token[0] === T_FUNCTION) {
+                    $i++;
+                    // Skip to parameters
+                    while ($i < count($tokens) && $tokens[$i] !== '(') {
+                        $i++;
+                    }
+                    // Process parameters
+                    while ($i < count($tokens) && $tokens[$i] !== ')') {
+                        if (is_array($tokens[$i]) && $tokens[$i][0] === T_STRING) {
+                            // Check if it's followed by a variable (making it a type hint)
+                            $j = $i + 1;
+                            while ($j < count($tokens) && is_array($tokens[$j]) && $tokens[$j][0] === T_WHITESPACE) {
+                                $j++;
+                            }
+                            if ($j < count($tokens) && is_array($tokens[$j]) && $tokens[$j][0] === T_VARIABLE) {
+                                $classes[] = $tokens[$i][1];
+                            }
+                        }
+                        $i++;
+                    }
+                    // Check for return type
+                    if ($i < count($tokens) && $tokens[$i] === ')') {
+                        $i++;
+                        while ($i < count($tokens) && is_array($tokens[$i]) && $tokens[$i][0] === T_WHITESPACE) {
+                            $i++;
+                        }
+                        if ($i < count($tokens) && $tokens[$i] === ':') {
+                            $i++;
+                            while ($i < count($tokens) && is_array($tokens[$i]) && $tokens[$i][0] === T_WHITESPACE) {
+                                $i++;
+                            }
+                            if ($i < count($tokens)) {
+                                // Handle nullable types
+                                if ($tokens[$i] === '?') {
+                                    $i++;
+                                    while ($i < count($tokens) && is_array($tokens[$i]) && $tokens[$i][0] === T_WHITESPACE) {
+                                        $i++;
+                                    }
+                                }
+                                if ($i < count($tokens) && is_array($tokens[$i]) && $tokens[$i][0] === T_STRING) {
+                                    $classes[] = $tokens[$i][1];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            $i++;
+        }
+        
+        // Filter out built-in types and current class
+        $built_in_types = ['string', 'int', 'float', 'bool', 'array', 'void', 'mixed', 'object', 'callable', 'iterable', 'null', 'true', 'false', 'never'];
+        $classes = array_unique($classes);
+        $filtered = [];
+        foreach ($classes as $class) {
+            if (!in_array(strtolower($class), $built_in_types) && $class !== $current_class) {
+                $filtered[] = $class;
+            }
+        }
+        
+        return $filtered;
+    }
+    
+    /**
+     * Build a manifest of all available classes
+     */
+    private function build_class_manifest()
+    {
+        $manifest = [];
+        
+        // Get scan directories
+        $scan_dirs = $this->get_scan_directories();
+        
+        foreach ($scan_dirs as $dir) {
+            $full_path = $this->project_root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $dir);
+            if (!is_dir($full_path)) {
+                continue;
+            }
+            
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($full_path, RecursiveDirectoryIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::SELF_FIRST
+            );
+            
+            foreach ($iterator as $file) {
+                if ($file->isFile() && substr($file->getPathname(), -4) === '.php') {
+                    $content = file_get_contents($file->getPathname());
+                    $tokens = token_get_all($content);
+                    
+                    // Extract namespace
+                    $namespace = $this->extract_namespace($tokens);
+                    
+                    // Extract class name
+                    $class_name = $this->extract_class_name($tokens);
+                    
+                    if ($class_name) {
+                        $fqcn = $namespace ? $namespace . '\\' . $class_name : $class_name;
+                        
+                        $manifest[$class_name] = [
+                            'class' => $class_name,
+                            'namespace' => $namespace,
+                            'fqcn' => $fqcn,
+                            'file' => $file->getPathname()
+                        ];
+                    }
+                }
+            }
+        }
+        
+        return $manifest;
+    }
+    
+    /**
+     * Get scan directories from config
+     */
+    private function get_scan_directories()
+    {
+        return [
+            'rsx',
+            'app/RSpade/Core/Base',
+            'app/RSpade/Core/Attributes'
+        ];
+    }
+    
+    /**
+     * Resolve class references to fully qualified names
+     */
+    private function resolve_class_references($referenced_classes, $existing_uses, $manifest, $namespace)
+    {
+        $resolved = [];
+        
+        // Get simple names from existing uses
+        $existing_simple_names = [];
+        foreach ($existing_uses as $use) {
+            $parts = explode('\\', $use);
+            $existing_simple_names[] = end($parts);
+        }
+        
+        // Common Laravel/Framework classes
+        $framework_classes = [
+            'Rsx_Controller' => 'App\\RSpade\\Core\\Controller\\Rsx_Controller',
+            'Rsx_Api' => 'App\\RSpade\\Core\\Base\\Rsx_Api',
+            'Model' => 'Illuminate\\Database\\Eloquent\\Model',
+            'Controller' => 'App\\Http\\Controllers\\Controller',
+            'Request' => 'Illuminate\\Http\\Request',
+            'Response' => 'Illuminate\\Http\\Response',
+            'Collection' => 'Illuminate\\Support\\Collection',
+            'Str' => 'Illuminate\\Support\\Str',
+            'File' => 'Illuminate\\Support\\Facades\\File',
+            'DB' => 'Illuminate\\Support\\Facades\\DB',
+            'Auth' => 'Illuminate\\Support\\Facades\\Auth',
+            'Session' => 'Illuminate\\Support\\Facades\\Session',
+            'Cache' => 'Illuminate\\Support\\Facades\\Cache',
+            'Log' => 'Illuminate\\Support\\Facades\\Log',
+            'Route' => 'Illuminate\\Support\\Facades\\Route',
+        ];
+        
+        foreach ($referenced_classes as $class) {
+            // Skip if already in existing uses
+            if (in_array($class, $existing_simple_names)) {
+                continue;
+            }
+            
+            // Check framework classes first
+            if (isset($framework_classes[$class])) {
+                $resolved[] = $framework_classes[$class];
+                continue;
+            }
+            
+            // Check manifest
+            if (isset($manifest[$class])) {
+                $fqcn = $manifest[$class]['fqcn'];
+                
+                // Don't add if it's in the same namespace
+                if ($manifest[$class]['namespace'] !== $namespace) {
+                    // Don't add Rsx namespace uses
+                    if (substr($fqcn, 0, 4) !== 'Rsx\\') {
+                        $resolved[] = $fqcn;
+                    }
+                }
+            }
+        }
+        
+        return $resolved;
+    }
+    
+    /**
+     * Rebuild file content with updated namespace and uses
+     */
+    private function rebuild_file_content($tokens, $namespace, $uses)
+    {
+        $output = '';
+        $namespace_written = false;
+        $uses_written = false;
+        $class_found = false;
+        $pre_class_content = '';  // Content that goes before class (comments, constants, etc.)
+        $attributes = '';          // Attributes that go directly above class
+        
+        // First pass: collect structure information
+        $collecting_pre_class = false;
+        $in_attribute = false;
+        
+        for ($i = 0; $i < count($tokens); $i++) {
+            $token = $tokens[$i];
+            
+            if (is_array($token)) {
+                // Handle PHP open tag
+                if ($token[0] === T_OPEN_TAG) {
+                    $output .= $token[1];
+                    continue;
+                }
+                
+                // Handle namespace
+                if ($token[0] === T_NAMESPACE) {
+                    if (!$namespace_written) {
+                        $output .= "\nnamespace $namespace;";
+                        $namespace_written = true;
+                        
+                        // Skip to semicolon
+                        while ($i < count($tokens) && $tokens[$i] !== ';') {
+                            $i++;
+                        }
+                        $collecting_pre_class = true;  // Start collecting after namespace
+                        continue;
+                    }
+                }
+                
+                // Handle use statements - skip them all, we'll write our own
+                if ($token[0] === T_USE && !$class_found) {
+                    // Skip entire use statement including the semicolon
+                    while ($i < count($tokens) && $tokens[$i] !== ';') {
+                        $i++;
+                    }
+                    // Skip the semicolon itself
+                    if ($i < count($tokens) && $tokens[$i] === ';') {
+                        $i++;
+                    }
+                    // Decrement $i because the for loop will increment it
+                    $i--;
+                    $collecting_pre_class = true;  // Start collecting after use statements
+                    continue;
+                }
+                
+                // Handle attributes (PHP 8+)
+                if ($token[0] === T_ATTRIBUTE) {
+                    $in_attribute = true;
+                    $attr_content = $token[1];
+                    $i++;
+                    
+                    // Collect entire attribute
+                    $bracket_count = 1;
+                    while ($i < count($tokens) && $bracket_count > 0) {
+                        if (is_array($tokens[$i])) {
+                            $attr_content .= $tokens[$i][1];
+                        } else {
+                            $attr_content .= $tokens[$i];
+                            if ($tokens[$i] === '[') {
+                                $bracket_count++;
+                            } elseif ($tokens[$i] === ']') {
+                                $bracket_count--;
+                            }
+                        }
+                        $i++;
+                    }
+                    $i--; // Back up one since for loop will increment
+                    
+                    // Check if next significant token is class
+                    $j = $i + 1;
+                    while ($j < count($tokens) && is_array($tokens[$j]) && $tokens[$j][0] === T_WHITESPACE) {
+                        $j++;
+                    }
+                    
+                    if ($j < count($tokens) && is_array($tokens[$j]) && $tokens[$j][0] === T_CLASS) {
+                        // This attribute is directly above class
+                        $attributes .= $attr_content . "\n";
+                    } else {
+                        // This attribute is somewhere else (might be on a method)
+                        if ($collecting_pre_class && !$class_found) {
+                            $pre_class_content .= $attr_content;
+                        } else {
+                            $output .= $attr_content;
+                        }
+                    }
+                    $in_attribute = false;
+                    continue;
+                }
+                
+                // Handle class - this is where we organize everything
+                if ($token[0] === T_CLASS) {
+                    if (!$uses_written) {
+                        // Write namespace if not written yet
+                        if (!$namespace_written && $namespace) {
+                            $output = rtrim($output) . "\n\nnamespace $namespace;";
+                            $namespace_written = true;
+                        }
+                        
+                        // Add use statements
+                        if (!empty($uses)) {
+                            $output = rtrim($output) . "\n";
+                            foreach ($uses as $use) {
+                                $output .= "\nuse $use;";
+                            }
+                        }
+                        
+                        // Add pre-class content (comments, constants, etc.)
+                        if (trim($pre_class_content) !== '') {
+                            // Clean up multiple blank lines in pre-class content
+                            $pre_class_lines = explode("\n", $pre_class_content);
+                            $cleaned_pre_class = [];
+                            $prev_blank = false;
+                            
+                            foreach ($pre_class_lines as $line) {
+                                $is_blank = trim($line) === '';
+                                if (!$is_blank || !$prev_blank) {
+                                    $cleaned_pre_class[] = $line;
+                                }
+                                $prev_blank = $is_blank;
+                            }
+                            $pre_class_content = implode("\n", $cleaned_pre_class);
+                            
+                            $output = rtrim($output) . "\n\n" . ltrim($pre_class_content);
+                        }
+                        
+                        // Add blank line before attributes/class if there's content above
+                        if (trim($output) !== '<?php' && trim($output) !== '') {
+                            $output = rtrim($output) . "\n\n";
+                        }
+                        
+                        // Add attributes directly above class
+                        if ($attributes !== '') {
+                            $output .= rtrim($attributes) . "\n";
+                        }
+                        
+                        $uses_written = true;
+                    }
+                    
+                    $class_found = true;
+                    $output .= $token[1];
+                    continue;
+                }
+                
+                // Collect pre-class content
+                if ($collecting_pre_class && !$class_found && !$in_attribute) {
+                    // Skip namespace and use statements (already handled)
+                    if ($token[0] !== T_NAMESPACE && $token[0] !== T_USE) {
+                        $pre_class_content .= $token[1];
+                    }
+                } else if (!$in_attribute) {
+                    // Output other tokens
+                    $output .= $token[1];
+                }
+            } else {
+                // Handle non-array tokens (like ; or {)
+                if ($collecting_pre_class && !$class_found && !$in_attribute) {
+                    $pre_class_content .= $token;
+                } else if (!$in_attribute) {
+                    $output .= $token;
+                }
+            }
+        }
+        
+        // Clean up multiple blank lines in final output
+        $lines = explode("\n", $output);
+        $cleaned_lines = [];
+        $prev_blank = false;
+        
+        foreach ($lines as $line) {
+            $is_blank = trim($line) === '';
+            if (!$is_blank || !$prev_blank) {
+                $cleaned_lines[] = $line;
+            }
+            $prev_blank = $is_blank;
+        }
+        
+        return implode("\n", $cleaned_lines);
+    }
+    
+    /**
+     * Get namespace from file path
+     */
+    private function get_namespace_from_path($file_path)
+    {
+        $relative_path = $this->get_relative_path($file_path);
+        
+        // Remove .php extension
+        if (substr($relative_path, -4) === '.php') {
+            $relative_path = substr($relative_path, 0, -4);
+        }
+        
+        // Convert path to namespace
+        $parts = explode('/', $relative_path);
+        
+        // Remove 'rsx' and capitalize parts
+        if ($parts[0] === 'rsx') {
+            array_shift($parts);
+        }
+        
+        // Remove filename (last part)
+        array_pop($parts);
+        
+        // Capitalize and join
+        $namespace_parts = [];
+        foreach ($parts as $part) {
+            // Replace underscores and hyphens with spaces, capitalize each word, then remove spaces
+            $words = explode(' ', str_replace(['_', '-'], ' ', $part));
+            $capitalized = '';
+            foreach ($words as $word) {
+                $capitalized .= ucfirst($word);
+            }
+            $namespace_parts[] = $capitalized;
+        }
+        
+        $result = 'Rsx';
+        if (!empty($namespace_parts)) {
+            $result .= '\\' . implode('\\', $namespace_parts);
+        }
+        
+        return $result;
+    }
+    
+    /**
+     * Update RSX files in directory
+     */
+    private function update_rsx_files_in_directory($dir_path)
+    {
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dir_path, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST
+        );
+        
+        foreach ($iterator as $file) {
+            if ($file->isFile() && substr($file->getPathname(), -4) === '.php') {
+                if (substr($file->getPathname(), -10) !== '.blade.php') {
+                    if ($this->should_update_rsx_file($file->getPathname())) {
+                        $this->update_rsx_file($file->getPathname());
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Get relative path from project root
+     */
+    private function get_relative_path($path)
+    {
+        // Normalize both paths to use forward slashes for comparison
+        $normalized_path = str_replace('\\', '/', $path);
+        $normalized_root = str_replace('\\', '/', $this->project_root) . '/';
+        
+        if (substr($normalized_path, 0, strlen($normalized_root)) === $normalized_root) {
+            $relative = substr($normalized_path, strlen($normalized_root));
+            // Always return with forward slashes for consistency in namespace calculation
+            return $relative;
+        }
+        // Return with forward slashes for consistency
+        return str_replace('\\', '/', $path);
+    }
+    
+    /**
+     * Show help message
+     */
+    private function show_help()
+    {
+        $this->output("RSX Code Formatter");
+        $this->output("");
+        $this->output("Usage: rsx-format [options] [files...]");
+        $this->output("");
+        $this->output("Options:");
+        $this->output("  -v, --verbose   Show detailed output");
+        $this->output("  -h, --help      Show this help message");
+        $this->output("");
+        $this->output("Examples:");
+        $this->output("  rsx-format                    # Format all files in current directory");
+        $this->output("  rsx-format app/               # Format all files in app directory");
+        $this->output("  rsx-format app/Models/User.php # Format specific file");
+    }
+    
+    /**
+     * Output helpers
+     */
+    private function output($message)
+    {
+        echo $message . PHP_EOL;
+    }
+    
+    private function success($message)
+    {
+        echo "\033[32m" . $message . "\033[0m" . PHP_EOL;
+    }
+    
+    private function info($message)
+    {
+        echo "\033[36m" . $message . "\033[0m" . PHP_EOL;
+    }
+    
+    private function warning($message)
+    {
+        echo "\033[33m" . $message . "\033[0m" . PHP_EOL;
+    }
+    
+    private function error($message)
+    {
+        echo "\033[31m" . $message . "\033[0m" . PHP_EOL;
+    }
+}
+
+// Run the formatter
+$formatter = new RsxFormatter();
+$formatter->run($argv);

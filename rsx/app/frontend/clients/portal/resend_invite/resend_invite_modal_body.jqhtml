@@ -1,0 +1,18 @@
+<%--
+Resend_Invite_Modal_Body - body for the "Resend Invitation" modal.
+
+Shows a ready-to-paste invitation message (company name + registration link) in a
+read-only, selectable textbox so staff can drop it into an email or instant
+messenger directly. The footer also offers to re-send the invite by email.
+
+Arguments:
+- $message (string, required): the full invitation message, including the link
+--%>
+<Define:Resend_Invite_Modal_Body tag="div">
+    <p class="text-muted">
+        Copy this message and send it to the contact directly, or use
+        <strong>Resend Invite by Email</strong> below.
+    </p>
+
+    <textarea class="form-control" rows="3" readonly $sid="message"></textarea>
+</Define:Resend_Invite_Modal_Body>

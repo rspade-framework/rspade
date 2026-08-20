@@ -1,0 +1,48 @@
+// Stat_Row - one money / numeric stat line: label left, mono value right.
+.Stat_Row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: $spacing-4;
+    padding: $spacing-2 0; // 8px
+
+    &__label {
+        color: $text-muted;
+        font-size: $font-size-sm;
+    }
+
+    &__value {
+        font-family: $font-family-mono;
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+        white-space: nowrap;
+        color: $text-color;
+    }
+
+    // $strong_label: totals emphasis - a divider above, a bolder label, a
+    // larger primary-colored value.
+    &--strong {
+        border-top: $border-width solid $border-color;
+        margin-top: $spacing-1;
+        padding-top: $spacing-3;
+
+        .Stat_Row__label {
+            color: $text-color;
+            font-size: $font-size-base;
+            font-weight: $font-weight-semibold;
+        }
+
+        .Stat_Row__value {
+            font-size: $font-size-lg;
+            font-weight: $font-weight-bold;
+            color: $primary-color;
+        }
+    }
+
+    // $alert: a figure that needs attention (amount due, overdue) - red value.
+    &--alert {
+        .Stat_Row__value {
+            color: $danger-color;
+        }
+    }
+}

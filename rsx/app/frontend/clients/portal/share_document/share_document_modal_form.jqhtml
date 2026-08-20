@@ -1,0 +1,60 @@
+<Define:Share_Document_Modal_Form tag="div">
+    <%-- Filter + selected counter --%>
+    <div class="Share_Document_Modal_Form__toolbar">
+        <div class="Share_Document_Modal_Form__count" $sid="count">0 selected</div>
+        <input
+            type="text"
+            class="form-control form-control-sm Share_Document_Modal_Form__filter"
+            $sid="filter"
+            placeholder="Filter by name or email...">
+    </div>
+
+    <%-- Scrollable contact table --%>
+    <div class="Share_Document_Modal_Form__scroll">
+        <table class="table table-sm table-hover mb-0 Share_Document_Modal_Form__table">
+            <thead>
+                <tr>
+                    <th class="Share_Document_Modal_Form__checkbox-col">
+                        <input type="checkbox" class="form-check-input" $sid="select-all" title="Select all / none">
+                    </th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Portal Status</th>
+                </tr>
+            </thead>
+            <tbody $sid="rows">
+                <% for (const contact of this.args.contacts) { %>
+                    <tr class="Share_Document_Modal_Form__row"
+                        data-contact-id="<%= contact.id %>"
+                        data-search="<%= (contact.full_name + ' ' + (contact.email || '')).toLowerCase() %>">
+                        <td class="Share_Document_Modal_Form__checkbox-col">
+                            <input type="checkbox" class="form-check-input Share_Document_Modal_Form__check"
+                                data-contact-id="<%= contact.id %>"
+                                <% if (contact.currently_shared) { %>checked<% } %>>
+                        </td>
+                        <td><%= contact.full_name %></td>
+                        <td><%= contact.email || '-' %></td>
+                        <td>
+                            <% if (contact.invite_status === 'accepted') { %>
+                                <span class="badge bg-success">Member</span>
+                            <% } else if (contact.invite_status === 'invited') { %>
+                                <span class="badge bg-info text-dark">Invited</span>
+                            <% } else { %>
+                                <span class="text-muted small">Will be invited</span>
+                            <% } %>
+                        </td>
+                    </tr>
+                <% } %>
+            </tbody>
+        </table>
+        <div class="Share_Document_Modal_Form__no-results text-muted text-center py-3 d-none" $sid="no-results">
+            No contacts match your filter.
+        </div>
+    </div>
+
+    <%-- Optional message included in the share email --%>
+    <div class="Share_Document_Modal_Form__message mt-3">
+        <label class="form-label">Message <span class="text-muted small">(optional)</span></label>
+        <textarea class="form-control" $sid="message" rows="2" placeholder="Add a note for the recipients..."></textarea>
+    </div>
+</Define:Share_Document_Modal_Form>

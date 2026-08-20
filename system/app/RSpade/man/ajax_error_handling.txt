@@ -1,0 +1,452 @@
+===================
+
+OVERVIEW
+
+    RSpade implements a standardized Ajax error handling architecture that:
+    - Returns HTTP 200 for ALL Ajax responses (success and errors)
+    - Encodes success/failure in response body via _success field
+    - Differentiates between business logic errors and fatal PHP errors
+    - Provides consistent error display across dev and production modes
+    - Uses the same response envelope for direct and batched calls
+
+RESPONSE FORMATS
+
+    All Ajax endpoints return HTTP 200 with one of these formats:
+
+    Success Response
+    ----------------
+    {
+        "_success": true,
+        "_ajax_return_value": { /* developer's return value */ },
+        "console_debug": [ /* optional debug messages */ ]
+    }
+
+    Business Logic Errors (Validation, Auth)
+    -----------------------------------------
+    {
+        "_success": false,
+        "error_code": "validation|not_found|unauthorized|auth_required",
+        "reason": "User-friendly message",
+        "metadata": { /* optional, e.g., field-specific validation errors */ },
+        "console_debug": [ /* optional debug messages */ ]
+    }
+
+    Fatal PHP Errors (Uncaught Exceptions)
+    ---------------------------------------
+    {
+        "_success": false,
+        "error_type": "fatal",
+        "error": {
+            "file": "path/to/file.php",
+            "line": 123,
+            "error": "Full exception message with SQL/context",
+            "backtrace": [
+                {
+                    "file": "path/to/file.php",
+                    "line": 456,
+                    "function": "methodName",
+                    "class": "ClassName",
+                    "type": "->"
+                },
+                /* ... up to 10 frames */
+            ]
+        },
+        "console_debug": [ /* optional debug messages */ ]
+    }
+
+    Network/Infrastructure Errors
+    ------------------------------
+    No response body - PHP never executed
+    xhr.status === 0 or timeout
+    Only occurs when nginx/PHP-FPM is down
+
+HTTP STATUS CODE STRATEGY
+
+    ALL Ajax Responses: HTTP 200
+    ----------------------------
+    - Success: HTTP 200 with _success: true
+    - Validation errors: HTTP 200 with _success: false
+    - Fatal PHP errors: HTTP 200 with _success: false
+    - Auth errors: HTTP 200 with _success: false
+
+    Non-200 Responses
+    -----------------
+    Only when server infrastructure is completely down (nginx crashed,
+    PHP-FPM dead, network failure). These bypass PHP entirely.
+
+    Rationale
+    ---------
+    - Batch requests need uniform status codes (some succeed, some fail)
+    - Always get parseable response body
+    - Simpler client handling - check _success field, not HTTP status
+    - Non-200 only means "couldn't reach PHP at all"
+
+ERROR TYPES
+
+    All error responses use the unified response_error() function with constants:
+
+    Ajax::ERROR_FATAL
+    -----------------
+    Uncaught PHP exceptions, database errors, bugs in code.
+    Dev mode: Shows file/line/error/backtrace
+    Prod mode: Generic "An error occurred" message
+
+    Ajax::ERROR_VALIDATION
+    ----------------------
+    Validation failures with field-specific details.
+    Used via: return response_error(Ajax::ERROR_VALIDATION, $field_errors);
+    Example:
+        return response_error(Ajax::ERROR_VALIDATION, [
+            'email' => 'Email address is required',
+            'phone' => 'Invalid phone number format'
+        ]);
+
+    Ajax::ERROR_AUTH_REQUIRED
+    -------------------------
+    User not logged in, needs authentication.
+    Used via: return response_error(Ajax::ERROR_AUTH_REQUIRED);
+
+    Ajax::ERROR_UNAUTHORIZED
+    ------------------------
+    User logged in but lacks permission for this action.
+    Used via: return response_error(Ajax::ERROR_UNAUTHORIZED);
+
+    Ajax::ERROR_NOT_FOUND
+    ---------------------
+    Resource not found.
+    Used via: return response_error(Ajax::ERROR_NOT_FOUND, 'Project not found');
+
+    network (client-side only)
+    --------------------------
+    Server unreachable (xhr.status === 0).
+
+SERVER-SIDE IMPLEMENTATION
+
+    Ajax Endpoints Return Plain Data
+    ---------------------------------
+    Endpoint methods return plain arrays/objects. Framework wraps:
+
+    // Your endpoint
+    #[Ajax_Endpoint]
+    public static function get_user(Request $request, array $params = []): array
+    {
+        $user = User::find($params['id']);
+
+        if (!$user) {
+            return response_error(Ajax::ERROR_NOT_FOUND, 'User not found');
+        }
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email
+        ];
+    }
+
+    // Framework wraps response:
+    {
+        "_success": true,
+        "_ajax_return_value": {
+            "id": 123,
+            "name": "John Doe",
+            "email": "john@example.com"
+        }
+    }
+
+    Never Return _success Field Manually
+    -------------------------------------
+    The _success field is RESERVED for framework wrapping. If your endpoint
+    returns an array with a boolean _success key, the framework throws an error:
+
+    // - WRONG - Framework throws exception
+    return ['_success' => true, 'data' => $user];
+
+    // + CORRECT - Let framework wrap
+    return ['data' => $user];
+
+    Exception Handling - Let It Bubble
+    -----------------------------------
+    Don't wrap database/framework operations in try/catch. Let exceptions
+    bubble to the global handler which formats them properly.
+
+    // - WRONG
+    try {
+        $user->save();
+    } catch (Exception $e) {
+        return ['_success' => false, 'message' => $e->getMessage()];
+    }
+
+    // + CORRECT
+    $user->save();  // Let it throw - framework catches and formats
+
+    When Try/Catch IS Appropriate
+    ------------------------------
+    Use try/catch for EXPECTED failures:
+    - File uploads (may fail validation)
+    - External API calls (network issues expected)
+    - User input parsing (malformed data expected)
+
+    Don't use for:
+    - Database operations (schema errors are bugs)
+    - Framework operations (let global handler catch)
+    - "Just in case" wrapping
+
+CLIENT-SIDE IMPLEMENTATION
+
+    Ajax.js Automatically Unwraps Responses
+    ----------------------------------------
+    When you call an Ajax endpoint, Ajax.js:
+    1. Makes HTTP request
+    2. Receives 200 response with JSON body
+    3. Checks _success field:
+       - _success: true -> Resolve promise with _ajax_return_value
+       - _success: false -> Reject promise with Error object
+    4. Network errors also reject with Error object
+
+    Exception-Driven Pattern
+    ------------------------
+    Ajax calls work like any async operation:
+    - Success: Promise resolves with unwrapped value
+    - Failure: Promise rejects with Error object
+
+    try {
+        const user = await User_Controller.get_user(123);
+        // user is the _ajax_return_value, already unwrapped
+        console.log(user.name);
+    } catch (error) {
+        // error is standard Error object with extra properties
+        console.error(error.message); // User-displayable message
+    }
+
+    Error Object Structure
+    ----------------------
+    Rejected promises receive standard Error objects with additional properties:
+
+        error.code       - 'validation'|'not_found'|'unauthorized'|
+                           'auth_required'|'fatal'|'network'
+        error.message    - User-displayable message
+        error.metadata   - Additional error data from server
+                           (for validation: field-specific errors)
+                           (for fatal: file/line/backtrace)
+
+    Constants available on both server and client:
+        PHP:  Ajax::ERROR_VALIDATION, Ajax::ERROR_NOT_FOUND, etc.
+        JS:   Ajax.ERROR_VALIDATION, Ajax.ERROR_NOT_FOUND, etc.
+
+    Automatic Error Handling
+    ------------------------
+    Uncaught Ajax errors automatically display via Modal.error():
+
+    // No try/catch - error shows in modal automatically
+    const user = await User_Controller.get_user(123);
+
+    Global unhandled rejection handler detects uncaught Ajax promises and
+    shows red danger modal with error details. This prevents silent failures.
+
+    Rsx_Form Error Handling
+    -----------------------
+    Rsx_Form components have built-in error handling:
+
+    const result = await Modal.form({
+        title: 'Add User',
+        component: 'Add_User_Form',
+        on_submit: async (form) => {
+            try {
+                const values = form.vals();
+                const result = await Controller.add_user(values);
+                return result; // Success - close modal
+            } catch (error) {
+                await form.render_error(error);
+                return false; // Keep modal open
+            }
+        }
+    });
+
+    Rsx_Form.render_error() handles all error types:
+    - validation: Shows inline field errors + unmatched errors alert
+    - fatal/network/auth: Shows error in form's error container
+
+    Form_Utils Error Display
+    ------------------------
+    For non-Rsx_Form forms, use Form_Utils.apply_form_errors():
+
+    try {
+        const result = await Controller.save_user(form_data);
+        await Modal.alert('User saved!');
+    } catch (error) {
+        if (error.code === Ajax.ERROR_VALIDATION) {
+            await Form_Utils.apply_form_errors($form, error.metadata);
+        } else {
+            Rsx.render_error(error, '#error_container');
+        }
+    }
+
+    Form_Utils.apply_form_errors() automatically:
+    - Matches errors to fields by name attribute
+    - Adds .is-invalid class and inline error text
+    - Shows alert ONLY for errors that couldn't match to fields
+    - No duplicate alerts for matched fields
+
+    Generic Error Display
+    ---------------------
+    Rsx.render_error() displays errors in any container:
+
+    // Display in specific container
+    Rsx.render_error(error, '#error_container');
+
+    // Display in form's error container (for Rsx_Form use form.render_error())
+    Rsx.render_error(error, this.$sid('error'));
+
+    Handles all error types:
+    - fatal: Shows file:line and full message
+    - validation: Shows bulleted list of unmatched validation errors
+    - auth/network: Shows user-friendly message
+    - generic: Shows error message in danger alert
+
+    Modal Error Display
+    -------------------
+    For critical errors that need immediate attention:
+
+    await Modal.error(error, 'Critical Error');
+
+    - Shows red danger modal
+    - Can stack over other open modals
+    - Used automatically for uncaught Ajax errors
+    - Displays error message in monospace pre format
+
+DEVELOPER VS PRODUCTION MODE
+
+    The redaction is SERVER-SIDE, keyed off the application mode (Rsx::is_production()).
+    Development and debug (both non-production) send the full fatal-error detail over
+    the wire; strict production sends ONLY a generic message - the file/line/SQL/
+    backtrace never leave the server, so the response is safe to inspect via devtools
+    or curl. (The client's Modal display choice is a separate, additional gate.)
+
+    Development / Debug (non-production)
+    ------------------------------------
+    Fatal errors show:
+    - Full exception message
+    - File path and line number
+    - SQL queries with parameter values
+    - Stack trace (up to 10 frames)
+    - Console debug messages
+
+    Example display:
+        Fatal Error
+
+        SQLSTATE[23000]: Integrity constraint violation: 1048
+        Column 'login_user_id' cannot be null (Connection: mysql,
+        SQL: insert into `users` ...)
+
+        vendor/laravel/framework/src/Illuminate/Database/Connection.php:829
+
+    Production (strict)
+    -------------------
+    Fatal errors show:
+    - Generic message: "An unexpected error occurred. Please try again."
+    - No file paths, SQL, backtrace, or exception message in the response body
+    - Errors logged server-side for admin review
+
+    Validation/auth errors show same user-friendly messages in both modes.
+
+BATCH REQUESTS
+
+    Outside development mode the client coalesces concurrent calls onto
+    POST /_ajax/_batch (Ajax_Batch_Controller), sending batch_calls - an
+    array of {call_id, controller, action, params}.
+
+    The response is a MAP keyed "C_<call_id>", each value being the same
+    envelope a direct call returns:
+
+    {
+        "C_0": {"_success": true, "_ajax_return_value": {...}},
+        "C_1": {"_success": false, "error_code": "not_found", "reason": "...", "metadata": {...}},
+        "C_2": {"_success": false, "error_code": "fatal", "reason": "...", "metadata": {}}
+    }
+
+    HTTP status: Always 200
+    Each result: Has own _success field, and its own error_code
+    Client: Distributes each result to its originating caller
+
+    A sub-call's error_code is the one its exception carries, not_found
+    included - client code that branches on Ajax.ERROR_NOT_FOUND (the ORM
+    fetch path does) behaves identically batched and unbatched.
+
+TESTING
+
+    Test Success Response
+    ---------------------
+    php artisan rsx:ajax Controller action --args='{"id":1}'
+
+    Test Validation Error
+    ---------------------
+    php artisan rsx:ajax Controller action --args='{"id":""}'
+
+    Test Fatal Error
+    ----------------
+    Trigger exception in endpoint (e.g., invalid SQL, missing file)
+
+    Test Network Error
+    ------------------
+    Stop PHP-FPM/nginx, try Ajax call from browser
+
+CONSOLE DEBUG MESSAGES
+
+    Add debug output to Ajax responses:
+
+    console_debug('channel', $var1, $var2);
+
+    In response:
+    {
+        "_success": true,
+        "_ajax_return_value": {...},
+        "console_debug": [
+            ["channel", [arg1, arg2]],
+            ["log", ["message"]]
+        ]
+    }
+
+    JavaScript automatically logs these to browser console.
+
+COMMON PATTERNS
+
+    Simple Data Retrieval
+    ----------------------
+    #[Ajax_Endpoint]
+    public static function get_data(Request $request, array $params = []): array
+    {
+        return ['items' => Item::all()->toArray()];
+    }
+
+    Validation with Response Helper
+    --------------------------------
+    #[Ajax_Endpoint]
+    public static function save(Request $request, array $params = []): array
+    {
+        if (empty($params['email'])) {
+            return response_error(Ajax::ERROR_VALIDATION, [
+                'email' => 'Email is required'
+            ]);
+        }
+
+        $user = User::create($params);
+        return ['id' => $user->id];
+    }
+
+    Let Database Errors Bubble
+    ---------------------------
+    #[Ajax_Endpoint]
+    public static function save(Request $request, array $params = []): array
+    {
+        $user = new User();
+        $user->name = $params['name'];
+        $user->save();  // If this fails, exception bubbles naturally
+
+        return ['id' => $user->id];
+    }
+
+SEE ALSO
+
+    php artisan rsx:man jqhtml         - Component system
+    php artisan rsx:man modals         - Modal dialogs
+    php artisan rsx:man error_handling - General error handling

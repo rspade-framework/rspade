@@ -1,0 +1,197 @@
+<?php
+/**
+ * DISABLED: 2025-09-14
+ * This middleware was disabled as it appears to be a leftover from an earlier failed routing attempt.
+ * RSX routing is now handled through the 404 exception handler in app/Exceptions/Handler.php.
+ *
+ * This file is kept for observation in case any key functionality needs to be restored:
+ * - Automatic cache clearing in development mode
+ * - Path exclusion for certain prefixes (_debugbar, horizon, telescope, etc.)
+ * - Session initialization for RSX requests
+ * - RSX debugging headers
+ *
+ * To re-enable this middleware:
+ * 1. Rename file back to RsxMiddleware.php (remove .disabled extension)
+ * 2. Declare it in config - app/Http/Kernel.php is framework-owned and must not be edited:
+ *    // rsx/resource/config/rsx.php
+ *    'middleware' => [
+ *        'aliases' => ['rsx' => \App\Http\Middleware\RsxMiddleware::class],
+ *    ],
+ *    See: php artisan rsx:man config_rsx
+ *
+ * CODING CONVENTION:
+ * This file follows the coding convention where variable_names and function_names
+ * use snake_case (underscore_wherever_possible).
+ */
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+
+/**
+ * RsxMiddleware processes requests before RSX dispatch
+ * 
+ * This middleware:
+ * - Checks if request should be handled by RSX
+ * - Maintains session and auth state
+ * - Adds RSX-specific headers
+ */
+class RsxMiddleware
+{
+    /**
+     * Handle an incoming request
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Closure  $next
+     * @return mixed
+     */
+    public function handle(Request $request, Closure $next)
+    {
+        // In development mode, automatically disable all Laravel caches
+        if (!app()->environment('production')) {
+            $this->ensure_caches_disabled();
+        }
+        
+        // Note: Asset requests are handled by the RSX AssetHandler in the Dispatcher
+        // No need to block them here
+        
+        // Check if request path should be excluded from RSX
+        if ($this->is_excluded_path($request)) {
+            abort(404);
+        }
+        
+        // Add RSX indicator to request
+        $request->attributes->set('rsx_request', true);
+        
+        // Ensure session is started for RSX requests
+        if ($request->hasSession()) {
+            $request->session()->start();
+        }
+        
+        // Process the request
+        $response = $next($request);
+        
+        // Add RSX response headers if configured
+        if (config('rsx.development.show_route_details', false)) {
+            $response->headers->set('X-RSX-Dispatch', 'true');
+            
+            // Add dispatch time if available
+            if ($request->attributes->has('rsx_dispatch_time')) {
+                $response->headers->set(
+                    'X-RSX-Dispatch-Time', 
+                    $request->attributes->get('rsx_dispatch_time') . 'ms'
+                );
+            }
+        }
+        
+        return $response;
+    }
+    
+    /**
+     * Check if path should be excluded from RSX routing
+     * 
+     * @param Request $request
+     * @return bool
+     */
+    protected function is_excluded_path(Request $request)
+    {
+        $path = $request->path();
+        
+        // Never handle Laravel's default routes
+        $excluded_prefixes = [
+            '_debugbar',
+            'horizon',
+            'telescope',
+            'nova',
+            'livewire',
+            'sanctum',
+            'broadcasting'
+        ];
+        
+        foreach ($excluded_prefixes as $prefix) {
+            if (str_starts_with($path, $prefix . '/') || $path === $prefix) {
+                return true;
+            }
+        }
+        
+        // Check custom excluded paths from config
+        $custom_excluded = config('rsx.routing.excluded_paths', []);
+        
+        foreach ($custom_excluded as $excluded) {
+            if (str_starts_with($path, $excluded)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Ensure all Laravel caches are disabled in development mode
+     *
+     * @return void
+     */
+    protected function ensure_caches_disabled()
+    {
+        static $caches_checked = false;
+        
+        // Only check once per request lifecycle
+        if ($caches_checked) {
+            return;
+        }
+        
+        $caches_checked = true;
+        
+        // Check if any caches exist that shouldn't in development
+        $cache_files = [
+            'config' => app()->getCachedConfigPath(),
+            'routes' => app()->getCachedRoutesPath(),
+            'events' => app()->getCachedEventsPath(),
+        ];
+        
+        $files = app('files');
+        
+        foreach ($cache_files as $type => $path) {
+            if ($files->exists($path)) {
+                // Clear the cache silently using output buffering
+                ob_start();
+                try {
+                    switch ($type) {
+                        case 'config':
+                            \Artisan::call('config:clear');
+                            break;
+                            
+                        case 'routes':
+                            \Artisan::call('route:clear');
+                            break;
+                            
+                        case 'events':
+                            \Artisan::call('event:clear');
+                            break;
+                    }
+                } catch (\Exception $e) {
+                    // Silently ignore any errors - we're just trying to clear caches
+                } finally {
+                    ob_end_clean();
+                }
+            }
+        }
+        
+        // Also check compiled views and clear if needed
+        $compiled_path = config('view.compiled');
+        if ($files->isDirectory($compiled_path)) {
+            $compiled_views = $files->glob("{$compiled_path}/*");
+            if (count($compiled_views) > 100) { // Only clear if there are many compiled views
+                ob_start();
+                try {
+                    \Artisan::call('view:clear');
+                } catch (\Exception $e) {
+                    // Silently ignore
+                } finally {
+                    ob_end_clean();
+                }
+            }
+        }
+    }
+}

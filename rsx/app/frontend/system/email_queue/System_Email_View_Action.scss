@@ -1,0 +1,11 @@
+// The single justified page-SCSS survivor: the rendered-email preview iframe
+// needs an explicit box. A one-off, single-consumer sizing rule with nowhere
+// else to live (the killed inline width/height/border style). Mirrors the
+// Action_Logs_View metadata <pre> survivor (Batch G).
+.System_Email_View_Action {
+    &__preview-frame {
+        width: 100%;
+        height: 600px;
+        border: 0;
+    }
+}

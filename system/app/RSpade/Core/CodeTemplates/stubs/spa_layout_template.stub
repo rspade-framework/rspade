@@ -1,0 +1,15 @@
+<Define:{{ spa_layout_class }}>
+
+<%-- Layout chrome (sidebar, header) is built once and persists across navigation. --%>
+<nav class="navbar navbar-expand bg-dark navbar-dark">
+  <div class="container-fluid">
+    <span class="navbar-brand"><%= this.state.module_title %></span>
+  </div>
+</nav>
+
+<%-- Actions render into this element. Every Spa_Layout template needs one. --%>
+<main class="page-content">
+  <div $sid="content"></div>
+</main>
+
+</Define:{{ spa_layout_class }}>

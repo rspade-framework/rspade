@@ -1,0 +1,56 @@
+// Feed_Row - one activity-feed entry (icon tile + summary + time).
+// Self-dividing: place a stack of these inside a <Section $flush=true> and each
+// row owns its own padding + hairline, forming a clean divided feed with no
+// container styling (R1 - the row owns its interior, no outer margins).
+.Feed_Row {
+    display: flex;
+    align-items: flex-start;
+    gap: $spacing-3; // 12px
+    padding: $spacing-3 var(--card-pad-x); // 12px / 20px, aligns with section body
+    border-bottom: $border-width solid $border-color;
+
+    &:last-child {
+        border-bottom: 0;
+    }
+
+    &__icon-tile {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: $border-radius-md;
+        background: $background-light;
+    }
+
+    &__icon {
+        font-size: $font-size-base;
+        line-height: 1;
+        color: $primary-color;
+    }
+
+    &__body {
+        flex: 1 1 auto;
+        min-width: 0;
+        font-size: $font-size-sm;
+        color: $text-color;
+        line-height: 1.4;
+    }
+
+    &__time {
+        flex: 0 0 auto;
+        font-size: $font-size-xs;
+        color: $text-muted;
+        white-space: nowrap;
+    }
+
+    // Icon accent by event category. The tile stays neutral; the icon carries
+    // the color so the feed reads calmly (no filled color blocks).
+    &--primary &__icon { color: $primary-color; }
+    &--success &__icon { color: $success-color; }
+    &--info &__icon { color: $info-color; }
+    &--warning &__icon { color: $warning-color; }
+    &--danger &__icon { color: $danger-color; }
+    &--secondary &__icon { color: $text-muted; }
+}

@@ -1,0 +1,375 @@
+#!/usr/bin/env php
+<?php
+
+// Change to application directory to ensure all operations use correct paths
+chdir(__DIR__);
+
+define('LARAVEL_START', microtime(true));
+
+/*
+|--------------------------------------------------------------------------
+| Environment File Initialization
+|--------------------------------------------------------------------------
+|
+| system/.env is FRAMEWORK SPACE: always a symlink to the project-root .env,
+| which is where a developer's configuration actually lives. The guard below
+| repairs that link before anything reads configuration.
+|
+| This replaces an earlier block that copied system/.env.dist to system/.env
+| whenever the latter was missing. That looked like a courtesy and was a trap:
+| on a clone without the symlink it created a REAL file which then SHADOWED the
+| root .env, so the application read the template forever while every value the
+| operator had set sat in a file nobody loaded (field failure, 2026-08-20).
+|
+| Seeding an initial .env is still done - but for the ROOT .env, the one that
+| is genuinely the developer's.
+|
+*/
+
+require __DIR__.'/bootstrap/rsx_env_link.php';
+
+if (!file_exists(__DIR__.'/../.env')) {
+    if (file_exists(__DIR__.'/../.env.dist')) {
+        copy(__DIR__.'/../.env.dist', __DIR__.'/../.env');
+        echo "Created .env from .env.dist template.\n";
+        echo "Please review .env and update configuration as needed.\n\n";
+    } elseif (file_exists(__DIR__.'/.env.dist')) {
+        copy(__DIR__.'/.env.dist', __DIR__.'/../.env');
+        echo "Created .env from the framework's .env.dist template.\n";
+        echo "Please review .env and update configuration as needed.\n\n";
+    } else {
+        echo "ERROR: No .env or .env.dist file found.\n";
+        echo "Cannot start application without environment configuration.\n";
+        exit(1);
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Storage Root (pre-boot)
+|--------------------------------------------------------------------------
+|
+| Volatile storage lives at <project>/storage once the relocation marker exists
+| (written by bin/environment_updates/030_relocate_storage.sh); before that it is
+| the historic system/storage. Everything below runs BEFORE Laravel boots, so
+| storage_path() does not exist yet and the marker must be read directly - the same
+| resolution the bootstrap bridge (bootstrap/app.php) and the updater (bin/
+| framework-pull-upstream.sh, storage_base) perform. TRANSITIONAL fallback.
+|
+*/
+
+$__rsx_storage = dirname(__DIR__) . '/storage';
+if (!is_file($__rsx_storage . '/.rspade_storage_relocated')) {
+    $__rsx_storage = __DIR__ . '/storage';
+}
+
+/*
+|--------------------------------------------------------------------------
+| Framework-Internal Flags (the `--_` convention)
+|--------------------------------------------------------------------------
+|
+| Every `--_`-prefixed argv token is lifted into a process global and STRIPPED
+| from argv before Symfony parses it. Commands never declare these as options,
+| so they render in no help/list output and can never raise an unknown-option
+| error. The booted-world reader is
+| App\RSpade\Core\Console\Rsx_Internal_Flags (pre-boot has no autoloader, hence
+| a plain global here).
+|
+*/
+
+$GLOBALS['__rsx_internal_flags'] = [];
+if (!empty($_SERVER['argv'])) {
+    $__rsx_kept_argv = [];
+    foreach ($_SERVER['argv'] as $__rsx_arg) {
+        if (is_string($__rsx_arg) && str_starts_with($__rsx_arg, '--_')) {
+            $GLOBALS['__rsx_internal_flags'][] = $__rsx_arg;
+
+            continue;
+        }
+        $__rsx_kept_argv[] = $__rsx_arg;
+    }
+    if (count($__rsx_kept_argv) !== count($_SERVER['argv'])) {
+        $_SERVER['argv'] = array_values($__rsx_kept_argv);
+        $_SERVER['argc'] = count($_SERVER['argv']);
+        $argv = $_SERVER['argv'];
+        $argc = $_SERVER['argc'];
+    }
+}
+
+// The pull's own sub-calls carry this token so they run while the gate is up.
+// Mirrors App\RSpade\Core\Framework\Framework_Maintenance::OVERRIDE_FLAG.
+$__fw_update_override = in_array('--_framework-update-override', $GLOBALS['__rsx_internal_flags'], true);
+
+/*
+|--------------------------------------------------------------------------
+| Early Command Interception
+|--------------------------------------------------------------------------
+|
+| Intercept rsx:framework:pull BEFORE Laravel loads. This allows the
+| framework update script to run independently and replace the framework
+| code without Laravel being initialized on potentially outdated code.
+|
+*/
+
+if (isset($argv[1]) && $argv[1] === 'rsx:framework:pull') {
+    $script = __DIR__ . '/bin/framework-pull-upstream.sh';
+    $template = $script . '.dist';
+
+    // Self-heal the live pull script from its tracked template on every run.
+    //
+    // The live .sh is generated/untracked and was historically materialized only
+    // once at install. That made it self-perpetuating: a fix shipped in .dist
+    // (e.g. the override-artifact cleanup) could never reach a downstream, because
+    // the stale .sh kept running its old logic and never refreshed. Materializing
+    // here -- not only at install -- guarantees the live script always matches the
+    // tracked template. The .sh is generated, so any edits belong in .dist.
+    if (file_exists($template)) {
+        if (!file_exists($script) || md5_file($script) !== md5_file($template)) {
+            copy($template, $script);
+            @chmod($script, 0755);
+        }
+    }
+
+    if (!file_exists($script)) {
+        // Releases ship bin/framework-pull-upstream.sh DIRECTLY (publish renamed the
+        // dev .dist to .sh; no .dist exists in a release). The .dist self-heal above
+        // is a dev-monorepo mechanism only, so do NOT claim a .dist is "expected"
+        // here. A missing .sh in a release is almost always the tracked-but-ignored
+        // bootstrap failure: a stale system/.gitignore rule excluded the tracked
+        // updater from the app-repo commit, so a fresh clone materialized system/
+        // without it. Give the operator the real unblock - extract the tracked script
+        // from the distribution. (Pre-boot code stays dumb and loud: we print the
+        // command, we never auto-fetch over the network here.)
+        // Mirrors App\RSpade\Core\Framework\Framework_Maintenance::upstream_cache_dir()
+        // (this runs pre-boot, so the class cannot be autoloaded here).
+        $cache = '/tmp/rspade_upstream.git';
+        echo "ERROR: Framework update script not found: {$script}\n";
+        echo "\n";
+        echo "This release ships bin/framework-pull-upstream.sh as a TRACKED file, but it is\n";
+        echo "missing from this checkout. Almost always this is the tracked-but-ignored\n";
+        echo "bootstrap failure: a stale system/.gitignore rule excluded the updater from the\n";
+        echo "commit, so a fresh clone materialized system/ without it (rsx:framework:verify\n";
+        echo "would flag it MISSING). Restore the tracked script, then re-run this command:\n";
+        echo "\n";
+        if (is_dir($cache)) {
+            echo "  git --git-dir=" . escapeshellarg($cache) . " show master:bin/framework-pull-upstream.sh \\\n";
+            echo "    > " . escapeshellarg($script) . " && chmod +x " . escapeshellarg($script) . "\n";
+        } else {
+            echo "  # No local distribution cache yet - clone it, then extract the script:\n";
+            echo "  git clone --bare <rspade_system-distribution-url> " . escapeshellarg($cache) . "\n";
+            echo "  git --git-dir=" . escapeshellarg($cache) . " show master:bin/framework-pull-upstream.sh \\\n";
+            echo "    > " . escapeshellarg($script) . " && chmod +x " . escapeshellarg($script) . "\n";
+        }
+        exit(1);
+    }
+
+    // Pass all arguments except 'artisan' and 'rsx:framework:pull'
+    $args = array_slice($argv, 2);
+    $cmd = 'bash ' . escapeshellarg($script) . ' ' . implode(' ', array_map('escapeshellarg', $args));
+    passthru($cmd, $exit_code);
+    exit($exit_code);
+}
+
+/*
+|--------------------------------------------------------------------------
+| Maintenance Command Interception
+|--------------------------------------------------------------------------
+|
+| rsx:maintenance:enable / rsx:maintenance:disable shell straight to
+| bin/maintenance-mode.sh, exactly as rsx:framework:pull does above: they must
+| work with a broken or half-synced tree, and they can never be refused by the
+| gate they themselves control. There is no Laravel stub command for either
+| (one way of doing things - the pull has none either); they are documented in
+| `php artisan rsx:man maintenance_mode`.
+|
+*/
+
+if (isset($argv[1]) && ($argv[1] === 'rsx:maintenance:enable' || $argv[1] === 'rsx:maintenance:disable')) {
+    $script = __DIR__ . '/bin/maintenance-mode.sh';
+
+    if (!file_exists($script)) {
+        echo "ERROR: Maintenance mode script not found: {$script}\n";
+        echo "\n";
+        echo "It ships in the framework-owned bin/ zone. Restore it from the distribution,\n";
+        echo "or remove the flag by hand to exit maintenance mode:\n";
+        echo "  rm -f " . escapeshellarg($__rsx_storage . '/rsx-framework/.maintenance.mode.framework.update') . "\n";
+        exit(1);
+    }
+
+    $action = substr($argv[1], strlen('rsx:maintenance:'));
+    $args = array_slice($argv, 2);
+    $cmd = 'bash ' . escapeshellarg($script) . ' ' . escapeshellarg($action);
+    foreach ($args as $arg) {
+        $cmd .= ' ' . escapeshellarg($arg);
+    }
+    passthru($cmd, $exit_code);
+    exit($exit_code);
+}
+
+/*
+|--------------------------------------------------------------------------
+| rsx:git Interception
+|--------------------------------------------------------------------------
+|
+| The transparent git proxy shells straight to bin/rsx-git.sh, for the same
+| reasons the two blocks above do: it must be boot-free (invoking it can never
+| be what triggers a manifest rebuild and re-dirties system/), it must work on
+| a broken or half-synced tree, and it must run while the maintenance flag is
+| up -- it is the thing that raises and lowers that flag, and its app-conflict
+| halt deliberately leaves maintenance ON until the operator commits the
+| resolution through it. Placed BEFORE the gate for that last reason.
+|
+| Everything after `rsx:git` is git's, verbatim; only --rsx-* flags belong to
+| the wrapper. Documented in `php artisan rsx:man rsx_git`.
+|
+*/
+
+if (isset($argv[1]) && $argv[1] === 'rsx:git') {
+    $script = __DIR__ . '/bin/rsx-git.sh';
+
+    if (!file_exists($script)) {
+        echo "ERROR: git proxy script not found: {$script}\n";
+        echo "\n";
+        echo "It ships in the framework-owned bin/ zone. Restore it from the distribution,\n";
+        echo "or use plain git directly until it is back.\n";
+        exit(1);
+    }
+
+    $args = array_slice($argv, 2);
+    $cmd = 'bash ' . escapeshellarg($script);
+    foreach ($args as $arg) {
+        $cmd .= ' ' . escapeshellarg($arg);
+    }
+    passthru($cmd, $exit_code);
+    exit($exit_code);
+}
+
+/*
+|--------------------------------------------------------------------------
+| Maintenance Gate (allow-most-deny-some)
+|--------------------------------------------------------------------------
+|
+| RSPADE_MAINT_MODE is the per-process SNAPSHOT of the maintenance flag - ONE
+| filesystem stat per process, taken here so nothing downstream (notably the
+| RsxLocks backend selection) can observe the flag flipping mid-process. Both
+| entrypoints define it unconditionally: system/artisan (here) and
+| system/public/index.php.
+|
+| The gate exists to stop AUTOMATED processes from firing into a stopped
+| environment, not to babysit humans, so it is ALLOW-MOST-DENY-SOME:
+|   BLOCKED           rsx:task:process, rsx:task:worker (the automated runners)
+|   BLOCKED w/o --force  rsx:task:run (a human can insist)
+|   ALLOWED           everything else (migrate, rsx:health, rsx:clean, builds...)
+| The internal override bypasses all classification (the pull's own sub-calls);
+| rsx:framework:pull and rsx:maintenance:* are intercepted above and therefore
+| never reach this gate. Raw + pre-autoload: a half-synced vendor/ must still
+| refuse cleanly. Path mirrors
+| App\RSpade\Core\Framework\Framework_Maintenance::FLAG_RELATIVE.
+|
+*/
+
+$__rsx_maint_flag = $__rsx_storage . '/rsx-framework/.maintenance.mode.framework.update';
+define('RSPADE_MAINT_MODE', file_exists($__rsx_maint_flag));
+
+if (RSPADE_MAINT_MODE && !$__fw_update_override) {
+    // Line 1 only: the flag's second line is the "mode=" stamp the web 503 reads, and it
+    // must never trail the reason in a CLI refusal. Format owned by
+    // App\RSpade\Core\Framework\Framework_Maintenance (not autoloadable here).
+    $__rsx_maint_lines = preg_split('/\R/', (string) @file_get_contents($__rsx_maint_flag));
+    $__rsx_maint_reason = trim($__rsx_maint_lines[0] ?? '');
+    if ($__rsx_maint_reason === '') {
+        $__rsx_maint_reason = 'maintenance mode';
+    }
+
+    $__rsx_command = $argv[1] ?? '';
+    $__rsx_exit_hint = "Exit maintenance mode: php artisan rsx:maintenance:disable\n";
+
+    if ($__rsx_command === 'rsx:task:process' || $__rsx_command === 'rsx:task:worker') {
+        fwrite(STDERR, "503 - System is in maintenance mode ({$__rsx_maint_reason}); background task runners are blocked.\n");
+        fwrite(STDERR, $__rsx_exit_hint);
+        exit(75);
+    }
+
+    if ($__rsx_command === 'rsx:task:run' && !in_array('--force', $_SERVER['argv'] ?? [], true)) {
+        fwrite(STDERR, "503 - System is in maintenance mode ({$__rsx_maint_reason}). Pass --force to run this task anyway.\n");
+        fwrite(STDERR, $__rsx_exit_hint);
+        exit(75);
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Register The Auto Loader
+|--------------------------------------------------------------------------
+|
+| Composer provides a convenient, automatically generated class loader
+| for our application. We just need to utilize it! We'll require it
+| into the script here so that we do not have to worry about the
+| loading of any of our classes manually. It's great to relax.
+|
+*/
+
+require __DIR__.'/vendor/autoload.php';
+
+/*
+|--------------------------------------------------------------------------
+| Initialize RSpade Framework
+|--------------------------------------------------------------------------
+|
+| Acquire the global application read lock before anything else happens.
+| This ensures proper coordination between processes for operations like
+| manifest rebuilding. This MUST happen before the manifest loads.
+|
+*/
+
+$app = require_once __DIR__.'/bootstrap/app.php';
+
+/*
+|--------------------------------------------------------------------------
+| Log IDE Artisan Requests
+|--------------------------------------------------------------------------
+|
+| When running in IDE context, log the artisan command and arguments
+| for review. This helps track what commands the IDE is executing.
+|
+*/
+
+if (function_exists('is_ide') && is_ide()) {
+    $command = implode(' ', $argv);
+    $timestamp = date('Y-m-d H:i:s');
+    $log_message = "[{$timestamp}] IDE artisan request: {$command}";
+    error_log($log_message . PHP_EOL, 3, storage_path('logs/laravel.log'));
+}
+
+/*
+|--------------------------------------------------------------------------
+| Run The Artisan Application
+|--------------------------------------------------------------------------
+|
+| When we run the console application, the current CLI command will be
+| executed in this console and the response sent back to a terminal
+| or another output device for the developers. Here goes nothing!
+|
+*/
+
+$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+
+$status = $kernel->handle(
+    $input = new Symfony\Component\Console\Input\ArgvInput,
+    new Symfony\Component\Console\Output\ConsoleOutput
+);
+
+/*
+|--------------------------------------------------------------------------
+| Shutdown The Application
+|--------------------------------------------------------------------------
+|
+| Once Artisan has finished running, we will fire off the shutdown events
+| so that any final work may be done by the application before we shut
+| down the process. This is the last thing to happen to the request.
+|
+*/
+
+$kernel->terminate($input, $status);
+
+exit($status);

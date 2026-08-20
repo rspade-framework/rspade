@@ -1,0 +1,18 @@
+<%--
+Breadcrumb
+
+Breadcrumb navigation component following Bootstrap 5 styling.
+Uses transparent background and no padding for clean integration with Page_Header.
+
+Usage:
+<Breadcrumb>
+  <Breadcrumb_Item href="<%= Rsx.Route('Frontend_Dashboard_Controller') %>">Dashboard</Breadcrumb_Item>
+  <Breadcrumb_Item href="<%= Rsx.Route('Frontend_Clients_Controller') %>">Clients</Breadcrumb_Item>
+  <Breadcrumb_Item active>View</Breadcrumb_Item>
+</Breadcrumb>
+--%>
+<Define:Breadcrumb tag="nav" aria-label="breadcrumb">
+  <ol class="breadcrumb bg-transparent p-0 mb-0">
+    <%= content() %>
+  </ol>
+</Define:Breadcrumb>

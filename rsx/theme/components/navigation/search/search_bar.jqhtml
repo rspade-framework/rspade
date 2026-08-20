@@ -1,0 +1,9 @@
+<Define:Search_Bar class="input-group">
+  <span class="input-group-text">
+    <Icon $name="search" />
+  </span>
+  <input type="search"
+         class="form-control"
+         placeholder="<%= this.args.placeholder || 'Search...' %>"
+         $sid="input" />
+</Define:Search_Bar>

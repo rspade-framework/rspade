@@ -1,0 +1,91 @@
+DOCUMENT PIPELINE TYPE RESOLUTION: extension-first for documents, sniff-first for images
+Date: 2026-07-28
+
+SUMMARY
+    The framework's file pipeline now resolves the PROCESSING type of an attachment
+    (which viewer, PDF rendition, text extractor, and thumbnail renderer it routes to,
+    plus the coarse file_type_id bucket) with a per-family policy instead of trusting
+    the raw libmagic byte sniff for everything. Serving (the HTTP Content-Type on
+    download/inline) is UNCHANGED - it stays on the raw sniff as a security boundary.
+
+    This is framework-core (App\RSpade\Core\Files). Every RSpade app with document
+    preview inherits the fix automatically via the submodule, AND a bundled framework
+    migration heals already-stored mis-routed rows automatically during the update's
+    migrate step - so no manual repair run is required. The rsx:files:repair_mime_routing
+    command remains for on-demand re-runs and dry-run inspection.
+
+THE BUG / THE CHANGE
+    A file's stored mime_type is a content byte-sniff (Symfony -> PHP finfo -> libmagic).
+    libmagic's OOXML detection is heuristic: it inspects early zip member names, and for
+    some perfectly valid Office files (e.g. a .docx whose second zip member is
+    word/styles.xml) it falls back to the generic container type application/zip.
+    Detection is therefore per-file intermittent - one .docx sniffs correctly, a sibling
+    does not.
+
+    Everything downstream matched that stored string against the config registries
+    (rsx.preview.viewers, rsx.preview.convertible, rsx.search extractors, rsx.thumbnails
+    renderers), all keyed on application/vnd.openxmlformats-officedocument.* /
+    application/msword / etc. A docx sniffed as application/zip therefore matched NOTHING:
+    the preview fell to Icon_Viewer, text extraction recorded UNSUPPORTED (silent search
+    gap), and the thumbnail became a generic icon. A single bad sniff permanently disabled
+    the entire document pipeline for that attachment.
+
+    New policy for the PIPELINE type (File_Attachment_Model::resolve_pipeline_mime):
+      1. Documents: the extension wins UNCONDITIONALLY. If the extension is a key in the
+         new config map rsx.files.document_mime_by_extension (pdf, docx/xlsx/pptx,
+         doc/xls/ppt, odt/ods/odp, rtf, csv, txt, md), the mapped canonical mime is used
+         regardless of the byte sniff. The extension is a deliberate authored claim; if the
+         bytes do not match it, the correct outcome is a loud conversion/parse failure, not
+         a silent misroute. Two files with the same extension always take the same path.
+      2. Images: the sniff wins. Raster/vector image magic bytes are unambiguous, and
+         misnamed image extensions are common (a webp saved as .png). For the image family
+         the sniffed mime routes, correcting the extension.
+      3. Everything else: the raw sniff (unchanged - generic types still fall to Icon_Viewer).
+
+THE FIX
+    Informational only - downstream receives all of this automatically via the submodule:
+      - New pure helper File_Attachment_Model::resolve_pipeline_mime(?sniff, ?ext): string
+        and instance File_Attachment_Model::pipeline_mime().
+      - New config rsx.files.document_mime_by_extension (extension => canonical mime),
+        app-overridable in rsx/resource/config/rsx.php.
+      - The four processing registries (viewer, convertible/rendition, text extractor,
+        thumbnail renderer) and the coarse file_type_id bucket now route on the pipeline
+        mime. The extraction pipeline (which sees only the deduplicated blob) borrows a
+        representative referencing attachment's extension to resolve the pipeline mime.
+      - Serving (download_file / inline / zip-per-entry Content-Type) intentionally still
+        uses the raw sniffed mime_type - a stored-XSS boundary. The mime_type column is
+        NEVER rewritten by this change.
+      - New command rsx:files:repair_mime_routing (see ACTION REQUIRED).
+
+ACTION REQUIRED
+    The existing-row repair is AUTOMATIC: the framework migration
+    2026_07_28_135157_repair_document_mime_routing runs it during the update's migrate
+    step (it re-buckets each mis-routed attachment's file_type_id, re-queues the backing
+    blob for text extraction, and deletes the stale cached rendition/thumbnails; the
+    re-queued blobs are drained by the normal extraction cron). It is idempotent and
+    cross-site. You do NOT need to run anything by hand for existing files.
+
+    On demand (optional): to preview or re-run the same repair yourself -
+
+        php artisan rsx:files:repair_mime_routing --dry-run     # preview counts
+        php artisan rsx:files:repair_mime_routing               # apply + drain now
+
+    (The command additionally dispatches the extraction task immediately rather than
+    waiting for the cron.)
+
+    Also audit any app-layer override of the file registries or of File_Attachment_Model:
+    if your app reads $attachment->mime_type to decide a PREVIEW / EXTRACTION / THUMBNAIL
+    route, switch that read to $attachment->pipeline_mime(). Keep reading the raw mime_type
+    only for SERVING (Content-Type). If your app defined extra document extensions or custom
+    document mimes, extend rsx.files.document_mime_by_extension in
+    rsx/resource/config/rsx.php so they route extension-first too.
+
+VERIFICATION
+    After the repair, an affected document (e.g. a docx previously stored as
+    application/zip):
+      - previews as its PDF rendition (Pdf_Viewer), not the Icon_Viewer fallback;
+      - has extracted text (File_Attachment_Model::search_text() finds it; its
+        get_extraction_status() is EXTRACTED, not UNSUPPORTED);
+      - has a real document thumbnail instead of a generic extension icon;
+      - reports file_type_id = document (6), not archive (4).
+    Re-running the command reports nothing to repair.

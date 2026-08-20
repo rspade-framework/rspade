@@ -1,0 +1,95 @@
+<Define:Portal_Settings_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main><Loading_Spinner $message="Loading settings..." /></Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <% const _profile = this.data.profile;
+       const _sessions = this.data.sessions; %>
+    <Page_Scaffold>
+        <Slot:main>
+            <%-- Change Password (Bootstrap form controls - their own system) --%>
+            <Section $title="Change Password">
+                <form $sid="password-form">
+                    <div class="mb-3">
+                        <label class="form-label">Current Password</label>
+                        <input type="password" class="form-control" $sid="current-password" autocomplete="current-password">
+                        <div class="text-danger small mt-1" $sid="current-password-error" style="display:none;"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">New Password</label>
+                        <input type="password" class="form-control" $sid="new-password" autocomplete="new-password">
+                        <div class="text-danger small mt-1" $sid="new-password-error" style="display:none;"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Confirm New Password</label>
+                        <input type="password" class="form-control" $sid="confirm-password" autocomplete="new-password">
+                        <div class="text-danger small mt-1" $sid="confirm-password-error" style="display:none;"></div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Update Password</button>
+                </form>
+            </Section>
+
+            <%-- Active Sessions --%>
+            <Section $title="Active Sessions" $count=_sessions.length $flush=true>
+                <Slot:body>
+                    <% if (_sessions.length === 0) { %>
+                        <Empty_State $icon="bi bi-display">
+                            <Slot:title>No active sessions</Slot:title>
+                        </Empty_State>
+                    <% } else { %>
+                        <Record_Table>
+                            <thead>
+                                <tr><th>IP Address</th><th>Last Activity</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                                <% for (const session of _sessions) { %>
+                                <tr>
+                                    <td>
+                                        <%= session.ip_address || 'Unknown' %>
+                                        <% if (session.is_current) { %>
+                                            <span class="badge bg-success ms-1">Current</span>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <% if (session.last_active) { %>
+                                            <%= Rsx_Time.relative(session.last_active) %>
+                                        <% } else { %>
+                                            <Empty_Value />
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <% if (!session.is_current) { %>
+                                            <button class="btn btn-sm btn-outline-danger" data-terminate-session="<%= session.id %>">Terminate</button>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                                <% } %>
+                            </tbody>
+                        </Record_Table>
+                    <% } %>
+                </Slot:body>
+            </Section>
+        </Slot:main>
+
+        <Slot:sidebar>
+            <Detail_Sidebar>
+                <View_Fields>
+                    <View_Field $label="Email"><%= _profile.email %></View_Field>
+                    <View_Field $label="Status">
+                        <Status_Badge $model="Portal_User_Model" $status_id=_profile.status_id />
+                    </View_Field>
+                    <View_Field $label="Last Login">
+                        <% if (_profile.last_login) { %>
+                            <%= Rsx_Time.relative(_profile.last_login) %>
+                        <% } else { %>
+                            <Empty_Value />
+                        <% } %>
+                    </View_Field>
+                    <View_Field $label="Member Since"><%= Rsx_Time.format_date(_profile.created_at) %></View_Field>
+                </View_Fields>
+            </Detail_Sidebar>
+        </Slot:sidebar>
+    </Page_Scaffold>
+<% } %>
+</Define:Portal_Settings_Action>

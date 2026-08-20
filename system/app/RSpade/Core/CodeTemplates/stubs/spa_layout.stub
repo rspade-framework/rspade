@@ -1,0 +1,18 @@
+/**
+ * {{ spa_layout_class }} - persistent layout for the {{ module_title }} SPA module
+ *
+ * The layout is created once and survives navigation between Actions in the
+ * same chain. Actions render into the template's $sid="content" element.
+ */
+class {{ spa_layout_class }} extends Spa_Layout {
+    on_create() {
+        this.state.module_title = '{{ module_title }}';
+    }
+
+    /**
+     * Fires on every SPA navigation - use for active-nav / header updates.
+     */
+    on_action(url, action_name, args) {
+        // Update navigation highlighting or header chrome here.
+    }
+}

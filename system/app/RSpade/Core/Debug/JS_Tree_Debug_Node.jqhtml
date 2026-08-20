@@ -1,0 +1,68 @@
+<%--
+JS_Tree_Debug_Node (Internal component for JS_Tree_Debug_Component)
+
+Renders a single expandable node in the debug tree.
+Not intended for direct use - use JS_Tree_Debug_Component instead.
+
+$data - The object or array to render
+$expand_depth - How many levels deep to expand
+$label - Optional key/index label for this node
+$show_class_names - If true, display class names for named object instances
+--%>
+<Define:JS_Tree_Debug_Node tag="div">
+    <%
+        const class_name = this.args.show_class_names ? JS_Tree_Debug_Node.get_class_name(this.args.data) : null;
+        const relationships = JS_Tree_Debug_Node.get_object_relationships(this.args.data);
+    %>
+    <span class="js-tree-debug-toggle<%= this.is_expanded ? '' : ' js-tree-debug-collapsed' %>" $sid="toggle" @click=this.toggle>
+        <i class="bi bi-caret-right-fill js-tree-debug-arrow"></i>
+    </span>
+    <% if (this.args.label !== null && this.args.label !== undefined) { %>
+        <span class="js-tree-debug-key"><%= this.args.label %></span><span class="js-tree-debug-colon">: </span>
+    <% } %>
+    <span class="js-tree-debug-bracket"><%= Array.isArray(this.args.data) ? '[' : '{' %></span>
+    <% if (class_name) { %>
+        <span class="js-tree-debug-class-badge"><span class="js-tree-debug-class-name"><%= class_name %></span><% if (this.args.data && this.args.data.id !== undefined) { %><span class="js-tree-debug-class-paren">(</span><span class="js-tree-debug-class-id"><%= this.args.data.id %></span><span class="js-tree-debug-class-paren">)</span><% } %></span>
+    <% } %>
+    <span class="js-tree-debug-preview-collapsed" $sid="preview_collapsed" style="<%= this.is_expanded ? 'display:none' : '' %>"><%= JS_Tree_Debug_Node.get_preview(this.args.data, JS_Tree_Debug_Node.get_type(this.args.data)) %></span>
+
+    <div class="js-tree-debug-children" $sid="children" style="<%= this.is_expanded ? '' : 'display:none' %>">
+        <%-- Regular data entries --%>
+        <% for (const [key, value] of JS_Tree_Debug_Node.get_entries(this.args.data, JS_Tree_Debug_Node.get_type(this.args.data))) {
+            const val_type = JS_Tree_Debug_Node.get_type(value);
+            const is_expandable = val_type === 'object' || val_type === 'array';
+        %>
+            <% if (is_expandable) { %>
+                <JS_Tree_Debug_Node
+                    $data=value
+                    $expand_depth=((this.args.expand_depth ?? 1) - 1)
+                    $label=key
+                    $show_class_names=(this.args.show_class_names ?? false)
+                />
+            <% } else { %>
+                <div class="js-tree-debug-leaf">
+                    <span class="js-tree-debug-key"><%= key %></span><span class="js-tree-debug-colon">: </span>
+                    <span class="js-tree-debug-value js-tree-debug-<%= val_type %>"><%= JS_Tree_Debug_Node.format_value(value, val_type) %></span>
+                </div>
+            <% } %>
+        <% } %>
+
+        <%-- Relationship nodes (lazy-loaded) --%>
+        <% for (const rel_name of relationships) { %>
+            <div class="js-tree-debug-node js-tree-debug-relationship" $sid="rel_<%= rel_name %>">
+                <%
+                    this.handler_toggle_rel = () => this.toggle_relationship(rel_name);
+                %>
+                <span class="js-tree-debug-toggle js-tree-debug-collapsed" @click=this.handler_toggle_rel>
+                    <i class="bi bi-caret-right-fill js-tree-debug-arrow"></i>
+                </span>
+                <span class="js-tree-debug-key js-tree-debug-rel-key"><%= rel_name %>()</span><span class="js-tree-debug-colon">: </span>
+                <span class="js-tree-debug-preview-collapsed">...</span>
+                <div class="js-tree-debug-rel-children js-tree-debug-children" style="display:none">
+                    <div class="js-tree-debug-leaf js-tree-debug-pending">(click to load)</div>
+                </div>
+            </div>
+        <% } %>
+    </div>
+    <span class="js-tree-debug-bracket"><%= Array.isArray(this.args.data) ? ']' : '}' %></span>
+</Define:JS_Tree_Debug_Node>

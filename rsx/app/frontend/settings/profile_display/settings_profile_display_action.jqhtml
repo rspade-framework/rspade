@@ -1,0 +1,109 @@
+<Define:Settings_Profile_Display_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading profile..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Profile"
+                $back_label="Go back to Dashboard"
+                $back_url="<%= Rsx.Route('Dashboard_Index_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <%
+        const _u = this.data.user;
+        const _name = (_u.first_name || _u.last_name)
+            ? (_u.first_name + ' ' + _u.last_name).trim()
+            : 'No name set';
+        const _profile = _u.user_profile;
+    %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Card_Widget>
+                <Entity_Header>
+                    <Slot:title><%= _name %></Slot:title>
+                    <Slot:chips>
+                        <Status_Badge $label="Active" $badge="bg-primary" />
+                        <span class="badge badge-outline-secondary"><%= _u.role_id__label || 'Member' %></span>
+                    </Slot:chips>
+                    <Slot:subtitle>
+                        <%= _u.email || 'No email' %><% if (_profile && _profile.title) { %> &middot; <%= _profile.title %><% } %>
+                    </Slot:subtitle>
+                </Entity_Header>
+
+                <Section $title="Profile Information">
+                    <View_Fields>
+                        <View_Field $label="First Name">
+                            <% if (_u.first_name) { %><%= _u.first_name %><% } else { %><Empty_Value /><% } %>
+                        </View_Field>
+                        <View_Field $label="Last Name">
+                            <% if (_u.last_name) { %><%= _u.last_name %><% } else { %><Empty_Value /><% } %>
+                        </View_Field>
+                        <View_Field $label="Email">
+                            <% if (_u.email) { %><%= _u.email %><% } else { %><Empty_Value /><% } %>
+                        </View_Field>
+                        <View_Field $label="Phone">
+                            <% if (_u.phone) { %><%= _u.phone %><% } else { %><Empty_Value /><% } %>
+                        </View_Field>
+                        <% if (_profile) { %>
+                            <View_Field $label="Title">
+                                <% if (_profile.title) { %><%= _profile.title %><% } else { %><Empty_Value /><% } %>
+                            </View_Field>
+                            <View_Field $label="Department">
+                                <% if (_profile.department) { %><%= _profile.department %><% } else { %><Empty_Value /><% } %>
+                            </View_Field>
+                            <% if (_profile.bio) { %>
+                                <View_Field $label="Bio"><%= _profile.bio %></View_Field>
+                            <% } %>
+                        <% } %>
+                        <View_Field $label="Member Since">
+                            <% if (_u.created_at) { %><%= Rsx_Time.format_date(_u.created_at) %><% } else { %><Empty_Value /><% } %>
+                        </View_Field>
+                    </View_Fields>
+                </Section>
+
+                <div class="d-flex">
+                    <a href="<%= Rsx.Route('Settings_Profile_Edit_Action') %>" class="btn btn-primary">
+                        <i class="bi bi-pencil"></i> Edit Profile
+                    </a>
+                </div>
+            </Card_Widget>
+        </Slot:main>
+
+        <Slot:sidebar>
+            <Detail_Sidebar>
+                <View_Fields>
+                    <View_Field $label="Email Verified" $inline=true>
+                        <Status_Badge $label="Verified" $badge="bg-success" />
+                    </View_Field>
+                    <View_Field $label="Two-Factor Auth" $inline=true>
+                        <Status_Badge $label="Not Enabled" $badge="bg-secondary" />
+                    </View_Field>
+                    <View_Field $label="Last Login" $inline=true>
+                        <% if (_u.last_login_at) { %><%= Rsx_Time.format_datetime(_u.last_login_at) %><% } else { %>Never<% } %>
+                    </View_Field>
+                </View_Fields>
+
+                <div class="d-grid gap-2">
+                    <a href="<%= Rsx.Route('Settings_Password_Security_Action') %>" class="btn btn-primary btn-sm">
+                        <i class="bi bi-shield-lock"></i> Security Settings
+                    </a>
+                    <a href="<%= Rsx.Route('Settings_Api_Keys_Action') %>" class="btn btn-primary btn-sm">
+                        <i class="bi bi-key"></i> API Keys
+                    </a>
+                    <a href="<%= Rsx.Route('Login_Controller::logout') %>" class="btn btn-danger btn-sm">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </a>
+                </div>
+            </Detail_Sidebar>
+        </Slot:sidebar>
+    </Page_Scaffold>
+<% } %>
+</Define:Settings_Profile_Display_Action>

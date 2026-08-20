@@ -1,0 +1,61 @@
+<Define:Add_Portal_Members_Modal_Form tag="div">
+    <%-- Filter + selected counter --%>
+    <div class="Add_Portal_Members_Modal_Form__toolbar">
+        <div class="Add_Portal_Members_Modal_Form__count" $sid="count">0 selected</div>
+        <input
+            type="text"
+            class="form-control form-control-sm Add_Portal_Members_Modal_Form__filter"
+            $sid="filter"
+            placeholder="Filter by name or email...">
+    </div>
+
+    <%-- Scrollable contact table --%>
+    <div class="Add_Portal_Members_Modal_Form__scroll">
+        <table class="table table-sm table-hover mb-0 Add_Portal_Members_Modal_Form__table">
+            <thead>
+                <tr>
+                    <th class="Add_Portal_Members_Modal_Form__checkbox-col">
+                        <input type="checkbox" class="form-check-input" $sid="select-all" title="Select all / none">
+                    </th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Invite Status</th>
+                </tr>
+            </thead>
+            <tbody $sid="rows">
+                <% for (const contact of this.args.contacts) { %>
+                    <% const is_member = contact.invite_status === 'accepted'; %>
+                    <% const row_class = 'Add_Portal_Members_Modal_Form__row' + (is_member ? ' Add_Portal_Members_Modal_Form__row--member' : ''); %>
+                    <tr class="<%= row_class %>"
+                        data-contact-id="<%= contact.id %>"
+                        data-search="<%= (contact.full_name + ' ' + (contact.email || '')).toLowerCase() %>">
+                        <td class="Add_Portal_Members_Modal_Form__checkbox-col">
+                            <input type="checkbox" class="form-check-input Add_Portal_Members_Modal_Form__check"
+                                data-contact-id="<%= contact.id %>"
+                                <% if (is_member) { %>checked disabled<% } %>>
+                        </td>
+                        <td><%= contact.full_name %></td>
+                        <td><%= contact.email || '-' %></td>
+                        <td>
+                            <% if (contact.invite_status === 'accepted') { %>
+                                <span class="badge bg-success">Accepted</span>
+                                <% if (contact.last_login) { %>
+                                    <span class="text-muted small d-block">Last login <%= Rsx_Time.relative(contact.last_login) %></span>
+                                <% } else { %>
+                                    <span class="text-muted small d-block">Never logged in</span>
+                                <% } %>
+                            <% } else if (contact.invite_status === 'invited') { %>
+                                <span class="badge bg-info text-dark">Invited</span>
+                            <% } else { %>
+                                <span class="text-muted">-</span>
+                            <% } %>
+                        </td>
+                    </tr>
+                <% } %>
+            </tbody>
+        </table>
+        <div class="Add_Portal_Members_Modal_Form__no-results text-muted text-center py-3 d-none" $sid="no-results">
+            No contacts match your filter.
+        </div>
+    </div>
+</Define:Add_Portal_Members_Modal_Form>

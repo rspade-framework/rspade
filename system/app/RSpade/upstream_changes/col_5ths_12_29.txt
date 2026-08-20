@@ -1,0 +1,127 @@
+FIFTH-WIDTH COLUMN CLASSES - MIGRATION GUIDE
+Date: 2024-12-29
+
+SUMMARY
+    New .col-5ths classes provide 20% width columns that are not available in
+    Bootstrap's 12-column grid system. These follow the same responsive pattern
+    as standard Bootstrap column classes, activating at each breakpoint.
+
+AFFECTED FILES
+
+    Framework files (already updated):
+        rsx/theme/responsive.scss       New col-5ths class definitions
+
+    Application files requiring migration:
+        rsx/theme/responsive.scss       Must add col-5ths classes if customized
+
+CHANGES REQUIRED
+
+    1. Add Fifth-Width Column Classes to responsive.scss
+       -------------------------------------------------------------------------
+       If your project has customized responsive.scss, add the following classes
+       before the CSS CUSTOM PROPERTIES section:
+
+       // ==========================================================================
+       // FIFTH-WIDTH COLUMNS (.col-5ths)
+       // ==========================================================================
+       // 20% width columns not available in Bootstrap's 12-column grid.
+       // Follows same responsive pattern as Bootstrap column classes.
+
+       .col-5ths {
+           flex: 0 0 20%;
+           max-width: 20%;
+       }
+
+       .col-mobile-5ths {
+           @include mobile {
+               flex: 0 0 20%;
+               max-width: 20%;
+           }
+       }
+
+       .col-tablet-5ths {
+           @include tablet-up {
+               flex: 0 0 20%;
+               max-width: 20%;
+           }
+       }
+
+       .col-desktop-5ths {
+           @include desktop {
+               flex: 0 0 20%;
+               max-width: 20%;
+           }
+       }
+
+       .col-desktop-sm-5ths {
+           @include desktop-sm-up {
+               flex: 0 0 20%;
+               max-width: 20%;
+           }
+       }
+
+       .col-desktop-md-5ths {
+           @include desktop-md-up {
+               flex: 0 0 20%;
+               max-width: 20%;
+           }
+       }
+
+       .col-desktop-lg-5ths {
+           @include desktop-lg-up {
+               flex: 0 0 20%;
+               max-width: 20%;
+           }
+       }
+
+       .col-desktop-xl-5ths {
+           @include desktop-xl-up {
+               flex: 0 0 20%;
+               max-width: 20%;
+           }
+       }
+
+CLASS REFERENCE
+
+    Class                   Breakpoint              Width
+    ---------------------   --------------------    -----
+    .col-5ths               Always                  20%
+    .col-mobile-5ths        0-1023px                20%
+    .col-tablet-5ths        800px+                  20%
+    .col-desktop-5ths       1024px+                 20%
+    .col-desktop-sm-5ths    1024px+                 20%
+    .col-desktop-md-5ths    1200px+                 20%
+    .col-desktop-lg-5ths    1640px+                 20%
+    .col-desktop-xl-5ths    2200px+                 20%
+
+USAGE
+
+    Five-column layout on desktop, two columns on mobile:
+
+        <div class="row">
+            <div class="col-mobile-6 col-desktop-5ths">Item 1</div>
+            <div class="col-mobile-6 col-desktop-5ths">Item 2</div>
+            <div class="col-mobile-6 col-desktop-5ths">Item 3</div>
+            <div class="col-mobile-6 col-desktop-5ths">Item 4</div>
+            <div class="col-mobile-6 col-desktop-5ths">Item 5</div>
+        </div>
+
+    Progressive five-column layout:
+
+        <div class="row">
+            <div class="col-12 col-tablet-6 col-desktop-md-5ths">Item</div>
+            ...
+        </div>
+
+VERIFICATION
+
+    1. Compile bundles and verify no SCSS errors:
+       php artisan rsx:bundle:compile Frontend_Bundle
+
+    2. Test the classes in browser:
+       - Add class="col-5ths" to 5 elements in a row, verify each is 20% width
+       - Test responsive variants at different viewport widths
+
+REFERENCE
+
+    php artisan rsx:man responsive   - Full responsive system documentation

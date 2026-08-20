@@ -1,0 +1,923 @@
+NAME
+    event_hooks - PHP event system with filters, gates, and actions
+
+SYNOPSIS
+    Register event handlers with attributes:
+
+        #[OnEvent('event.name', priority: 10)]
+        public static function handler_method($data) {
+            // Process event
+            return $data;
+        }
+
+    Trigger events from code:
+
+        // Filter: Transform data through handler chain
+        $result = Rsx::trigger_filter('event.name', $data);
+
+        // Gate: First non-true response halts execution
+        $result = Rsx::trigger_gate('event.name', $data);
+
+        // Action: Fire and forget side effects
+        Rsx::trigger_action('event.name', $data);
+
+DESCRIPTION
+    The RSX event system provides attribute-based event handling similar to
+    WordPress hooks or JavaScript event systems, allowing applications to
+    modify framework behavior without changing core code.
+
+    Unlike Laravel's event/listener system which requires manual registration
+    in service providers, RSX events use #[OnEvent] attributes that are
+    automatically discovered during manifest compilation.
+
+    RSX vs Laravel Events:
+    - Laravel: Register listeners in EventServiceProvider or listener classes
+    - RSX: Mark methods with #[OnEvent], automatic manifest discovery
+
+    The system provides three event types optimized for different use cases:
+    - Filters: Transform data through multiple handlers
+    - Gates: Authorization checks where first denial wins
+    - Actions: Side effects without return values
+
+    All handlers execute in priority order (lowest number first).
+
+BASIC USAGE
+
+    Creating Event Handlers
+
+        Create a class in /rsx/handlers/ with static methods marked with
+        #[OnEvent]:
+
+            namespace Rsx\Handlers;
+
+            class Upload_Handlers
+            {
+                #[OnEvent('file.upload.authorize', priority: 10)]
+                public static function require_auth($data)
+                {
+                    if (!Session::is_logged_in()) {
+                        return response()->json([
+                            'error' => 'Authentication required'
+                        ], 403);
+                    }
+                    return true;
+                }
+
+                #[OnEvent('file.upload.params', priority: 20)]
+                public static function add_metadata($params)
+                {
+                    $params['uploaded_by'] = Session::id();
+                    return $params;
+                }
+            }
+
+        Handlers are automatically discovered by the manifest system. No
+        manual registration required.
+
+    Triggering Events
+
+        Use Rsx:: methods to trigger events from your code:
+
+            // In a controller or service
+            $upload_params = Rsx::trigger_filter('file.upload.params', [
+                'site_id' => 1,
+                'filename' => 'document.pdf'
+            ]);
+
+            // Returns modified params after all handlers run
+
+EVENT TYPES
+
+    Filter Events (trigger_filter)
+
+        Filters pass data through a chain of handlers, with each handler
+        modifying and returning the data for the next handler.
+
+        Usage:
+            $result = Rsx::trigger_filter('event.name', $data);
+
+        Handler signature:
+            public static function handler($data) {
+                // Modify $data
+                return $data;  // Must return modified data
+            }
+
+        Flow:
+            $data = ['value' => 1];
+            Handler 1 (priority 10): receives ['value' => 1], returns ['value' => 2]
+            Handler 2 (priority 20): receives ['value' => 2], returns ['value' => 3]
+            Final result: ['value' => 3]
+
+        Use cases:
+            - Transforming request parameters
+            - Modifying response data
+            - Adding fields to data structures
+            - Sanitizing or validating input
+
+        Example:
+            #[OnEvent('post.content.filter', priority: 10)]
+            public static function sanitize_html($content) {
+                return strip_tags($content, '<p><a><strong><em>');
+            }
+
+            #[OnEvent('post.content.filter', priority: 20)]
+            public static function add_signature($content) {
+                return $content . "\n\nPosted via RSX";
+            }
+
+            // Usage:
+            $clean = Rsx::trigger_filter('post.content.filter', $raw_content);
+
+    Gate Events (trigger_gate)
+
+        Gates check authorization or validation. Handlers return true to allow
+        or any other value to deny. The first non-true response immediately
+        halts execution and is returned.
+
+        Usage:
+            $result = Rsx::trigger_gate('event.name', $data);
+            if ($result !== true) {
+                // Access denied, $result contains denial response
+                return $result;
+            }
+
+        Handler signature:
+            public static function handler($data) {
+                if (authorized) {
+                    return true;  // Allow, continue to next handler
+                }
+                return response()->json(['error' => 'Denied'], 403);
+            }
+
+        Flow:
+            Handler 1 (priority 10): returns true (continue)
+            Handler 2 (priority 20): returns JsonResponse (STOP)
+            Handler 3 (priority 30): never executes
+            Final result: JsonResponse from Handler 2
+
+        Use cases:
+            - Authorization checks
+            - Permission validation
+            - Rate limiting
+            - Blacklist checks
+
+        Example:
+            #[OnEvent('api.access.authorize', priority: 10)]
+            public static function check_authentication($data) {
+                if (!Session::is_logged_in()) {
+                    return response()->json(['error' => 'Login required'], 401);
+                }
+                return true;
+            }
+
+            #[OnEvent('api.access.authorize', priority: 20)]
+            public static function check_permissions($data) {
+                if (!$data['user']->can($data['permission'])) {
+                    return response()->json(['error' => 'Insufficient permissions'], 403);
+                }
+                return true;
+            }
+
+            // Usage:
+            $auth = Rsx::trigger_gate('api.access.authorize', [
+                'user' => Session::get_user(),
+                'permission' => 'edit_posts'
+            ]);
+            if ($auth !== true) return $auth;
+
+    Action Events (trigger_action)
+
+        Actions perform side effects. Return values are ignored. All handlers
+        execute regardless of what previous handlers did.
+
+        Usage:
+            Rsx::trigger_action('event.name', $data);
+
+        Handler signature:
+            public static function handler($data): void {
+                // Perform side effect
+                // Return value ignored
+            }
+
+        Flow:
+            Handler 1 (priority 10): executes
+            Handler 2 (priority 20): executes
+            Handler 3 (priority 30): executes
+            All handlers always run
+
+        Use cases:
+            - Logging
+            - Sending notifications
+            - Triggering webhooks
+            - Cache invalidation
+            - Analytics tracking
+
+        Example:
+            #[OnEvent('user.registered', priority: 10)]
+            public static function send_welcome_email($data) {
+                Mail::to($data['user']->email)->send(new WelcomeEmail($data['user']));
+            }
+
+            #[OnEvent('user.registered', priority: 20)]
+            public static function log_registration($data) {
+                Log::info('New user registered', ['user_id' => $data['user']->id]);
+            }
+
+            #[OnEvent('user.registered', priority: 30)]
+            public static function notify_admins($data) {
+                Notification::send_admin_alert('New user: ' . $data['user']->email);
+            }
+
+            // Usage:
+            Rsx::trigger_action('user.registered', ['user' => $user]);
+
+    Resolve Events (trigger_resolve)
+
+        Resolve is the "pluggable converter" primitive: a chain of handlers each
+        receive the SAME input (the value is NOT threaded handler-to-handler like a
+        filter), and the FIRST handler to return a non-null value INTERCEPTS - the
+        chain stops and that value is returned. A handler that returns null DECLINES
+        ("not my job, keep asking") and the chain continues.
+
+        TERMINAL DEFAULT: if EVERY handler declines (or there are none), trigger_resolve
+        returns null. That null is the signal to the CALLER to run its own built-in
+        framework default. trigger_resolve never produces a default itself - it only
+        lets an app OVERRIDE or EXTEND a framework behavior. The caller owns the shape
+        and validation of a non-null result and typically fails loud on garbage.
+
+        Usage:
+            $result = Rsx::trigger_resolve('event.name', $data);
+            if ($result === null) {
+                // no app handler claimed it - run the framework default pipeline
+            }
+
+        Handler signature:
+            public static function handler($data) {
+                if (!mine($data)) return null;   // decline -> next handler
+                return produce($data);           // intercept -> chain stops
+            }
+
+        Flow:
+            Handler 1 (priority 10): returns null (decline, continue)
+            Handler 2 (priority 20): returns a value (INTERCEPT, stop)
+            Handler 3 (priority 30): never executes
+            Final result: Handler 2's value
+
+        Use cases (all framework document-pipeline stages, rsx:man document_search):
+            - Override how a document's text is extracted
+            - Override how an attachment becomes a PDF rendition
+            - Override how thumbnail raster bytes are produced
+
+        Example:
+            #[OnEvent('document.extract_text', priority: 10)]
+            public static function extract_special($data) {
+                if ($data['mime'] !== 'application/x-special') return null; // decline
+                return Special_Lib::to_text($data['path']);                 // intercept
+            }
+
+PRIORITY SYSTEM
+
+    Handlers execute in priority order (lowest number first). Default is 100.
+
+    #[OnEvent('event.name', priority: 10)]   // Runs first
+    #[OnEvent('event.name', priority: 50)]   // Runs second
+    #[OnEvent('event.name', priority: 100)]  // Runs third (default)
+
+    Priority Guidelines:
+        1-10    Critical early processing (auth, validation)
+        11-50   Main application logic
+        51-100  Post-processing, cleanup
+        101+    Logging, analytics (fire last)
+
+    For gate events, lower priority handlers can block higher priority ones
+    from ever executing.
+
+API REFERENCE
+
+    Rsx::trigger_filter(string $event, mixed $data): mixed
+
+        Passes $data through all handlers for $event, with each handler
+        receiving the output of the previous handler.
+
+        Parameters:
+            $event - Event name (e.g., 'file.upload.params')
+            $data  - Initial data to transform
+
+        Returns:
+            Final data after all handlers have processed it
+
+        Example:
+            $params = ['filename' => 'test.pdf'];
+            $params = Rsx::trigger_filter('upload.params', $params);
+            // $params may now have additional fields added by handlers
+
+    Rsx::trigger_gate(string $event, mixed $data): mixed
+
+        Executes authorization handlers until one returns non-true. Returns
+        true if all handlers allow, or the first denial response.
+
+        Parameters:
+            $event - Event name (e.g., 'api.authorize')
+            $data  - Authorization context data
+
+        Returns:
+            true if all handlers allow access
+            Response object (or any non-true value) if denied
+
+        Example:
+            $result = Rsx::trigger_gate('delete.authorize', ['post' => $post]);
+            if ($result !== true) {
+                return $result;  // Return denial response
+            }
+            // Proceed with delete
+
+    Rsx::trigger_action(string $event, mixed $data): void
+
+        Executes all handlers as side effects. Return values ignored.
+
+        Parameters:
+            $event - Event name (e.g., 'user.logged_in')
+            $data  - Event context data
+
+        Returns:
+            void
+
+        Example:
+            Rsx::trigger_action('order.completed', [
+                'order' => $order,
+                'user' => $user
+            ]);
+
+    Rsx::trigger_resolve(string $event, mixed $data): mixed
+
+        Runs handlers in priority order, each receiving the SAME $data, and returns
+        the FIRST non-null result (intercept). Returns null when every handler
+        declines - the caller then runs its own framework default.
+
+        Parameters:
+            $event - Event name (e.g., 'document.extract_text')
+            $data  - Data passed unchanged to every handler until one intercepts
+
+        Returns:
+            The first non-null handler result, or null if all handlers declined
+
+        Example:
+            $text = Rsx::trigger_resolve('document.extract_text', $payload);
+            if ($text === null) {
+                // no app handler claimed it - run the framework extractor registry
+            }
+
+NAMING CONVENTIONS
+
+    Event names use dot notation to indicate scope and hierarchy:
+
+        {module}.{entity}.{action}
+
+    Examples:
+        file.upload.authorize       File upload authorization
+        file.upload.params          File upload parameter modification
+        file.upload.complete        File upload completion
+        user.login.authorize        User login authorization
+        user.login.success          User login success
+        post.save.before            Before saving post
+        post.save.after             After saving post
+
+    Guidelines:
+        - Use lowercase with dots
+        - Start with module/feature name
+        - Include entity being acted upon
+        - End with action or lifecycle event
+        - Be specific and descriptive
+
+FRAMEWORK EVENT CATALOG
+
+    The framework fires these events automatically. This is the COMPLETE catalog
+    (14 events across five families). Each entry lists: the event kind
+    (gate/filter/action/resolve), where it fires, its exact payload keys, the
+    return contract (for gate/filter/resolve; actions ignore returns), and what
+    to use it for.
+
+    File Upload Events
+
+        These fire from File_Attachment_Controller::upload() (the /_upload
+        endpoint), in the order listed.
+
+        file.upload.authorize (gate)
+            Fired from: File_Attachment_Controller::upload (POST /_upload), before
+                        the file is validated or stored.
+            Data: {request: Request, user: User|null, params: array}
+                  user is Session::get_user() (may be null); params is the route
+                  params, NOT the POST body.
+            Return: true to allow; ANY other value (a Response - error JSON,
+                    redirect) halts the upload and is returned to the client.
+            Use for: authorization, rate limiting, storage-quota checks,
+                     file-type/size gating.
+
+        file.upload.params (filter)
+            Fired from: File_Attachment_Controller::upload, after the site_id is
+                        resolved server-side, before create_from_upload().
+            Data: array of upload params - {site_id: int, filename_override:
+                  string|null} (null values already filtered out).
+            Return: the (possibly modified) params array.
+            Use for: adding metadata, overriding the stored filename.
+            NOTE: for security the web endpoint STRIPS any fileable_type /
+                  fileable_id / fileable_category / fileable_type_meta /
+                  fileable_order keys AFTER this filter - a handler cannot
+                  pre-attach an upload to a record. Assign via attach_to() /
+                  add_to() after upload instead.
+
+        file.upload.complete (action)
+            Fired from: File_Attachment_Controller::upload, after the attachment
+                        is persisted, before the response is built.
+            Data: {attachment: File_Attachment_Model, request: Request,
+                   params: array}
+            Use for: logging, notifications, kicking post-processing (hand heavy
+                     work to Task::dispatch()).
+
+        file.upload.response (filter)
+            Fired from: File_Attachment_Controller::upload, on the assembled
+                        response array, immediately before it is returned.
+            Data: {success: true, attachment: {key, file_name, file_type,
+                   file_extension, url, download_url, size, mime_type,
+                   has_thumbnail, width, height, is_animated, duration}}
+            Return: the (possibly modified) response array.
+            Use for: adding custom fields to the upload response, rewriting URLs.
+
+    File Serving Gates
+
+        Authorization gates for reading a stored blob. file.thumbnail.authorize
+        guards the thumbnail surface; file.download.authorize guards raw
+        download/inline. Preview (/_preview/pdf/:key) and download run BOTH, as a
+        dual gate (thumbnail first, then download).
+
+        file.thumbnail.authorize (gate)
+            Fired from: File_Attachment_Controller (thumbnail / file / download
+                        serving) and File_Preview_Controller (preview + pdf),
+                        after the attachment is located, before bytes are served.
+            Data: {attachment: File_Attachment_Model, user: User|null,
+                   request: Request}
+            Return: true to allow; any other value (a Response) halts and is
+                    returned.
+            Use for: per-record read authorization, tenant scoping, hotlink
+                     protection for derived images.
+
+        file.download.authorize (gate)
+            Fired from: File_Attachment_Controller (download / direct file) and
+                        File_Preview_Controller (pdf rendition), after
+                        file.thumbnail.authorize passes.
+            Data: {attachment: File_Attachment_Model, user: User|null,
+                   request: Request}
+            Return: true to allow; any other value (a Response) halts.
+            Use for: stricter authorization on the full-fidelity bytes than on
+                     the thumbnail (e.g. allow the preview thumb but gate the
+                     original download).
+
+    Document Pipeline Events (resolve; rsx:man document_search)
+
+        Each is a trigger_resolve chain: return null to decline (the framework
+        default pipeline runs), or a non-null value to intercept. Out-of-contract
+        returns fail loud. Full contracts live in rsx:man document_search; the
+        terse catalog form:
+
+        document.extract_text (resolve)
+            Fired from: Search_Index_Service (text-extraction pipeline), keyed on
+                        the deduplicated blob, before the framework extractor
+                        registry.
+            Data: {storage: File_Storage_Model, path: string, mime: string}
+            Return: null (decline) | string (extracted text) |
+                    ['status'=>'unsupported'] | ['status'=>'failed','error'=>?]
+            Use for: extracting text from a mime the framework does not handle.
+
+        document.preview_rendition (resolve)
+            Fired from: File_Preview_Controller, serving /_preview/pdf/:key, AFTER
+                        the auth gates.
+            Data: {attachment: File_Attachment_Model, request: Request}
+            Return: null (decline) | Response (takeover) | ['path'=>abs pdf]
+                    (serve this file) | ['unsupported'=>true] (415)
+            Use for: overriding how an attachment becomes the PDF pdf.js loads.
+
+        document.thumbnail_render (resolve)
+            Fired from: File_Attachment_Controller::_render_thumbnail_data, at the
+                        top of the thumbnail pipeline, ahead of the renderer
+                        registry.
+            Data: {attachment: File_Attachment_Model, path: string, type: string,
+                   width: int, height: int|null}
+            Return: null (decline) | string (WebP bytes) | ['unsupported'=>true]
+                    (render the generic extension icon)
+            Use for: producing custom thumbnail rasters for a mime the renderer
+                     registry does not cover.
+
+    Dispatch Events (action)
+
+        rsx.post_dispatch (action)
+            Fired from: EVERY handler-invocation seam, immediately after the
+                        handler returns and BEFORE any response shaping - browser
+                        Ajax (Ajax::handle_browser_request), every Ajax::internal()
+                        call including each batch sub-call, the external API
+                        (Api_Dispatcher), plain #[Route] dispatch (Dispatcher), and
+                        #[Portal_Route] dispatch (Portal_Dispatcher). SUCCESS PATH
+                        ONLY: a handler that threw never reaches it.
+            Data: {request: Request, params: array|null, result: mixed}
+                  params is whatever that seam hands its handler, and the seams
+                  differ: the Ajax seams pass the ajax params (which DO carry the
+                  submitted body); the plain and portal seams pass GET + route
+                  params, into which the POST body is NEVER merged, so a handler
+                  reading a submitted field must read it off the Request there.
+                  The API seam adds a fifth key, raw_input - what arrived before
+                  #[Api_Param] validation, params being the VALIDATED set.
+                  result is the handler's return value, pre-shaping.
+            Return: ignored (it is an action).
+            Use for: cross-cutting checks that can only be answered AFTER the
+                     handler ran - "did this endpoint do the thing it was required
+                     to do?" - plus post-handler logging and metrics.
+            Handlers run INLINE on the request path and MAY THROW; that is the
+            feature, not a hazard. A handler must NOT mutate result: the payload is
+            an observation of what the handler returned, and the response is built
+            from the seam's own variable regardless.
+            NESTING: a single HTTP request fires it more than once - the transport
+            route around an Ajax call is itself a dispatch, and a batch fires once
+            per sub-call plus once for the batch. Handlers must be idempotent.
+            FLAGSHIP CONSUMER: the Turnstile completeness guard
+            (Rsx_Turnstile::_guard_unvalidated_token). It throws when a request
+            submitted a __turnstile value but the endpoint never called
+            Rsx_Turnstile::validate() - a mistake that is invisible before dispatch,
+            because the call it looks for has not had its chance to happen yet.
+            See: php artisan rsx:man turnstile
+
+    Manifest Lifecycle Events (action)
+
+        Fired from Manifest::init() at the very END of initialization, after the
+        autoloader is registered and classless PHP is loaded - i.e. the manifest
+        is complete and ready to query. They fire ONCE per process (init()
+        early-returns on repeat calls). Handlers run INLINE on the boot path, so
+        keep them cheap and hand heavy work to Task::dispatch(). A handler may
+        freely call manifest query APIs (init has finished). A handler that WRITES
+        source files does NOT loop the current process - the scan already ran - it
+        dirties the tree for the NEXT request.
+
+        DEV vs PROD semantics: in development a rebuild happens on the FIRST
+        request after any source file changes (the auto-rebuild), so rsx.rebuilt
+        fires on that request. In debug/production the build is sealed and
+        immutable, so a rebuild only happens ONCE, inside the authorized
+        rsx:prod:build that rsx:prod:enable / rsx:prod:refresh run - that is the
+        single place rsx.rebuilt (and rsx.rebuilt.prod) fires in a prod deploy. A
+        warm boot that loads a valid cache fires ONLY rsx.ready.
+
+        Firing order when a rebuild occurred: rsx.rebuilt, then the mode variant
+        (rsx.rebuilt.dev OR rsx.rebuilt.prod), then rsx.ready. A warm boot fires
+        only rsx.ready.
+
+        rsx.rebuilt (action)
+            Fired from: Manifest::init(), only when this process (re)scanned the
+                        manifest - an incremental update WITH changed files, or a
+                        no-cache full build.
+            Data: {files: array} - a flat list of the relative paths that changed
+                  (new + modified combined). The scanner does not cheaply split
+                  added-vs-modified or track removals, so no such breakdown is
+                  provided. On a no-cache full build this is every scanned file.
+            Use for: cache invalidation keyed on changed files, dev tooling,
+                     regenerating derived artifacts after a source change.
+
+        rsx.rebuilt.dev (action)
+            Fired from: Manifest::init(), same condition as rsx.rebuilt,
+                        immediately after it, when NOT in a production-like mode
+                        (Rsx::is_production() is false).
+            Data: {files: array} - identical to rsx.rebuilt.
+            Use for: dev-only reactions to a source change (the common case:
+                     "code just changed on this dev box").
+
+        rsx.rebuilt.prod (action)
+            Fired from: Manifest::init(), same condition as rsx.rebuilt,
+                        immediately after it, when in ANY production-like mode
+                        (debug OR production; Rsx::is_production() is true). In
+                        practice this fires once, inside the authorized
+                        rsx:prod:build.
+            Data: {files: array} - identical to rsx.rebuilt.
+            Use for: deploy-time hooks that must run exactly once per sealed
+                     build (warm caches, ping a deploy webhook, prime an index).
+
+        rsx.ready (action)
+            Fired from: Manifest::init(), ALWAYS, at the end of every init
+                        completion (warm boot included), after any rsx.rebuilt*
+                        events.
+            Data: {rebuilt: bool} - true if this process rebuilt the manifest,
+                  false on a warm cache load. Mirrors Manifest::rebuild_occurred().
+            Use for: one-time per-process startup wiring that must run on every
+                     boot regardless of whether a rebuild happened.
+
+IMPLEMENTATION DETAILS
+
+    Manifest Integration
+
+        Event handlers are discovered during manifest compilation by scanning
+        for #[OnEvent] attributes on public static methods.
+
+        The manifest extracts:
+            - Event name from first attribute parameter
+            - Priority from second parameter or 'priority' key
+            - Class and method name for callable construction
+
+        Handlers are stored in manifest_data.php under 'event_handlers' key:
+
+            'event_handlers' => [
+                'file.upload.authorize' => [
+                    [
+                        'class' => 'Rsx\\Handlers\\Upload_Handlers',
+                        'method' => 'require_auth',
+                        'priority' => 10,
+                        'file' => '/path/to/Upload_Handlers.php'
+                    ]
+                ]
+            ]
+
+        This approach avoids runtime reflection - all handler discovery
+        happens during manifest compilation.
+
+    Event_Registry
+
+        The Event_Registry class loads handler definitions from the manifest
+        and constructs callables:
+
+            Event_Registry::get_handlers('event.name')
+            // Returns array of callables sorted by priority
+
+        Handler callables are created as closures that invoke the static
+        methods:
+
+            function ($data) use ($class, $method) {
+                return $class::$method($data);
+            }
+
+        Registry loads handlers lazily on first access.
+
+    Performance
+
+        Handler discovery: Zero runtime cost (manifest compilation time only)
+        Event triggering:  O(n) where n = number of handlers for that event
+        Handler lookup:    O(1) from manifest array
+
+EXAMPLES
+
+    Complete Authorization Example
+
+        File: /rsx/handlers/Upload_Security.php
+
+        namespace Rsx\Handlers;
+
+        use App\RSpade\Core\Session\Session;
+
+        class Upload_Security
+        {
+            #[OnEvent('file.upload.authorize', priority: 10)]
+            public static function require_login($data)
+            {
+                if (!Session::is_logged_in()) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'Login required'
+                    ], 401);
+                }
+                return true;
+            }
+
+            #[OnEvent('file.upload.authorize', priority: 20)]
+            public static function check_quota($data)
+            {
+                $user = Session::get_user();
+                if ($user->storage_used >= $user->storage_quota) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'Storage quota exceeded'
+                    ], 403);
+                }
+                return true;
+            }
+
+            #[OnEvent('file.upload.authorize', priority: 30)]
+            public static function check_file_type($data)
+            {
+                $allowed = ['jpg', 'png', 'pdf', 'doc', 'docx'];
+                $ext = $data['request']->file('file')->getClientOriginalExtension();
+                if (!in_array(strtolower($ext), $allowed)) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'File type not allowed'
+                    ], 400);
+                }
+                return true;
+            }
+        }
+
+    Complete Filter Chain Example
+
+        File: /rsx/handlers/Content_Filters.php
+
+        namespace Rsx\Handlers;
+
+        class Content_Filters
+        {
+            #[OnEvent('post.content.filter', priority: 10)]
+            public static function strip_dangerous_html($content)
+            {
+                return strip_tags($content, '<p><a><strong><em><ul><ol><li>');
+            }
+
+            #[OnEvent('post.content.filter', priority: 20)]
+            public static function convert_links($content)
+            {
+                return preg_replace(
+                    '/(https?:\/\/[^\s]+)/',
+                    '<a href="$1" target="_blank">$1</a>',
+                    $content
+                );
+            }
+
+            #[OnEvent('post.content.filter', priority: 30)]
+            public static function add_nofollow($content)
+            {
+                return str_replace('<a ', '<a rel="nofollow" ', $content);
+            }
+        }
+
+        // Usage in controller:
+        $clean_content = Rsx::trigger_filter('post.content.filter', $raw_content);
+
+    Complete Action Example
+
+        File: /rsx/handlers/User_Events.php
+
+        namespace Rsx\Handlers;
+
+        use Illuminate\Support\Facades\Log;
+        use Illuminate\Support\Facades\Mail;
+
+        class User_Events
+        {
+            #[OnEvent('user.registered', priority: 10)]
+            public static function send_welcome_email($data)
+            {
+                Mail::to($data['user']->email)->send(
+                    new WelcomeEmail($data['user'])
+                );
+            }
+
+            #[OnEvent('user.registered', priority: 50)]
+            public static function log_registration($data)
+            {
+                Log::info('User registered', [
+                    'user_id' => $data['user']->id,
+                    'email' => $data['user']->email,
+                    'ip' => request()->ip()
+                ]);
+            }
+
+            #[OnEvent('user.registered', priority: 100)]
+            public static function track_analytics($data)
+            {
+                Analytics::track('user_registration', [
+                    'user_id' => $data['user']->id
+                ]);
+            }
+        }
+
+        // Usage in registration controller:
+        Rsx::trigger_action('user.registered', ['user' => $user]);
+
+RSX VS LARAVEL
+
+    Event Registration:
+        Laravel: Manual registration in EventServiceProvider
+        RSX:     Automatic discovery via #[OnEvent] attributes
+
+    Event Listeners:
+        Laravel: Separate listener classes with handle() method
+        RSX:     Static methods with #[OnEvent] attribute
+
+    Performance:
+        Laravel: Runtime service container resolution
+        RSX:     Compile-time manifest indexing
+
+    Flexibility:
+        Laravel: Event/Listener classes, queued listeners, subscribers
+        RSX:     Three event types (filter/gate/action) for common patterns
+
+    Learning Curve:
+        Laravel: Understanding events, listeners, service providers
+        RSX:     Mark methods with #[OnEvent], call Rsx::trigger_*()
+
+    Example Comparison:
+
+        Laravel Event/Listener:
+            // app/Events/UserRegistered.php
+            class UserRegistered {
+                public function __construct(public User $user) {}
+            }
+
+            // app/Listeners/SendWelcomeEmail.php
+            class SendWelcomeEmail {
+                public function handle(UserRegistered $event) {
+                    Mail::to($event->user)->send(new Welcome());
+                }
+            }
+
+            // app/Providers/EventServiceProvider.php
+            protected $listen = [
+                UserRegistered::class => [
+                    SendWelcomeEmail::class,
+                ]
+            ];
+
+            // Usage:
+            event(new UserRegistered($user));
+
+        RSX Events:
+            // rsx/handlers/User_Handlers.php
+            class User_Handlers {
+                #[OnEvent('user.registered', priority: 10)]
+                public static function send_welcome_email($data) {
+                    Mail::to($data['user'])->send(new Welcome());
+                }
+            }
+
+            // Usage:
+            Rsx::trigger_action('user.registered', ['user' => $user]);
+
+TROUBLESHOOTING
+
+    Handler Not Executing
+
+        Problem: Event triggered but handler not called
+
+        Solutions:
+            1. Verify #[OnEvent] attribute syntax is correct
+            2. Ensure method is public and static
+            3. Check handler class is in /rsx/ directory (manifest scanned)
+            4. Rebuild manifest if handler was just added
+            5. Verify event name matches exactly (case sensitive)
+
+        Debug:
+            // Check what handlers are registered
+            $handlers = Event_Registry::get_handlers('event.name');
+            var_dump($handlers);
+
+    Handler Executing in Wrong Order
+
+        Problem: Handlers run in unexpected sequence
+
+        Solutions:
+            1. Check priority values (lower = earlier)
+            2. Ensure priority parameter is spelled correctly
+            3. Verify priority is integer, not string
+
+        Example:
+            #[OnEvent('event', priority: 10)]   // Runs first
+            #[OnEvent('event', priority: 20)]   // Runs second
+
+    Gate Event Not Stopping
+
+        Problem: Gate continues after handler returns non-true
+
+        Solutions:
+            1. Verify handler returns exactly true to allow
+            2. Check that denial handler returns Response object
+            3. Ensure trigger_gate() result is checked in caller
+
+        Example:
+            // Correct:
+            $result = Rsx::trigger_gate('auth', $data);
+            if ($result !== true) {
+                return $result;  // Important: return the denial
+            }
+
+    Filter Not Modifying Data
+
+        Problem: Filter chain doesn't modify data as expected
+
+        Solutions:
+            1. Verify each handler returns modified data
+            2. Check handlers receive data from previous handler
+            3. Ensure trigger_filter() result is used
+
+        Example:
+            // Wrong:
+            Rsx::trigger_filter('modify', $data);  // Result ignored!
+
+            // Correct:
+            $data = Rsx::trigger_filter('modify', $data);
+
+    Manifest Not Finding Handlers
+
+        Problem: New handlers not discovered
+
+        Solutions:
+            1. Ensure file is in /rsx/ directory
+            2. Verify PHP syntax is valid (parse errors break manifest)
+            3. Check class namespace is declared
+            4. Wait for automatic manifest rebuild (dev mode)
+
+SEE ALSO
+    php artisan rsx:man file_upload
+    php artisan rsx:man document_search
+    php artisan rsx:man turnstile
+    php artisan rsx:man manifest_api
+    php artisan rsx:man coding_standards

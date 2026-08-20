@@ -1,0 +1,32 @@
+<%--
+Rsx_Tabs
+
+Form-aware tab container that manages tab navigation and error states.
+
+Features:
+- Automatically detects errors in child Rsx_Tab components
+- Switches to first tab with errors on validation failure
+- Shows error badges on tab labels
+- Persists active tab to URL hash
+
+Usage:
+<Rsx_Tabs>
+    <Rsx_Tab $sid="basic-info" $label="Basic Information" $icon="bi-building">
+        <Form_Field $label="Name"><Text_Input $name="name" /></Form_Field>
+    </Rsx_Tab>
+    <Rsx_Tab $sid="address" $label="Address" $icon="bi-geo-alt">
+        <Form_Field $label="Street"><Text_Input $name="street" /></Form_Field>
+    </Rsx_Tab>
+</Rsx_Tabs>
+--%>
+<Define:Rsx_Tabs>
+    <!-- Tab Navigation -->
+    <ul class="nav nav-tabs" role="tablist" $sid="nav">
+        <!-- Tab headers will be rendered by Rsx_Tab components -->
+    </ul>
+
+    <!-- Tab Content Container -->
+    <div class="tab-content mt-4" $sid="content">
+        <%= content() %>
+    </div>
+</Define:Rsx_Tabs>

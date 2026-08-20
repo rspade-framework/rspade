@@ -1,0 +1,355 @@
+{
+  "files.associations": {
+    "*.blade.php": "blade",
+    "*.phtml": "blade",
+    "*.sh.php": "shellscript"
+  },
+  "files.exclude": {
+    "_ide_helper_models.php": true,
+    "_ide_helper.php": true,
+    "!**/.env": true,
+    "!**/.gitignore": true,
+    "!**/.vscode": true,
+    ".phpstorm.meta.php": true,
+    "**/__init__.py": true,
+    "**/__pycache__": true,
+    "**/.*": true,
+    "**/.env.dist": true,
+    "**/.placeholder": true,
+    "**/*.pyc": true,
+    "**/bin/**": true,
+    "**/build": true,
+    "**/composer.lock": true,
+    "**/node_modules": true,
+    "**/package-lock.json": true,
+    "**/scripts/**": true,
+    "**/storage/debugbar": true,
+    "**/storage/framework": true,
+    "**/storage/logs": true,
+    "**/storage/rsx-build/js-stubs": true,
+    "**/stubs/**": true,
+    "**/supervisor/**": true,
+    "**/vscode-extension/**": true,
+    "/public/css": true,
+    "/public/hot": true,
+    "/public/js": true,
+    "/public/mix-manifest.json": true,
+    "artisan": true,
+    "server.pid": true,
+    "supervisord.*": true,
+    "system/rsx": true,
+    "storage": true
+  },
+  "search.exclude": {
+    "system/vendor/**": true,
+    "**/stubs/**": true,
+    "**/bin/**": true,
+    "**/resources/**": true,
+    "**/scripts/**": true,
+    "**/supervisor/**": true,
+    "**/vscode-extension/**": true,
+    "**/node_modules": true,
+    "**/storage": true,
+    "**/public/css": true,
+    "**/public/js": true,
+    "**/build": true,
+    "**/.git": true,
+    "**/.placeholder": true,
+    "**/.env.dist": true,
+    "**/*archive*/**": true,
+    "**/*_archive/**": true,
+    "**/*_archive": true,
+    "_ide_helper.php": true,
+    ".phpstorm.meta.php": true,
+    "_ide_helper_models.php": true,
+    "supervisord.*": true
+  },
+  "files.watcherExclude": {
+    "**/storage/**": true,
+    "**/public/css/**": true,
+    "**/public/js/**": true,
+    "**/public/webfonts/**": true,
+    "**/.git/**": true,
+    "**/.DS_Store": true,
+    "**/.placeholder": true,
+    "**/node_modules/**": true,
+    "system/vendor/**": true,
+    "**/.tmp/**": true,
+    "**/bootstrap/cache/**": true,
+    "**/build/**": true,
+    "**/*archive*/**": true,
+    "**/*_archive/**": true,
+    "**/*_archive": true,
+    "supervisord.*": true
+  },
+
+  // Language-specific settings
+  "[html]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.formatOnSave": true
+  },
+  "[blade]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "shufo.vscode-blade-formatter"
+  },
+  "[jqhtml]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "jqhtml.jqhtml-vscode-extension"
+  },
+  "[javascript]": {
+    "editor.tabSize": 4,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[php]": {
+    "editor.tabSize": 4,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "rspade.rspade-framework"
+  },
+  "[phtml]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "shufo.vscode-blade-formatter"
+  },
+  "[json]": {
+    "editor.tabSize": 2,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[scss]": {
+    "editor.tabSize": 4,
+    "editor.formatOnSave": true
+  },
+  "[css]": {
+    "editor.tabSize": 4,
+    "editor.formatOnSave": true
+  },
+  "[typescript]": {
+    "editor.tabSize": 4,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // JavaScript/TypeScript IntelliSense configuration
+  "javascript.suggest.paths": true,
+  "typescript.suggest.paths": true,
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+  "javascript.preferences.includePackageJsonAutoImports": "on",
+
+  // Emmet support for Blade
+  "emmet.includeLanguages": {
+    "blade": "html",
+    "phtml": "html"
+  },
+
+  // PHP/Intelephense settings
+  "intelephense.environment.phpVersion": "8.2",
+  "intelephense.environment.documentRoot": "system",
+  "intelephense.diagnostics.undefinedTypes": false,
+  "intelephense.completion.autoImport": false,
+  "php.completion.namingConvention": "snake_case",
+
+  // PHP Tools (Devsense) settings - disable auto-formatting
+  "php.format.codeStyle": "off",
+  "phpTools.format.codeStyle": "off",
+
+  // Disable Laravel Extra Intellisense for RSX projects
+  "LaravelExtraIntellisense.basePath": "/dev/null",
+
+  // Disable official Laravel VSCode extension for RSX projects
+  // Use non-existent subdirectory so artisan file detection fails
+  "laravel.basePath": ".rspade-not-laravel",
+
+  // Disable all Laravel extension features individually (doesn't work - extension still tries)
+  // "laravel.showErrorPopups": false,
+  // "laravel.eloquent.generateDocBlocks": false,
+  // "laravel.appBinding.diagnostics": false,
+  // "laravel.appBinding.hover": false,
+  // "laravel.appBinding.link": false,
+  // "laravel.appBinding.completion": false,
+  // "laravel.config.diagnostics": false,
+  // "laravel.config.hover": false,
+  // "laravel.config.link": false,
+  // "laravel.config.completion": false,
+  // "laravel.route.diagnostics": false,
+  // "laravel.route.hover": false,
+  // "laravel.route.link": false,
+  // "laravel.route.completion": false,
+  // "laravel.middleware.diagnostics": false,
+  // "laravel.middleware.hover": false,
+  // "laravel.middleware.link": false,
+  // "laravel.middleware.completion": false,
+  // "laravel.paths.link": false,
+  // "laravel.bladeComponent.link": false,
+  // "laravel.bladeComponent.completion": false,
+  // "laravel.bladeComponent.hover": false,
+  "intelephense.files.exclude": [
+    "**/vendor/**/{Tests,tests,Test,test}/**",
+    "**/.git/**",
+    "**/node_modules/**",
+    "**/*archive*/**",
+    "**/*_archive/**",
+    "**/*_archive"
+  ],
+  "intelephense.files.associations": ["*.php", "*.phtml"],
+  "intelephense.stubs": [
+    "apache", "bcmath", "bz2", "calendar", "com_dotnet", "Core", "ctype", "curl",
+    "date", "dba", "dom", "enchant", "exif", "FFI", "fileinfo", "filter", "fpm",
+    "ftp", "gd", "gettext", "gmp", "hash", "iconv", "imap", "intl", "json", "ldap",
+    "libxml", "mbstring", "meta", "mysqli", "oci8", "odbc", "openssl", "pcntl",
+    "pcre", "PDO", "pdo_ibm", "pdo_mysql", "pdo_pgsql", "pdo_sqlite", "pgsql",
+    "Phar", "posix", "pspell", "readline", "Reflection", "shmop",
+    "SimpleXML", "snmp", "soap", "sockets", "sodium", "SPL", "sqlite3", "standard",
+    "superglobals", "sysvmsg", "sysvsem", "sysvshm", "tidy", "tokenizer", "xml",
+    "xmlreader", "xmlrpc", "xmlwriter", "xsl", "Zend OPcache", "zip", "zlib"
+  ],
+  "intelephense.diagnostics.undefinedSymbols": false,
+  "intelephense.diagnostics.undefinedVariables": false,
+  "intelephense.completion.insertUseDeclaration": false,
+
+
+  // Editor settings
+  "editor.formatOnSave": false,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "never"
+  },
+  "editor.rulers": [140],
+  "editor.wordWrap": "bounded",
+  "editor.wordWrapColumn": 140,
+
+  // Prettier settings
+  "prettier.tabWidth": 4,
+  "prettier.singleQuote": true,
+  "prettier.printWidth": 140,
+
+  // Blade formatter
+  "blade.format.enable": true,
+
+  // CSS Peek settings - use peekFromLanguages instead
+  "cssPeek.peekFromLanguages": [
+    "html",
+    "blade",
+    "JQHTML",
+    "php"
+  ],
+
+  // Spell checker settings
+  "cSpell.ignoreRegExpList": [
+    "/\\$\\w+=\"[^\"]*\"/g",  // Ignore $attribute="value" in JQHTML
+    "/\\w+=\"[^\"]*\"/g",     // Ignore all quoted attribute values
+    "/@\\w+=\\w+/g",          // Ignore @attribute=unquoted in JQHTML
+    "/<[^>]*\\s(\\w+)(?=\\s|>)/g"  // Ignore standalone attributes (autofocus, required, etc)
+  ],
+
+  // Terminal settings for Laravel
+  "terminal.integrated.env.linux": {
+    "SAIL_XDEBUG_MODE": "develop,debug"
+  },
+
+  // Git settings
+  "git.ignoreLimitWarning": true,
+
+  // File watcher settings for auto-reload on external changes
+  "files.autoSave": "off",
+  "files.autoSaveDelay": 1000,
+  "files.refactoring.autoSave": false,
+  "files.useExperimentalFileWatcher": true,
+  "files.participants.timeout": 5000,
+
+  // Prompt when files are changed externally
+  "workbench.editor.enablePreview": false,
+  "workbench.editor.closeOnFileDelete": false,
+
+  // PHP CodeSniffer & Fixer settings (if you want to use them)
+  "phpcs.enable": false,
+  "phpcs.standard": "PSR12",
+
+  // Laravel specific
+  "laravel-pint.enable": true,
+  "laravel-pint.preset": "laravel",
+
+  // Laravel IDE Helper settings
+  "laravel-ide-helper.modelDirectories": [
+    "app/Models"
+  ],
+  "laravel-ide-helper.excludeDirectories": [
+    "rspade_core_archive",
+    "dmrbridge_archive",
+    "*archive*",
+    "*_archive"
+  ],
+
+  // RSpade Extension Settings
+  "rspade.projectType": "rspade",
+  "rspade.enableCodeFolding": true,
+  "rspade.enableReadOnlyRegions": true,
+  "rspade.enableFormatOnMove": true,
+  "rspade.autoCheckExtension": true,
+  "rspade.autoInstallExtension": true,
+
+  // RunOnSave configuration for automatic formatting (cross-platform)
+  // Commented out - using VS Code extension formatter instead
+  // "emeraldwalk.runonsave": {
+  //   "commands": [
+  //     {
+  //       "match": "\\.php$",
+  //       "cmd": "php \"${workspaceRoot}/bin/rsx-format\" \"${file}\""
+  //     }
+  //   ]
+  // },
+
+  // File nesting for cleaner file explorer
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "*.php": "${capture}.blade.php, ${capture}.test.php",
+    "*.js": "${capture}.js.map, ${capture}.min.js, ${capture}.d.ts",
+    "*.ts": "${capture}.js, ${capture}.*.ts",
+    //"composer.json": "composer.lock, phpunit.xml*, pint.json, cspell.json, jsconfig.json, package.json",
+    "package.json": "package-lock.json, yarn.lock, pnpm-lock.yaml",
+    ".env": ".env.*",
+    "tailwind.config.js": "tailwind.config.*.js, postcss.config.js"
+  },
+  "cSpell.words": [
+    "autofocus",
+    "endfor",
+    "endsection"
+  ],
+  "cSpell.customDictionaries": {
+    "custom-dictionary-workspace": {
+      "name": "custom-dictionary-workspace",
+      "path": "${workspaceFolder:httpdocs}/.cspell/custom-dictionary-workspace.txt",
+      "addWords": true,
+      "scope": "workspace"
+    }
+  },
+
+  // Outline settings - only show methods and classes
+  "outline.showArrays": false,
+  "outline.showBooleans": false,
+  "outline.showConstants": false,
+  "outline.showEnumMembers": false,
+  "outline.showEnums": false,
+  "outline.showEvents": false,
+  "outline.showFields": false,
+  "outline.showFiles": false,
+  "outline.showInterfaces": false,
+  "outline.showKeys": false,
+  "outline.showModules": false,
+  "outline.showNamespaces": false,
+  "outline.showNull": false,
+  "outline.showNumbers": false,
+  "outline.showObjects": false,
+  "outline.showOperators": false,
+  "outline.showPackages": false,
+  "outline.showProperties": false,
+  "outline.showStrings": false,
+  "outline.showStructs": false,
+  "outline.showTypeParameters": false,
+  "outline.showVariables": false
+}

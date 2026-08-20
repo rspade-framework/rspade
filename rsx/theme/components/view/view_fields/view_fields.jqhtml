@@ -1,0 +1,18 @@
+<%--
+View_Fields - a group of label/value facts (View_Field children)
+
+default content - the <View_Field> rows
+
+Lays its fields out in a responsive multi-column grid (a single column in a
+narrow container such as the sidebar). Replaces the hand-rolled
+`.row > .col-md-6 > label + div` fact grids.
+
+Usage:
+    <View_Fields>
+        <View_Field $label="Email"><%= _client.email %></View_Field>
+        <View_Field $label="Phone"><Empty_Value /></View_Field>
+    </View_Fields>
+--%>
+<Define:View_Fields>
+    <%= content() %>
+</Define:View_Fields>

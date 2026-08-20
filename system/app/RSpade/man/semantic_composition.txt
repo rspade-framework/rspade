@@ -1,0 +1,602 @@
+NAME
+    semantic_composition - designing RSX page markup as a composition of
+    named, reusable semantic components
+
+SYNOPSIS
+    A fully converted entity view page reads like a program's main routine -
+    a composition of named concepts, with almost no markup and near-empty
+    page SCSS:
+
+        <Define:Clients_View_Action>
+            <Page_Scaffold>
+                <Slot:main>
+                    <Card_Widget>
+                        <Entity_Header>
+                            <Slot:title><%= _client.name %></Slot:title>
+                            <Slot:chips>
+                                <Status_Badge $model="Client_Model"
+                                              $status_id=_client.status_id />
+                                <span class="badge badge-outline-secondary">
+                                    <%= _client.type_id__label %></span>
+                            </Slot:chips>
+                        </Entity_Header>
+
+                        <Tab_Bar $sid="tabs" $tabs=_tabs $hash="tab" $divided=true />
+                        <Tab_Panels $sid="panels">
+                            <Tab_Panel $key="overview">
+                                <Section $title="Contact Information">
+                                    <View_Fields>
+                                        <View_Field $label="Email"><%= _client.email %></View_Field>
+                                        <View_Field $label="Phone"><%= _client.phone %></View_Field>
+                                    </View_Fields>
+                                </Section>
+                                <Section $title="Projects" $count=_project_count>
+                                    <% if (_projects.length) { %>
+                                        <Record_Table ... />
+                                    <% } else { %>
+                                        <Empty_State $icon="bi bi-folder">
+                                            <Slot:title>No projects yet</Slot:title>
+                                            <Slot:body>Projects created for this client appear here.</Slot:body>
+                                        </Empty_State>
+                                    <% } %>
+                                </Section>
+                            </Tab_Panel>
+                        </Tab_Panels>
+                    </Card_Widget>
+                </Slot:main>
+
+                <Slot:sidebar>
+                    <Detail_Sidebar>
+                        <Sidebar_Kpi_Group>
+                            <Kpi_Cell $tooltip="Open projects">
+                                <Slot:label>Active Projects</Slot:label>
+                                <Slot:value><%= _active_count %></Slot:value>
+                            </Kpi_Cell>
+                        </Sidebar_Kpi_Group>
+                        ... field rows, action buttons ...
+                    </Detail_Sidebar>
+                </Slot:sidebar>
+            </Page_Scaffold>
+        </Define:Clients_View_Action>
+
+    The page's SCSS file is empty, or a single comment explaining why nothing
+    lives there. Every look belongs to a component.
+
+DESCRIPTION
+    This manual page teaches how to design an RSX page as a composition of
+    semantic components - the discipline the RSpade template application is
+    built with, and the pattern every new RSpade app inherits by starting
+    from the template. It is the authoritative "how to design page markup"
+    reference. Read it once fully before converting or building any view page.
+
+    The Permanent Why (simplicity leads to cohesion)
+
+    The goal is a reusable, organized widget library and UIs built from those
+    reusable components, so the whole application is consistent and reskinning
+    is straightforward later. Components are the HOW; the WHY is
+    simplicity -> cohesion. Never create components for the sake of
+    components. Every rule below serves four outcomes:
+
+    1. Consistently reusable tags - the same concept renders through the same
+       component everywhere. A widget that invents a new presentation for an
+       existing data shape is a defect.
+
+    2. Separation of concerns by layer - the page shell, the section chrome,
+       and the content each own exactly one job, identically on every page.
+
+    3. Consistent unit types - one component per data shape (one status chip,
+       one count pill, one KPI row, one empty state, one "who + when" byline),
+       so the app has a countable, documentable vocabulary instead of an
+       unbounded set of one-offs.
+
+    4. Reskinning-readiness - change one component's SCSS and every page
+       follows, because no page owns any styling of its own.
+
+    The Success Test (brutal and simple)
+
+    A converted page's template reads like a well-engineered program's main
+    routine - a sequence of named concepts - and its page-level SCSS file is
+    near-empty (ideally a comment explaining why nothing is there). If a page
+    template weaves markup, styling hooks, and business logic together across
+    hundreds of lines, that is a symptom of skipping this discipline, not a
+    natural outcome of a complex page.
+
+    How RSX Makes This The Path Of Least Resistance
+
+    Unlike a stock front-end where a "component" is a convention you opt into,
+    RSX makes semantic composition the default: an undefined uppercase tag
+    already renders as a named element, a component's class name is stamped on
+    its root for automatic SCSS scoping, and the manifest discovers every
+    component with zero registration. The framework's job is to make naming
+    the concept cheaper than copy-pasting the markup.
+
+THE CORE TENET
+    Pages compose CONCEPTS, not markup. This tenet is documented in full in
+    `php artisan rsx:man jqhtml` (SEMANTIC-FIRST DESIGN section); read it
+    there. In brief:
+
+    - Name what things ARE, not how they look. Write <Kpi_Cell>
+      ("this IS a sidebar KPI row"), never <div class="sidebar-kpi-row">
+      ("apply this look"). If you cannot name the concept, you have not found
+      the component yet - keep looking before you extract.
+
+    - Displayed content is innerHTML - content() or named <Slot:name> - never
+      an attribute. Args carry DATA the component formats itself ($user_id,
+      $status_id) and behavioral flags ($variant, $size, $alert).
+
+    - A component owns its COMPLETE look in its own SCSS file. A page-scoped
+      override of a shared component defeats the entire point of naming it.
+
+    The Title/Label Channel Rule (dual-channel chrome)
+
+    Chrome components (Page_Scaffold, Section, Card_Widget, Form_Field, and
+    other structural wrappers) accept a title or label through TWO channels:
+
+    - A plain-string arg ($title, $label) as a convenience - matching the
+      natural <Section $title="Contact Information"> usage.
+
+    - A matching slot (<Slot:title>, <Slot:label>) which WINS when present.
+
+    The rule that resolves every case:
+
+        Plain text            -> $title / $label arg is fine.
+        ANY markup, icon,     -> the slot, always.
+          nested component,
+          or emphasis
+        HTML inside an        -> ALWAYS a defect. Never write
+          arg string             $label="<i class='bi bi-star'></i> Rating".
+                                 The icon belongs in <Slot:label>; the arg
+                                 string can never gain designable structure.
+
+    The test is unchanged from the tenet: is the value DATA/plain text the
+    component formats, or CONTENT the page author composes with structure?
+    Plain text is data enough to ride an arg on a chrome component. The moment
+    it wants an icon, a link, or a nested component, it moves to the slot.
+
+    Content-vocabulary components (Entity_Header, Callout, Kpi_Cell,
+    and the rest of Layer 4) remain slot-first - their displayed content is
+    always authored, so they do not offer a plain-string title arg at all.
+
+THE FOUR LAYERS
+    Every converted view page delegates responsibility identically across
+    four layers. This split is the separation-of-concerns outcome; it must
+    hold on every page.
+
+    Layer 1 - Page Scaffold (one component app-wide)
+
+        Page_Scaffold is the view-page shell, defined ONCE for the whole app.
+        It owns, and nothing else may:
+
+        - the page max-width (2300px) and the centering of content within it,
+          with Etsy-style margins growing beyond that width on very wide
+          displays;
+        - the main/sidebar column split, exposed as slots "main" and
+          "sidebar" with a default ratio arg;
+        - the inter-column gutter and the vertical column separation;
+        - the responsive behavior: on mobile the sidebar column stacks under
+          the main column, driven by the existing RSX semantic breakpoints
+          (see `php artisan rsx:man responsive`) - NOT by any page media query.
+
+        There is NO display-mode signal. RSpade does not have edge-to-edge
+        vs. framed rendering modes; section chrome (cards) renders the same at
+        all widths. The scaffold's only responsive job is column stacking, and
+        the one hard rule that survives from that is: stacking must never hide
+        FUNCTIONALITY. If an affordance lives in a region that reflows on
+        mobile, the affordance must remain reachable.
+
+        Before conversion, pages hand-assemble this shell (a page-content
+        wrapper, a row, and col-* columns) with per-page drift. After, every
+        page is identical:
+
+            <Page_Scaffold>
+                <Slot:main> ... </Slot:main>
+                <Slot:sidebar> ... </Slot:sidebar>
+            </Page_Scaffold>
+
+    Layer 2 - Section / Card Chrome (one abstract base, few concretes)
+
+        View_Section_Abstract is the single home of section/card chrome:
+        background, border, radius, the inter-card rhythm gap, and body
+        padding. Concrete children re-parent this base via body-preserving
+        extends= (see Pitfall P1), each rendering its own template:
+
+        - Section - the generic workhorse: header anatomy (optional icon /
+          title / count pill / trailing action slot) plus a padded body.
+          Almost everything is a Section. Supports a $flush arg for full-bleed
+          content (an edge-to-edge table) - see R2.
+        - Card_Widget - the standalone card used as a page-level container.
+        - Detail_Sidebar - the entity sidebar (KPI group, fields, actions).
+        - Section_Columns - a nested 2:1 split INSIDE a section, owning its
+          own collapse breakpoint and gutter.
+
+        The payoff is that chrome lives in exactly one file. When the owner
+        later wants corners rounded differently or shadows removed, it is one
+        edit and every page follows.
+
+        These components are built in the epic's foundation batch. Describe
+        pages against them as the target pattern; do not hand-roll a card
+        <div> because "the component does not exist yet" on a page you convert
+        after the foundation lands.
+
+    Layer 3 - The Spacing Ownership Rulebook (R1-R3)
+
+        These three rules are the enforcement mechanism for "pages author zero
+        spacing." Every conversion is checked against them.
+
+        R1 - Blocks never carry outer margins. A component styles its interior
+        only. Containers own the gaps between their children (flex/grid gap,
+        or the section base's rhythm rule). No negative-margin "clawbacks"
+        reaching outside a component's own box; if a banner needs to span a
+        column, redesign it to span the column, do not hack margins.
+
+        R2 - Containers pad; content never pushes. If content appears to need
+        a margin to sit right, the container's padding is wrong. Full-bleed
+        content inside a padded section is expressed by a $flush ARG on the
+        section - never by CSS that cancels the parent's padding from inside.
+
+        R3 - One relationship token per gap type. Four CSS custom properties
+        express every spatial relationship, bound to the app's AS-BUILT
+        values (surveyed in the foundation batch; where existing pages
+        disagree, pick ONE standard per token and record the choice - do not
+        preserve the inconsistency):
+
+            --block-gap    gap between sibling blocks within a column
+            --card-pad-y   section interior vertical padding
+            --card-pad-x   section interior horizontal padding
+            --col-gutter   gap between the main and sidebar columns
+            --page-pad     outer page padding inside the scaffold
+
+        These four relationship tokens are new CSS custom properties defined
+        once in the theme. The existing Sass token file
+        (rsx/theme/variables.scss) stays authoritative for everything else
+        (colors, font sizes, radii); the relationship tokens exist because
+        spacing relationships must be adjustable in one place.
+
+    Layer 4 - Content Vocabulary (one component per data shape)
+
+        The heart of the system: one component per data shape, so the app has
+        a countable vocabulary. The table below is the demo app's target
+        vocabulary. It is the LIVING vocabulary - maintained as components are
+        built, in the registry at
+        rsx/resource/conventions/semantic_component_registry.md. Names are the
+        planned demo names; some ship as framework-core components.
+
+        Data shape                Component            One-line contract
+        -----------------------   -----------------   ------------------------
+        Entity identity header    Entity_Header       H1 + chips row + meta
+                                                      row, all slots
+        Status (workflow state)   Status_Badge        filled pastel pill from
+                                                      a model enum; $editable
+                                                      adds a change-status
+                                                      popover
+        Classification            outline chip        NEVER filled - see Rule
+          (type/role/category)    (badge-outline-*)   of Two Chips
+        Count                     Count_Pill          tiny neutral pill;
+                                                      replaces "(N)" suffixes
+        Label/value fact          View_Field in       stacked by default;
+                                  View_Fields         $inline = label-left /
+                                                      value-right
+        Sidebar KPI               Kpi_Cell     compact bordered cells at
+                                  in Sidebar_Kpi_     the TOP of the sidebar;
+                                  Group               $alert / $provisional /
+                                                      $clickable / $sub /
+                                                      $tooltip
+        Money / numeric stat      Stat_Row            mono right-aligned value;
+                                                      $strong_label for totals
+        Inline alert banner       Callout             $variant="danger|warning"
+                                                      icon + title/body/actions
+                                                      slots
+        "Who + when" byline       Author_Meta_Row     avatar + author link +
+                                                      relative time + action
+                                                      slot
+        Feed/timeline row         Feed_Row            icon tile + actor/verb/
+                                                      object + time - DISTINCT
+                                                      from Author_Meta_Row
+        People list               People_List         calm stacked rows;
+                                                      $removable opt-in; NEVER
+                                                      a wrapping pill cloud
+        Compact record table      Record_Table        shared table look +
+                                                      optional whole-row
+                                                      navigation
+        Empty region              Empty_State         icon + title + reason +
+                                                      optional CTA
+        Single empty cell         Empty_Value         the one muted em-dash
+        Placeholder/coming-soon   Placeholder_Card    dashed/muted variants
+        Entity name anywhere      Entity_Link         fetched chip (type icon +
+                                                      name); $no_link inside
+                                                      clickable rows
+        Tab panels                Tab_Bar /           semantic panels bound to
+                                  Tab_Panels /        the tab bar - kills
+                                  Tab_Panel           hand-rolled show/hide JS
+        Overflow actions          Action_Menu         "..." dropdown;
+                                                      destructive items inside,
+                                                      never a peer red button
+
+COMPONENT DESIGN RULES
+    For every component you create or lever:
+
+    1. Complete look, own file. The SCSS file is wrapped in exactly the
+       component's class, and the filename matches the class. Never style
+       ANOTHER component's class from your file - if you need to ring an
+       avatar you render, wrap it in an element you own and style that. (The
+       linter rejects cross-component styling.)
+
+    2. Tokens only. No hardcoded hex in component SCSS. If a value has no
+       token, DEFINE the token - do not reference a token via an inline
+       fallback (var(--foo, #123456)); that hides an undefined token. Porting
+       an old value verbatim is correct; porting it untokenized is not.
+
+    3. Docblock contract. The first line of the component's jqhtml header
+       comment is "Component_Name - <summary, 12 words or fewer>", then its
+       args, slots, and a usage snippet. The glossary generator reads these;
+       keep the app greppable the same way. See the "Component docblocks"
+       section of `php artisan rsx:man jqhtml`.
+
+    4. Slots judiciously. content() for a single-body wrapper; named <Slot:x>
+       when there are two or more content regions. The moment a template uses
+       ANY named slot, ALL caller content must be in slots.
+
+    5. Variants as args, validated loudly. A component throws unless its
+       $variant is one of the known values - a fail-loud error beats a
+       silently unstyled banner.
+
+    6. Idempotent DOM binds. Any handler bound in on_render() must be
+       namespaced (.off('click.ns').on('click.ns', ...)) and any DOM injection
+       must be guarded against duplicate appends - on_render can fire multiple
+       times per lifecycle.
+
+WHEN TO EXTRACT, LEVER, OR PROMOTE
+    The single most common mistake is building a new component when an
+    existing one should have been used or extended. Follow this decision tree
+    every time a page needs something:
+
+    - An existing component fits            -> use it.
+
+    - An existing component ALMOST fits     -> add a small, additive LEVER
+                                               (an arg): $removable on the
+                                               read-only people list, $avatar
+                                               on the entity header, $inline on
+                                               the fact field, $divided on the
+                                               tab bar. A lever's default
+                                               rendering must be pixel-
+                                               identical to before, and you
+                                               carry the regression duty:
+                                               screenshot every existing
+                                               consumer to prove it did not
+                                               shift.
+
+    - Two-or-more sites hand-roll the same  -> extract ONE component and
+      shape                                    converge the sites onto it.
+
+    - A needed widget RESEMBLES an existing  -> do NOT merge domains. Extract
+      one but has different domain              the shared display PRIMITIVE
+      semantics                                 both can use, or an abstract
+                                                base with two concrete
+                                                variants. Comments and thread-
+                                                replies both render their
+                                                byline through one
+                                                Author_Meta_Row but keep their
+                                                own wrappers - converge the
+                                                SHAPE they share, not the
+                                                widgets.
+
+    The Evidence Bar
+
+    Extraction is EVIDENCE-DRIVEN, never speculative. The bar is two-or-more
+    LIVE call sites with the same shape. Do not build a component in
+    anticipation of a second consumer that does not yet exist. Build the
+    component in the FIRST conversion that genuinely needs it a second time,
+    then wire the remaining sites in their own conversions.
+
+    Promotion Over Time
+
+    As similar concepts accumulate across the app, upgrade the vocabulary to
+    keep it descriptive, consistent, and reusable: when a look repeats, promote
+    it from page-local markup to a named component; when two components turn
+    out to share a display shape, promote that shape to a shared primitive or
+    an abstract base with variant concretes. The direction is always toward
+    fewer, better-named, more-reused concepts - never toward one-off markup.
+
+    Preserving A Bespoke Look Is Not A Reason To Skip Componentizing
+
+    When the owner wants a distinctive look kept (a gradient hero banner, a
+    custom card), the correct output is a named, self-contained, reusable
+    component with that look - NEVER page-local markup plus CSS. The refactor's
+    job is organization, not taste enforcement. Surface look-decisions to the
+    owner as explicit options (flatten into the standard component / add it as
+    a lever / keep it as its own named component) rather than silently
+    converging away a look someone values.
+
+THE RULES THAT RESOLVE ARGUMENTS
+    These five rules settle the recurring design disputes so they are not
+    re-litigated per page.
+
+    The Rule of Two Chips
+
+    A FILLED pastel pill is a STATUS - a workflow state from a model enum
+    (Status_Badge). An OUTLINED chip is a CLASSIFICATION - a type, role, or
+    category, which is a fact, not a state (badge-outline-*). A COUNT is a
+    third, visually distinct small pill (Count_Pill). Filling a classification
+    chip - putting task priority or record type in the same filled style as a
+    status - is a defect. This one rule resolves roughly ninety percent of
+    chip questions.
+
+    Provisional-Money Honesty
+
+    Estimated or live-computed dollar values render amber and/or italic (a
+    $provisional flag on the KPI or stat row); committed facts render plain.
+    Presenting a 100%-estimated total under a plain "Billed" label is
+    dishonest UI. Honesty of presentation is part of the component contract,
+    not a nicety - expose an is_estimated flag from the model and let the
+    component signal it.
+
+    KPI As Sidebar Telemetry (the storefront lesson)
+
+    Operating numbers are telemetry, not a billboard. A storefront does not
+    shout "OPENS AT 10AM" at you when it is already 11:30 - you glance at the
+    small sign when you need it. Do NOT render a strip of large KPI tiles
+    across the top of a page's main column. KPIs live as compact bordered
+    cells ("At a Glance") at the TOP of the entity sidebar - Kpi_Cell
+    inside Sidebar_Kpi_Group, label and value as slots, with args for the
+    interesting states ($alert, $provisional, $clickable, $sub, $tooltip).
+    Every entity view page should end with this block, populated from data the
+    page already loads.
+
+    The Empty-State Mandate
+
+    Every zero-child region renders the Empty_State component (icon + title +
+    reason + optional CTA), never bare "no results" text and never a lying
+    count. A single empty cell renders Empty_Value (the one muted em-dash).
+    Every count shown must agree with what its tab or list actually renders; a
+    count that disagrees with its own contents is usually a real data bug the
+    conversion has surfaced.
+
+    The Parent-Chain Idiom
+
+    A record that belongs to a parent shows its parent link in the same place,
+    the same way, on every page: "Part of: <Entity_Link ...>" in the entity
+    header's meta row. A view page that omits a link to a parent the domain
+    model mandates is incomplete.
+
+THE PAGE CONVERSION PROCEDURE
+    The unit of work is ONE page, end-to-end. Never convert half a page; never
+    strip a legacy pattern partially (surviving legacy markup on unconverted
+    pages is the deliberate marker of what remains to do).
+
+    Step 1 - Inventory. Read the page's template, JS, and SCSS completely. Map
+    every region to the vocabulary: which existing component covers it, which
+    needs a lever, what is genuinely new. List every hand-rolled idiom (raw
+    badge spans, bespoke tab-toggle JS, box-in-box wrappers, inline styles, hr
+    dividers, page media queries, Bootstrap spacing utilities sprinkled for
+    layout).
+
+    Step 2 - Content re-evaluation ("what should this page be?"). Before
+    converting markup, walk the page as its real personas and ask whether it
+    answers what its user came for. This step is where the refactor earns its
+    keep beyond cosmetics: it surfaces query-scoping bugs (a count of 0 above a
+    tab that lists three records), missing parent links, dead placebo buttons
+    (href="javascript:void(0)" never wired), and competing surfaces that are
+    two "homes" for one record. File everything found; fix small data bugs in
+    the same conversion, or escalate.
+
+    Step 3 - Direction gate. For a whole-app refactor, batch all pages'
+    Step-1/2 findings into ONE consolidated proposal and get the owner's
+    decisions once (which bespoke looks to keep-and-componentize vs. converge,
+    which page to retire, which primitives to build). Low-impact preference
+    calls: make the sensible choice, record it, batch the disclosure to the
+    end.
+
+    Step 4 - Convert. Rebuild the template top-down: scaffold -> sections /
+    tab panels -> content vocabulary. Simultaneously: delete hand-rolled
+    tab-toggle JS (panels bind to the tab bar); migrate every badge per the
+    Rule of Two Chips; add the sidebar "At a Glance" KPI block if the page has
+    KPI-shaped data; kill inline style= attributes and page @media queries
+    entirely; reduce page SCSS to justified survivors only (each with a comment
+    saying why). Where a needed seam or gap tempts you to hand-author markup (a
+    divider between the header and the tabs), STOP: give the owning component a
+    lever ($divided) and delete every hand-authored instance.
+
+    Step 5 - Verify (non-negotiable, per page).
+    - BEFORE-state screenshots captured before any edit.
+    - AFTER screenshots at BOTH viewports: desktop (1920) and mobile.
+    - Drive the page's real interactions headlessly (tab switches, modals
+      opening, a status round-trip verified in the DB and restored, row-
+      navigation clicks) with `php artisan rsx:debug ... --eval=...`.
+    - Exercise sparse data: an empty child list must render Empty_State, not
+      bare text or a lying count. Seed missing data through the REAL UI flows
+      (not raw SQL unless the UI cannot express it); record what you keep as
+      demo data vs. tear down.
+    - Regression-screenshot every OTHER consumer of any shared component you
+      levered, and the already-converted pages (backward propagation must not
+      shift them).
+    - Zero console errors on every render.
+
+    Step 6 - Record. Update the living registry (page tracker row, new
+    component rows, lever notes, "used on" columns, decremented legacy-pattern
+    counts) as part of the page's definition of done, then checkpoint-commit
+    the page.
+
+PITFALLS
+    Carry these forward verbatim into every conversion's working notes.
+
+    P1 - Slot-only inheritance breaks parent $sid resolution. A child
+    component defined by slot-only inheritance re-scopes the content passed
+    into it, so the PARENT's this.sid('x') on elements inside that content
+    returns null. Use body-preserving extends= on the <Define:> tag (stamps
+    both classes on the root; the child renders its own template).
+
+    P2 - $flush vs. widgets with their own header. A section's $flush
+    (padding-strip) arg combined with a widget that renders its own internal
+    header produces a misaligned orphan header at the card edge. Wrap
+    self-headed widgets in a PLAIN (non-flush) section.
+
+    P3 - $sid discipline. $sid targets must be defined in the jqhtml template
+    and rendered unconditionally (toggle visibility, do not gate the element
+    behind an if). Never create data-sid nodes from JS (the framework never
+    provisions them). Never SELECT by data-sid/data-name/data-cid - those are
+    debug attributes, stripped in production.
+
+    P4 - on_render re-fires. Namespace every DOM bind; guard every DOM
+    injection against duplicate appends. on_render can fire multiple times per
+    lifecycle.
+
+    P5 - Hand-authored seams are a smell pointing at a missing component
+    lever. If several pages "need" the same hr in the same place, the adjacent
+    component needs a $divided arg - never accept per-page spacing markup as
+    the fix.
+
+    P6 - Phantom tokens. var(--foo, #123456) fallbacks hide undefined tokens.
+    Grep token names against the variables file; define missing tokens once and
+    strip the inline fallbacks.
+
+    P7 - Responsive stacking must not hide functionality. When the sidebar
+    stacks under the main column on mobile, no affordance that lived in a
+    reflowed region may become unreachable - relocate affordances into
+    components that render independently of column position.
+
+    P8 - Sparse-data honesty. Every zero-child region renders Empty_State;
+    every count agrees with what its tab or list actually renders. A
+    disagreement is usually a real bug the conversion surfaced.
+
+    P9 - Naming residue. When you delete a component, rename anything named
+    AFTER it (an enum property still called ..._stats_header after the stats
+    header component died). No-backwards-compatibility applies to names too.
+
+    P10 - Iterate with the page renderer, not the full lint suite. Render
+    pages headlessly after each change (`php artisan rsx:debug`) - compile,
+    SCSS, and runtime errors all surface there. Run the full `rsx:check` suite
+    ONCE at the end of the epic and triage.
+
+THE LIVING REGISTRY
+    A single registry document is the refactor's memory:
+
+        rsx/resource/conventions/semantic_component_registry.md
+
+    It ships with the template app. It holds THE GOAL at the top; a table per
+    component category (component / usage / what it replaces /
+    considerations-and-gotchas); a legacy-pattern table with REMAINING COUNTS;
+    and a page tracker (page / research / gate / converted). Update it as part
+    of EACH page's definition of done, not at the end.
+
+    Two practices keep it honest:
+
+    - Scope-qualify every "extinct" claim. Write "extinct on view pages; the
+      internal index page retains one, out of sweep scope" - never an
+      unqualified count that a later reviewer can falsify.
+
+    - Run the docblock-driven glossary generator before designing any new UI
+      element, so you reuse the existing concept instead of reinventing it.
+      The generator (rsx:jqhtml:glossary, built in the foundation batch)
+      enumerates every <Define:> and component class and emits
+      name/extends/summary/files as JSON; its --missing mode lists components
+      lacking a parsable summary. Keep --missing at zero.
+
+SEE ALSO
+    jqhtml                - component template system; SEMANTIC-FIRST DESIGN
+                            section is the core tenet this page builds on, and
+                            "Component docblocks" is the docblock contract the
+                            glossary reads
+    scss                  - SCSS file organization and component scoping
+    view_action_patterns  - the loading/error/content skeleton a view page's
+                            success state composes within
+    crud                  - standard Create/Read/Update/Delete module structure

@@ -1,0 +1,42 @@
+<Define:Api_Endpoint_Card tag="article">
+<% const ep = this.args.endpoint; %>
+<span class="Api_Endpoint_Card__anchor" id="<%= this.args.anchor %>"></span>
+
+<header class="Api_Endpoint_Card__head">
+    <div class="Api_Endpoint_Card__verbs">
+        <% for (const m of ep.methods) { %>
+            <% const mc = 'Api_Endpoint_Card__pill--' + m.toLowerCase(); %>
+            <span class="Api_Endpoint_Card__pill <%= mc %>"><%= m %></span>
+        <% } %>
+    </div>
+    <code class="Api_Endpoint_Card__path"><%= ep.pattern %></code>
+</header>
+
+<% if (ep.description) { %>
+    <p class="Api_Endpoint_Card__desc"><%br= ep.description %></p>
+<% } %>
+
+<% if (ep.api_params && ep.api_params.length) { %>
+    <div class="Api_Endpoint_Card__section">
+        <div class="Api_Endpoint_Card__section-title">Parameters</div>
+        <Api_Params_Table $params=ep.api_params $pattern=ep.pattern />
+    </div>
+<% } %>
+
+<% if (ep.response_example) { %>
+    <details class="Api_Endpoint_Card__example">
+        <summary class="Api_Endpoint_Card__example-summary"><%!= api_icon('chevron') %><span>Example response</span></summary>
+        <pre class="Api_Endpoint_Card__example-pre language-json" $sid="response_example"></pre>
+    </details>
+<% } %>
+
+<div class="Api_Endpoint_Card__section">
+    <div class="Api_Endpoint_Card__section-title">Code samples</div>
+    <Api_Code_Samples $endpoint=ep />
+</div>
+
+<div class="Api_Endpoint_Card__section">
+    <div class="Api_Endpoint_Card__section-title">Try it</div>
+    <Api_Tester $endpoint=ep />
+</div>
+</Define:Api_Endpoint_Card>

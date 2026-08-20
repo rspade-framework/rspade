@@ -1,0 +1,1052 @@
+================================================================================
+MODAL SYSTEM
+================================================================================
+
+The Modal system provides a consistent, queue-managed interface for displaying
+dialogs throughout the application. All modals are managed by the static Modal
+class, which handles queuing, backdrop management, and user interactions.
+
+================================================================================
+BASIC DIALOGS
+================================================================================
+
+ARGUMENT OVERLOADING
+--------------------
+Basic dialogs take POSITIONAL arguments, not an options object (only
+Modal.show(), Modal.form() and Modal.custom() take an options object).
+
+    1 arg   = body only (the title defaults)
+    2+ args = the FIRST argument is the TITLE, the second is the BODY
+
+This applies to alert(), confirm() and prompt(). It is easy to get backwards:
+the title shifts into argument 1 as soon as you add a second argument.
+
+    await Modal.alert("Message");                       // body only
+    await Modal.alert("Title", "Message body");         // title + body
+    await Modal.alert("Title", "Message body", "OK");   // title + body + button
+
+Body text formatting: use "\n\n" for paragraph breaks, a single "\n" for a
+line break.
+
+
+ALERT
+-----
+Show a simple notification message with an OK button.
+
+    await Modal.alert(message)
+    await Modal.alert(title, message)
+    await Modal.alert(title, message, button_label)
+
+Examples:
+
+    await Modal.alert("File saved successfully");
+    await Modal.alert("Success", "Your changes have been saved");
+    await Modal.alert("Notice", "Operation complete", "Got it");
+
+Parameters:
+    message        - Message text (if only 1 arg) or jQuery element
+    title          - Optional title (default: "Notice")
+    button_label   - Optional button text (default: "OK")
+
+Returns: Promise<void>
+
+
+CONFIRM
+-------
+Show a confirmation dialog with Cancel and Confirm buttons.
+
+    let result = await Modal.confirm(message)
+    let result = await Modal.confirm(title, message)
+    let result = await Modal.confirm(title, message, confirm_label, cancel_label)
+
+Examples:
+
+    if (await Modal.confirm("Delete this item?")) {
+        // User confirmed
+    }
+
+    if (await Modal.confirm("Delete Item", "This cannot be undone")) {
+        // User confirmed
+    }
+
+Parameters:
+    message        - Message text (if 1-2 args) or jQuery element
+    title          - Optional title (default: "Confirm")
+    confirm_label  - Confirm button text (default: "Confirm")
+    cancel_label   - Cancel button text (default: "Cancel")
+
+Returns: Promise<boolean> - true if confirmed, false if cancelled
+
+
+PROMPT
+------
+Show an input dialog for text entry.
+
+    let value = await Modal.prompt(message)
+    let value = await Modal.prompt(title, message)
+    let value = await Modal.prompt(title, message, default_value)
+    let value = await Modal.prompt(title, message, default_value, multiline)
+    let value = await Modal.prompt(title, message, default_value, multiline, error)
+
+Examples:
+
+    let name = await Modal.prompt("What is your name?");
+    if (name) {
+        console.log("Hello, " + name);
+    }
+
+    let email = await Modal.prompt("Email", "Enter your email:", "user@example.com");
+
+    let feedback = await Modal.prompt("Feedback", "Enter your feedback:", "", true);
+
+Rich Content Example:
+
+    const $rich = $('<div>')
+        .append($('<h5 style="color: #2c3e50;">').text('Registration'))
+        .append($('<p>').html('Enter your <strong>full name</strong>'));
+
+    let name = await Modal.prompt($rich);
+
+Validation Pattern (Lazy Re-prompting):
+
+    let email = '';
+    let error = null;
+    let valid = false;
+
+    while (!valid) {
+        email = await Modal.prompt('Email', 'Enter email:', email, false, error);
+
+        if (email === false) return; // Cancelled
+
+        // Validate
+        if (!email.includes('@')) {
+            error = 'Please enter a valid email address';
+        } else {
+            valid = true;
+        }
+    }
+
+    // email is now valid
+
+Parameters:
+    message        - Prompt message text or jQuery element
+    title          - Optional title (default: "Input")
+    default_value  - Default input value (default: "")
+    multiline      - Show textarea instead of input (default: false)
+    error          - Optional error message to display as validation feedback
+
+Returns: Promise<string|false> - Input value or false if cancelled
+
+Input Constraints:
+    Standard input: 245px minimum width
+    Textarea input: 315px minimum width
+    Spacing: 36px between message and input field
+
+Error Display:
+    When error parameter is provided:
+    - Input field marked with .is-invalid class (red border)
+    - Error message displayed below input as .invalid-feedback
+    - Input retains previously entered value
+    - User can correct and resubmit
+
+
+ERROR
+-----
+Show an error message dialog.
+
+    await Modal.error(error)
+    await Modal.error(error, title)
+
+Examples:
+
+    await Modal.error("File not found");
+    await Modal.error(exception, "Upload Failed");
+    await Modal.error({message: "Invalid format"}, "Error");
+
+Parameters:
+    error - String, error object, or {message: string}
+    title - Optional title (default: "Error")
+
+Handles various error formats:
+    - String: "Error message"
+    - Object: {message: "Error"}
+    - Laravel response: {responseJSON: {message: "Error"}}
+    - Field errors: {field: "Error", field2: "Error2"}
+
+Returns: Promise<void>
+
+================================================================================
+CUSTOM MODALS
+================================================================================
+
+SHOW
+----
+Display a custom modal with specified content and buttons.
+
+    let result = await Modal.show(options)
+
+Options:
+    title          - Modal title (default: "Modal")
+    body           - String, HTML, or jQuery element
+    buttons        - Array of button definitions (see below)
+    max_width      - Maximum width in pixels (default: 800)
+    closable       - Allow ESC/backdrop/X to close (default: true)
+
+Button Definition:
+    {
+        label: "Button Text",
+        value: "return_value",
+        class: "btn-primary",  // Bootstrap button class
+        default: true,          // Make this the default button
+        callback: async function() {
+            // Optional: perform action and return result
+            return custom_value;
+        }
+    }
+
+Examples:
+
+    // Two button modal
+    const result = await Modal.show({
+        title: "Choose Action",
+        body: "What would you like to do?",
+        buttons: [
+            {label: "Cancel", value: false, class: "btn-secondary"},
+            {label: "Continue", value: true, class: "btn-primary", default: true}
+        ]
+    });
+
+    // Three button modal
+    const result = await Modal.show({
+        title: "Save Changes",
+        body: "How would you like to save?",
+        buttons: [
+            {label: "Cancel", value: false, class: "btn-secondary"},
+            {label: "Save Draft", value: "draft", class: "btn-info"},
+            {label: "Publish", value: "publish", class: "btn-success", default: true}
+        ]
+    });
+
+    // jQuery content
+    const $content = $('<div>')
+        .append($('<p>').text('Custom content'))
+        .append($('<ul>').append($('<li>').text('Item 1')));
+
+    await Modal.show({
+        title: "Custom Content",
+        body: $content,
+        buttons: [{label: "Close", value: true, class: "btn-primary"}]
+    });
+
+Returns: Promise<any> - Value from clicked button (false if cancelled)
+
+================================================================================
+FORM MODALS
+================================================================================
+
+FORM
+----
+Display a form component in a modal with validation support.
+
+    let result = await Modal.form(options)
+
+Options:
+    component       - Component class name (string)
+    component_args  - Arguments to pass to component
+    title           - Modal title (default: "Form")
+    max_width       - Maximum width in pixels (default: 800)
+    closable        - Allow ESC/backdrop to close (default: true)
+    submit_label    - Submit button text (default: "Submit")
+    cancel_label    - Cancel button text (default: "Cancel")
+    on_submit       - Callback function (receives form component)
+
+The on_submit callback pattern:
+    - Receives the form component instance
+    - Call form.vals() to get current values
+    - Perform validation/submission
+    - Return false to keep modal open (for errors)
+    - Return data to close modal and resolve promise
+
+Simple Example:
+
+    const result = await Modal.form({
+        title: "New User",
+        component: "User_Form",
+        on_submit: async (form) => {
+            const values = form.vals();
+
+            if (!values.name) {
+                await Modal.alert("Name is required");
+                return false; // Keep modal open
+            }
+
+            await sleep(500); // Simulate save
+            return values; // Close modal with data
+        }
+    });
+
+    if (result) {
+        console.log("Saved:", result);
+    }
+
+Validation Example:
+
+    const result = await Modal.form({
+        title: "Edit Profile",
+        component: "Profile_Form",
+        component_args: {data: user_data},
+        submit_label: "Update",
+        on_submit: async (form) => {
+            const values = form.vals();
+
+            // Server-side validation
+            const response = await User_Controller.update_profile(values);
+
+            if (response.errors) {
+                // Show errors and keep modal open
+                Form_Utils.apply_form_errors(form.$, response.errors);
+                return false;
+            }
+
+            // Success - close and return
+            return response.data;
+        }
+    });
+
+Creating Form Components:
+
+Your form component must:
+    - Extend Component (or Rsx_Form)
+    - Implement vals() method for getting/setting values
+    - Use standard form HTML with name attributes
+    - Include error container: <div $sid="error_container"></div>
+
+Example form component (my_form.jqhtml):
+
+    <Define:My_Form tag="div">
+        <div $sid="error_container"></div>
+
+        <div class="mb-3">
+            <label class="form-label">Name</label>
+            <input type="text" class="form-control" $sid="name_input" name="name">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" $sid="email_input" name="email">
+        </div>
+    </Define:My_Form>
+
+Example form component class (my_form.js):
+
+    class My_Form extends Component {
+        on_create() {
+            this.data.values = this.args.data || {};
+        }
+
+        on_ready() {
+            if (this.data.values) {
+                this.vals(this.data.values);
+            }
+        }
+
+        vals(values) {
+            if (values) {
+                // Setter
+                this.$sid('name_input').val(values.name || '');
+                this.$sid('email_input').val(values.email || '');
+                return null;
+            } else {
+                // Getter
+                return {
+                    name: this.$sid('name_input').val(),
+                    email: this.$sid('email_input').val()
+                };
+            }
+        }
+    }
+
+Validation Error Handling:
+
+Form_Utils.apply_form_errors() automatically handles:
+    - Field-specific errors (matched by name attribute)
+    - General error messages
+    - Multiple error formats (string, array, object)
+    - Animated error display
+    - Bootstrap 5 validation classes
+
+Error format examples:
+
+    // Field errors
+    {
+        name: "Name is required",
+        email: "Invalid email format"
+    }
+
+    // General errors
+    "An error occurred"
+
+    // Array of errors
+    ["Error 1", "Error 2"]
+
+    // Laravel format
+    {
+        name: ["Name is required", "Name too short"],
+        email: ["Invalid format"]
+    }
+
+Returns: Promise<Object|false> - Form data or false if cancelled
+
+================================================================================
+MODAL CLASSES
+================================================================================
+
+For complex or reusable modals, create modal classes that extend Modal_Abstract.
+Modal classes encapsulate modal lifecycle management and use Modal.form(),
+Modal.show(), etc. as building blocks.
+
+PHILOSOPHY
+----------
+Modal classes are orchestration layers that manage showing a modal, collecting
+user input, and returning results. They do NOT contain form validation or
+business logic - that belongs in jqhtml components and controller endpoints.
+
+Separation of concerns:
+    - Modal classes: Handle individual modal lifecycle
+    - Page JS: Orchestrates sequence, updates UI after modal closes
+    - Form components: Handle form UI and structure
+    - Controllers: Handle validation and business logic
+
+MODAL_ABSTRACT BASE CLASS
+--------------------------
+All modal classes must extend Modal_Abstract and implement static show() method.
+
+File: /rsx/lib/modal/modal_abstract.js
+
+Contract:
+    - Implement: static async show(params)
+    - Return: Promise that resolves with data (success) or false (cancel)
+    - Error handling: Show error in modal, keep open, don't resolve
+
+BASIC PATTERN
+-------------
+Simple form modal with backend validation:
+
+    class Add_User_Modal extends Modal_Abstract {
+        static async show() {
+            const result = await Modal.form({
+                title: 'Add User',
+                component: 'Add_User_Modal_Form',
+                on_submit: async (form) => {
+                    try {
+                        const values = form.vals();
+                        const result = await Controller.add_user(values);
+                        return result; // Close modal, return data
+                    } catch (error) {
+                        await form.render_error(error);
+                        return false; // Keep modal open
+                    }
+                },
+            });
+            return result || false;
+        }
+    }
+
+Modal with data loading before display:
+
+    class Edit_User_Modal extends Modal_Abstract {
+        static async show(user_id) {
+            // Load data first
+            let user_data;
+            try {
+                user_data = await Controller.get_user_for_edit({user_id});
+            } catch (error) {
+                await Modal.error(error, 'Failed to Load User');
+                return false;
+            }
+
+            // Show modal with loaded data
+            const result = await Modal.form({
+                title: 'Edit User',
+                component: 'Edit_User_Modal_Form',
+                component_args: {data: user_data},
+                on_submit: async (form) => {
+                    try {
+                        const values = form.vals();
+                        const result = await Controller.save_user(values);
+                        return result;
+                    } catch (error) {
+                        await form.render_error(error);
+                        return false;
+                    }
+                },
+            });
+            return result || false;
+        }
+    }
+
+Custom modal using Modal.show():
+
+    class Confirm_Delete_Modal extends Modal_Abstract {
+        static async show({item_name}) {
+            return await Modal.confirm(
+                'Confirm Delete',
+                `Are you sure you want to delete ${item_name}?`
+            );
+        }
+    }
+
+USAGE PATTERN
+-------------
+Page JS orchestrates modal flow and handles post-modal actions:
+
+    // Page JS file (frontend_settings_user_management.js)
+    class Frontend_Settings_User_Management {
+        static async handle_add_user() {
+            // Show add user modal
+            const user = await Add_User_Modal.show();
+
+            if (user) {
+                // Refresh the user list
+                $('.Users_DataGrid').component().reload();
+
+                // Show next modal in sequence
+                await Send_User_Invite_Modal.show(user.id);
+            }
+        }
+    }
+
+Key points:
+    - Modal classes return data or false
+    - Page JS checks result and orchestrates next steps
+    - Page JS updates UI (reload grids, refresh displays)
+    - Modal classes focus only on their modal's lifecycle
+
+FILE ORGANIZATION
+-----------------
+Naming Convention:
+    - Class name must end with _Modal (enforced by convention)
+    - File name matches class name: add_user_modal.js
+    - Use descriptive names: Add_User_Modal, Edit_User_Modal
+
+Location Guidelines:
+    - Feature-specific modals: Place in feature directory
+      Example: /rsx/app/frontend/settings/user_management/edit_user_modal.js
+
+    - Reusable modals: Place in the modal library directory
+      Example: /rsx/lib/modal/confirm_delete_modal.js
+
+WHEN TO USE MODAL CLASSES
+--------------------------
+Use modal classes when:
+    - Multi-step forms or complex workflows
+    - Forms with complex validation or error handling
+    - Modals called from multiple places in the application
+    - Modals with backend data loading before display
+    - Modals that need consistent behavior across the app
+
+WHEN NOT TO USE MODAL CLASSES
+------------------------------
+Use direct Modal.* calls for simple cases:
+
+    // Simple alert
+    await Modal.alert("File saved successfully");
+
+    // Simple confirmation
+    if (await Modal.confirm("Delete this item?")) {
+        await Item_Controller.delete(item_id);
+    }
+
+    // Simple prompt
+    const name = await Modal.prompt("What is your name?");
+
+COMPLETE EXAMPLE
+----------------
+Full implementation showing modal class, form component, and page integration:
+
+1. Modal Class (add_user_modal.js):
+
+    class Add_User_Modal extends Modal_Abstract {
+        static async show() {
+            const result = await Modal.form({
+                title: 'Add User',
+                component: 'Add_User_Modal_Form',
+                on_submit: async (form) => {
+                    try {
+                        const values = form.vals();
+                        const result = await Controller.add_user(values);
+                        return result;
+                    } catch (error) {
+                        await form.render_error(error);
+                        return false;
+                    }
+                },
+            });
+            return result || false;
+        }
+    }
+
+2. Form Component (add_user_modal_form.jqhtml):
+
+    <Define:Add_User_Modal_Form tag="div">
+        <Form_Field $label="Email" $required=true>
+            <Text_Input $name="email" $type="email" />
+        </Form_Field>
+
+        <Form_Field $label="First Name">
+            <Text_Input $name="first_name" />
+        </Form_Field>
+
+        <Form_Field $label="Last Name">
+            <Text_Input $name="last_name" />
+        </Form_Field>
+    </Define:Add_User_Modal_Form>
+
+3. Form Component Class (add_user_modal_form.js):
+
+    class Add_User_Modal_Form extends Rsx_Form {
+        // Extends Rsx_Form for automatic form functionality
+        // vals() and error handling inherited from parent
+    }
+
+4. Page JS Integration (page.js):
+
+    $('#btn_add_user').on('click', async function() {
+        const user = await Add_User_Modal.show();
+
+        if (user) {
+            $('.Users_DataGrid').component().reload();
+            await Modal.alert('User added successfully');
+        }
+    });
+
+BEST PRACTICES
+--------------
+1. Single Responsibility
+   Each modal class handles exactly one modal type.
+
+2. No Direct Modal Chaining
+   Modal classes don't call other modal classes directly.
+   Page JS orchestrates sequences.
+
+   Bad:
+       class Add_User_Modal {
+           static async show() {
+               const user = await Modal.form({...});
+               await Send_Invite_Modal.show(user.id); // DON'T DO THIS
+               return user;
+           }
+       }
+
+   Good:
+       // Page JS
+       const user = await Add_User_Modal.show();
+       if (user) {
+           await Send_Invite_Modal.show(user.id);
+       }
+
+3. No UI Updates in Modal Classes
+   Modal classes don't reload grids or update page content.
+   Page JS handles post-modal UI updates.
+
+4. Consistent Error Handling
+   Use try/catch in on_submit, render errors with form.render_error(),
+   return false to keep modal open.
+
+5. Clear Return Values
+   Return data object on success, false on cancel.
+   Makes page JS conditional logic clean and obvious.
+
+TROUBLESHOOTING
+---------------
+Modal Class Not Found
+    - Verify class extends Modal_Abstract
+    - Check file is in manifest (must be in /rsx/ directory tree)
+    - Ensure class name ends with _Modal
+    - Verify file name matches class name
+
+Modal Doesn't Show Data
+    - Check component_args passed correctly
+    - Verify form component implements vals(values) setter
+    - Ensure data loaded before Modal.form() called
+    - Check async/await on data loading
+
+Errors Not Displaying
+    - Ensure form.render_error() called in catch block
+    - Verify form component extends Rsx_Form
+    - Check that on_submit returns false after error
+    - Confirm error object has correct format
+
+Modal Closes Unexpectedly
+    - Check on_submit isn't throwing unhandled errors
+    - Verify try/catch wraps submission logic
+    - Ensure false returned explicitly to keep open
+    - Check for premature return statements
+
+================================================================================
+SPECIAL MODALS
+================================================================================
+
+UNCLOSABLE
+----------
+Display a modal that cannot be closed by user (no ESC, backdrop, or X button).
+Must be closed programmatically.
+
+    Modal.unclosable(message)
+    Modal.unclosable(title, message)
+
+Examples:
+
+    Modal.unclosable("Processing", "Please wait...");
+
+    setTimeout(() => {
+        Modal.close();
+    }, 3000);
+
+Parameters:
+    message - Message text
+    title   - Optional title (default: "Please Wait")
+
+Returns: void (does not wait for close)
+
+Note: Call Modal.close() to dismiss the modal programmatically.
+
+================================================================================
+SPA INTEGRATION
+================================================================================
+
+The Modal system automatically integrates with SPA navigation:
+
+    Auto-Close on Navigation
+        When SPA navigation begins (spa_dispatch_start event), any open modal
+        is automatically closed. This prevents stale modals from persisting
+        across page transitions.
+
+        This behavior is automatic - no configuration required.
+
+    Modal Flow and Navigation
+        If you need to navigate after a modal action, use Spa.dispatch():
+
+            const result = await Modal.form({...});
+            if (result) {
+                Spa.dispatch(Rsx.Route('Target_Action'));
+            }
+
+        The modal closes first, then navigation proceeds.
+
+================================================================================
+MODAL STATE MANAGEMENT
+================================================================================
+
+IS_OPEN
+-------
+Check if a modal is currently displayed.
+
+    if (Modal.is_open()) {
+        console.log("Modal is open");
+    }
+
+Returns: boolean
+
+GET_CURRENT
+-----------
+Get the currently displayed modal instance.
+
+    const modal = Modal.get_current();
+    if (modal) {
+        console.log("Modal instance exists");
+    }
+
+Returns: Rsx_Modal instance or null
+
+CLOSE
+-----
+Programmatically close the current modal.
+
+    await Modal.close();
+
+Typically used with unclosable modals or to force-close from external code.
+
+Returns: Promise<void>
+
+APPLY_ERRORS
+------------
+Apply validation errors to the current modal (if it contains a form).
+
+    Modal.apply_errors({
+        field1: "Error message",
+        field2: "Another error"
+    });
+
+This is a convenience method that calls Form_Utils.apply_form_errors() on
+the current modal's body element.
+
+Parameters:
+    errors - Error object (field: message pairs)
+
+Returns: void
+
+================================================================================
+MODAL QUEUING
+================================================================================
+
+The Modal system automatically queues multiple simultaneous modal requests
+and displays them sequentially:
+
+    // All three modals are queued and shown one after another
+    const p1 = Modal.alert("First");
+    const p2 = Modal.alert("Second");
+    const p3 = Modal.alert("Third");
+
+    await Promise.all([p1, p2, p3]);
+
+Queuing Behavior:
+    - Single shared backdrop persists across queued modals
+    - No delay between modals (immediate transition)
+    - Backdrop fades in at start of queue
+    - Backdrop fades out when queue is empty
+    - Each modal appears instantly (no fade animation)
+
+Current Limitations:
+    - All modals treated equally (no priority levels)
+    - No concept of "modal sessions" or grouped interactions
+    - FIFO queue order (first requested, first shown)
+
+Future Considerations:
+    When implementing real-time notifications or background events, you may
+    need to distinguish between:
+        - User-initiated modal sequences (conversational flow)
+        - Background notifications (should wait for user flow to complete)
+
+    Planned features:
+        - Priority levels for different modal types
+        - Modal sessions to group related interactions
+        - External event blocking during active user sessions
+
+================================================================================
+MODAL SIZING
+================================================================================
+
+Responsive Sizing:
+    - Desktop: 60% viewport width preferred, max 80%
+    - Mobile: 90% viewport width
+    - Minimum width: 400px desktop, 280px mobile
+    - Minimum height: 260px
+
+Maximum Width:
+    - Default: 800px
+    - Configurable via max_width option
+    - Examples: 500px (forms), 1200px (data tables)
+
+Scrolling:
+    - Triggers when content exceeds 80% viewport height
+    - Modal body becomes scrollable
+    - Header and footer remain fixed
+
+Manual Control:
+
+    Modal.show({
+        max_width: 1200,  // Wide modal for tables
+        body: content
+    });
+
+================================================================================
+STYLING AND UX
+================================================================================
+
+Modal Appearance:
+    - Centered vertically and horizontally
+    - Gray header background (#f8f9fa)
+    - Smaller title font (1rem)
+    - Shorter header padding (0.75rem)
+    - Subtle drop shadow (0 4px 12px rgba(0,0,0,0.15))
+    - Buttons centered horizontally as a group
+    - Modal body text centered (for simple dialogs)
+
+Animations:
+    - Modal appears instantly (no fade)
+    - Backdrop fades in/out over 250ms
+    - Validation errors fade in over 300ms
+
+Body Scroll Lock:
+    - Page scrolling disabled when modal open
+    - Scrollbar width calculated and compensated via padding
+    - Prevents layout shift when scrollbar disappears
+    - Original body state restored when modal closes
+    - Managed at backdrop level (first modal locks, last unlocks)
+
+Accessibility:
+    - ESC key closes modal (if closable)
+    - Backdrop click closes modal (if closable)
+    - Focus management (input fields auto-focus)
+    - Keyboard navigation support
+
+================================================================================
+BEST PRACTICES
+================================================================================
+
+1. Use Appropriate Dialog Type
+   - alert()   - Notifications, information
+   - confirm() - Yes/no decisions
+   - prompt()  - Simple text input
+   - form()    - Complex forms with validation
+   - show()    - Custom requirements
+
+2. Handle Cancellations
+   Always check for false (cancelled) return values:
+
+       const result = await Modal.confirm("Delete?");
+       if (result === false) {
+           return; // User cancelled
+       }
+
+3. Validation Feedback
+   Keep modal open for validation errors:
+
+       if (errors) {
+           Form_Utils.apply_form_errors(form.$, errors);
+           return false; // Keep open
+       }
+
+4. Avoid Nested Modals
+   While technically possible, nested modals create poor UX.
+   Close the first modal before showing a second:
+
+       await Modal.alert("Step 1");
+       await Modal.alert("Step 2"); // Shows after first closes
+
+5. Loading States
+   For long operations, use unclosable modals:
+
+       Modal.unclosable("Saving", "Please wait...");
+       await save_operation();
+       await Modal.close();
+
+6. Rich Content
+   Use jQuery elements for formatted content:
+
+       const $content = $('<div>')
+           .append($('<h5>').text('Title'))
+           .append($('<p>').html('<strong>Bold</strong> text'));
+
+       await Modal.alert($content);
+
+7. Form Component Design
+   - Keep vals() method simple and synchronous
+   - Put async logic in on_submit callback
+   - Use standard HTML form structure
+   - Include error_container div for validation
+   - Match field name attributes to error keys
+
+================================================================================
+COMMON PATTERNS
+================================================================================
+
+Delete Confirmation:
+
+    const confirmed = await Modal.confirm(
+        "Delete Item",
+        "This action cannot be undone. Are you sure?",
+        "Delete Forever",
+        "Cancel"
+    );
+
+    if (confirmed) {
+        await Item_Controller.delete(item_id);
+        await Modal.alert("Item deleted successfully");
+    }
+
+Save with Validation:
+
+    const result = await Modal.form({
+        title: "Edit Profile",
+        component: "Profile_Form",
+        component_args: {data: user},
+        on_submit: async (form) => {
+            const values = form.vals();
+            const response = await User_Controller.save(values);
+
+            if (response.errors) {
+                Form_Utils.apply_form_errors(form.$, response.errors);
+                return false;
+            }
+
+            return response.data;
+        }
+    });
+
+    if (result) {
+        await Modal.alert("Profile updated successfully");
+    }
+
+Multi-Step Process:
+
+    const name = await Modal.prompt("What is your name?");
+    if (!name) return;
+
+    const email = await Modal.prompt("Enter your email:");
+    if (!email) return;
+
+    const confirmed = await Modal.confirm(
+        "Confirm Registration",
+        `Register ${name} with ${email}?`
+    );
+
+    if (confirmed) {
+        await register({name, email});
+    }
+
+Progressive Disclosure:
+
+    const result = await Modal.show({
+        title: "Choose Action",
+        body: "What would you like to do?",
+        buttons: [
+            {label: "View Details", value: "view"},
+            {label: "Edit", value: "edit"},
+            {label: "Delete", value: "delete", class: "btn-danger"}
+        ]
+    });
+
+    if (result === "view") {
+        // Show details modal
+    } else if (result === "edit") {
+        // Show edit form
+    } else if (result === "delete") {
+        // Confirm and delete
+    }
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Modal Won't Close
+    - Check if callback returns false (intentionally keeping open)
+    - Verify closable: true option is set
+    - Check for JavaScript errors in callback
+    - Use Modal.close() to force close
+
+Validation Errors Not Showing
+    - Ensure form has <div $sid="error_container"></div>
+    - Verify field name attributes match error keys
+    - Check that fields are wrapped in .form-group containers
+    - Use Form_Utils.apply_form_errors(form.$, errors)
+
+Form Values Not Saving
+    - Verify vals() method returns correct object
+    - Check that on_submit returns data (not false)
+    - Ensure callback doesn't throw unhandled errors
+    - Test vals() method independently
+
+Queue Not Working
+    - All modals automatically queue
+    - If backdrop flickers, check for multiple backdrop creation
+    - Verify using Modal.* static methods (not creating instances)
+
+Component Not Found
+    - Ensure component class name is correct (case-sensitive)
+    - Check that component files are in manifest
+    - Verify component extends Component
+    - Component must be in /rsx/ directory tree
+
+================================================================================

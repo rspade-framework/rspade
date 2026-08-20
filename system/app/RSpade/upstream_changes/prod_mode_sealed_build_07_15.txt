@@ -1,0 +1,152 @@
+SEALED PRODUCTION BUILD SYSTEM (CORE BEHAVIOR + CONTRACT CHANGES)
+Date: 2026-07-15
+
+SUMMARY
+    The production build system was rebuilt around a "sealed build": debug and
+    production modes are now compiled ONCE by an explicit command and then
+    treated as immutable. This ships a new command surface (enable / refresh /
+    disable / verify), a seal file, a determinism guarantee, and immutability
+    guards - all in /system/ core, arriving automatically via the submodule.
+
+    Most of it is new capability you simply gain. But several pieces CHANGE
+    existing behavior or contracts, so this is a Category 2 document: the parts
+    below marked "ACTION" need you to check or adjust YOUR OWN code, scripts, or
+    deploy process. If you run a plain dev workflow and have no prod-build
+    scripts, the required action is minimal (mostly a couple of greps).
+
+THE CHANGE
+    New in /system/ core (informational - all arrives via the submodule):
+
+    1. Sealed-build lifecycle commands (Commands/Rsx/):
+         rsx:prod:enable [--debug]   compile + seal a fresh prod build
+         rsx:prod:refresh [--debug]  rebuild + re-seal in place (needs a seal)
+         rsx:prod:disable            unseal, return to development
+         rsx:prod:verify             recompute asset hashes vs the seal (CI tool)
+       rsx:mode:set is now a thin DELEGATOR over these (dev -> disable,
+       debug -> enable --debug, prod -> enable). rsx:prod:build is the shared
+       build engine (not normally run by hand). rsx:prod:export still packages
+       a deployable.
+
+    2. The seal file: storage/rsx-build/prod_seal.json pins build_key, mode,
+       git commit, and a sha256 of every build asset. The framework is
+       "sealed" when this file exists AND RSX_MODE is a prod mode.
+
+    3. Determinism contract: prod-mode file hashing is now over the
+       PROJECT-RELATIVE path + file CONTENT (never absolute path or mtime), and
+       the manifest hash excludes per-file mtime/size. Two byte-identical
+       checkouts at different absolute paths now produce an IDENTICAL build_key
+       and IDENTICAL bundle filenames.
+
+    4. Immutability guards (guardrails, not security): while sealed, rsx:clean
+       refuses, a plain rsx:prod:build refuses, and the low-level write choke
+       points throw on unauthorized writes under storage/rsx-build. Only an
+       authorized rebuild context (the --authorized invocation flag, set by
+       enable/refresh/export) may write sealed assets.
+
+    Full reference: php artisan rsx:man app_mode.
+
+THE FIX
+    All of the above lives in /system/ and reaches you via the submodule merge
+    on the next `php artisan rsx:framework:pull`. There is nothing to copy into
+    your own code. This document exists only for the behavior/contract CHANGES
+    below that your own code, scripts, or deploy process may depend on.
+
+ACTION REQUIRED
+    Work through these. Items 1-3 are the ones most likely to bite; the rest
+    are quick verifications.
+
+    1. Build/deploy scripts: env prefixes are GONE - use --flags.
+       Per-invocation intent no longer travels as a KEY=VALUE env prefix. If any
+       of your scripts or CI invoke the build with an env prefix, convert them:
+
+           WRONG:  RSX_FORCE_BUILD=1 php artisan rsx:prod:build
+           WRONG:  RSX_PROD_BUILD_AUTHORIZED=1 php artisan rsx:prod:build
+           RIGHT:  php artisan rsx:prod:build --force --authorized
+
+       Grep your deploy tooling:
+
+           grep -rn "RSX_FORCE_BUILD\|RSX_PROD_BUILD_AUTHORIZED" .
+
+       (Better still, stop calling rsx:prod:build directly and use
+       rsx:prod:enable / :refresh, which manage force + authorization for you.)
+
+    2. optimize:cache no longer caches config or views.
+       Laravel's config:cache and view:cache FREEZE env() (a cached config
+       returns null for later env() reads), which is incompatible with how RSX
+       resolves deployment facts at runtime. The prod build's optimize:cache
+       step now caches ONLY routes and events. If your app or deploy process
+       relies on `php artisan config:cache` / `view:cache` being run (or on a
+       cached config existing in production), REMOVE that dependency - a cached
+       config will break RSX runtime config resolution. Grep:
+
+           grep -rn "config:cache\|view:cache" . --include=*.sh --include=*.yml
+
+    3. Dead model cache cluster REMOVED - grep for callers.
+       Rsx_Model_Abstract's query-cache cluster (never actually wired) was
+       deleted: the public methods clear_all_caches() and clear_table_cache()
+       no longer exist, along with $query_cache / $table_modifications /
+       _mark_table_modified(). If any app code CALLS these, it will now fatal.
+       Grep and remove the calls (they were no-ops on real data anyway):
+
+           grep -rn "clear_all_caches\|clear_table_cache\|_mark_table_modified\|query_cache" rsx --include=*.php
+
+       (Realtime emission in save()/delete() is untouched - only the dead cache
+       plumbing was removed.)
+
+    4. Strict-production ENTRY now requires a production environment.
+       rsx:prod:enable (without --debug) HARD-FAILS unless APP_ENV=production
+       AND APP_DEBUG=false. This is intended - a strict prod build belongs on a
+       real prod host. On a dev box, build the debug variant instead
+       (rsx:prod:enable --debug), which is warn-only about the environment.
+       If you had scripts that switched a non-production box "to production
+       mode," point them at --debug (or set a real production .env).
+
+    5. RSX_MODE now drives build hashing (APP_ENV no longer consulted there).
+       The file-hash function used to branch on app()->environment('production');
+       it now branches on RSX_MODE via Rsx::is_production(). If you ever built
+       prod assets by setting APP_ENV without setting RSX_MODE, that no longer
+       selects the deterministic content-hash path - set RSX_MODE (which the
+       prod-mode commands do for you). No action if you use the commands.
+
+    6. Strict production uses a classmap-authoritative composer autoloader.
+       The build runs `composer dump-autoload --optimize --classmap-authoritative`
+       in strict production, which forbids composer's filesystem fallback for the
+       system/ PSR-4 tree. Your /rsx classes resolve through the manifest
+       autoloader (separate), so the class-override pattern is unaffected. Just
+       be aware: rsx:prod:disable now runs a plain (non-authoritative) dump to
+       restore the dev autoloader - if you add classes while sealed, refresh or
+       disable before expecting composer to see them.
+
+    7. console_debug() behavior changed in BOTH prod modes.
+       - Strict production: console_debug() call sites are now STRIPPED from the
+         compiled bundle (Terser pure_funcs) and the config block is omitted -
+         zero console_debug output. If you relied on any console_debug reaching
+         a production browser console, it never will (it was always meant to be
+         dev-only; this makes it real).
+       - Debug mode: console_debug() now WORKS (it previously did not). If you
+         build the debug variant, expect channel-filtered console output.
+
+    8. CI/cluster opportunity (optional, not required).
+       Because build_key and bundle filenames are now identical across checkouts
+       of the same commit, you MAY cache your prod build keyed on build_key
+       (or the commit), and full-page-cache entries (fpc:{build_key}:...) are
+       shareable across nodes on the same build. Adopt if useful; nothing breaks
+       if you ignore it.
+
+    When you have done items 1-3 (and checked the rest apply or not), mark this
+    change fulfilled:
+
+        php artisan rsx:framework:upstream_changes:mark prod_mode_sealed_build_07_15 --fulfilled
+
+VERIFICATION
+    - Grep results for items 1, 2, 3 are clean (no env-prefixed build calls, no
+      config:cache dependency, no callers of the removed model cache methods).
+    - On a dev box: `php artisan rsx:prod:enable --debug` seals a build,
+      `php artisan rsx:prod:verify` passes, and `php artisan rsx:prod:disable`
+      returns you to a healthy development mode (pages render, files auto-compile).
+    - On a prod host (APP_ENV=production, APP_DEBUG=false):
+      `php artisan rsx:prod:enable` seals a strict build and `rsx:prod:verify`
+      reports all-OK. While sealed, `php artisan rsx:clean` refuses.
+    - Determinism (if you run a cluster): the same commit checked out on two
+      hosts produces the same build_key (compare `rsx:prod:verify` output or the
+      build_key file).

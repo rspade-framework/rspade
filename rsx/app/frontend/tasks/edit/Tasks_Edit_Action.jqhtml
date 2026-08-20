@@ -1,0 +1,84 @@
+<Define:Tasks_Edit_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading task details..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Task"
+                $back_label="Go back to Tasks"
+                $back_url="<%= Rsx.Route('Tasks_Index_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Rsx_Form $data="<%= JSON.stringify(this.data.form_data) %>" $controller="Frontend_Tasks_Controller" $method="save">
+                <% if (this.data.is_edit) { %>
+                    <Hidden_Input $name="id" />
+                <% } %>
+
+                <Card_Widget>
+                    <Section $title="Task Information">
+                        <Form_Field $label="Title" $required=true>
+                            <Text_Input $name="title" $placeholder="Enter task title" $max_length=Task_Model.field_length('title') />
+                        </Form_Field>
+
+                        <Form_Field $label="Description">
+                            <Text_Input $name="description" $type="textarea" $rows=4 $placeholder="Describe the task..." $max_length=-1 />
+                        </Form_Field>
+
+                        <Form_Field $label="Status">
+                            <Select_Input $name="status" $options="<%= JSON.stringify(Task_Model.status__enum_select()) %>" />
+                        </Form_Field>
+
+                        <Form_Field $label="Priority">
+                            <Select_Input $name="priority" $options="<%= JSON.stringify(Task_Model.priority__enum_select()) %>" />
+                        </Form_Field>
+                    </Section>
+
+                    <Section $title="Assignment & Scheduling">
+                        <Form_Field $label="Assigned To">
+                            <Ajax_Entity_Select_Input $name="assigned_to_user_id" $parent_type="User_Model" $placeholder="Search for a user..." />
+                        </Form_Field>
+
+                        <Form_Field $label="Due Date">
+                            <Text_Input $name="due_date" $type="date" $max_length=-1 />
+                        </Form_Field>
+
+                        <Form_Field $label="Estimated Hours">
+                            <Text_Input $name="hour_estimate" $type="number" $placeholder="0" $max_length=-1 />
+                        </Form_Field>
+                    </Section>
+
+                    <Section $title="Parent & Project">
+                        <Form_Field $label="Parent">
+                            <Parent_Selector_Input $sid="parent_picker" $name="taskable" $exclude_id="<%= this.data.form_data.id || '' %>" />
+                        </Form_Field>
+
+                        <Form_Field $label="Project">
+                            <Ajax_Entity_Select_Input $sid="project_select" $name="project_id" $parent_type="Project_Model" $placeholder="Search for a project..." />
+                            <div $sid="project_note" class="form-text d-none"></div>
+                        </Form_Field>
+                    </Section>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="<%= Rsx.Route('Tasks_Index_Action') %>" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Save Task
+                        </button>
+                    </div>
+                </Card_Widget>
+            </Rsx_Form>
+        </Slot:main>
+    </Page_Scaffold>
+<% } %>
+</Define:Tasks_Edit_Action>

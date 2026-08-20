@@ -1,0 +1,20 @@
+<%--
+Widget_Grid - responsive grid of overview widget cards
+
+default content - the widget cards (each a <Section> or <Card_Widget>)
+
+The dashboard/overview layout container: it arranges independent widget cards
+two-up on desktop and one-up on mobile, owning the gap between them (R1/R2 -
+the container owns the spacing, the cards never carry outer margins). Replaces
+the old Bootstrap `row` + `col-*` shells that wrapped each card in a column
+(box-in-box). A card is a direct child of the grid.
+
+Usage:
+    <Widget_Grid>
+        <Section $title="Recent Activity"> ... </Section>
+        <Section $title="Today's Tasks"> ... </Section>
+    </Widget_Grid>
+--%>
+<Define:Widget_Grid>
+    <%= content() %>
+</Define:Widget_Grid>
