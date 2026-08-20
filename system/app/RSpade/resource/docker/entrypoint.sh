@@ -129,36 +129,32 @@ case "$APP_URL_NOW" in
 esac
 
 # -----------------------------------------------------------------------------
-# 4. First-user credentials
+# 4. First-user credentials (PRODUCTION ONLY)
 # -----------------------------------------------------------------------------
-# The framework refuses to create the first user while these are blank, and
-# ships no default on purpose. In DEVELOPMENT we generate a password so that
-# "clone it and run it" holds, and print it once - the developer can change it
-# in .env any time before the first migrate. In PRODUCTION we refuse: inventing
-# a credential for a production system is not ours to do.
-if [ -z "$(env_value RSPADE_DEFAULT_EMAIL)" ] || [ -z "$(env_value RSPADE_DEFAULT_PASSWORD)" ]; then
-    if [ "$TARGET" = "prod" ]; then
-        die "RSPADE_DEFAULT_EMAIL and RSPADE_DEFAULT_PASSWORD must be set in .env before this container can migrate. See .env.README."
+# DEVELOPMENT CREATES NO USER HERE, and that is the whole point: the first-run
+# setup screen asks for the account in the browser, on first visit. Leaving
+# RSPADE_DEFAULT_EMAIL / RSPADE_DEFAULT_PASSWORD blank is what lets it - the
+# create_admin_test_user migration deliberately creates nothing when they are
+# empty, and its sibling then skips the site profile that would belong to it.
+#
+# This step used to GENERATE a credential in development so that "clone it and
+# run it" held. That predated the setup screen and, once the screen existed,
+# actively defeated it: the generated admin@localhost account was already in
+# login_users by the time anybody opened a browser, so the screen had nothing to
+# offer and the developer logged in as a user they never chose (field report,
+# 2026-08-20). Blank is not a gap to fill here. It is the signal.
+#
+# PRODUCTION has no such screen - the wizard is development-only by design - so
+# the credentials remain REQUIRED there, and refusing early beats failing inside
+# the migration with the database half-built.
+if [ "$TARGET" = "prod" ]; then
+    if [ -z "$(env_value RSPADE_DEFAULT_EMAIL)" ] || [ -z "$(env_value RSPADE_DEFAULT_PASSWORD)" ]; then
+        die "RSPADE_DEFAULT_EMAIL and RSPADE_DEFAULT_PASSWORD must be set in .env before this container can migrate.
+
+   They are the credentials of the first account you will sign in with. There is
+   no default and no setup screen in production - a shared, published password is
+   not a starting point. See .env.README."
     fi
-
-    generated_email="${RSPADE_DEFAULT_EMAIL:-admin@localhost}"
-    generated_password="$(head -c 18 /dev/urandom | base64 | tr -d '/+=' | head -c 20)"
-
-    env_set RSPADE_DEFAULT_EMAIL "$generated_email"
-    env_set RSPADE_DEFAULT_PASSWORD "$generated_password"
-
-    echo ""
-    say "=============================================================="
-    say " Generated the first-user credentials (development target)"
-    say ""
-    say "   email:    $generated_email"
-    say "   password: $generated_password"
-    say ""
-    say " They are stored in .env as RSPADE_DEFAULT_EMAIL and"
-    say " RSPADE_DEFAULT_PASSWORD. Change them there before the first"
-    say " migrate if you want something else. See .env.README."
-    say "=============================================================="
-    echo ""
 fi
 
 # -----------------------------------------------------------------------------
@@ -455,7 +451,7 @@ if [ "$TARGET" = "dev" ]; then
     say "Running migrations..."
     if ! php system/artisan migrate --force; then
         warn "Migrations did not complete. The application may not work until this is resolved."
-        warn "A common first-run cause: RSPADE_DEFAULT_EMAIL / RSPADE_DEFAULT_PASSWORD are blank in .env (see .env.README)."
+        warn "Run them yourself to see the full error:  php system/artisan migrate"
     fi
 else
     if php system/artisan migrate:pending 2>/dev/null | grep -qv "No pending migrations"; then

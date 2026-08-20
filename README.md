@@ -219,6 +219,63 @@ names.
 Application *behaviour* is configured in `rsx/resource/config/rsx.php`, which is
 version-controlled and merges over the framework's defaults.
 
+### The database
+
+The development container runs its own MySQL, and the client tools are in there
+with it — you do not need MySQL installed on your machine to use them.
+
+```bash
+# A SQL prompt on the application's database
+docker compose exec app mysql rspade
+
+# Dump the whole schema and its data
+docker compose exec app mysqldump rspade | less
+
+# Throw the database away and start over
+echo "drop database rspade; create database rspade" | docker compose exec app mysql
+```
+
+**Name the database.** `mysql` on its own connects to the server without
+selecting anything, and the first query answers `ERROR 1046 (3D000): No database
+selected`. `mysql rspade` is the form to use. Same for `mysqldump`, which dumps
+nothing useful without being told what to dump.
+
+**After a reset, migrate.** Dropping the database leaves you with an empty one
+and an application that cannot serve a page. Bring the schema back, then let the
+setup screen create your account again:
+
+```bash
+docker compose exec app php artisan migrate
+```
+
+The first-run screens return on the next page load, because the account you had
+lived in the database you just dropped.
+
+**No password, and that is not an oversight.** MySQL's `root` account here
+authenticates by unix socket — the operating-system user connecting *is* the
+credential — and `docker compose exec` runs as root inside the container. So
+these commands arrive already authenticated, as `root`, with more privilege than
+the application itself has. The application connects as the `rspade` user with
+the password in `.env`, which is why `DB_USERNAME` and `DB_PASSWORD` are there
+and why you never need to type them here.
+
+None of this reaches outside the container: the socket is not on your machine
+and the port is not published. If you renamed the database in `.env`, use that
+name in place of `rspade`.
+
+**Connecting from your own tools** — TablePlus, DataGrip, DBeaver — needs the
+port published to your machine, which it is not by default. Add it to the `app`
+service in `docker-compose.yml`:
+
+```yaml
+    ports:
+      - "8080:80"
+      - "3306:3306"
+```
+
+Then connect to `127.0.0.1:3306` with the credentials from `.env`. Leave it off
+if you do not need it: it is one more thing listening on your machine.
+
 ### Where your data lives
 
 Everything the running application writes lands under `storage/` in your
@@ -233,6 +290,103 @@ project — it is gitignored, and it is the whole of the state:
 
 Back the project up by copying it. `docker compose down -v` destroys named
 volumes, and none of this is in one, so it survives.
+
+---
+
+## Running it without Compose
+
+`docker compose up` is the shortest path and the one the Quick start uses. The
+shipped `docker-compose.yml` is not doing anything clever, though — here is the
+whole of it as a single `docker run`:
+
+```bash
+docker run -d \
+  --name rspade \
+  -p 8080:80 \
+  -e PUID=$(id -u) -e PGID=$(id -g) \
+  -v "$PWD":/var/www/html \
+  -v "$PWD/storage/mysql_data":/var/lib/mysql \
+  -v "$PWD/storage/.claude":/root/.claude \
+  --stop-timeout 30 \
+  rspade/rspade-server-dev:latest
+```
+
+Reach for this when Compose is in your way: when the container is one service in
+a larger stack, when you want the project, the database or Claude Code's state
+somewhere other than this directory, or when the port should not be published to
+the host at all because something else is terminating traffic in front of it.
+
+What each part is for:
+
+| | |
+|---|---|
+| `-p 8080:80` | the application. Drop it entirely behind a reverse proxy on a shared network — see below |
+| `-e PUID` / `-e PGID` | run as you, so files the application writes (including the database) are yours. Linux only; harmless elsewhere |
+| `-v "$PWD":/var/www/html` | your project. The container serves what you edit |
+| `-v .../var/lib/mysql` | the database. Point it anywhere you like — it is an ordinary directory |
+| `-v .../root/.claude` | Claude Code's login and history, if you use it |
+| `--stop-timeout 30` | lets the container shut down cleanly instead of being killed mid-write |
+
+Pass a command and it runs once the application is actually serving, taking the
+container down when it exits — so this boots in the foreground, shows you the
+startup, and leaves you at a prompt:
+
+```bash
+docker run -it --rm \
+  -p 8080:80 \
+  -v "$PWD":/var/www/html \
+  -v "$PWD/storage/mysql_data":/var/lib/mysql \
+  rspade/rspade-server-dev:latest bash
+```
+
+Keep the database mount even here. Without it the container gets a fresh,
+empty database that `--rm` throws away when the shell exits — fine if that is
+what you meant, surprising if it is not.
+
+### Behind a reverse proxy
+
+The container serves plain HTTP on port **80** and expects TLS to be terminated
+in front of it. Put it on a network with your proxy and publish nothing:
+
+```bash
+docker network create web
+
+docker run -d --name rspade --network web \
+  -e VIRTUAL_HOST=app.example.com \
+  -e LETSENCRYPT_HOST=app.example.com \
+  -v "$PWD":/var/www/html \
+  -v "$PWD/storage/mysql_data":/var/lib/mysql \
+  rspade/rspade-server-dev:latest
+```
+
+That labelling is [nginx-proxy](https://github.com/nginx-proxy/nginx-proxy)'s.
+With [Caddy](https://caddyserver.com/), a two-line Caddyfile does the same job
+and obtains the certificate itself:
+
+```
+app.example.com {
+    reverse_proxy rspade:80
+}
+```
+
+**Set `APP_URL` to the address people actually type**, not the container's:
+
+```
+APP_URL=https://app.example.com
+```
+
+RSpade generates every URL from that one value, and outside development mode it
+must be `https` — the session cookie is `Secure` there, so a plain-http page
+would discard it on every request and nobody could stay logged in. Your proxy is
+what makes it https; the container itself never needs a certificate.
+
+Two things that follow from that, worth knowing before you debug them:
+
+- Forward the usual `X-Forwarded-Proto` and `X-Forwarded-For` headers. Both
+  proxies above do it by default.
+- The **production** image (`rspade/rspade-server-prod`) ships no database. It
+  expects one you provide, configured through `.env` — so the `/var/lib/mysql`
+  mount above is a development-image concern and does not apply to it.
 
 ---
 
