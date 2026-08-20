@@ -115,6 +115,13 @@ php artisan migrate                 # apply schema changes
 `php artisan rsx:man` with no argument lists every topic there is. The framework
 is heavily documented from the inside; that command is the way in.
 
+Run those from inside the container, not from your host. In development mode
+`artisan` checks and refuses if it is anywhere else — the tooling assumes the
+container's services and data layout, and outside it commands would half-work
+rather than fail cleanly. The refusal prints the `docker compose exec` line for
+whatever you just typed, so it costs you one retry. A deployed application in
+production mode has no such restriction.
+
 Your code lives in `rsx/`. The framework lives in `system/` and is updated as a
 unit:
 
@@ -211,6 +218,21 @@ names.
 
 Application *behaviour* is configured in `rsx/resource/config/rsx.php`, which is
 version-controlled and merges over the framework's defaults.
+
+### Where your data lives
+
+Everything the running application writes lands under `storage/` in your
+project — it is gitignored, and it is the whole of the state:
+
+| | |
+|---|---|
+| `storage/mysql_data` | the database |
+| `storage/storage/files` | uploaded file attachments |
+| `storage/logs` | application logs |
+| `storage/.claude` | Claude Code's settings and history |
+
+Back the project up by copying it. `docker compose down -v` destroys named
+volumes, and none of this is in one, so it survives.
 
 ---
 

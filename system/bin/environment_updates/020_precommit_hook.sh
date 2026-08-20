@@ -15,6 +15,15 @@
 
 set -uo pipefail
 
+# CONTAINER GATE. Every environment_updates script runs ONLY inside the RSpade
+# container. These scripts modify the environment around the project - git hooks,
+# editor and agent settings, the on-disk storage layout - and that environment is
+# the container's, not the host's. Run on a host they would install container
+# assumptions into somebody's own machine, silently and with no way to know it
+# happened. Absent marker, absent consent: exit 0 and say nothing (the contract
+# is silent-when-not-applicable, and this is a normal state, not a failure).
+[ -f /.rspade_container ] || exit 0
+
 PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
 
 # The monorepo commits system/ directly - never install the guard there.

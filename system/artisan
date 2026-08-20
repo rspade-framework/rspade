@@ -46,6 +46,24 @@ if (!file_exists(__DIR__.'/../.env')) {
 
 /*
 |--------------------------------------------------------------------------
+| Container Gate (pre-boot, development mode only)
+|--------------------------------------------------------------------------
+|
+| In development mode artisan runs inside the RSpade container or not at all.
+| Placed HERE, ahead of every command interception below, because the refusal is
+| about the environment and not about any one command: a gate that let some
+| commands through would be a gate somebody has to memorize the exceptions to.
+|
+| It runs AFTER the .env bootstrap above, since it reads RSX_MODE from the file
+| that block may have just created. Debug and production are never gated - see
+| bootstrap/rsx_container_gate.php for the reasoning in full.
+|
+*/
+
+require __DIR__.'/bootstrap/rsx_container_gate.php';
+
+/*
+|--------------------------------------------------------------------------
 | Storage Root (pre-boot)
 |--------------------------------------------------------------------------
 |
