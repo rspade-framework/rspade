@@ -12,6 +12,8 @@ Three modes: `development`, `debug`, `production` — switched with `php artisan
 
 **Guards are guardrails, NOT security**: `rsx:clean` refuses while sealed and write choke points reject unauthorized writes under `rsx-build`, but raw `rm` and hand-edits bypass them — `verify` detects the drift afterwards.
 
+**In DEVELOPMENT mode `artisan` runs inside the RSpade container or not at all** — a pre-boot gate (`bootstrap/rsx_container_gate.php`) refuses when `/.rspade_container` is absent, printing the `docker compose exec` line for the command that was typed. CLI only, development only: debug and production run outside a container normally, and the web entrypoint is never gated. The marker is written by the framework's Dockerfile; `migrate` separately reads `/.rspade_container_dev` to decide whether its snapshot is discarded (dev) or KEPT (prod).
+
 **`RSX_MODE` in `.env` is the mode, and you never edit it by hand.** **Per-invocation intent is a `--flag`, never an env prefix: do NOT prefix an invocation with `KEY=VALUE`** (owner ruling).
 
 **Before launch**, review `rsx:man prelaunch_checklist` AND your own `rsx/resource/audits/prelaunch_checklist.md`. Both lists, every launch.

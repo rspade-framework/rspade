@@ -174,6 +174,14 @@ RUN printf '%s\n' \
     "target=${RSPADE_CONTAINER_TARGET:-base}" \
     > /.rspade_container
 
+# The project is a bind mount owned by whoever owns it on the host, which is
+# almost never the uid running in here. Git refuses to operate on a repository
+# owned by somebody else ("dubious ownership") - a sensible default on a shared
+# machine, and pure obstruction inside a single-tenant container where that
+# mismatch is the NORMAL case and every alternative is worse. Scoped to this
+# image; it says nothing about the host's git.
+RUN git config --global --add safe.directory '*'
+
 WORKDIR /var/www/html
 EXPOSE 80 8000
 
@@ -211,6 +219,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY mysql/mysqld.cnf   /etc/mysql/mysql.conf.d/mysqld.cnf
 COPY mysql/provision.sql /opt/rspade/provision.sql
 RUN chmod 644 /etc/mysql/mysql.conf.d/mysqld.cnf /opt/rspade/provision.sql
+
+# A pristine copy of the initialised data directory.
+#
+# WHY THIS IS BACK. It existed once, and was removed as redundant when the
+# database lived in a NAMED VOLUME: Docker copies the image's own directory
+# content into a named volume the first time that volume is mounted empty, so
+# the datadir arrived already initialised for free.
+#
+# A BIND MOUNT gets no such copy. storage/mysql_data on the host starts as an
+# empty directory and stays empty, and mysqld will not start against one. So the
+# initialised tree the mysql-server package built at image-build time is
+# preserved here, and the entrypoint unpacks it on first boot - reproducing by
+# hand exactly what the named volume used to do for us.
+#
+# Tarred rather than copied so it costs one compressed layer instead of a second
+# full datadir, and gzip because this is written once and read once.
+RUN tar -C /var/lib/mysql -czf /opt/rspade/mysql-datadir-template.tgz . \
+    && chmod 644 /opt/rspade/mysql-datadir-template.tgz
 
 # Claude Code, when the image is built with --claude.
 #

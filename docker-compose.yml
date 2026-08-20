@@ -31,7 +31,9 @@ services:
       - "8080:80"
 
     # LINUX USERS: uncomment these and set them to your own ids, so files the
-    # application writes belong to you rather than to root:
+    # application writes - including the database in storage/mysql_data - belong
+    # to you rather than to root, and you can move or delete your own project
+    # without sudo:
     #
     #     id -u    # -> PUID
     #     id -g    # -> PGID
@@ -46,11 +48,18 @@ services:
     volumes:
       # Your project. Edit files on your machine; the container serves them.
       - .:/var/www/html
-      # The database lives in a named volume, NEVER in the bind mount above:
-      # MySQL's data directory does not behave correctly on a Docker Desktop
-      # bind mount, and keeping it separate means `docker compose down` does not
-      # take your data with it.
-      - rspade-mysql:/var/lib/mysql
+      # The database, kept in your project under storage/ (which is gitignored)
+      # so you can see it, back it up by copying a directory, and keep it across
+      # a `docker compose down -v` that would have destroyed a named volume.
+      #
+      # LINUX HOSTS: this is the right default. MACOS AND WINDOWS: if MySQL fails
+      # to start with errors about file locking or InnoDB, your Docker Desktop
+      # filesystem layer is the reason - swap this one line for a named volume
+      # (`- rspade-mysql:/var/lib/mysql`, plus a top-level `volumes:` block
+      # declaring `rspade-mysql:`) and everything else keeps working.
+      #
+      # The directory arrives empty; the container initialises it on first boot.
+      - ./storage/mysql_data:/var/lib/mysql
       # Claude Code's settings, login and history. Kept in your project (under
       # storage/, which is gitignored) so they survive `docker compose down` and
       # rebuilding the image does not sign you out.
@@ -58,6 +67,3 @@ services:
 
     # Lets the container stop cleanly rather than being killed mid-write.
     stop_grace_period: 30s
-
-volumes:
-  rspade-mysql:

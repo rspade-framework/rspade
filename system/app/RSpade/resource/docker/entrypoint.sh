@@ -162,6 +162,36 @@ if [ -z "$(env_value RSPADE_DEFAULT_EMAIL)" ] || [ -z "$(env_value RSPADE_DEFAUL
 fi
 
 # -----------------------------------------------------------------------------
+# 4b. Environment updates
+# -----------------------------------------------------------------------------
+# system/bin/environment_updates/*.sh make the surrounding environment correct:
+# they relocate volatile storage out of system/ to <project>/storage, install the
+# git pre-commit guard, wire the Claude Code status line, and so on.
+#
+# WHY THE CONTAINER HAS TO RUN THEM. Their triggers are a framework update and a
+# successful manifest build - both of which assume an environment that has
+# already been used. A freshly cloned project started for the first time has had
+# neither, so it ran with none of these applied: uploads and logs landing inside
+# system/ instead of the project's own storage/, no status line, no commit guard.
+# The container start is the one moment guaranteed to happen before anything else
+# in a new project, which makes it the right place to ask.
+#
+# BEFORE SUPERVISOR, and before the storage preparation below, on purpose. The
+# storage relocation MOVES the tree every service is about to open files in;
+# doing that underneath running services is how you get processes holding
+# deleted paths. Ordering it here also means the ownership pass below applies to
+# the final location rather than one we are about to abandon.
+#
+# The scripts are idempotent and silent when already applied (their published
+# contract), so on every boot after the first this prints nothing. Failures are
+# NON-FATAL: an environment that could not be improved still runs.
+if [ -f "$APP_DIR/system/bin/post-update.sh" ]; then
+    PROJECT_ROOT="$APP_DIR" SYSTEM_DIR="$APP_DIR/system" \
+        bash "$APP_DIR/system/bin/post-update.sh" \
+        || warn "environment updates reported a failure (non-fatal)"
+fi
+
+# -----------------------------------------------------------------------------
 # 5. Writable storage
 # -----------------------------------------------------------------------------
 mkdir -p storage/rsx-build storage/rsx-tmp storage/flock storage/rsx-framework storage/logs 2>/dev/null || true
@@ -221,10 +251,39 @@ if [ -n "${PUID:-}" ]; then
             "$pool" || warn "could not repoint $(basename "$pool")"
     done
 
+    # And the database, for the same reason and with more force behind it.
+    #
+    # /var/lib/mysql is a bind mount into your project, so the uid mysqld runs as
+    # is the uid that ends up owning your database files on your own disk. Left
+    # as the packaged `mysql` user that is uid 999, which you are not: the files
+    # land in your project owned by somebody who does not exist on your machine,
+    # and moving or deleting your own project needs sudo.
+    #
+    # Docker cannot remap ownership across a bind mount (no idmap for binds, no
+    # Podman's :U), so the only lever is which uid the writer runs as - and this
+    # is it. The datadir chown in the MySQL step below follows the same PUID.
+    #
+    # The config file, NOT a command-line flag: mysqld reads its defaults file
+    # first and keeps the FIRST `user` it sees, so a `--user=` on the command
+    # line loses to this line and is silently ignored (with a warning buried in
+    # the log). One place decides the identity.
+    mysqld_cnf="/etc/mysql/mysql.conf.d/mysqld.cnf"
+    if [ -f "$mysqld_cnf" ]; then
+        sed -i "s/^user[[:space:]]*=.*/user = ${APP_USER}/" "$mysqld_cnf" \
+            || warn "could not repoint mysqld at ${APP_USER}"
+    fi
+
     # Hand over the things the application writes. Everything else in the project
     # is yours already - it came from your checkout.
-    chown -R "${APP_USER}:${APP_GROUP}" storage 2>/dev/null \
+    #
+    # storage/mysql_data is EXCLUDED, and must stay excluded: it is the database's
+    # bind-mounted data directory, mysqld requires it to be owned by mysql, and
+    # handing it to the developer's uid stops the database from starting. It is
+    # not a thing you edit by hand anyway.
+    find storage -mindepth 1 -maxdepth 1 ! -name mysql_data \
+        -exec chown -R "${APP_USER}:${APP_GROUP}" {} + 2>/dev/null \
         || warn "could not chown storage/ to ${APP_USER}"
+    chown "${APP_USER}:${APP_GROUP}" storage 2>/dev/null || true
     [ -f "$APP_DIR/.env" ] && chown "${APP_USER}:${APP_GROUP}" "$APP_DIR/.env" 2>/dev/null
 
     say "Running the application as ${APP_USER} (uid ${PUID}, gid ${APP_GID})."
@@ -232,19 +291,92 @@ if [ -n "${PUID:-}" ]; then
 elif [ "$TARGET" = "prod" ]; then
     # Production has no bind-mounted developer tree to fight, so it runs as
     # www-data unconditionally and owns what it writes.
-    chown -R www-data:www-data storage 2>/dev/null || warn "Could not chown storage/ to www-data"
+    find storage -mindepth 1 -maxdepth 1 ! -name mysql_data \
+        -exec chown -R www-data:www-data {} + 2>/dev/null \
+        || warn "Could not chown storage/ to www-data"
+    chown www-data:www-data storage 2>/dev/null || true
 fi
 
 # -----------------------------------------------------------------------------
-# 6. MySQL runtime directory (development target only)
+# 6. MySQL data directory (development target only)
 # -----------------------------------------------------------------------------
-# The DATA directory needs nothing here. Installing mysql-server initialises
-# /var/lib/mysql at build time, and Docker copies an image directory into a named
-# volume the first time that volume is mounted empty - so a fresh volume arrives
-# already initialised. (Whether the databases exist is a separate question,
-# answered after MySQL is actually listening - see below.)
+# The identity mysqld runs as (see the PUID step above: it is YOUR uid when PUID
+# is set, so the database files in your project belong to you). Everything mysqld
+# opens outside the data directory has to follow it - the runtime socket dir, the
+# error log, the secure-file and keyring dirs. Miss one and mysqld aborts at
+# startup on that path alone, having said nothing about the others.
+mysql_runtime_owner="mysql"
+mysql_runtime_group="mysql"
+if [ -n "${PUID:-}" ]; then
+    mysql_runtime_owner="${APP_USER}"
+    mysql_runtime_group="${APP_GROUP}"
+fi
+
 mkdir -p /var/run/mysqld 2>/dev/null || true
-chown mysql:mysql /var/run/mysqld 2>/dev/null || true
+for mysql_path in /var/run/mysqld /var/log/mysql /var/lib/mysql-files /var/lib/mysql-keyring; do
+    [ -e "$mysql_path" ] || continue
+    chown -R "${mysql_runtime_owner}:${mysql_runtime_group}" "$mysql_path" 2>/dev/null || true
+done
+
+# /var/lib/mysql is a BIND MOUNT to storage/mysql_data in your project, so you
+# can see the database, back it up by copying a directory, and keep it across a
+# `docker compose down -v` that would have destroyed a named volume.
+#
+# The cost of that choice is this block. A named volume arrives pre-populated
+# (Docker copies the image's directory content in the first time it is mounted
+# empty); a bind mount arrives EXACTLY as empty as it is on the host, and mysqld
+# will not start against an uninitialised data directory. So the pristine tree
+# from image build time is unpacked here on the first boot.
+#
+# The test is the `mysql` system schema, not "is the directory empty" - the host
+# directory routinely holds a stray .DS_Store or an editor's dotfile, and
+# treating that as an initialised database would fail much later and much worse.
+if [ "$TARGET" = "dev" ]; then
+    if [ ! -d /var/lib/mysql/mysql ]; then
+        template="/opt/rspade/mysql-datadir-template.tgz"
+
+        if [ ! -f "$template" ]; then
+            die "The MySQL data directory at /var/lib/mysql is not initialised, and
+   the image's template ($template) is missing.
+
+   This image was not built correctly. Rebuild it:
+       bash system/app/RSpade/resource/docker/build.sh"
+        fi
+
+        say "First run: initialising the database in storage/mysql_data..."
+        mkdir -p /var/lib/mysql
+        tar -xzf "$template" -C /var/lib/mysql \
+            || die "Could not unpack the MySQL data directory template."
+    fi
+
+    # WHO OWNS THE DATA DIRECTORY. mysqld here runs as root (see
+    # supervisor/conf.d/mysql.conf), so it can read and write the datadir
+    # whoever owns it - which means ownership is free to serve the person
+    # OUTSIDE the container instead.
+    #
+    # That matters because this is a bind mount: the files are in your project,
+    # and files owned by a uid you do not have are files you need sudo to move,
+    # copy or delete. So when PUID says who you are, the database belongs to you
+    # too - the same promise PUID already makes for everything else the
+    # application writes. Without PUID it stays with mysql, which is the
+    # historic owner and the right default on macOS and Windows, where Docker
+    # Desktop presents every file as yours regardless.
+    #
+    # Docker has no uid-remapping for bind mounts (no idmap, no Podman's :U), so
+    # a chown is the whole mechanism available. It is CHECKED before it is
+    # applied - a recursive chown across a live database on every boot would be
+    # pointless work.
+    datadir_owner="$mysql_runtime_owner"
+    datadir_group="$mysql_runtime_group"
+
+    want_uid="$(id -u "$datadir_owner" 2>/dev/null || echo -1)"
+    if [ "$(stat -c %u /var/lib/mysql 2>/dev/null || echo -1)" != "$want_uid" ] \
+        || [ "$(stat -c %u /var/lib/mysql/mysql 2>/dev/null || echo -1)" != "$want_uid" ]; then
+        say "Handing the database data directory to ${datadir_owner}..."
+        chown -R "${datadir_owner}:${datadir_group}" /var/lib/mysql 2>/dev/null \
+            || warn "could not chown /var/lib/mysql to ${datadir_owner}"
+    fi
+fi
 
 # -----------------------------------------------------------------------------
 # 7. Start supervisor in the background

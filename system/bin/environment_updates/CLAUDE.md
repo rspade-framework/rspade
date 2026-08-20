@@ -13,7 +13,7 @@ minimal (editing a running bash script is unsafe, and its edits lag one pull).
 ## Triggers
 
 `system/` is vendored, so a plain `git pull` DELIVERS a new script here but executes nothing.
-Three triggers converge on `post-update.sh` — it is the single entry point, and every script
+Four triggers converge on `post-update.sh` — it is the single entry point, and every script
 must tolerate being run by any of them:
 
 1. **`rsx:framework:pull`** — the updater's `run_post_update()` at the end of a successful pull.
@@ -26,8 +26,31 @@ must tolerate being run by any of them:
 3. **The `post-commit` hook** installed by `050_post_commit_env_update.sh` — a latency
    shortener, detached and non-blocking. Git never distributes `.git/hooks`, so this one only
    exists on an environment where trigger 1 or 2 has already run once.
+4. **Container start** — the docker entrypoint's step 4b, before supervisor. This is the
+   FIRST-BOOT trigger, and it exists because the other three all presuppose an environment
+   that has already been used: a freshly cloned project has had no pull, no build and no
+   commit, so it ran with none of these applied (most visibly with storage never relocated,
+   which leaves the blob store and logs inside the framework-owned `system/` tree). It runs
+   before supervisor because `030` MOVES the tree the helper daemons hold sockets in, and
+   takes no `ENVIRONMENT_UPDATES` lock because nothing else in the container is alive yet.
 
 ## The contract every script here MUST follow
+
+0. **Container-gated. FIRST LINE OF EXECUTABLE CODE, no exceptions.** Every script here
+   begins with:
+
+   ```bash
+   [ -f /.rspade_container ] || exit 0
+   ```
+
+   These scripts modify the environment AROUND the project — git hooks, editor and agent
+   settings, the on-disk storage layout — and that environment is the RSpade container's,
+   not the host's. Run on somebody's own machine they install container assumptions into
+   it silently, with nothing to tell them it happened. The marker is written by the
+   framework's Dockerfile (`Rsx::is_rspade_container()` is the PHP reader); its absence is
+   a normal state, not a failure, so this exits 0 and prints nothing, exactly as the
+   silent-when-not-applicable rule below requires. Place it immediately after `set -u...`
+   and BEFORE any path resolution or filesystem work.
 
 1. **Self-detecting.** First, determine whether the change is already applied. If so, do
    NOTHING and print NOTHING — exit 0 silently. The pull output stays quiet on a healthy env.
