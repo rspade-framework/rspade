@@ -1,0 +1,56 @@
+// Page_Scaffold - view-page shell. Owns page max-width, padding, column split.
+.Page_Scaffold {
+    width: 100%;
+    max-width: $content-max-width; // 2300px - centered, margins grow beyond
+    margin: 0 auto;
+    padding: var(--page-pad);
+
+    &__columns {
+        display: grid;
+        // Mobile: single column - sidebar stacks under main. The vertical
+        // space between the stacked columns uses the block rhythm.
+        grid-template-columns: 1fr;
+        gap: var(--block-gap);
+    }
+
+    // Each column owns the vertical rhythm between its sibling blocks (R1:
+    // blocks never carry outer margins; the container owns the gaps).
+    &__main,
+    &__sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: var(--block-gap);
+        min-width: 0; // let wide children (tables) shrink instead of overflow
+    }
+
+    @include desktop {
+        &__columns {
+            grid-template-columns: 8fr 4fr; // default 8/4 split
+            gap: var(--col-gutter);
+            align-items: start;
+        }
+
+        &--ratio-9-3 &__columns {
+            grid-template-columns: 9fr 3fr;
+        }
+
+        &--ratio-7-5 &__columns {
+            grid-template-columns: 7fr 5fr;
+        }
+
+        &--ratio-6-6 &__columns {
+            grid-template-columns: 6fr 6fr;
+        }
+    }
+
+    // No sidebar content: main spans the full width at every breakpoint.
+    &--no-sidebar {
+        .Page_Scaffold__columns {
+            grid-template-columns: 1fr;
+        }
+
+        .Page_Scaffold__sidebar {
+            display: none;
+        }
+    }
+}

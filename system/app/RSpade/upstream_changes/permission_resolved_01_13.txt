@@ -1,0 +1,142 @@
+PERMISSION SYSTEM - RESOLVED PERMISSIONS - MIGRATION GUIDE
+Date: 2026-01-13
+
+SUMMARY
+    The framework now provides a client-side Permission class for JavaScript
+    permission checking. User_Model now includes resolved_permissions in its
+    toArray() output and removes role_id__permissions (which is now redundant).
+
+    The resolved_permissions array contains the user's final permissions after
+    applying role defaults, supplementary grants, and supplementary denies.
+
+    If your application has forked User_Model, you must:
+    1. Add get_resolved_permissions() method
+    2. Add or update toArray() to include resolved_permissions
+    3. Update any code that checks role_id__permissions directly
+
+AFFECTED FILES
+    - /rsx/models/user_model.php (if forked)
+    - Any JavaScript files checking role_id__permissions directly
+    - Any PHP files checking role_id__permissions directly
+
+CHANGES REQUIRED
+
+    1. If You Have NOT Forked User_Model
+
+       No action required. The framework's User_Model already has all new
+       methods and your application will inherit them automatically.
+
+       HOWEVER: Search your codebase for role_id__permissions usage (see
+       section 5 below).
+
+    2. If You Have Forked User_Model - Add get_resolved_permissions()
+
+       Add this method to your User_Model:
+
+           public function get_resolved_permissions(): array
+           {
+               if ($this->role_id === self::ROLE_DISABLED) {
+                   return [];
+               }
+
+               $permissions = $this->role_id__permissions ?? [];
+
+               $supplementary = $this->_load_supplementary_permissions();
+               foreach ($supplementary['grants'] as $perm_id) {
+                   if (!in_array($perm_id, $permissions, true)) {
+                       $permissions[] = $perm_id;
+                   }
+               }
+
+               $permissions = array_values(array_diff($permissions, $supplementary['denies']));
+               sort($permissions);
+
+               return $permissions;
+           }
+
+    3. If You Have Forked User_Model - Add/Update toArray()
+
+       If you DON'T have a toArray() override, add one:
+
+           public function toArray()
+           {
+               $data = parent::toArray();
+               $data['resolved_permissions'] = $this->get_resolved_permissions();
+               unset($data['role_id__permissions']);
+               return $data;
+           }
+
+       If you ALREADY have a toArray() override, add these lines:
+
+           $data['resolved_permissions'] = $this->get_resolved_permissions();
+           unset($data['role_id__permissions']);
+
+    4. If You Have Forked User_Model - Update has_permission()
+
+       If you override has_permission(), simplify it:
+
+           public function has_permission(int $permission): bool
+           {
+               return in_array($permission, $this->get_resolved_permissions(), true);
+           }
+
+    5. REQUIRED: Search and Replace role_id__permissions Usage
+
+       Search your /rsx/ directory for any direct usage of role_id__permissions:
+
+           grep -r "role_id__permissions" rsx/
+
+       For each match, update to use the new pattern:
+
+       JAVASCRIPT - BEFORE:
+           if (window.rsxapp.user.role_id__permissions.includes(User_Model.PERM_EDIT_DATA)) {
+           // or
+           const perms = user.role_id__permissions;
+
+       JAVASCRIPT - AFTER:
+           if (Permission.has_permission(User_Model.PERM_EDIT_DATA)) {
+           // or
+           const perms = Permission.get_resolved_permissions();
+           // or
+           const perms = window.rsxapp.user.resolved_permissions;
+
+       PHP - BEFORE:
+           if (in_array($perm, $user->role_id__permissions)) {
+
+       PHP - AFTER:
+           if ($user->has_permission($perm)) {
+           // or
+           if (in_array($perm, $user->get_resolved_permissions())) {
+
+       IMPORTANT: role_id__permissions only contains role defaults. It does NOT
+       include supplementary grants or respect supplementary denies. Always use
+       resolved_permissions or the Permission class for accurate permission checks.
+
+NEW FEATURES AVAILABLE
+
+    PHP:
+        $user->get_resolved_permissions()  // Returns [1, 2, 3, ...] permission IDs
+
+    JavaScript:
+        Permission.is_logged_in()
+        Permission.has_permission(User_Model.PERM_EDIT_DATA)
+        Permission.has_any_permission([User_Model.PERM_EDIT_DATA, User_Model.PERM_VIEW_DATA])
+        Permission.has_all_permissions([...])
+        Permission.has_role(User_Model.ROLE_MANAGER)
+        Permission.can_admin_role(User_Model.ROLE_USER)
+        Permission.get_resolved_permissions()
+
+    window.rsxapp.user:
+        window.rsxapp.user.resolved_permissions  // Array of permission IDs
+
+VERIFICATION
+    1. Load any authenticated page
+    2. Open browser console
+    3. Verify: window.rsxapp.user.resolved_permissions is an array of integers
+    4. Verify: Permission.has_permission(User_Model.PERM_VIEW_DATA) returns boolean
+    5. Verify: window.rsxapp.user.role_id__permissions is undefined
+    6. If you have a forked User_Model, verify no PHP errors on page load
+
+REFERENCE
+    php artisan rsx:man acls
+    php artisan rsx:man rsxapp

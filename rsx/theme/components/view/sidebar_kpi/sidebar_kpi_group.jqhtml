@@ -1,0 +1,17 @@
+<%--
+Sidebar_Kpi_Group - the "At a Glance" grid of compact KPI cells
+
+default content - <Kpi_Cell> cells
+
+Sits at the TOP of a Detail_Sidebar (KPIs are sidebar telemetry, not a
+top-of-page billboard). Lays its cells out in a compact two-up grid.
+
+Usage:
+    <Sidebar_Kpi_Group>
+        <Kpi_Cell ...>...</Kpi_Cell>
+        <Kpi_Cell ...>...</Kpi_Cell>
+    </Sidebar_Kpi_Group>
+--%>
+<Define:Sidebar_Kpi_Group>
+    <%= content() %>
+</Define:Sidebar_Kpi_Group>

@@ -1,0 +1,12 @@
+<Define:Settings_Group_Management_Index_Action>
+<Page_Scaffold>
+    <Slot:main>
+        <div class="d-flex">
+            <button type="button" class="btn btn-primary" $sid="btn_add_group">
+                <i class="bi bi-people-fill"></i> Add Group
+            </button>
+        </div>
+        <Groups_DataGrid $sid="groups_datagrid" />
+    </Slot:main>
+</Page_Scaffold>
+</Define:Settings_Group_Management_Index_Action>

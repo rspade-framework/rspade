@@ -1,0 +1,33 @@
+<%--
+Tab_Bar - neutral tab strip driving a sibling Tab_Panels
+
+$tabs - array of {key, label, icon?, count?} tab descriptors (data)
+$hash="tab" - URL-hash param to persist the active tab [optional]
+$divided - draw a border-top seam above the strip (replaces hand-authored <hr>) [optional]
+
+this.args.tabs - the tab descriptors
+this.active_key - currently active tab key
+
+activate(key) - programmatically switch tabs; fires the "tab_change" event
+get_active_key() - the active tab key
+
+Fires "tab_change" ({key}) on every switch; a sibling Tab_Panels binds to it.
+Neutral - carries no form/validation coupling (that is Rsx_Tabs' job).
+
+Usage:
+    <Tab_Bar $sid="tabs" $tabs=_tabs $hash="tab" $divided=true />
+    <Tab_Panels $sid="panels"> ...Tab_Panel per key... </Tab_Panels>
+--%>
+<Define:Tab_Bar tag="div" role="tablist">
+    <% for (const tab of (this.args.tabs || [])) { %>
+        <button type="button" class="Tab_Bar__tab" role="tab" data-tab-key="<%= tab.key %>" aria-selected="false">
+            <% if (tab.icon) { %>
+                <i class="Tab_Bar__icon <%= tab.icon %>"></i>
+            <% } %>
+            <span class="Tab_Bar__label"><%= tab.label %></span>
+            <% if (tab.count !== undefined && tab.count !== null && tab.count !== '') { %>
+                <Count_Pill $count=tab.count />
+            <% } %>
+        </button>
+    <% } %>
+</Define:Tab_Bar>

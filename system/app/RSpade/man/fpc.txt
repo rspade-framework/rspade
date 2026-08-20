@@ -1,0 +1,290 @@
+FPC(3)                      RSX Framework Manual                      FPC(3)
+
+NAME
+    FPC - Full Page Cache via Node.js reverse proxy with Redis
+
+SYNOPSIS
+    Controller attribute:
+
+        #[FPC]
+        #[Route('/about', methods: ['GET'])]
+        public static function index(Request $request, array $params = [])
+
+    PHP cache management:
+
+        use App\RSpade\Core\FPC\Rsx_FPC;
+
+        Rsx_FPC::clear();              // Clear all FPC entries
+        Rsx_FPC::clear_url('/about');   // Clear specific URL
+
+DESCRIPTION
+    The Full Page Cache (FPC) is a Node.js reverse proxy that sits between
+    nginx and PHP. Pages marked with #[FPC] are cached in Redis after first
+    render. Subsequent requests for the same URL are served directly from
+    Redis without touching PHP, with ETag validation for 304 responses.
+
+    Unlike traditional PHP caching (which still boots Laravel on every
+    request), the FPC proxy is a long-running Node.js process that serves
+    cached responses in under 1ms. PHP is only invoked on cache misses.
+
+    FPC is designed for public, anonymous pages like marketing sites,
+    documentation, and SSR-rendered content. Pages accessed by logged-in
+    users always bypass the cache.
+
+    Architecture:
+
+        browser -> nginx ->
+            /_ajax/         -> ajax FPM pool (unchanged)
+            static files    -> try_files (unchanged)
+            everything else -> FPC proxy (port 3200) ->
+                cache HIT   -> Redis -> 304 or cached HTML
+                cache MISS  -> nginx backend (port 3201) -> FPM ->
+                               if X-RSpade-FPC header -> cache in Redis
+
+ATTRIBUTE USAGE
+    Add #[FPC] to any controller method that should be cached:
+
+        #[FPC]
+        #[Route('/pricing', methods: ['GET'])]
+        public static function pricing(Request $request, array $params = [])
+        {
+            return rsx_view('Pricing_Page');
+        }
+
+    FPC Constraints:
+    - Requires #[Route] attribute (enforced by manifest validation)
+    - Cannot combine with #[Ajax_Endpoint]
+    - Cannot combine with #[SPA]
+    - Cannot combine with #[Task]
+    - Cannot combine with #[Api_Endpoint] (enforced from the API side -
+      Api_Endpoint_ManifestSupport rejects an FPC/Route/SPA/Ajax_Endpoint peer)
+
+    The #[FPC] attribute only affects GET requests from anonymous visitors.
+    For logged-in users, POST requests, or non-GET methods, the request
+    passes through to PHP normally with no caching.
+
+CACHE BEHAVIOR
+    Cache Key:
+        fpc:{build_key}:{sha1(path?sorted_query_params)}
+
+    The build key is the manifest hash, written to
+    storage/rsx-build/build_key during manifest save. When any file
+    changes trigger a manifest rebuild, the build key changes and all FPC
+    entries are effectively invalidated: new requests compute new cache keys,
+    so the old entries are simply never read again. Those orphaned entries
+    are reclaimed one of three ways:
+    - FPC_TTL_MINS > 0: each entry carries that TTL and ages out on its own.
+    - FPC_TTL_MINS = 0 (default): entries persist until an explicit clear
+      (Rsx_FPC::clear()/clear_url()) or until rsx:clean flushes the DB.
+    - Redis is NOT configured with LRU eviction by default (noeviction), so
+      do not rely on eviction to reclaim orphans - set FPC_TTL_MINS instead.
+
+    Cache Entry (stored as JSON in Redis):
+        url           - Request path
+        html          - Full HTML response body
+        status_code   - HTTP status (200, 301, 302, etc.)
+        content_type  - Response Content-Type header
+        location      - Redirect target (for 3xx responses)
+        etag          - SHA1 hash of body (first 30 chars)
+        cached_at     - ISO timestamp of cache time
+
+    ETag Validation:
+        Client sends If-None-Match header with cached ETag.
+        If ETag matches cached entry, proxy returns 304 Not Modified
+        with no body. This saves bandwidth on repeat visits.
+
+    Session Cookie Bypass:
+        If the request contains an 'rsx' cookie (indicating the visitor
+        has an active session), the proxy passes through directly to PHP.
+        Session users never receive cached content.
+
+    POST/Non-GET Bypass:
+        Non-GET/HEAD methods always pass through to PHP.
+        HEAD requests can READ from cache but never POPULATE it.
+
+RESPONSE HEADERS
+    X-FPC-Cache: HIT     - Response served from Redis cache
+    X-FPC-Cache: MISS    - Response served from PHP (and cached for next time)
+    ETag: {hash}         - Content hash for 304 validation
+
+    The internal X-RSpade-FPC header (set by PHP to signal cacheability)
+    is stripped by the proxy and never sent to clients.
+
+PHP CACHE MANAGEMENT
+    Rsx_FPC::is_enabled()
+        True when SSR_FPC_ENABLED is set (config('rsx.fpc.enabled')). The clear
+        methods gate on this first.
+
+    Rsx_FPC::clear()
+        Clear all FPC entries for the current build key.
+        Uses SCAN (not KEYS) to avoid blocking Redis.
+        Returns count of deleted entries.
+        No-op returning 0 when FPC is disabled (nothing is cached). When
+        ENABLED, an unreachable or unauthenticated Redis FAILS LOUD - a purge
+        that cannot reach Redis must never silently claim success.
+
+    Rsx_FPC::clear_url(string $url)
+        Clear FPC entry for a specific URL path.
+        Handles query parameter sorting to match proxy key generation.
+        Returns true if entry was deleted (false when FPC is disabled).
+        Same fail-loud-on-unreachable-Redis behavior as clear() when enabled.
+
+    rsx:clean
+        Flushes the Redis DB the FPC shares (FLUSHDB on DB 0), removing every
+        FPC entry as a side effect - a coarse, whole-DB invalidation path
+        distinct from the build-key-scoped Rsx_FPC::clear().
+
+    Examples:
+
+        // Clear all cached pages after content update
+        Rsx_FPC::clear();
+
+        // Clear specific page after editing its content
+        Rsx_FPC::clear_url('/about');
+        Rsx_FPC::clear_url('/search?q=test&page=1');
+
+CONFIGURATION
+    Environment variables (in .env):
+
+        SSR_FPC_ENABLED     Master switch for the FPC subsystem. When false,
+                            Rsx_FPC::clear()/clear_url() are clean no-ops (no
+                            Redis contact). Surfaced as config('rsx.fpc.enabled').
+        FPC_TTL_MINS        Per-entry cache TTL in MINUTES. 0 = never expire
+                            (default); >0 sets an EX on each Redis write. Read
+                            directly by the Node proxy - keep it in sync.
+        FPC_PROXY_PORT      Port for FPC proxy (default: 3200)
+        FPC_BACKEND_PORT    Port for nginx backend (default: 3201)
+        REDIS_HOST          Redis server host (default: 127.0.0.1)
+        REDIS_PORT          Redis server port (default: 6379)
+        REDIS_PASSWORD      Redis password. HONORED by the PHP clear path (auth
+                            is issued before select). The literal string 'null'
+                            means "no password". On a password-protected Redis a
+                            missing/wrong password now FAILS LOUD from the clear
+                            path (no longer a silent no-op).
+
+    Redis uses DB 0. It is NOT configured with LRU eviction by default - use
+    FPC_TTL_MINS to bound entry lifetime (see CACHE BEHAVIOR).
+
+NGINX SETUP
+    The FPC requires two nginx changes:
+
+    1. Backend server block (accessed by proxy for cache misses):
+
+        server {
+            listen 127.0.0.1:3201;
+            root /var/www/html/system/public;
+
+            location /_ajax/ {
+                include fastcgi_params;
+                fastcgi_param SCRIPT_FILENAME $document_root/index.php;
+                fastcgi_param SCRIPT_NAME /index.php;
+                fastcgi_pass unix:/run/php/php-fpm-ajax.sock;
+            }
+
+            location / {
+                try_files $uri $uri/ /index.php?$args;
+            }
+
+            location ~ \.php$ {
+                include snippets/fastcgi-php.conf;
+                fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                fastcgi_pass unix:/run/php/php-fpm.sock;
+            }
+        }
+
+    2. Main server blocks - replace location / with proxy fallback:
+
+        location / {
+            try_files $uri $uri/ @fpc_proxy;
+        }
+
+        location @fpc_proxy {
+            proxy_pass http://127.0.0.1:3200;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_buffering off;
+        }
+
+SUPERVISOR
+    The FPC proxy runs as a supervised service:
+
+        /system/supervisor/fpc-proxy.conf
+
+    Start manually for testing:
+
+        node system/bin/fpc-proxy.js
+
+DISPATCHER BEHAVIOR
+    When the Dispatcher matches a route with #[FPC]:
+
+    1. Checks request is GET with no POST/FILES data
+    2. Calls Session::init() to load existing session (does NOT create one)
+    3. If user is logged in, skips FPC (no header set)
+    4. If anonymous, blanks all cookies except 'rsx' from $_COOKIE
+    5. Executes controller method normally
+    6. Adds X-RSpade-FPC: 1 header to response
+    7. Removes Set-Cookie headers from response
+
+    Cookie blanking (step 4) ensures controller code produces identical
+    output for all anonymous visitors regardless of any tracking cookies.
+
+SESSION COOKIE SAFETY
+    RSpade does NOT create session cookies for anonymous visitors.
+    Session::init() only reads existing cookies, never creates new ones.
+    Session::set_site_id() stores site_id as a request-scoped override
+    for anonymous visitors without creating a database session.
+
+    Sessions are only created when code explicitly calls:
+    - Session::get_session_id()
+    - Session::get_session()
+    - Session::set_login_user_id()
+
+    This ensures FPC-cacheable pages never produce Set-Cookie headers
+    that would prevent caching.
+
+DEBUGGING
+    Check FPC cache status:
+
+        curl -sI http://localhost:3200/your-page | grep X-FPC
+
+    View cached entry:
+
+        redis-cli GET "fpc:{build_key}:{sha1_of_url}"
+
+    List all FPC keys:
+
+        redis-cli KEYS "fpc:*"
+
+    Clear all FPC entries:
+
+        redis-cli KEYS "fpc:*" | xargs -r redis-cli DEL
+
+    Check proxy logs:
+
+        /var/log/supervisor/fpc-proxy.log
+        /var/log/supervisor/fpc-proxy-error.log
+
+TESTING
+    Integration tests follow the per-concern tests/<concern>/http/ layout:
+
+        system/app/RSpade/tests/fpc/http/fpc_cache_behavior.sh
+            Cache MISS/HIT, ETag 304, bypasses
+        system/app/RSpade/tests/session/http/session_cookie_behavior.sh
+            Verifies no cookies for anonymous
+
+    Invoke via the shared test runner (see system/app/RSpade/tests/CLAUDE.md),
+    not by a per-test run_test.sh wrapper.
+
+FILES
+    system/bin/fpc-proxy.js                     Node.js proxy server
+    system/app/RSpade/Core/FPC/Rsx_FPC.php      PHP cache utility
+    system/supervisor/fpc-proxy.conf            Supervisor config
+    storage/rsx-build/build_key          Build key file
+    system/app/RSpade/tests/fpc/                Integration tests
+
+SEE ALSO
+    ssr(3) - Server-side rendering (produces HTML that FPC caches)
+    session(3) - Session management and cookie behavior

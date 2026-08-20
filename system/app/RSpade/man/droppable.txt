@@ -1,0 +1,377 @@
+    Droppable - Global drag-and-drop file interception system
+
+SYNOPSIS
+    Add class="rsx-droppable" to any element or component to receive
+    dropped files via the file-drop event.
+
+DESCRIPTION
+    Droppable is the RSX framework's global file drop system. It intercepts
+    all file drag-and-drop operations at the document level and routes
+    dropped files to designated drop targets using CSS class-based
+    registration.
+
+    Unlike traditional HTML5 drag-and-drop which requires explicit event
+    handlers on each element, Droppable provides:
+    - Automatic visual feedback during file drags
+    - Smart target selection (single vs multiple targets)
+    - Cursor feedback indicating valid/invalid drop zones
+    - Component event integration
+
+    Droppable initializes automatically during framework bootstrap.
+    No manual initialization is required.
+
+CSS CLASSES
+
+    rsx-droppable
+        Marks an element as a valid file drop target. Add this class to
+        any element or component that should receive dropped files.
+
+        Example:
+            <div class="rsx-droppable">
+                Drop files here
+            </div>
+
+            <My_Upload_Widget class="rsx-droppable" />
+
+    rsx-drop-active
+        Automatically added to ALL visible rsx-droppable elements when
+        files are being dragged anywhere on the page. Use this for visual
+        feedback like highlighting or borders.
+
+        Example CSS:
+            .My_Upload_Widget.rsx-drop-active {
+                border: 2px dashed #007bff;
+                background: rgba(0, 123, 255, 0.1);
+            }
+
+    rsx-drop-target
+        Automatically added to the specific element that will receive
+        the drop. This is the "hot" target that files will go to if
+        the user releases.
+
+        Example CSS:
+            .My_Upload_Widget.rsx-drop-target {
+                border: 2px solid #007bff;
+                background: rgba(0, 123, 255, 0.2);
+            }
+
+TARGET SELECTION BEHAVIOR
+
+    Single Target:
+        When only ONE visible rsx-droppable element exists on the page,
+        it automatically becomes the drop target as soon as files enter
+        the window. No hover required.
+
+    Multiple Targets:
+        When MULTIPLE visible rsx-droppable elements exist, the user must
+        hover over a specific element to select it as the target. The
+        cursor shows "no-drop" when not over a valid target.
+
+    Visibility:
+        Only visible elements participate in drop handling. Elements that
+        are display:none or visibility:hidden are ignored. This allows
+        inactive widgets to exist in the DOM without interfering.
+
+FILE-DROP EVENT
+
+    When files are dropped on a valid target, a file-drop event is triggered
+    on the component (if the element is a component) or the element itself.
+
+    Component Event Handler:
+        class My_Upload_Widget extends Jqhtml_Component {
+            on_create() {
+                this.on('file-drop', (component, data) => {
+                    this._handle_files(Array.from(data.files));
+                });
+            }
+
+            _handle_files(files) {
+                for (let file of files) {
+                    console.log('Received:', file.name, file.type, file.size);
+                    // Upload file, validate type, etc.
+                }
+            }
+        }
+
+    jQuery Event Handler (non-component elements):
+        $('.my-drop-zone').on('file-drop', function(e, data) {
+            for (let file of data.files) {
+                console.log('Received:', file.name);
+            }
+        });
+
+    Event Data:
+        {
+            files: FileList,        // The dropped files
+            dataTransfer: DataTransfer,  // Full dataTransfer object
+            originalEvent: DragEvent     // Original browser event
+        }
+
+EVENT HANDLER REGISTRATION
+
+    IMPORTANT: Register file-drop handlers in on_create(), NOT on_render()
+    or on_ready().
+
+    Component events (this.on()) attach to the component element itself
+    (this.$), which persists across re-renders. These handlers should be
+    registered once in on_create().
+
+    DOM events on child elements ($sid elements) are recreated on each
+    render, so those handlers belong in on_render() or on_ready().
+
+    Correct - component event in on_create():
+        on_create() {
+            // Component event - attach once, persists across re-renders
+            this.on('file-drop', (component, data) => {
+                this._handle_files(Array.from(data.files));
+            });
+        }
+
+        on_render() {
+            // DOM events on children - must re-attach after each render
+            this.$sid('clear_btn').on('click', () => this._clear_files());
+        }
+
+    Wrong (causes infinite loop if handler triggers render/reload):
+        on_ready() {
+            this.on('file-drop', (component, data) => {
+                this._handle_files(Array.from(data.files));
+            });
+        }
+
+    Why This Happens:
+        The framework's component event system replays events that fired
+        before handler registration. If you register in on_ready() and
+        the handler triggers render() or reload():
+
+        1. Files are dropped, file-drop event fires
+        2. Handler not registered yet (on_ready() hasn't run)
+        3. Event is queued for replay
+        4. on_ready() runs, calls this.on('file-drop', ...)
+        5. Queued event replays immediately
+        6. Handler calls render() or reload()
+        7. on_ready() runs again, re-registers handler
+        8. Event replays again -> infinite loop
+
+    Rule: Component events (this.on()) go in on_create(). Child DOM events
+    go in on_render() or on_ready().
+
+FILE VALIDATION
+
+    Each widget is responsible for validating dropped files. Droppable
+    provides files without filtering. Common validation patterns:
+
+    By MIME Type:
+        _handle_files(files) {
+            for (let file of files) {
+                if (!file.type.startsWith('image/')) {
+                    Flash.error(`${file.name} is not an image`);
+                    continue;
+                }
+                this._upload(file);
+            }
+        }
+
+    By Extension:
+        _handle_files(files) {
+            const allowed = ['.pdf', '.doc', '.docx'];
+            for (let file of files) {
+                const ext = '.' + file.name.split('.').pop().toLowerCase();
+                if (!allowed.includes(ext)) {
+                    Flash.error(`${file.name}: only PDF and Word documents allowed`);
+                    continue;
+                }
+                this._upload(file);
+            }
+        }
+
+    By Size:
+        Ajax.upload() already refuses an over-size file against the framework
+        ceiling, so this is only for a TIGHTER app-specific cap. Read the
+        framework limit rather than restating a number that will drift:
+
+        _handle_files(files) {
+            // window.rsxapp.files.max_file_size is the framework ceiling, always
+            // present, injected from the rsx.files.max_file_size config. 0 means
+            // no framework limit - treat that as unlimited, never as "reject all".
+            const framework_max = window.rsxapp.files.max_file_size || Infinity;
+            const max_size = Math.min(framework_max, 10 * 1024 * 1024);
+            for (let file of files) {
+                if (file.size > max_size) {
+                    Flash.error(`${file.name} exceeds ${bytes_to_human(max_size)}`);
+                    continue;
+                }
+                this._upload(file);
+            }
+        }
+
+    Single File Only:
+        _handle_files(files) {
+            if (files.length > 1) {
+                Flash.error('Please drop only one file');
+                return;
+            }
+            this._upload(files[0]);
+        }
+
+CURSOR FEEDBACK
+
+    Droppable automatically sets dropEffect to control cursor appearance:
+
+    - "copy" cursor: Shown when hovering over a valid drop target
+    - "none" cursor: Shown when no valid target exists or when hovering
+                     outside all targets (in multi-target mode)
+
+    This provides immediate visual feedback about whether a drop will succeed.
+
+IMPLEMENTATION NOTES
+
+    Drag Counter:
+        Droppable uses a drag counter to track when files enter and leave
+        the window. This handles the common issue where dragenter and
+        dragleave fire for child elements.
+
+    Event Prevention:
+        Droppable prevents default browser behavior for all file drags,
+        ensuring files are never accidentally downloaded or opened.
+
+    Cleanup:
+        Drag state is automatically cleared when:
+        - Files are dropped (successfully or not)
+        - Drag operation is cancelled (e.g., Escape key)
+        - Files leave the window entirely
+
+EXAMPLES
+
+    Basic Image Uploader:
+        <Define:Image_Uploader tag="div" class="rsx-droppable">
+            <div class="drop-hint">Drop image here</div>
+            <img $sid="preview" style="display: none" />
+        </Define:Image_Uploader>
+
+        class Image_Uploader extends Jqhtml_Component {
+            on_create() {
+                this.on('file-drop', (_, data) => {
+                    const file = data.files[0];
+                    if (!file || !file.type.startsWith('image/')) {
+                        Flash.error('Please drop an image file');
+                        return;
+                    }
+
+                    // Show preview
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        this.$sid('preview').attr('src', e.target.result).show();
+                    };
+                    reader.readAsDataURL(file);
+
+                    // Upload
+                    this._upload(file);
+                });
+            }
+        }
+
+    Multi-File Document Upload:
+        <Define:Document_Dropzone tag="div" class="rsx-droppable Document_Dropzone">
+            <div class="drop-area">
+                <span class="icon">Drop documents here</span>
+                <ul $sid="file_list"></ul>
+            </div>
+        </Define:Document_Dropzone>
+
+        class Document_Dropzone extends Jqhtml_Component {
+            on_create() {
+                this.state.files = [];
+
+                this.on('file-drop', (_, data) => {
+                    for (let file of Array.from(data.files)) {
+                        if (!this._validate(file)) continue;
+                        this.state.files.push(file);
+                        this._add_to_list(file);
+                    }
+                });
+            }
+
+            _validate(file) {
+                const allowed = ['application/pdf', 'application/msword'];
+                if (!allowed.includes(file.type)) {
+                    Flash.error(`${file.name}: only PDF and Word files allowed`);
+                    return false;
+                }
+                const max_size = window.rsxapp.files.max_file_size || Infinity;
+                if (file.size > max_size) {
+                    Flash.error(`${file.name}: maximum ${bytes_to_human(max_size)}`);
+                    return false;
+                }
+                return true;
+            }
+        }
+
+STYLING RECOMMENDATIONS
+
+    Provide clear visual states for drag operations:
+
+    .My_Dropzone {
+        border: 2px dashed #ccc;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.2s ease;
+    }
+
+    /* Files are being dragged - highlight potential targets */
+    .My_Dropzone.rsx-drop-active {
+        border-color: #007bff;
+        background: rgba(0, 123, 255, 0.05);
+    }
+
+    /* This specific element will receive the drop */
+    .My_Dropzone.rsx-drop-target {
+        border-style: solid;
+        background: rgba(0, 123, 255, 0.15);
+    }
+
+DROPPABLE VS HTML5 DRAG-DROP
+
+    Standard HTML5:
+        - Must add dragenter, dragover, drop handlers to each element
+        - Must manually prevent default behavior
+        - Must track drag state per element
+        - No automatic multi-target coordination
+
+    Droppable:
+        - Add rsx-droppable class, handle file-drop event
+        - Droppable handles all drag events
+        - Automatic state management and cleanup
+        - Smart single vs multi-target behavior
+
+TROUBLESHOOTING
+
+    Files not being received:
+        - Verify element has rsx-droppable class
+        - Check element is visible (not display:none)
+        - Ensure event handler is registered in on_create()
+
+    Infinite loop when dropping files:
+        - Handler registered in on_ready() or on_render() instead of on_create()
+        - Handler calls render() or reload(), re-triggering event replay
+        - Solution: Move this.on('file-drop', ...) to on_create()
+
+    Visual feedback not appearing:
+        - Define CSS for .rsx-drop-active and .rsx-drop-target
+        - Check CSS specificity isn't being overridden
+
+    Wrong target receiving files (multiple targets):
+        - Both targets are visible; ensure unused widget is hidden
+        - Check z-index if elements overlap
+
+    Cursor shows "no-drop" unexpectedly:
+        - No visible rsx-droppable elements on page
+        - Not hovering over any target in multi-target mode
+
+SEE ALSO
+    file_upload.txt - Server-side file upload system
+    jqhtml.txt - JQHTML component system
+
+VERSION
+    RSpade Framework 1.0
+    Last Updated: 2026-01-15

@@ -1,0 +1,66 @@
+<%--
+Section - the workhorse section: header anatomy + padded body
+
+$title - header title, plain text (use <Slot:title> for markup) [optional]
+$icon="bi bi-folder" - header icon class string [optional]
+$count - a count pill in the header (a number; 0 renders honestly) [optional]
+$flush - strip body padding for edge-to-edge content, e.g. a table [optional]
+
+<Slot:title> - header title override; WINS over $title when present [optional]
+<Slot:actions> - trailing header action cluster (authored buttons) [optional]
+body - loose default content, OR <Slot:body> when a named slot above is used
+
+Almost everything on a view page is a Section. Header renders only if it has
+something to show. Body rhythm for stacked children comes from the container.
+
+SLOT RULE (jqhtml): if you use <Slot:title> or <Slot:actions>, the body MUST
+move into <Slot:body> (the parser forbids loose content beside named slots, and
+"default" is a reserved word so it cannot be a slot name). With no named slots,
+write the body loose.
+
+P2: with $flush do NOT nest a widget that renders its own header (it lands
+misaligned at the card edge). Wrap self-headed widgets in a plain Section.
+
+Usage:
+    <Section $title="Contact Information">
+        <View_Fields> ... </View_Fields>
+    </Section>
+
+    <Section $title="Line Items" $count=_count $flush=true>
+        <Slot:actions><button class="btn btn-sm btn-primary">Add</button></Slot:actions>
+        <Slot:body><Record_Table ... /></Slot:body>
+    </Section>
+--%>
+<Define:Section extends="View_Section_Abstract" class="View_Section_Abstract">
+    <% const _has_title_slot = !!(this.args._slots && this.args._slots.title); %>
+    <% const _has_actions_slot = !!(this.args._slots && this.args._slots.actions); %>
+    <% const _has_count = this.args.count !== undefined && this.args.count !== null && this.args.count !== ''; %>
+    <% const _has_header = _has_title_slot || _has_actions_slot || this.args.title || this.args.icon || _has_count; %>
+    <% if (_has_header) { %>
+        <div class="Section__header">
+            <% if (this.args.icon) { %>
+                <i class="Section__icon <%= this.args.icon %>"></i>
+            <% } %>
+            <div class="Section__heading">
+                <% if (_has_title_slot) { %>
+                    <%= content('title') %>
+                <% } else if (this.args.title) { %>
+                    <%= this.args.title %>
+                <% } %>
+            </div>
+            <% if (_has_count) { %>
+                <Count_Pill $count=this.args.count />
+            <% } %>
+            <% if (_has_actions_slot) { %>
+                <div class="Section__actions"><%= content('actions') %></div>
+            <% } %>
+        </div>
+    <% } %>
+    <div class="Section__body">
+        <% if (this.args._slots && this.args._slots.body) { %>
+            <%= content('body') %>
+        <% } else { %>
+            <%= content() %>
+        <% } %>
+    </div>
+</Define:Section>

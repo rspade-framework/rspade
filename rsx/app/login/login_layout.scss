@@ -1,0 +1,70 @@
+.Login_Layout {
+    &.preload {
+        .pagemodal-container > * {
+            display: none !important;
+        }
+    }
+    /* Page modal layout - centered card with scroll */
+    .pagemodal-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10vh 10vw;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .pagemodal-card {
+        background: $white;
+        border-radius: $border-radius-lg;
+        box-shadow: 0 10px 40px rgba($black, 0.2);
+        width: 100%;
+        max-width: 500px;
+    }
+
+    .pagemodal-header {
+        padding: $spacing-xl $spacing-xl $spacing-md;
+        text-align: center;
+        border-bottom: $border-width solid $gray-200;
+    }
+
+    .pagemodal-header h2 {
+        margin: 0 0 $spacing-sm;
+        font-size: 28px;
+        font-weight: $font-weight-semibold;
+        color: $gray-900;
+    }
+
+    .pagemodal-header p {
+        margin: 0;
+        color: $text-muted;
+        font-size: 15px;
+    }
+
+    .pagemodal-body {
+        padding: $spacing-xl;
+    }
+
+    /* Responsive adjustments */
+    @include mobile {
+        .pagemodal-container {
+            padding: 5vh 5vw;
+        }
+
+        .pagemodal-card {
+            max-width: 100%;
+        }
+
+        .pagemodal-header {
+            padding: $spacing-lg $spacing-lg $spacing-md;
+        }
+
+        .pagemodal-header h2 {
+            font-size: $font-size-2xl;
+        }
+
+        .pagemodal-body {
+            padding: $spacing-lg;
+        }
+    }
+}

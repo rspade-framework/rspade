@@ -1,0 +1,109 @@
+SPREADSHEET / PRESENTATION TEXT EXTRACTION FIX + STATUS-TAXONOMY REFINEMENTS
+Date: 2026-07-21
+
+SUMMARY
+    The document text-extraction pipeline (shipped 2026-07-21, document_pipeline_health_07_21)
+    had a systematic bug: EVERY spreadsheet FAILED extraction, and every presentation would have
+    too. The single LibreOffice filter it used ('Text (encoded)') is Writer-only. This fixes the
+    routing and, in the same pass, refines two status-taxonomy rough edges the same corpus run
+    surfaced. All of it lives in /system/ core and arrives via the submodule - there is nothing
+    to copy. This is a Category 2 document because the extractor_version bumped (you must run one
+    reindex command to re-extract old rows), THREE extraction BEHAVIORS changed (audit if your
+    app asserts on them), and the Rsx_Text_Extractor_Abstract::extract() signature changed (act
+    only if you registered a CUSTOM extractor class).
+
+THE BUG / THE CHANGE
+    Libreoffice_Text_Extractor converted every Office document with
+    `--convert-to 'txt:Text (encoded):UTF8'`. That filter exists only for Writer document types.
+    For a Calc (xls/xlsx/ods) or Impress (ppt/pptx/odp) document, headless LibreOffice writes NO
+    output file (it exits 0 but silently stores nothing), so the extractor's no-output check
+    threw and the blob was recorded FAILED. Result: 100% of spreadsheets failed extraction on the
+    first real corpus run; presentations would have failed identically. docx/odt/rtf were fine.
+
+    Two smaller taxonomy issues from the same run:
+      - Password-protected PDFs landed as FAILED. Encrypted-by-design is closer to UNSUPPORTED:
+        FAILED implies a retry might help and pollutes the failed-audit signal.
+      - Text/eml larger than the 2 MB cap landed as FAILED. Truncate-and-index-the-first-2MB
+        beats indexing nothing for a 25 MB thread.
+
+THE FIX
+    All in /system/ core (informational - you receive it via the submodule):
+
+    1. Office documents now route by mime FAMILY inside Libreoffice_Text_Extractor:
+         Writer   (doc/docx/odt/rtf) -> `--convert-to 'txt:Text (encoded):UTF8'`  (unchanged)
+         Calc     (xls/xlsx/ods)     -> `--convert-to fods` (flat XML, ONE file, ALL sheets),
+                                        then a STREAMING XMLReader pass emits each sheet's name +
+                                        every cell's text (cells tab-separated, rows newline-
+                                        separated). No extra binaries.
+         Impress  (ppt/pptx/odp)     -> `--convert-to fodp` (flat XML), same streaming pass over
+                                        each slide's text. (Presentations were verified to fail
+                                        through the old filter exactly like spreadsheets.)
+       The flat XML is streamed, not DOM-loaded, so a 170-sheet workbook does not blow memory.
+
+    2. Password-protected / encrypted documents are UNSUPPORTED, not FAILED. A new exception
+       App\RSpade\Core\Search\Rsx_Extraction_Unsupported_Exception is thrown when pdftotext
+       reports "Incorrect password"; the service records the blob UNSUPPORTED with the reason
+       ("password-protected PDF") in the row's error column. (Encrypted OFFICE docs are not
+       cleanly distinguishable from a generic soffice write error and remain FAILED.)
+
+    3. Over-cap text is TRUNCATED and RECORDED, not FAILED. Extracted text longer than
+       config('rsx.search.max_text_bytes') is cut to the cap on a UTF-8 character boundary; the
+       index row records metadata {truncated:true, original_bytes:N} and the status stays
+       EXTRACTED. Plain-text sources are read as a byte-prefix (a huge .eml is never slurped
+       whole). Recorded truncation is discoverable; it is not silent truncation.
+
+    4. config('rsx.search.extractor_version') bumped 1 -> 2 (the fleet re-queue key).
+
+    5. Rsx_Text_Extractor_Abstract::extract() signature changed:
+           OLD:  public static function extract(string $source_path): string
+           NEW:  public static function extract(string $source_path, string $mime): string
+       The framework extractors sub-route on $mime. The three built-in extractors and the
+       Search_Index_Service call site are all updated in core.
+
+ACTION REQUIRED
+    1. Re-extract the fleet (required to recover previously-FAILED spreadsheets):
+
+           php artisan rsx:search:reindex --below-version=2
+
+       This re-queues every blob indexed by the old (v1) generation; the extraction cron/kick
+       then re-extracts one at a time. Confirm with `php artisan rsx:search:reindex --status`
+       (the version histogram should move to v2; spreadsheet blobs that were FAILED become
+       EXTRACTED).
+
+    2. IF you registered a CUSTOM extractor class (a subclass of Rsx_Text_Extractor_Abstract
+       named in your app's config('rsx.search.extractors')): add the new $mime parameter to its
+       extract() method:
+
+           // OLD
+           public static function extract(string $source_path): string { ... }
+           // NEW
+           public static function extract(string $source_path, string $mime): string { ... }
+
+       If you extend the pipeline ONLY through the document.extract_text filter chain
+       (#[OnEvent('document.extract_text')]), NO change is needed - that contract is unchanged.
+
+    3. IF your app code asserts on extraction STATUS for these edge cases, re-verify against the
+       new behavior:
+         - A password-protected PDF is now UNSUPPORTED (was FAILED) with a reason in `error`.
+         - An over-cap document is now EXTRACTED with metadata.truncated=true (was FAILED).
+       Remove any downstream workaround that treated these as permanent FAILED rows.
+
+    When you have run the reindex (item 1), adjusted any custom extractor (item 2), and re-
+    verified any status assertions (item 3), mark this change fulfilled:
+
+        php artisan rsx:framework:upstream_changes:mark spreadsheet_extraction_fix_07_21 --fulfilled
+
+VERIFICATION
+    - `php artisan rsx:search:reindex --status` shows the version histogram at v2 and FAILED
+      spreadsheet blobs now EXTRACTED.
+    - Upload a multi-sheet .xlsx; after extraction, $attachment->get_extracted_text() contains
+      the text of ALL sheets (each preceded by its sheet name), not just the first.
+    - Upload a .pptx; its slide text is extracted (was empty/FAILED before).
+    - A password-protected PDF reads get_extraction_status() === UNSUPPORTED with the reason in
+      File_Storage_Model->get_search_index()->error.
+    - A document over max_text_bytes reads EXTRACTED with get_search_index()->get_metadata()
+      showing truncated=true and the true original_bytes.
+
+SEE ALSO
+    php artisan rsx:man document_search   extraction, search, preview, the three chains
+    docs.dev/external_requests/2026_07_21_spreadsheet_text_extraction.md   the originating CR

@@ -1,0 +1,78 @@
+<Define:Portal_Workspace_Requests_Action tag="div">
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main><Loading_Spinner $message="Loading requests..." /></Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Workspace"
+                $back_label="Back to Dashboard"
+                $back_url="<%= Rsx_Portal.Route('Portal_Dashboard_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <% const _active = this.data.active;
+       const _closed = this.data.closed;
+       const _thread_url = (t) => Rsx_Portal.Route('Portal_Request_Thread_Action', {id: this.args.id, thread_id: t.id}); %>
+    <Page_Scaffold>
+        <Slot:main>
+            <% if (_active.length === 0 && _closed.length === 0) { %>
+                <Section $title="Requests">
+                    <Empty_State $icon="bi bi-inbox">
+                        <Slot:title>No requests yet</Slot:title>
+                        <Slot:body>When your firm opens a request, it will appear here.</Slot:body>
+                    </Empty_State>
+                </Section>
+            <% } else { %>
+                <% if (_active.length > 0) { %>
+                    <Section $title="Active" $count=_active.length $flush=true>
+                        <Slot:body>
+                            <Record_Table>
+                                <thead>
+                                    <tr><th>Request</th><th>Messages</th><th>Last activity</th><th>Status</th></tr>
+                                </thead>
+                                <tbody>
+                                    <% for (const thread of _active) { %>
+                                    <tr data-href="<%= _thread_url(thread) %>">
+                                        <td><span class="Portal_Workspace_Requests_Action__title"><%= thread.title %></span></td>
+                                        <td><%= thread.message_count %></td>
+                                        <td><%= Rsx_Time.relative(thread.last_activity_at) %></td>
+                                        <td><Status_Badge $label=thread.status_label $badge=thread.badge /></td>
+                                    </tr>
+                                    <% } %>
+                                </tbody>
+                            </Record_Table>
+                        </Slot:body>
+                    </Section>
+                <% } %>
+
+                <% if (_closed.length > 0) { %>
+                    <Section $title="Closed" $count=_closed.length $flush=true>
+                        <Slot:body>
+                            <Record_Table>
+                                <thead>
+                                    <tr><th>Request</th><th>Messages</th><th>Last activity</th><th>Status</th></tr>
+                                </thead>
+                                <tbody>
+                                    <% for (const thread of _closed) { %>
+                                    <tr data-href="<%= _thread_url(thread) %>">
+                                        <td><span class="Portal_Workspace_Requests_Action__title"><%= thread.title %></span></td>
+                                        <td><%= thread.message_count %></td>
+                                        <td><%= Rsx_Time.relative(thread.last_activity_at) %></td>
+                                        <td><Status_Badge $label=thread.status_label $badge=thread.badge /></td>
+                                    </tr>
+                                    <% } %>
+                                </tbody>
+                            </Record_Table>
+                        </Slot:body>
+                    </Section>
+                <% } %>
+            <% } %>
+        </Slot:main>
+    </Page_Scaffold>
+<% } %>
+</Define:Portal_Workspace_Requests_Action>

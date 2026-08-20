@@ -1,0 +1,59 @@
+FRAMEWORK PULL NOW AUTO-COMMITS system/app/RSpade
+Date: 2026-07-30
+
+SUMMARY
+    rsx:framework:pull changes how framework updates land in a downstream app's
+    git repo. After a successful pull it now creates ONE dedicated commit of the
+    pulled system/app/RSpade (the framework override zone) with a message built
+    from the byte-faithful upstream changelog, and it sets git skip-worktree on
+    that zone (plus a *.php.upstream gitignore entry) so the app's runtime
+    class-override churn stops appearing in the developer's git status / commits.
+    On by default; --no-commit opts out. The pull is now development-mode only.
+
+THE CHANGE
+    Previously rsx:framework:pull left all system/ changes as uncommitted
+    working-tree changes for you to review and commit, and the class-override
+    mechanism's file churn (a framework Foo.php renamed aside to Foo.php.upstream
+    when rsx/ overrides it, and back) showed up in `git status` and could be
+    swept into unrelated feature commits by `git add -A`.
+
+    Now, after the sync + rebuild, the pull:
+    - Ensures `*.php.upstream` is in the app's .gitignore (hides the override
+      sidecar files, which are untracked).
+    - Sets `git update-index --skip-worktree` on every tracked file under
+      system/app/RSpade (hides the rename-away churn of the tracked .php files).
+    - Force-stages ONLY system/app/RSpade (+ the .gitignore entry) and commits it
+      as a single "RSpade framework update <old> -> <new>" commit whose body is
+      the aggregated upstream commit messages for the delta. Your in-flight app
+      work and the rest of system/ are never touched by this commit.
+    - Refuses unless RSX_MODE=development (debug/production are sealed builds).
+    - Stops a supervisord php-fpm* program for the duration of the sync and
+      restarts it afterward (no-op if supervisord/php-fpm is absent).
+
+    New flag: --no-commit skips the auto-commit (leaves the zone as working-tree
+    changes, the old behavior).
+
+ACTION REQUIRED
+    1. If your app's commit ritual manually excluded system/ (e.g.
+       `git add -A && git reset -- system ...`), you can drop the
+       system/app/RSpade portion of that exclude — the pull now owns that zone's
+       commits. (Keep excluding the rest of system/ — vendor, node_modules, bin,
+       docs — from feature commits; those still surface as ordinary working-tree
+       changes after a pull for your standard commit.)
+    2. skip-worktree bits are LOCAL to each clone (not committed). A FRESH clone
+       of your app repo will not have them until the next `rsx:framework:pull`
+       re-applies them, so right after a fresh clone the override churn can show
+       in `git status` until you run a pull. (A future new-project toolkit will
+       set this at provisioning; for now, run a pull on a fresh clone.)
+    3. If you WANT to review framework changes before they commit, run
+       `php artisan rsx:framework:pull --no-commit`.
+
+VERIFICATION
+    After a pull on a dev box with a git repo:
+    - `git log -1 --stat` shows a single "RSpade framework update ..." commit
+      touching only system/app/RSpade (+ .gitignore), with the changelog in the body.
+    - Run the app so it applies class overrides, then `git status` — the
+      system/app/RSpade churn (Foo.php.upstream sidecars + renamed-away .php)
+      does NOT appear.
+    - `php artisan rsx:framework:pull` refuses with a clear message when
+      RSX_MODE is debug or production.

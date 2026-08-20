@@ -1,0 +1,120 @@
+ENV HOSTNAME SIMPLIFICATION (ONE KEY: APP_URL)
+Date: 2026-07-22
+
+SUMMARY
+    The three .env keys that used to carry the application hostname -
+    APP_URL, REALTIME_PUBLIC_URL, and RSX_HOSTNAME - are collapsed onto ONE:
+    APP_URL. REALTIME_PUBLIC_URL and RSX_HOSTNAME no longer exist. APP_URL is
+    now the single source of the application hostname, must be https, and
+    supports a $HOSTNAME token that resolves to the OS hostname at boot.
+
+    This is a Category 2 change: the code lives entirely in /system/ core and
+    arrives automatically via the submodule, but every downstream .env carries
+    the two obsolete keys and an http (or non-$HOSTNAME) APP_URL, so downstream
+    MUST edit its .env files. On the next pull, a box whose APP_URL is not https
+    will START failing loudly at boot - that is the new invariant, not a
+    regression.
+
+    This document SUPERSEDES the .env-vars list in
+    dev_env_hostname_guard_07_16.txt: the dev-mode hostname guard now checks the
+    APP_URL host ONLY (the REALTIME_PUBLIC_URL and RSX_HOSTNAME rows, and the
+    suffix rule, are gone).
+
+THE CHANGE
+
+    1. APP_URL is the single hostname source.
+       - Rsx::get_hostname(): web mode uses the request host (unchanged); CLI
+         mode derives the host from APP_URL; production web validates the request
+         host against the APP_URL host (exact, or a sub-host of it). RSX_HOSTNAME
+         is no longer read anywhere.
+
+    2. REALTIME_PUBLIC_URL is deleted. The websocket client URL is now DERIVED as
+       wss://{Rsx::get_hostname()}/ws - in web mode that is the host the page was
+       browsed under, so the browser always connects back to the same host (the
+       old "pasted URL points at another box" incident is now structurally
+       impossible). REALTIME_WS_PORT stays (it is the relay's bind port, still
+       read by system/bin/realtime-server.js).
+
+    3. APP_URL MUST be https. RSpade assumes upstream SSL termination (use Caddy
+       or a similar reverse proxy for SSL termination) and generates every URL as
+       https. A non-https or missing APP_URL throws a RuntimeException at boot -
+       there is NO localhost exemption; http:// always throws.
+
+    4. APP_URL supports a $HOSTNAME token. `APP_URL=https://$HOSTNAME` in .env
+       resolves at runtime to the OS hostname (PHP gethostname()), patched into
+       the environment before Laravel loads config - so config('app.url'), url(),
+       filesystem disk URLs, and OAuth redirects all see the resolved value. This
+       lets every dev/docker box ship the SAME .env line and each instance answer
+       under its own name.
+
+       CRITICAL - EXACT SPELLING: use the UNQUOTED, NO-BRACE form:
+
+           APP_URL=https://$HOSTNAME
+
+       Do NOT use `${HOSTNAME}` and do NOT quote it. phpdotenv itself interpolates
+       the braces form (`${HOSTNAME}`) when it is unquoted or double-quoted and the
+       OS exports a HOSTNAME env var - and under php-fpm (clear_env) that variable
+       is often absent, so the braces form silently becomes `https://` (empty
+       host). Only the unquoted no-brace `$HOSTNAME` reliably reaches the resolver
+       as a literal in every context. (The resolver also accepts `${HOSTNAME}` if
+       it happens to arrive as a literal, but the .env MUST use the no-brace form.)
+
+    5. The dev-mode hostname guard (Rsx_Env_Hostname_Guard) now compares the
+       request host against the APP_URL host ONLY, matched EXACTLY. A loopback
+       REQUEST (localhost / 127.* / ::1 - the curl/rsx:debug channel) is exempt;
+       a loopback-VALUED APP_URL (APP_URL=https://localhost) browsed under a real
+       host is NOT exempt - it fatals, because that is exactly the pasted-.env
+       misconfiguration the guard exists to catch.
+
+THE FIX
+    Lives entirely in /system/ core (Rsx.php, Rsx_App_Url.php,
+    Rsx_Env_Hostname_Guard.php, bootstrap/app.php, Rsx_Framework_Provider.php,
+    Rsx_Bundle_Abstract.php, config/rsx.php, helpers.php) and reaches you via the
+    submodule - nothing to copy.
+
+ACTION REQUIRED
+    Edit the .env of EVERY environment you run:
+
+    1. Set APP_URL. On any non-production host (all docker/dev boxes - if you are
+       an LLM applying this, you are ALWAYS on such a host), use the token form:
+
+           APP_URL=https://$HOSTNAME
+
+       On a TRUE production host only, set APP_URL to that host's real hostname:
+
+           APP_URL=https://app.yourdomain.com
+
+       Either way APP_URL MUST be https.
+
+    2. DELETE these two lines wherever they appear:
+
+           REALTIME_PUBLIC_URL=...
+           RSX_HOSTNAME=...
+
+       (Keep REALTIME_ENABLED and REALTIME_WS_PORT.)
+
+    3. If any of your OWN app code reads env('RSX_HOSTNAME') or
+       env('REALTIME_PUBLIC_URL'), or config('rsx.realtime.public_url'), remove
+       it: use Rsx::get_hostname() for the hostname and
+       'wss://' . Rsx::get_hostname() . '/ws' for the relay URL (or just rely on
+       window.rsxapp.realtime_url, which is already derived).
+
+    Mark this change fulfilled once your .env files are updated:
+
+        php artisan rsx:framework:upstream_changes:mark env_hostname_simplification_07_22 --fulfilled
+
+VERIFICATION
+    - `php artisan rsx:health` exits 0 (no https/hostname failure).
+    - config('app.url') resolves to https://<your OS hostname> (with the token
+      form) - confirm with a CLI boot, or just load a page and check that URLs
+      are https and point at the right host.
+    - window.rsxapp.realtime_url reads wss://<browsed-host>/ws.
+    - A deliberately mismatched Host header in development fatals with a
+      "Dev-mode .env hostname mismatch: APP_URL host ..." message.
+    - Setting APP_URL=http://anything (or blank) fails loud at boot with the
+      "APP_URL must be https ... upstream SSL termination ... Caddy" message.
+
+SEE ALSO
+    php artisan rsx:man realtime          derived wss URL + dev-mode guard
+    php artisan rsx:man email             HOSTNAME DETECTION (APP_URL)
+    upstream_changes/dev_env_hostname_guard_07_16.txt   superseded .env-vars list

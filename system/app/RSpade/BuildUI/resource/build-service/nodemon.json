@@ -1,0 +1,15 @@
+{
+  "watch": [
+    "rspade-build-ui-server.js",
+    "../**/*.js",
+    "../**/*.php"
+  ],
+  "ignore": [
+    "node_modules/**",
+    "public/dist/**",
+    "src/**"
+  ],
+  "ext": "js,json,php",
+  "delay": 1000,
+  "verbose": true
+}

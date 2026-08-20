@@ -1,0 +1,108 @@
+PAGEDATA(3)                 RSX Framework Manual                 PAGEDATA(3)
+
+NAME
+    PageData - Pass server-side data to JavaScript via window.rsxapp.page_data
+
+SYNOPSIS
+    PHP Controller:
+        PageData::add(['key' => $value, 'another' => $data]);
+
+    Blade Directive:
+        @rsx_page_data(['key' => $value])
+
+    JavaScript Access:
+        const value = window.rsxapp.page_data.key;
+
+DESCRIPTION
+    PageData provides a simple mechanism for passing server-side data to
+    JavaScript. Data added via PageData::add() or @rsx_page_data is
+    accumulated during request processing and automatically included in
+    window.rsxapp.page_data when the bundle renders.
+
+    This is useful for:
+    - Passing IDs needed by JavaScript components
+    - Pre-loading configuration for client-side logic
+    - Sharing computed values without additional Ajax calls
+
+USAGE IN BLADE ROUTES
+    For traditional Blade views, use the @rsx_page_data directive:
+
+        {{-- In your Blade view --}}
+        @rsx_page_data(['user_id' => $user->id, 'can_edit' => $can_edit])
+
+        <div id="user-profile">
+            ...
+        </div>
+
+    Or call PageData::add() in the controller before returning the view:
+
+        use App\RSpade\Core\View\PageData;
+
+        #[Route('/users/:id')]
+        public static function view(Request $request, array $params = [])
+        {
+            $user = User_Model::findOrFail($params['id']);
+
+            PageData::add([
+                'user_id' => $user->id,
+                'permissions' => $user->get_permissions(),
+            ]);
+
+            return rsx_view('User_View', ['user' => $user]);
+        }
+
+USAGE IN SPA CONTROLLERS
+    For SPA entry points, call PageData::add() before returning rsx_view(SPA):
+
+        use App\RSpade\Core\View\PageData;
+
+        #[SPA]
+        public static function index(Request $request, array $params = [])
+        {
+            // Load data needed by SPA actions
+            $internal_contact = Contact_Model::where('type_id', Contact_Model::TYPE_INTERNAL)
+                ->first();
+
+            PageData::add([
+                'contact_internal_id' => $internal_contact?->id,
+            ]);
+
+            return rsx_view(SPA, ['bundle' => 'Frontend_Bundle']);
+        }
+
+    The data is then available in any SPA action or component:
+
+        class Sidebar_Component {
+            on_ready() {
+                const internal_id = window.rsxapp.page_data.contact_internal_id;
+                if (internal_id) {
+                    this.$sid('internal_link').attr('href', Rsx.Route('Contact_View_Action', internal_id));
+                }
+            }
+        }
+
+MULTIPLE CALLS
+    PageData::add() merges data, so you can call it multiple times:
+
+        PageData::add(['user_id' => $user->id]);
+        PageData::add(['site_config' => $config]);  // Merged with previous
+
+    Later calls overwrite earlier keys with the same name.
+
+API
+    PageData::add(array $data)
+        Add key-value pairs to page_data. Merged with existing data.
+
+    PageData::get()
+        Returns all accumulated page data (used internally by bundle renderer).
+
+    PageData::has_data()
+        Returns true if any page data has been set (used internally).
+
+SEE ALSO
+    rsxapp(3), spa(3), bundle_api(3)
+
+AUTHOR
+    RSpade Framework
+
+RSpade                         January 2026                      PAGEDATA(3)

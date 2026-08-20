@@ -1,0 +1,84 @@
+<Define:Notification_Dropdown tag="div" class="dropdown">
+
+    <%-- Notification Bell Button --%>
+    <button class="btn btn-link Notification_Dropdown__toggle position-relative p-0"
+            data-bs-toggle="dropdown"
+            data-bs-auto-close="outside"
+            type="button"
+            aria-expanded="false"
+            @click=this._on_toggle_click>
+        <i class="bi bi-bell fs-5"></i>
+        <% if (this.state.unread_count > 0) { %>
+            <span class="Notification_Dropdown__badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                <%= this.state.unread_count > 99 ? '99+' : this.state.unread_count %>
+                <span class="visually-hidden">unread notifications</span>
+            </span>
+        <% } %>
+    </button>
+
+    <%-- Dropdown Menu --%>
+    <div class="dropdown-menu dropdown-menu-end Notification_Dropdown__menu shadow" $sid="dropdown_menu">
+        <%-- Header --%>
+        <div class="Notification_Dropdown__header d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+            <span class="fw-semibold">Notifications</span>
+            <% if (this.state.unread_count > 0) { %>
+                <a href="#" class="small text-decoration-none" @click=this._on_mark_all_read>
+                    Mark all read
+                </a>
+            <% } %>
+        </div>
+
+        <%-- Notification List --%>
+        <div class="Notification_Dropdown__list" $sid="notification_list">
+            <% if (this.state.loading) { %>
+                <div class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            <% } else if (this.state.notifications.length === 0) { %>
+                <div class="text-center text-muted py-4">
+                    No notifications
+                </div>
+            <% } else { %>
+                <% for (const n of this.state.notifications) { %>
+                    <a href="<%= n.url || '#' %>"
+                       class="Notification_Dropdown__item dropdown-item d-flex align-items-start py-2 px-3 <%= n.is_read ? 'Notification_Dropdown__item--read' : '' %>"
+                       data-notification-id="<%= n.id %>"
+                       @click=this._on_notification_click>
+                        <% if (n.image_url) { %>
+                            <img src="<%= n.image_url %>"
+                                 class="Notification_Dropdown__image rounded-circle me-2"
+                                 width="32" height="32" alt="">
+                        <% } else { %>
+                            <div class="Notification_Dropdown__icon me-2">
+                                <i class="bi bi-bell text-muted"></i>
+                            </div>
+                        <% } %>
+                        <div class="Notification_Dropdown__content flex-grow-1 min-width-0">
+                            <div class="Notification_Dropdown__text small">
+                                <%= n.text %>
+                            </div>
+                            <div class="Notification_Dropdown__time text-muted small">
+                                <%= Rsx_Time.relative(n.created_at) %>
+                            </div>
+                        </div>
+                        <% if (!n.is_read) { %>
+                            <span class="Notification_Dropdown__unread-dot ms-2 bg-primary rounded-circle"></span>
+                        <% } %>
+                    </a>
+                <% } %>
+            <% } %>
+        </div>
+
+        <%-- Footer --%>
+        <% if (this.state.total > this.state.notifications.length) { %>
+            <div class="Notification_Dropdown__footer border-top px-3 py-2 text-center">
+                <a href="#" class="small text-decoration-none">
+                    Show all (<%= this.state.total - this.state.notifications.length %> more)
+                </a>
+            </div>
+        <% } %>
+    </div>
+
+</Define:Notification_Dropdown>

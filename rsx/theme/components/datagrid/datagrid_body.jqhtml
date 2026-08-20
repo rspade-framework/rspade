@@ -1,0 +1,46 @@
+<%--
+DataGrid_Body
+
+The tbody portion of a datagrid that handles data loading and row rendering.
+Receives data_source from parent and loads data based on page/sort/filter args.
+
+Arguments:
+$data_source - Ajax endpoint for fetching data
+$page - Current page number
+$per_page - Rows per page
+$sort - Sort column
+$order - Sort order ('asc' or 'desc')
+$filter - Filter text
+--%>
+<Define:DataGrid_Body tag="tbody">
+
+    <% if (this.data.loading && this.data.rows.length === 0) { %>
+        <tr class="DataGrid_Abstract__loading-row">
+            <td colspan="999" class="text-center py-5">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="text-muted">Loading...</p>
+            </td>
+        </tr>
+    <% } else if (this.data.is_empty) { %>
+        <tr class="DataGrid_Abstract__empty-row">
+            <td colspan="999" class="text-center py-5">
+                <i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d;"></i>
+                <% if (this.args.filter) { %>
+                    <p class="text-muted mt-3">No results found for "<%= this.args.filter %>"</p>
+                    <button $sid="clear_filter_btn" class="btn btn-sm btn-secondary mt-2">Clear Filter</button>
+                <% } else { %>
+                    <p class="text-muted mt-3">No results found</p>
+                <% } %>
+            </td>
+        </tr>
+    <% } else { %>
+        <% for(let row of this.data.rows) { %>
+            <% if (row && row.id) { %>
+                <%= content('row', row); %>
+            <% } %>
+        <% } %>
+    <% } %>
+
+</Define:DataGrid_Body>

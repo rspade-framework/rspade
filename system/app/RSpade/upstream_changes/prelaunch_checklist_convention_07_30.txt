@@ -1,0 +1,59 @@
+APP-OWNED PRE-LAUNCH CHECKLIST CONVENTION
+Date: 2026-07-30
+
+SUMMARY
+    RSpade now standardizes WHERE a downstream app keeps its OWN pre-launch audit
+    checklist: rsx/resource/audits/prelaunch_checklist.md. This is a one-time
+    convention/organization adoption - no code changes, no behavior change. It
+    exists so every RSpade app puts its application-specific launch audits in the
+    same, framework-documented place, distinct from the framework-required audits
+    that ship in `rsx:man prelaunch_checklist`.
+
+    Two lists, two owners:
+    - FRAMEWORK-required pre-launch audits (hard-to-lint, framework-wide) live in
+      `php artisan rsx:man prelaunch_checklist`. These arrive automatically via
+      `rsx:framework:pull` and grow over time as new entries.
+    - APPLICATION-specific pre-launch audits (your permission gates, your email
+      templates, your seed-data cleanup, etc.) live in
+      rsx/resource/audits/prelaunch_checklist.md, owned and maintained by you.
+
+    Review BOTH before every launch.
+
+THE CHANGE
+    - New convention: rsx/resource/audits/prelaunch_checklist.md is the home for
+      your app's own pre-launch audit items. The template ships a short starter
+      file there with example bullets to replace.
+    - The convention and the "review both lists" guidance are now documented in
+      the framework CLAUDE you receive (internally docs.dist/CLAUDE.dist.md), so it
+      is part of the standard programmer-facing guidance from here on.
+
+ACTION REQUIRED
+    1. If you already maintain a pre-launch audit list of your own (in a scratch
+       doc, a README, notes in your CLAUDE.md, wherever), MOVE it to
+       rsx/resource/audits/prelaunch_checklist.md.
+
+    2. Because the file's existence and purpose are now documented in the
+       framework CLAUDE guidance, you MAY remove any notes in your own CLAUDE.md
+       that merely explained "we keep a pre-launch checklist" - that is now
+       covered for you.
+
+       BUT PRESERVE any special directives or notes of yours that DIFFER FROM or
+       EXTEND the framework guidance (app-specific launch policy, required
+       sign-offs, environment-specific steps). Move those into the new checklist
+       file; do not lose them.
+
+    3. Keep reviewing the framework-required audits at
+       `php artisan rsx:man prelaunch_checklist` as well. Review BOTH before
+       launch.
+
+    Note: this is a one-time convention adoption. FUTURE framework pre-launch
+    audit items arrive automatically as new entries in `rsx:man prelaunch_checklist`
+    - there is NO per-item upstream_changes doc for those. This doc exists only to
+    establish the app-owned-checklist location once.
+
+VERIFICATION
+    - rsx/resource/audits/prelaunch_checklist.md exists and contains your app's
+      pre-launch items (starter examples replaced with your own).
+    - `php artisan rsx:man prelaunch_checklist` still renders the framework audits.
+    - Any app-specific launch directives that previously lived in your CLAUDE.md
+      are now in the checklist file (nothing lost in the move).

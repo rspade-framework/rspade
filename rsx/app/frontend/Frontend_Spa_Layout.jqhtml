@@ -1,0 +1,126 @@
+<Define:Frontend_Spa_Layout>
+
+    <%-- Sidebar Navigation --%>
+    <nav class="Frontend_Spa_Layout__sidebar">
+        <%-- Brand - Desktop only --%>
+        <div class="Frontend_Spa_Layout__sidebar-brand d-none d-desktop-block">
+            <a href="/">
+                <%= this.args.app_name || 'RSX' %>
+            </a>
+        </div>
+
+        <%-- Mobile Navbar (full-width on mobile) --%>
+        <div class="d-desktop-none">
+            <nav class="navbar navbar-expand bg-body border-bottom">
+                <div class="container-fluid">
+                    <a class="navbar-brand" href="/">
+                        <%-- <%= this.args.app_name || 'RSX' %> --%>
+                    </a>
+                    <button class="navbar-toggler" data-bs-target="#sidebarNav" data-bs-toggle="collapse"
+                        type="button">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                </div>
+            </nav>
+        </div>
+
+        <%-- Main Navigation Links --%>
+        <Sidebar_Nav class="Frontend_Spa_Layout__sidebar-nav" $sid="sidebar_nav" $sections=this.state.nav_sections />
+    </nav>
+
+    <%-- Main Content Area --%>
+    <div class="Frontend_Spa_Layout__content">
+        <%-- Top Header Navbar --%>
+        <nav class="Frontend_Spa_Layout__header navbar navbar-expand bg-dark navbar-dark">
+            <div class="container-fluid">
+                <%-- Right side content --%>
+                <div class="d-flex align-items-center ms-auto">
+                    <%-- Search Box --%>
+                    <div class="me-3">
+                        <input class="form-control form-control-sm" placeholder="Search..." type="search">
+                    </div>
+
+                    <%-- Realtime connection status (hidden unless the backend is unreachable) --%>
+                    <div class="me-3">
+                        <Realtime_Status_Badge $sid="realtime_status_badge" />
+                    </div>
+
+                    <%-- Notification Dropdown --%>
+                    <div class="me-3">
+                        <Notification_Dropdown $sid="notification_dropdown" />
+                    </div>
+
+                    <%-- User Profile Icon --%>
+                    <div class="me-3">
+                        <a href="<%= Rsx.Route('Settings_Profile_Display_Action') %>"
+                            class="Frontend_Spa_Layout__user-profile-link">
+                            <% if (this.args.user && this.args.user.profile_photo_url) { %>
+                                <img src="<%!= this.args.user.profile_photo_url %>"
+                                    class="Frontend_Spa_Layout__user-profile-icon Frontend_Spa_Layout__user-profile-icon--image" alt="Profile" width="32"
+                                height="32">
+                            <% } else { %>
+                                <div class="Frontend_Spa_Layout__user-profile-icon">
+                                    <i class="bi bi-person-circle"></i>
+                                </div>
+                            <% } %>
+                        </a>
+                    </div>
+
+                    <%-- User Dropdown --%>
+                    <div class="dropdown">
+                        <button class="btn btn-sm dropdown-toggle" data-bs-toggle="dropdown" type="button">
+                            <% if (this.args.user) { %>
+                                <%= this.args.user.email.split('@')[0] %>
+                            <% } else { %>
+                                Guest
+                            <% } %>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow">
+                            <% if (this.args.user) { %>
+                                <li>
+                                    <a class="dropdown-item" href="<%= Rsx.Route('Settings_Profile_Display_Action') %>">
+                                        <i class="bi bi-person"></i> My Profile
+                                    </a>
+                                </li>
+
+                                <li><a class="dropdown-item"
+                                        href="<%= Rsx.Route('Settings_General_Action') %>">
+                                        <i class="bi bi-gear"></i> My Settings
+                                </a></li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li><a class="dropdown-item" href="<%= Rsx.Route('Login_Controller::logout') %>">
+                                        <i class="bi bi-box-arrow-right"></i> Sign Out
+                                    </a>
+                                </li>
+                            <% } else { %>
+                                <li>
+                                    <a class="dropdown-item"
+                                    href="<%= Rsx.Route('Login_Controller::#show_login') %>">Login</a>
+                                </li>
+                            <% } %>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <%-- Page Title & Breadcrumb Header --%>
+        <header class="Frontend_Spa_Layout__title-header bg-body border-bottom py-3 px-4">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h1 class="h4 mb-1" $sid="page_title">&nbsp;</h1>
+                    <nav $sid="page_breadcrumbs" class="small">&nbsp;</nav>
+                </div>
+                <div $sid="page_actions"></div>
+            </div>
+        </header>
+
+        <%-- Page Content --%>
+        <main class="Frontend_Spa_Layout__page-content Frontend_Spa_Layout__page-content--constrained" $sid="content">
+            <!-- Actions render here -->
+        </main>
+    </div>
+
+</Define:Frontend_Spa_Layout>

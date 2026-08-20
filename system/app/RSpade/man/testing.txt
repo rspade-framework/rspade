@@ -1,0 +1,548 @@
+TESTING(1)                        RSpade Manual                        TESTING(1)
+
+NAME
+    testing - Rsx_Test_Abstract and the rsx:test runner
+
+SYNOPSIS
+    php artisan rsx:test                        # the application suite
+    php artisan rsx:test Invoice_Test           # one or more classes
+    php artisan rsx:test --filter=invite        # class OR test_* method name
+    php artisan rsx:test --group=portal         # one concern directory
+    php artisan rsx:test --framework            # the framework suite
+    php artisan rsx:test --fresh                # rebuild the test database first
+
+    A test class:
+
+        namespace Rsx\Tests;
+
+        use App\RSpade\Core\Testing\Rsx_Test_Abstract;
+
+        class Invoice_Test extends Rsx_Test_Abstract
+        {
+            public static function test_totals_round_to_cents()
+            {
+                $invoice = new Invoice_Model();
+                $invoice->amount = 10.005;
+                $invoice->save();
+
+                static::__assert_equals_approx(10.01, (float) $invoice->fresh()->amount);
+            }
+        }
+
+DESCRIPTION
+    RSX tests are static methods on a class extending Rsx_Test_Abstract,
+    discovered through the manifest and run by `php artisan rsx:test`. There is
+    no phpunit.xml, no test suite registration, no bootstrap file, no service
+    container to prime, and no instance lifecycle: a test class is a namespace
+    for a group of static test methods, exactly like every other class in this
+    framework.
+
+    Discovery is the same mechanism the rest of RSpade uses. The runner asks the
+    manifest for every concrete class extending Rsx_Test_Abstract; a file
+    dropped in /rsx/tests/ is picked up on the next run with no edit to any
+    registry. Nothing has to be told a test exists.
+
+    Isolation is by DATABASE TRANSACTION, plus a small amount of process-global
+    state the runner clears between tests (see PER-TEST STATE RESET). Every
+    test_* method runs inside a transaction that is rolled back when it returns,
+    so a test's writes never reach the next test. The whole run happens against
+    a SEPARATE database, swapped in as the default connection before the first
+    class runs - and the runner refuses to start at all if that database is the
+    developer database.
+
+    The framework is fail-loud, so its tests must exercise the failure paths.
+    __assert_throws() is the tool for that: if a function is documented to throw
+    on bad input, there is a test proving it does.
+
+BASIC USAGE
+
+    Anatomy of a class:
+
+        namespace Rsx\Tests;
+
+        use App\RSpade\Core\Testing\Rsx_Test_Abstract;
+
+        class Invoice_Test extends Rsx_Test_Abstract
+        {
+            public static function setup()
+            {
+                // Runs ONCE, before the first test_* method, OUTSIDE the
+                // per-test transaction. Fixtures created here persist for the
+                // whole class and are teardown()'s responsibility to remove.
+            }
+
+            public static function teardown()
+            {
+                // Runs ONCE, after the last test_* method.
+            }
+
+            public static function test_something()
+            {
+                static::__assert_true(Invoice_Model::exists());
+            }
+        }
+
+    Rules that are actually enforced:
+
+        - Extend App\RSpade\Core\Testing\Rsx_Test_Abstract.
+        - Test methods are PUBLIC STATIC and named test_* - that IS the
+          discovery rule, applied by reflection over the class's public methods.
+        - Helpers are __-prefixed and protected; call them as
+          static::__assert_equals(...).
+        - The namespace MUST match the file's path (the framework's namespace
+          validator enforces this project-wide). rsx/tests/ ->
+          namespace Rsx\Tests; app/RSpade/tests/<concern>/php/ ->
+          namespace App\RSpade\Tests\<Concern>\Php.
+        - House rules apply in tests too: snake_case, ASCII only, no emoji.
+
+    A runnable reference class ships at /rsx/tests/Example_Test.php.
+
+    Pass/fail contract. A test method that RETURNS is passed. A method that
+    throws is failed, and the exception's message, file and line are reported.
+    There is no "assertion count" and nothing to declare - an assertion helper
+    fails by throwing.
+
+TEST DISCOVERY AND SUITES
+
+    Framework tests and application tests are ONE mechanism partitioned by file
+    location:
+
+        application   anything not under app/RSpade/ - conventionally
+                      /rsx/tests/. Run by a plain `rsx:test`.
+        framework     app/RSpade/tests/<concern>/php/ (and cli/asset tests
+                      written as PHP classes). Run by `rsx:test --framework`.
+
+    The two never mix in one run: the flag selects a partition rather than
+    adding to it. Framework tests do not ship to downstream apps (the release
+    excludes the framework test tree), which is why a downstream `rsx:test` sees
+    only its own suite.
+
+    Abstract classes are skipped. Class run order is deterministic - the class
+    list is ksort'ed by name - so a run is reproducible and a failure that
+    depends on ordering is reproducible too.
+
+API REFERENCE
+
+  Assertions
+
+    Every assertion is protected static, throws on failure, and takes an
+    optional trailing $message that replaces the generated one. Sixteen of them:
+
+        __assert_true($condition, $message = 'Assertion failed')
+        __assert_false($condition, $message = 'Assertion failed')
+
+        __assert_equals($expected, $actual, $message = null)
+            STRICT (===). 1 and '1' are not equal; use a cast, not a loose
+            assertion.
+        __assert_not_equals($expected, $actual, $message = null)
+
+        __assert_equals_approx($expected, $actual, $epsilon = 0.005,
+                               $message = null)
+            Passes when abs($expected - $actual) <= $epsilon. The default
+            epsilon is a half-cent - the money default. Use this for any float.
+
+        __assert_null($value, $message = 'Value should be null')
+        __assert_not_null($value, $message = 'Value should not be null')
+
+        __assert_empty($value, $message = null)
+        __assert_not_empty($value, $message = null)
+            PHP empty() semantics: null, false, 0, '', '0' and [] are all empty.
+
+        __assert_contains($needle, $haystack, $message = null)
+            Substring. Note the argument order - needle first.
+
+        __assert_array_has_key($key, $array, $message = null)
+
+        __assert_count($expected, $countable, $message = null)
+            $countable must be an array or Countable; anything else fails the
+            assertion rather than counting to 1.
+
+        __assert_greater_than($threshold, $actual, $message = null)
+        __assert_less_than($threshold, $actual, $message = null)
+            STRICT comparisons, threshold first.
+
+        __assert_instance_of(string $class, $object, $message = null)
+
+        __assert_throws(string $exception_class, callable $fn,
+                        ?string $message_contains = null): \Throwable
+            Calls $fn and requires it to throw. Catches \Throwable, so an Error
+            is covered as well as an Exception; verifies the class (instanceof,
+            so a parent class matches) and, when given, that the message
+            contains $message_contains. RETURNS the caught throwable so the test
+            can assert further on it. Fails if nothing is thrown.
+
+    __assert_throws() exists because the runner passes a method that does not
+    throw - there is no other way to say "this should have thrown":
+
+        $e = static::__assert_throws(\RuntimeException::class, function () {
+            Rsx_Date::parse('2025-12-24T15:30:00Z');   // a datetime, not a date
+        }, 'expects a date');
+
+        static::__assert_contains('Rsx_Date', $e->getMessage());
+
+  Session, site and user context
+
+    A CLI run has no browser session, but site-scoped models read
+    Session::get_site_id() and audit stamping reads Session::get_user_id().
+    These helpers set that context as process-level overrides. They create no
+    session row of their own; a test that needs a real row calls
+    Session::get_session_id(), which mints a TYPE_CLI row for the process.
+
+        __acting_as_site(int $site_id)
+            Site context for everything that follows: the site scope on
+            site-scoped models, forced site_id on create, Rsx_Time's site
+            timezone tier, and so on.
+
+        __acting_as_user(int $user_id)
+            Takes a users.id (the site-specific user, not login_users.id).
+            Resolves the User_Model bypassing the site scope, then sets site,
+            login identity and user id together so every Session getter is
+            coherent and audit attribution names this user. Calls
+            shouldnt_happen() if no such user exists in the TEST database -
+            which is usually the real message: the fixture was never created.
+
+        __reset_session()
+            Clears the impersonated site/user/login context.
+
+        __request($url, $method = 'GET', $data = [])
+            Issues an HTTP request to http://localhost . $url via the Http
+            client and returns the response. GET and POST only; anything else
+            throws. This is a real request over the loopback interface - it does
+            NOT share the test's transaction, so it sees committed data only.
+            Prefer calling the endpoint's static method directly.
+
+    __acting_as_site() is the STAFF facade. A portal test declares its own
+    tenant with Portal_Session::set_site_id() - the two are different property
+    sets on the same session row and never substitute for each other.
+
+  Outcome helpers
+
+        __pass($message = 'Test passed')
+            Record an explicit pass message. Rarely needed - returning passes.
+
+        __fail($message = 'Test failed')
+            Fail with a message (throws).
+
+        __skip($reason = 'Test skipped')
+            Mark the test skipped and stop executing it. For a genuinely
+            inapplicable environment - a missing optional binary, a service that
+            is disabled by config. NEVER to silence a failing test.
+
+DATABASE ISOLATION
+
+    Per-test transactions. Each test_* method is wrapped in
+    DB::beginTransaction() / DB::rollBack(). The rollback runs in a finally, so
+    a failing or throwing test still leaves no dangling transaction.
+
+    setup() and teardown() run OUTSIDE that transaction. Fixtures created in
+    setup() are committed, persist for every test in the class, and must be
+    removed by teardown() - the runner will not do it.
+
+    Two per-class switches:
+
+        protected static $use_database_transactions = false;
+            Opt the class out of the per-test transaction. Needed when the code
+            under test commits, spans a subprocess, or manages its own
+            transactions - and reasonable for a pure-logic class that touches no
+            database at all.
+
+        protected static $requires_db_reset = true;
+            The runner re-provisions a clean, freshly-migrated baseline ONCE
+            before this class, and restores that baseline before the next class
+            runs. For tests whose SUBJECT is the build or migration pipeline, or
+            that must commit and read back.
+
+    The two pair. A $requires_db_reset class normally also sets
+    $use_database_transactions = false: it commits, so per-test rollback
+    isolation does not apply to it anyway. The runner tracks that a reset class
+    may have committed and restores the baseline before the following class, so
+    a transaction-based class never inherits another class's committed rows.
+
+THE TEST DATABASE
+
+    Tests run against DB_TEST_DATABASE (the `test` connection; default
+    rspade_test), swapped in as the DEFAULT connection for the entire run. The
+    developer database is never the target of a test write.
+
+    The interlock. If the test database name equals the developer database name,
+    the runner prints an error and exits 1 before touching anything. It also
+    refuses when no test database is configured. This is not overridable - the
+    schema sync path drops and recreates the database it is given.
+
+    File storage is redirected too. The whole file subsystem (blob store,
+    thumbnail cache, rendition cache) is pointed at
+    storage/rsx-tmp/test-storage for the run, so a model-layer attachment delete
+    against the test database cannot unlink a blob the developer database also
+    references.
+
+    Schema freshness - why you rarely need --fresh:
+
+        - A plain rsx:test applies any PENDING migrations (framework + app) to
+          the test database before running, silently when there are none. A new
+          migration therefore never requires --fresh just to sync schema.
+        - That incrementally-migrated database is deliberately NOT cached as the
+          clean baseline: it may carry committed residue from a prior
+          non-transactional class, and caching it would poison every future
+          re-provision.
+        - A database with no migrated schema at all is provisioned as if
+          --fresh had been passed.
+
+    --fresh drops and recreates the test database, then provisions it:
+
+        - A mysqldump cache lives in storage/db_backups/test-db-cache, keyed by
+          a hash of every migration file's content plus the MySQL server version
+          and a cache-format version. When that hash matches, the baseline is
+          RESTORED from the dump instead of re-running every migration.
+        - Otherwise migrations run (in a subprocess, in debug mode, so the
+          development-mode snapshot machinery - which operates on the whole
+          MySQL instance - never fires for a test schema sync) and the result is
+          cached under the new hash.
+        - The cache directory is under storage/db_backups, so it survives
+          rsx:clean.
+        - A corrupt cached dump is discarded and a full migration runs; caching
+          is best effort and never fails a run.
+
+    Reach for --fresh when you suspect the test database has drifted or been
+    dirtied - not merely because you added a migration.
+
+RUNNING AND NARROWING A RUN
+
+    Three selectors, all of them SETS (repeat the flag). Within one selector the
+    members are OR'd; ACROSS selectors they are AND'd, so each one narrows
+    further.
+
+        rsx:test                                  the whole application suite
+        rsx:test Invoice_Test Client_Test         classes, SUBSTRING match on
+                                                  the class name
+        rsx:test --filter=invite --filter=expire  match a class name OR a
+                                                  test_* method name,
+                                                  case-insensitive substring
+        rsx:test --group=portal                   one concern directory
+        rsx:test --group=portal --group=billing   several
+        rsx:test --framework --group=locks        AND: framework suite, locks
+                                                  group only
+        rsx:test --fresh                          rebuild the test DB first
+
+    --filter has a useful asymmetry. When it matches the CLASS name, every
+    method of that class runs and reports. When it matches only method names,
+    just those methods report. A class the filter selects nothing in is skipped
+    entirely - no "Running:" line, no ::run() call.
+
+    A GROUP is the concern directory that owns a README.md and a
+    test_catalog.md: app/RSpade/tests/<group>/... for framework tests,
+    rsx/tests/<group>/... for application ones. The match is EXACT on the
+    directory name, not a substring, so --group=locks cannot drag in a
+    neighbouring concern whose name contains it. An application test sitting
+    directly in rsx/tests/ belongs to no group and --group can never select it.
+
+    Exit code: 1 if any test failed, otherwise 0. A run that selected NOTHING
+    prints "No tests were run." and exits 0 - so check the summary line, not
+    just the exit code, when a selector is involved.
+
+PER-TEST STATE RESET
+
+    A transaction rolls back rows, not statics. After every test_* method the
+    runner also clears the process-global state that would otherwise be borrowed
+    by the next test - in this class and in every class that runs after it:
+
+        Session::_cli_end_session()        drops any CLI session row the test
+                                           minted (the row itself vanished with
+                                           the rollback; the static handle must
+                                           not survive pointing at it)
+        Portal_Session::reset()            clears the portal facade's declared
+                                           site, portal user and impersonator
+        Rsx_Turnstile::_reset_request_state()
+                                           clears the per-request validation
+                                           latch, so a controller call in one
+                                           test cannot satisfy the completeness
+                                           guard for the next
+
+    The consequence for portal tests: a Portal_Session::set_site_id() call in
+    setup() does NOT survive, because setup() runs once per CLASS and this reset
+    runs after every TEST. Declare the portal site inside each test method (or
+    in a helper each test calls). A test that passes in a full-suite run and
+    fails standalone is the signature of borrowed static state - almost always
+    this one.
+
+TEST TYPES
+
+    PHP classes are one of five test types the framework tree recognizes (php,
+    cli, asset, http, playwright), and only the PHP-runnable ones are
+    manifest-discovered and run by rsx:test; http tests are shell scripts and
+    playwright tests are JS run by their own runner. The directory layout, the
+    per-concern README/test_catalog contract, and which type to reach for are
+    documented in system/app/RSpade/tests/CLAUDE.md - the structure of record.
+    That is not duplicated here.
+
+EXAMPLES
+
+    Testing a model's business rule:
+
+        public static function test_archived_project_rejects_new_tasks()
+        {
+            static::__acting_as_user(self::USER_ID);
+
+            $project = new Project_Model();
+            $project->title     = 'Test';
+            $project->status_id = Project_Model::STATUS_ARCHIVED;
+            $project->save();
+
+            static::__assert_throws(\RuntimeException::class, function () use ($project) {
+                Task_Service::add_task($project->id, 'nope');
+            }, 'archived');
+        }
+
+    Testing a fail-loud contract and inspecting the throwable:
+
+        public static function test_cross_site_write_is_fatal()
+        {
+            static::__acting_as_site(1);
+            $record = Client_Model::find(self::SITE_2_CLIENT_ID);
+
+            $e = static::__assert_throws(\Exception::class, function () use ($record) {
+                $record->name = 'x';
+                $record->save();
+            });
+
+            static::__assert_contains('site', strtolower($e->getMessage()));
+        }
+
+    A class that must commit:
+
+        class Migration_Pipeline_Test extends Rsx_Test_Abstract
+        {
+            protected static $requires_db_reset = true;
+            protected static $use_database_transactions = false;
+
+            public static function test_migrate_applies_pending()
+            {
+                $exit = \Artisan::call('migrate', ['--force' => true]);
+                static::__assert_equals(0, $exit);
+            }
+        }
+
+    A portal test declaring its own tenant, per test:
+
+        public static function test_portal_document_is_scoped_to_membership()
+        {
+            Portal_Session::set_site_id(self::SITE_ID);
+            Portal_Session::set_portal_user_id(self::PORTAL_USER_ID);
+
+            $docs = Portal_Document_Service::list_for_client(self::CLIENT_ID);
+            static::__assert_count(2, $docs);
+        }
+
+    Skipping on a genuinely absent dependency:
+
+        public static function test_pdf_extraction()
+        {
+            if (!command_exists('pdftotext')) {
+                static::__skip('poppler-utils not installed');
+            }
+            ...
+        }
+
+    Narrowing while iterating on one feature:
+
+        php artisan rsx:test Invoice_Test
+        php artisan rsx:test --filter=rounds_to_cents
+        php artisan rsx:test --framework --group=locks --group=maintenance
+
+CONFIGURATION
+
+    DB_TEST_DATABASE          .env - the test database name (default
+                              rspade_test). Must differ from DB_DATABASE.
+    RSX_ADDITIONAL_CONFIG     .env - absolute path to a PHP file returning a
+                              config array, merged LAST over config/rsx.php and
+                              rsx/resource/config/rsx.php (array_merge_deep).
+                              The framework's shell test harness points it at
+                              app/RSpade/tests/_lib/rsx_test_config.php to bring
+                              the test tree into the manifest scan. It is a
+                              general merge seam, not a test-only feature, but a
+                              test harness is the only thing that should be
+                              setting it.
+
+RSX VS LARAVEL
+    Laravel:  PHPUnit; phpunit.xml declares suites and paths; test classes
+              extend TestCase and their test methods are INSTANCE methods;
+              RefreshDatabase / DatabaseTransactions traits opt a class into
+              isolation; artisan test wraps the phpunit binary.
+    RSX:      one runner (rsx:test); classes are discovered by the manifest with
+              no configuration file at all; test methods are STATIC (like every
+              other method in the framework); per-test transactions are the
+              DEFAULT and the switches opt OUT; the test database is enforced by
+              a refusal, not by a config convention.
+
+    There is no assertion facade, no expectation DSL, no mocking framework, and
+    no HTTP testing layer that fakes the kernel. A test calls the real static
+    method, against the real (test) database. __request() issues a real loopback
+    request when that is genuinely what is under test.
+
+    Laravel's factories and seeders have no RSX equivalent either: fixtures are
+    built by explicit field assignment in setup() or in the test, the same way
+    application code writes a record (mass assignment is prohibited framework-
+    wide).
+
+TROUBLESHOOTING
+
+    "[ERROR] Test database matches the developer database"
+        DB_TEST_DATABASE is unset or equals DB_DATABASE. Set it to a separate
+        database (rspade_test) in .env. Never point it at the developer or
+        production database to make the message go away - the runner drops and
+        recreates that database during a sync.
+
+    "No tests were found" / a class that never runs
+        Three usual causes: the class does not extend Rsx_Test_Abstract; its
+        methods are not public static and named test_*; or the NAMESPACE does
+        not match the file path, so the manifest never indexed the class. The
+        namespace rule is the one that catches people - each path segment
+        PascalCased, e.g. app/RSpade/tests/locks/php/ ->
+        App\RSpade\Tests\Locks\Php.
+
+    "My test passes in the suite and fails on its own."
+        Borrowed state. Either a fixture another class committed, or a static
+        another class set. Portal tests are the classic case: declare the portal
+        site inside the test, not in setup() (see PER-TEST STATE RESET).
+
+    "My test passes on its own and fails in the suite."
+        The mirror image: something a preceding class left behind. Run the pair
+        (rsx:test First_Test Second_Test) to confirm, then make the failing test
+        create the state it needs rather than assuming a baseline.
+
+    "A column does not exist in the test database."
+        Normally impossible now - a plain run applies pending migrations first.
+        If it persists, the test database has drifted: rsx:test --fresh.
+
+    "Data I created in setup() is missing in my test."
+        It should be there - setup() commits. If it is not, the class is
+        probably $requires_db_reset (the baseline was restored) or a previous
+        run's teardown() removed it. Check both.
+
+    "Data I created in a test is missing in the NEXT test."
+        Working as intended: the per-test transaction was rolled back. Move
+        shared fixtures to setup().
+
+    "The test hangs."
+        Usually a lock: the runner holds cluster locks for the process, and a
+        subprocess spawned outside Rsx_Artisan queues behind its own parent. Use
+        Rsx_Artisan for any artisan subprocess (see rsx:man locks). Slowness is
+        not a hang - a fresh provisioning run migrates a whole schema.
+
+    "A test failed and left my test database in a strange state."
+        Nothing is lost - it is the test database. rsx:test --fresh restores a
+        clean baseline, from the dump cache when migrations are unchanged.
+
+SEE ALSO
+    rsx:man rsx_debug           rendering a route through Playwright, with auth
+    rsx:man migrations          forward-only migrations, the schema the test DB
+                                is provisioned from
+    rsx:man locks               why an artisan subprocess must go through
+                                Rsx_Artisan
+    rsx:man session             the session facade the context helpers drive
+    rsx:man portal              Portal_Session and the portal site declaration
+    rsx:man turnstile           the validation latch the runner resets per test
+    system/app/RSpade/tests/CLAUDE.md
+                                framework test structure: concerns, the five
+                                test types, README/test_catalog contract
+
+TESTING(1)                        RSpade Manual                        TESTING(1)

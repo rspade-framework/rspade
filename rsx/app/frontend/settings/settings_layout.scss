@@ -1,0 +1,426 @@
+/**
+ * Settings_Layout - Unified Styles
+ *
+ * Layout: Sidebar nav card (left) + Content area (right)
+ * Uses BEM naming for layout components, Bootstrap utilities elsewhere.
+ */
+
+.Settings_Layout {
+    // =============================================================================
+    // SETTINGS LAYOUT (Grid Container)
+    // =============================================================================
+
+    .settings-layout {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: $spacing-lg;
+        align-items: start;
+        padding: $spacing-lg;
+
+        @include mobile {
+            grid-template-columns: 1fr;
+            padding: $spacing-md;
+        }
+    }
+
+    // =============================================================================
+    // SETTINGS SIDEBAR
+    // =============================================================================
+
+    .settings-sidebar {
+        position: sticky;
+        top: $spacing-md;
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-3;
+
+        @include mobile {
+            position: static;
+        }
+
+        &__card {
+            background: $white;
+            border: $border-width solid rgba($black, 0.125);
+            border-radius: $border-radius-lg;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba($black, 0.075);
+
+            &--signout {
+                padding: $spacing-3;
+            }
+        }
+
+        &__section {
+            &:not(:first-child) {
+                border-top: $border-width solid rgba($black, 0.1);
+            }
+        }
+
+        &__section-title {
+            padding: $spacing-3 $spacing-md;
+            font-size: $font-size-xs;
+            font-weight: $font-weight-semibold;
+            color: $text-muted;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: $background-light;
+        }
+
+        &__item {
+            display: flex;
+            align-items: center;
+            gap: $spacing-3;
+            padding: 10px $spacing-md;
+            color: $gray-800;
+            text-decoration: none;
+            font-size: $font-size-sm;
+            font-weight: $font-weight-medium;
+            transition: background-color $transition-duration-fast, color $transition-duration-fast;
+            border-left: 3px solid transparent;
+
+            &:hover { // @SCSS-ANIM-01-EXCEPTION: anchor tag nav item
+                background: rgba($black, 0.04);
+                color: $gray-800;
+                text-decoration: none;
+            }
+
+            &.active {
+                @include primary-hover-bg(0.1);
+                border-left-color: $primary-color;
+                color: $primary-color;
+            }
+
+            i {
+                width: 18px;
+                height: 18px;
+                font-size: $font-size-base;
+                color: $text-muted;
+                flex-shrink: 0;
+            }
+
+            &.active i {
+                color: $primary-color;
+            }
+        }
+
+        &__signout-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: $spacing-sm;
+            width: 100%;
+            padding: $spacing-sm $spacing-3;
+            color: $danger-color;
+            text-decoration: none;
+            font-size: $font-size-sm;
+            font-weight: $font-weight-medium;
+            border-radius: $border-radius-md;
+            transition: background-color $transition-duration-fast;
+
+            &:hover { // @SCSS-ANIM-01-EXCEPTION: anchor tag sign out button
+                background: rgba($danger-color, 0.1);
+                text-decoration: none;
+            }
+
+            i {
+                width: 18px;
+                height: 18px;
+                font-size: $font-size-base;
+                flex-shrink: 0;
+            }
+        }
+    }
+
+    // =============================================================================
+    // SETTINGS CONTENT AREA
+    // =============================================================================
+
+    .settings-content {
+        min-height: 400px;
+
+        // Scaffolded reconciliation (semantic view-page refactor, Batch G).
+        // A settings action that composes with Page_Scaffold declares
+        // `scaffolded = true`; Settings_Layout.on_action stamps this modifier on
+        // the content pane. The `.settings-layout` grid already frames the pane
+        // (its own $spacing-lg padding + the nav gutter), so the nested
+        // Page_Scaffold must NOT add its own outer padding on top - zeroing
+        // --page-pad in this scope makes the scaffold fill the pane cleanly.
+        // Its 2300px max-width never binds inside the narrower content track.
+        // Mirrors Frontend_Spa_Layout__page-content--scaffolded (Batch C).
+        &--scaffolded {
+            --page-pad: 0;
+        }
+    }
+
+    // =============================================================================
+    // CARD STYLES (for content pages)
+    // =============================================================================
+
+    .card {
+        border: $border-width solid rgba($black, 0.125);
+        box-shadow: 0 2px 4px rgba($black, 0.075);
+        margin-bottom: $spacing-lg;
+
+        .card-header {
+            background-color: $background-light;
+            border-bottom: $border-width solid rgba($black, 0.125);
+            padding: $spacing-md 20px;
+
+            h5,
+            h6 {
+                margin-bottom: 0;
+                font-weight: $font-weight-semibold;
+            }
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+    }
+
+    // =============================================================================
+    // FORM STYLES
+    // =============================================================================
+
+    .form-label {
+        font-weight: $font-weight-medium;
+        margin-bottom: $spacing-sm;
+    }
+
+    .form-text {
+        font-size: 0.875em;
+        color: $text-muted;
+    }
+
+    // =============================================================================
+    // PROFILE SECTION
+    // =============================================================================
+
+    .profile-section {
+        .avatar-lg {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background-color: $primary-color;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+
+            .avatar-initials {
+                color: $white;
+                font-size: 40px;
+                font-weight: $font-weight-medium;
+            }
+        }
+    }
+
+    // =============================================================================
+    // SETTINGS WIDGET (Content sections)
+    // =============================================================================
+
+    .settings-widget {
+        &:not(:first-child) {
+            margin-top: $spacing-lg;
+            padding-top: $spacing-lg;
+            border-top: $border-width solid rgba($black, 0.1);
+        }
+
+        &__header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: $spacing-md;
+            margin-bottom: $spacing-md;
+        }
+
+        &__title {
+            font-size: $font-size-base;
+            font-weight: $font-weight-semibold;
+            color: $gray-900;
+            margin: 0;
+        }
+
+        &__subtitle {
+            font-size: $font-size-sm;
+            color: $text-muted;
+            margin: $spacing-xs 0 0 0;
+        }
+    }
+
+    // =============================================================================
+    // DETAIL LIST (Key-value pairs)
+    // =============================================================================
+
+    .settings-detail-list {
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-3;
+
+        &__item {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: $spacing-md;
+            align-items: baseline;
+            padding: $spacing-sm 0;
+            border-bottom: $border-width solid rgba($black, 0.08);
+
+            &:last-child {
+                border-bottom: none;
+            }
+
+            @include phone {
+                grid-template-columns: 1fr;
+                gap: $spacing-xs;
+            }
+        }
+
+        &__label {
+            font-size: $font-size-sm;
+            color: $text-muted;
+        }
+
+        &__value {
+            font-size: $font-size-sm;
+            color: $gray-900;
+
+            &--muted {
+                color: $text-muted;
+                font-style: italic;
+            }
+        }
+    }
+
+    // =============================================================================
+    // QUICK ACTIONS
+    // =============================================================================
+
+    .quick-actions {
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-sm;
+
+        &__btn {
+            display: flex;
+            align-items: center;
+            gap: $spacing-sm;
+            padding: $spacing-sm $spacing-3;
+            font-size: $font-size-sm;
+            color: $gray-900;
+            background: $background-light;
+            border: $border-width solid rgba($black, 0.125);
+            border-radius: $border-radius-md;
+            text-decoration: none;
+            transition: $transition-fast;
+
+            &:hover {
+                background: $white;
+                border-color: $primary-color;
+                color: $primary-color;
+            }
+
+            i {
+                width: $icon-size-sm;
+                height: $icon-size-sm;
+                flex-shrink: 0;
+            }
+
+            &--danger {
+                &:hover {
+                    border-color: $danger-color;
+                    color: $danger-color;
+                    background: rgba($danger-color, 0.05);
+                }
+            }
+        }
+    }
+
+    // =============================================================================
+    // CARD ACTIONS (Button row at bottom of card)
+    // =============================================================================
+
+    .card-actions {
+        display: flex;
+        gap: $spacing-sm;
+        justify-content: flex-end;
+        padding-top: $spacing-md;
+        border-top: $border-width solid rgba($black, 0.1);
+        margin-top: $spacing-md;
+    }
+
+    // =============================================================================
+    // SETTINGS FORM GRID
+    // =============================================================================
+
+    .settings-form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: $spacing-md;
+
+        @include phone {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    // =============================================================================
+    // STATS WIDGET
+    // =============================================================================
+
+    .stats-widget {
+        .stat-item {
+            padding: $spacing-3 0;
+            border-bottom: $border-width solid $gray-200;
+
+            &:last-child {
+                border-bottom: none;
+            }
+
+            .stat-label {
+                font-size: $font-size-sm;
+                color: $text-muted;
+            }
+
+            .stat-value {
+                font-size: $font-size-lg;
+                font-weight: $font-weight-semibold;
+                color: $gray-900;
+            }
+        }
+    }
+
+    // =============================================================================
+    // USAGE METRICS
+    // =============================================================================
+
+    .usage-metric {
+        .progress {
+            background-color: $gray-200;
+
+            .progress-bar {
+                background-color: $primary-color;
+            }
+        }
+
+        small {
+            font-size: $font-size-sm;
+        }
+    }
+
+    // =============================================================================
+    // ACCOUNT SECTION
+    // =============================================================================
+
+    .account-section {
+        .subscription-badge {
+            font-size: $font-size-sm;
+            padding: 0.35em 0.65em;
+        }
+
+        .billing-info {
+            background-color: $background-light;
+            border-radius: $border-radius-md;
+            padding: $spacing-md;
+            margin-top: $spacing-md;
+        }
+    }
+}

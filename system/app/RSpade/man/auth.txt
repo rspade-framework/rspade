@@ -1,0 +1,456 @@
+AUTH(1)                          RSpade Manual                          AUTH(1)
+
+NAME
+    auth - RSX authentication model, invitations, and multi-tenant identity
+
+SYNOPSIS
+    Session-based authentication (no Laravel Auth, no JWT, no $_SESSION) built
+    on a two-table identity model (login_users + users), invitation-based
+    onboarding, declarative #[Auth] gates on every surface, and a
+    role/permission ACL layer beneath them.
+
+DESCRIPTION
+    RSX authentication is SESSION-BASED and expressed through static methods on
+    the Session class. There is no token/JWT layer, no Laravel Auth facade, and
+    no PHP $_SESSION usage anywhere. "Am I logged in / who am I" is answered by
+    Session:: accessors; a session record (the _sessions table) is created
+    lazily only when something forces it to exist.
+
+    This page is the AUTH OVERVIEW - the identity model, the invitation
+    workflow, how you gate a controller, and how roles/permissions fit in. The
+    exhaustive Session method surface (accessors, CSRF, impersonation, session
+    management, garbage collection, token immutability) lives in:
+
+        php artisan rsx:man session
+
+    Do not duplicate that API here - cross-reference it.
+
+    Key differences from Laravel:
+    - Laravel: Auth::login($user) / Auth::check() / Auth::user() / @csrf
+    - RSX:     Session::set_login_user_id($id) / Session::is_logged_in()
+               / Session::get_login_user() / Session::get_csrf_token()
+
+    - Laravel starts a session on every request via middleware.
+      RSX creates a session record only when set_login_user_id(),
+      get_session_id(), or get_session() is called. Anonymous traffic writes
+      nothing.
+
+    - Laravel enforces access via middleware, gates and policies, opt-in per
+      route. RSX enforces via ONE attribute on the surface itself -
+      #[Auth('check', ...)] - and every surface is CLOSED BY DEFAULT: a
+      surface with no gate fails the manifest build. See rsx:man auth_gates.
+
+IDENTITY MODEL
+    Two tables separate WHO you are (credentials) from WHAT you can access
+    (per-site membership). One person, one password, many site memberships.
+
+    login_users (authentication identity - framework core)
+        The credential/identity record. Class: Login_User_Model
+        (App\RSpade\Core\Models\Login_User_Model, table login_users).
+
+            id              Login identity primary key
+            email           Authentication email (unique)
+            password        Bcrypt hash (hidden, never_export)
+            is_activated    Account activation flag
+            is_verified     Email-verification flag (enum: 0 Not Verified,
+                            1 Verified)
+            status_id       STATUS_ACTIVE(1) / STATUS_INACTIVE(2)
+                            / STATUS_SUSPENDED(3)
+            timezone        User timezone
+            remember_token  (hidden, never_export)
+            last_login      Last successful login (set only on real login)
+            created_at / updated_at / created_by_id / created_by_type /
+            updated_by_id / updated_by_type
+
+    users (site membership + profile - framework core)
+        A per-site profile for a login identity. Class: User_Model
+        (App\RSpade\Core\Models\User_Model, table users). This record IS the
+        invitation while pending (login_user_id NULL, invite_accepted_at NULL).
+
+            id                  Membership primary key
+            login_user_id       FK to login_users (NULL until invite accepted)
+            site_id             FK to sites
+            email               Invited email (before login_user is linked)
+            first_name / last_name / phone   Display + contact
+            role_id             Site role (enum 100-800, see PERMISSIONS below)
+            is_enabled          Active membership flag
+            invite_code         Random 32-char code for the accept URL
+            invite_accepted_at  NULL until accepted (marks membership active)
+            invite_expires_at   Invitation expiry
+            deleted_at          Soft delete
+            created_at / updated_at / created_by_id / created_by_type /
+            updated_by_id / updated_by_type / deleted_by_id / deleted_by_type
+
+    Relationships and rules:
+        - One login_user has many users (Login_User_Model::users()).
+        - Session identity is login_user_id (cross-site); the site-specific
+          User_Model is resolved from (site_id, login_user_id).
+        - Session rows reference login_user_id, never users.id.
+        - There is NO separate "invites" table - a pending users row is the
+          invitation.
+
+    Two distinct "current user" accessors (do not confuse them):
+        Session::get_login_user(): ?Login_User_Model
+            The authentication identity. Non-null whenever logged in.
+        Session::get_user(): ?User_Model
+            The SITE-SPECIFIC membership, matched on login_user_id AND site_id.
+            Returns NULL when logged in but no site is selected yet.
+
+    Full accessor list and semantics: rsx:man session.
+
+AUTHENTICATION
+    RsxAuth facade (App\RSpade\Core\Auth\RsxAuth):
+        A thin credential-check wrapper. It authenticates against login_users
+        and delegates all session state to the Session class. Exactly three
+        methods exist:
+
+        RsxAuth::attempt(array $credentials, bool $record = true,
+                         bool $touch_last_login = true): bool
+            Look up login_users by $credentials['email'], verify
+            $credentials['password'] with Hash::check(), and on success call
+            self::login(). Returns false on missing fields or bad credentials.
+
+            IT RECORDS THE OUTCOME ITSELF - it is the only place that can tell
+            the three apart before collapsing them into a bool: SUCCESS,
+            FAILED_NOT_FOUND (unknown address, soft-deleted identities included),
+            FAILED_PASSWORD (with the login_user_id). Do NOT also call
+            Login_History::record_success() beside it or you record twice.
+            Malformed input records nothing - nobody offered a credential pair.
+
+            $record = false is the opt-out for logins that are not real logins
+            (fixtures, harnesses, a challenge pre-check). $touch_last_login =
+            false suppresses the login_users.last_login stamp. Both together are
+            the two-factor pre-check shape - see rsx:man session (LOGIN HISTORY).
+
+            ACCOUNT STATE IS NOT CHECKED HERE. login_users.status_id,
+            is_activated and is_verified are application vocabulary; the
+            framework checks a live identity + the password and nothing else.
+            See ACCOUNT STATE in rsx:man session for where to enforce yours.
+
+        RsxAuth::login(Login_User_Model $login_user,
+                       bool $touch_last_login = true): bool
+            Log the identity in via Session::set_login_user_id($login_user->id).
+            Records nothing - a caller that logs a user in directly (a
+            second-factor completion, an invitation acceptance) records its own
+            SUCCESS. Returns true.
+
+        RsxAuth::logout(): void
+            Delegates to Session::logout().
+
+        NOTE: RsxAuth has NO check()/user()/id()/session() methods. Use the
+        Session accessors for "logged in?" and "who?" - see rsx:man session.
+
+    The template login flow (rsx/app/login/login_controller.php) does not
+    require RsxAuth - it verifies the password and calls
+    Session::set_login_user_id() directly, then runs site selection (below).
+    Both paths converge on Session::set_login_user_id().
+
+    Login history / rate limiting:
+        SUCCESSFUL logins are audited as `_login_history` rows, written by
+        attempt() itself and pruned on rsx.sessions.login_history_retention_days.
+        FAILURES are NOT database rows: record_failure() increments a per-email
+        and a per-IP counter that expire on
+        rsx.sessions.login_failure_window_minutes and logs one warning line, so
+        an anonymous caller cannot grow a table by failing to log in. The
+        consequence to plan around: get_failed_attempts_count*() answers are
+        BOUNDED BY THAT WINDOW - a 30-day failed-attempt stat is not answerable.
+        Throttling built on the counters fails OPEN. Full treatment (including
+        the 2FA and custom-status recipes): rsx:man session, LOGIN HISTORY.
+
+    Account state (status_id / is_activated / is_verified):
+        APPLICATION vocabulary, enforced by the application - attempt() checks a
+        live identity plus the password and nothing else, so a non-activated
+        login user authenticates unless YOUR login function refuses it. The
+        framework's own per-site disable trait is users.is_enabled. Where to put
+        the checks (login function + Main::pre_dispatch(), with the ejection
+        recipe): rsx:man session, ACCOUNT STATE.
+
+AUTHORIZATION (DECLARATIVE GATES)
+    Every route/SPA/Ajax/fetch/API surface and every JS action carries an
+    #[Auth(...)] / @auth(...) gate list, evaluated by the framework before
+    any application code. A surface with no gate does not deploy - the
+    manifest build fails, naming the file and member. Full treatment:
+    rsx:man auth_gates. This page covers only how it meets the identity
+    model above.
+
+    Controller-wide gate (recommended) - one declaration covers every
+    endpoint in the class; a method-level #[Auth] is ADDITIVE, so gates can
+    only narrow:
+
+        #[Auth('is_logged_in')]
+        class My_Controller extends Rsx_Controller_Abstract
+        {
+            #[Ajax_Endpoint]
+            public static function save(Request $request, array $params = [])
+            {
+                // Guaranteed logged in - the gate ran before this method
+            }
+
+            #[Ajax_Endpoint]
+            #[Auth('can_manage_site_settings')]
+            public static function save_settings(Request $request, array $params = [])
+            {
+                // Logged in AND can_manage_site_settings
+            }
+        }
+
+    Public endpoints declare it - there is no attribute-free spelling of
+    open, so review never has to distinguish "intentionally public" from
+    "someone forgot":
+
+        #[Route('/login', methods: ['GET', 'POST'])]
+        #[Auth('public')]
+        public static function index(Request $request, array $params = []) { ... }
+
+    The check names are #[Auth_Check]-marked methods on the app's Permission
+    class - the same class the ACL layer below already documents. Denial is
+    handled by the framework: an unidentified caller gets a 302 to login with
+    the intended URL captured (rsx:man login_redirect); an authenticated but
+    denied caller gets the 403 screen.
+
+    Response helper (still used for non-gate refusals inside a method body):
+        response_unauthorized(?string $message = null)
+            Context-aware: JSON error for Ajax callers, redirect/403 for web.
+            (See also response_not_found(), response_auth_required().)
+
+    RECORD-LEVEL checks are NOT gates and stay in the method body: ownership,
+    membership scoping, record state. A gate answers "may this USER use this
+    surface"; the body answers "which RECORDS may they touch".
+
+PERMISSIONS (ACL)
+    Role- and permission-based access on top of authentication. Full treatment:
+    php artisan rsx:man acls. Overview only here.
+
+    Roles (users.role_id, lower id = higher privilege):
+        ROLE_DEVELOPER   100
+        ROLE_ROOT_ADMIN  200
+        ROLE_SITE_OWNER  300
+        ROLE_SITE_ADMIN  400
+        ROLE_MANAGER     500
+        ROLE_USER        600
+        ROLE_VIEWER      700
+        ROLE_DISABLED    800
+
+    A role grants a default permission set (User_Model::PERM_* constants). The
+    user_permissions table layers per-user GRANT/DENY exceptions on top.
+    Resolution order: DISABLED role denies all -> DENY override -> GRANT
+    override -> role default -> deny. DENY always wins.
+
+    Permission facade:
+        Every app's `Rsx\Permission` extends
+        App\RSpade\Core\Permission\Permission_Abstract, inheriting:
+            Permission::is_logged_in(): bool
+            Permission::get_user(): ?User_Model
+            Permission::has_permission(int $perm): bool
+            Permission::has_role(int $role_id): bool    (>= privilege)
+            Permission::can_admin_role(int $role_id): bool
+            Permission::require_permission(int, string): void  (throws 403)
+            Permission::require_role(int, string): void        (throws 403)
+        Apps add only their own domain helpers (can_manage_billing(), etc.).
+
+        Return-early check:
+            if (!Permission::has_role(User_Model::ROLE_MANAGER)) {
+                return response_unauthorized('Manager access required');
+            }
+
+        Fail-loud check (throws AjaxUnauthorizedException = 403):
+            Permission::require_role(User_Model::ROLE_MANAGER);
+
+    A JS mirror (Permission.has_role()/has_permission()/...) reads pre-resolved
+    permissions from window.rsxapp.user for UI affordance hiding only - the
+    server always re-enforces.
+
+INVITATION WORKFLOW
+    Onboarding is invitation-based (Slack/Trello style). An admin creates a
+    pending users row bound to an email; the recipient follows a link and
+    either creates an account or links an existing one - but ONLY if the email
+    matches. Template code lives in rsx/app/login/ (not framework-locked, so an
+    app can replace it).
+
+    Email-binding invariant (the one hard rule):
+        An invitation for user@company.com can be accepted only by an account
+        whose email equals user@company.com. Match is case-insensitive and
+        trimmed (Invite_Helper::can_email_accept_invitation()). There is no
+        "accept anyway" - a mismatch requires logging out and using the correct
+        email. This prevents invite forwarding/hijacking and keeps actions
+        attributable to the invited identity.
+
+    Validation state machine (Invite_Helper::validate_invitation() returns an
+    error_type; UI branches on it):
+        (valid)          Invitation exists, not expired, not accepted, and
+                         (if logged in) email matches -> proceed.
+        not_found        No row for that invite_code.
+        expired          invite_expires_at < now.
+        already_accepted invite_accepted_at is set.
+        email_mismatch   Logged in as a different email (result also carries
+                         invited_email + current_email for the message).
+
+    Acceptance paths (rsx/app/login/accept_invite/):
+        - Not logged in, no account -> create-account form (email pre-filled,
+          read-only). On submit a login_users row is created and linked to the
+          membership; the user is logged in and lands on the invited site.
+        - Not logged in, account exists -> sign in, then link as above.
+        - Logged in, email matches -> one-click accept (links the membership,
+          sets site context).
+        - Logged in, email mismatch -> blocked; log out and retry.
+
+    On successful account creation the login_users row is created with
+    is_verified = 0 (UNVERIFIED). Following an invite link proves the recipient
+    received the mail, but the current template does NOT auto-verify the email;
+    a verification step is not yet wired (see SIGNUP MODES). The membership is
+    activated (invite_accepted_at = now, login_user_id linked) and the session
+    is established with Session::set_login_user_id() + Session::set_site_id().
+
+    NOTE: The staff invitation flow above is distinct from the CLIENT PORTAL's
+    own invite/onboarding system (separate models and sessions). See
+    rsx:man portal.
+
+SIGNUP MODES
+    Controlled by config('rsx.auth.signup_mode') in rsx/resource/config/rsx.php
+    (env override RSX_SIGNUP_MODE). Read by the template signup/accept-invite
+    controllers - these are convenience switches for development, not framework
+    guarantees.
+
+        invite_only  (default) - /signup requires a valid invite code;
+                     bare /signup redirects to login. Accounts come only
+                     through the invitation workflow.
+        anonymous    - open /signup; anyone may create an account.
+        disabled     - no new signups; /signup is refused.
+
+    Verification (config('rsx.auth.verification_required'), env
+    RSX_VERIFICATION_REQUIRED) defaults to 'none' - the PIN/email/SMS
+    verification flow is configured but NOT yet implemented in the template.
+    New accounts are created with is_verified = 0 regardless of path; do not
+    assume a verified email until an app wires verification.
+
+    Invitation expiry: config('rsx.auth.invite_expiration_days') (default 7,
+    env RSX_INVITE_EXPIRATION_DAYS).
+
+MULTI-TENANT SITE SELECTION
+    After a successful password check, the login controller resolves which site
+    the user enters:
+
+        - Query accepted, unexpired, non-deleted memberships for the
+          login_user_id.
+        - Zero sites  -> no access; the user is sent to a site-unauthorized
+          page and not granted a working session context.
+        - One site    -> Session::set_site_id() automatically; go to the app.
+        - Many sites  -> a site picker; the chosen site sets site_id.
+
+    Session::get_site_id() returns 0 until a site is selected;
+    Session::get_user() is null in that window (identity known, membership not).
+    Single-site apps simply always resolve to one site - no special mode is
+    needed; the picker never appears.
+
+    Session::set_site_id() semantics (lazy write, request override in web mode):
+    see rsx:man session.
+
+IMPERSONATION
+    The main Session supports "log in as another user" - a same-cookie, in-place
+    login_user_id swap (Session::begin_impersonation() / stop_impersonation() /
+    is_impersonating()). It is intentionally full read/write; WHO may impersonate
+    is the app's decision. This is separate from the CLIENT PORTAL's
+    cross-domain, read-only "view as client" handoff. Both are documented in
+    detail elsewhere:
+
+        rsx:man session   - main web impersonation API + window.rsxapp block
+        rsx:man portal    - portal read-only impersonation
+
+TWO EXPERIENCES, ONE SESSION
+    RSpade ships a second authenticated experience - the client portal - and it
+    does NOT get a session of its own. A session identifies a BROWSER: one `rsx`
+    cookie, one _sessions row, shared by both. The row is a property bag; the
+    portal's identity lives in portal_user_id / portal_site_id and the staff
+    identity in login_user_id / site_id, and both being set at once is normal.
+    Which set a request consults is decided by Rsx_Portal::is_portal_request().
+    There is no experience/realm discriminator column and no second cookie.
+
+    The AUTH-CHECK registries are still two separate namespaces (a check name
+    resolves in the staff registry or the portal one, never both) - see the realm
+    discussion above and rsx:man auth_gates. That is a vocabulary boundary, not a
+    session boundary. Details: rsx:man portal, rsx:man session.
+
+REQUIRED ROUTES (template - rsx/app/login/)
+    /login                        (GET, POST)  show + process login
+    /logout                       (GET)        end session
+    /login/select-site            (GET)        site picker (multi-site)
+    /login/site/:id               (GET)        set chosen site
+    /login/site-unauthorized      (GET)        no-access landing
+    /signup                       (GET)        signup form (+ Ajax submit)
+    /accept-invite                (GET)        invitation landing
+    /accept-invite/create-account (GET)        new-account form (+ Ajax submit)
+    /accept-invite/success        (GET)        post-accept (+ Ajax accept)
+
+    Admin user management lives under Settings > User Management
+    (rsx/app/frontend/settings/user_management/): list, add-user (creates the
+    pending invitation with a Str::random(32) invite_code), and send/resend.
+
+    Generate URLs with Rsx::Route()/Rsx.Route() - never hardcode paths.
+
+RSX VS LARAVEL
+    Login / logout:
+        Laravel:  Auth::login($user); Auth::logout();
+        RSX:      Session::set_login_user_id($id); Session::logout();
+
+    Current user:
+        Laravel:  Auth::user(); Auth::id(); Auth::check();
+        RSX:      Session::get_login_user();  (cross-site identity)
+                  Session::get_user();        (site-specific membership)
+                  Session::is_logged_in();
+
+    Authorization:
+        Laravel:  route middleware / gates / policies, opt-in per route.
+        RSX:      #[Auth('check', ...)] on the surface, closed by default -
+                  a surface with no gate fails the manifest build.
+
+    CSRF:
+        Laravel:  @csrf + automatic middleware verification.
+        RSX:      Session::get_csrf_token() / verify_csrf_token() - explicit.
+
+    Sessions:
+        Laravel:  started on every request.
+        RSX:      created lazily, only when identity/site/CSRF is actually set.
+
+PITFALLS
+    - Do not call RsxAuth::check()/user()/id() - they do not exist. "Logged in?"
+      and "who?" are Session accessors.
+
+    - get_login_user() (identity) vs get_user() (site membership): after login
+      but before site selection, get_user() is NULL while get_login_user() is
+      not. Guard site-scoped code accordingly.
+
+    - pre_dispatch() is NOT an authorization hook any more. It runs for
+      non-auth middleware concerns only (tenant setup, interstitials,
+      redirects). An auth check placed there duplicates the gate and is
+      invisible to link visibility (Permission::can_access()).
+
+    - @auth-exempt and @portal-auth-exempt are DEAD SYNTAX. Nothing reads
+      them; a public surface declares #[Auth('public')]. Delete the tags.
+
+    - New accounts are is_verified = 0. Do not treat an accepted invitation as
+      a verified email until verification is actually wired.
+
+    - users.role_id is the ONLY role column (the ACL enum, 100-800). The
+      pre-ACL user_role_id column was dropped 2026-08-13. It is nullable, so a
+      membership created without one has no role and no permissions - always
+      assign an explicit User_Model::ROLE_* constant when creating one, never a
+      bare integer.
+
+    - Config keys are under rsx.auth.* (signup_mode, verification_required,
+      invite_expiration_days) - not top-level rsx.*.
+
+    - The session cookie is named "rsx" and the lifetime is a fixed 365 days;
+      neither is a config value.
+
+SEE ALSO
+    auth_gates  - #[Auth] on every surface, the #[Auth_Check] vocabulary,
+                  can_access link visibility, the error screens
+    session     - full Session API: accessors, CSRF, impersonation, session
+                  management, garbage collection, login history
+    acls        - roles, permissions, the Permission facade, GRANT/DENY
+    portal      - client portal: separate session, dispatch, and invitations
+    permission  - app-side Permission subclass conventions
+    routing     - type-safe URL generation and route patterns
+    model       - model system, fetch(), enums
+
+AUTH(1)                          RSpade Manual                          AUTH(1)

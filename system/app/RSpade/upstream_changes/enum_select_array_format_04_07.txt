@@ -1,0 +1,105 @@
+BREAKING CHANGE: enum_select() returns [{value, label}] array instead of {id: label} object
+================================================================================
+
+Date:       2026-04-07
+Severity:   BREAKING - requires code changes if enum_select() result is used as keyed object
+Affects:    PHP (Rsx_Model_Abstract), JavaScript (generated model stubs)
+
+PROBLEM
+-------
+
+enum_select() previously returned a {id: label} plain object (PHP: associative array).
+JavaScript objects with numeric string keys always iterate in ascending numeric order
+per spec, regardless of Proxy wrapping. This meant the 'order' property on enum
+definitions had no effect on dropdown option order.
+
+The Proxy-based workaround only worked with Object.keys()/Object.entries() but failed
+with for...in, JSON.stringify, and other common iteration patterns.
+
+SOLUTION
+--------
+
+enum_select() now returns an array of {value, label} objects (PHP: indexed array of
+associative arrays). Sort order is baked into array index position. No Proxy needed.
+
+    Before (PHP):
+        $options = User_Model::status_id__enum_select();
+        // [1 => 'Active', 2 => 'Inactive']
+
+    After (PHP):
+        $options = User_Model::status_id__enum_select();
+        // [['value' => 1, 'label' => 'Active'], ['value' => 2, 'label' => 'Inactive']]
+
+    Before (JS):
+        const options = User_Model.status_id__enum_select();
+        // {1: "Active", 2: "Inactive"}
+
+    After (JS):
+        const options = User_Model.status_id__enum_select();
+        // [{value: 1, label: "Active"}, {value: 2, label: "Inactive"}]
+
+MIGRATION GUIDE
+---------------
+
+Pattern                          Before                              After
+-------------------------------  ----------------------------------  -----------------------------------
+Select_Input $options            No change needed                    No change needed
+                                 Select_Input already accepts        (already handles [{value, label}])
+                                 [{value, label}]
+
+Keyed lookup: options[id]        options[id]                         Use enum() instead:
+                                                                     Model.field__enum(id).label
+
+Object.entries(options)          Object.entries(options)             options.map(opt => ...)
+                                   .map(([id, label]) => ...)
+
+Object.keys(options)             Object.keys(options)               options.map(opt => opt.value)
+
+for (const key in options)       for (const key in options) {        for (const opt of options) {
+                                   const label = options[key];         const {value, label} = opt;
+                                 }                                   }
+
+Blade @foreach                   @foreach($options as $id => $label) @foreach($options as $option)
+                                   <option value="{{ $id }}">          <option value="{{ $option['value'] }}">
+                                     {{ $label }}                        {{ $option['label'] }}
+                                   </option>                           </option>
+                                 @endforeach                         @endforeach
+
+UNAFFECTED METHODS
+------------------
+
+The following methods are NOT changed:
+
+    enum()          Still returns {id: {label, constant, ...}} object with Proxy ordering
+    enum_labels()   Still returns {id: label} plain object
+    enum_ids()      Still returns [id, id, ...] array
+
+If you need a keyed lookup by ID, use enum() or enum_labels(). enum_select() is
+specifically for populating dropdown/select components where order matters.
+
+FILES CHANGED
+-------------
+
+    system/app/RSpade/Core/Database/Models/Rsx_Model_Abstract.php
+        PHP enum_select() magic method returns indexed array of ['value' => id, 'label' => label]
+
+    system/app/RSpade/Core/Database/Database_BundleIntegration.php
+        JS generated enum_select() returns [{value, label}] array, Proxy wrapper removed
+
+SEARCH PATTERNS FOR AFFECTED CODE
+----------------------------------
+
+    PHP:
+        grep -rn "enum_select()" rsx/ --include="*.php" | grep -v "resource/research"
+
+    JavaScript:
+        grep -rn "enum_select()" rsx/ --include="*.js" --include="*.jqhtml" | grep -v "resource/research"
+
+    Blade templates:
+        grep -rn "enum_select" rsx/ --include="*.blade.php" | grep -v "resource/research"
+
+    Look specifically for:
+        - $options[$id] or options[id]   (keyed lookup - needs enum() instead)
+        - as $id => $label               (Blade foreach destructuring - needs $option['value']/$option['label'])
+        - Object.entries(                 (JS object iteration - use .map() on array)
+        - for (const key in              (JS for...in - use for...of)

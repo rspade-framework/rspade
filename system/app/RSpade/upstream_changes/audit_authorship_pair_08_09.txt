@@ -1,0 +1,237 @@
+AUDIT COLUMNS BECOME POLYMORPHIC PAIRS (created_by -> created_by_id + created_by_type)
+Date: 2026-08-09
+
+SUMMARY
+    The framework audit columns were renamed and doubled:
+
+        created_by  ->  created_by_id  +  created_by_type
+        updated_by  ->  updated_by_id  +  updated_by_type
+        deleted_by  ->  deleted_by_id  +  deleted_by_type    (soft-delete tables)
+
+    All six are BIGINT. The *_type half is a type ref naming the actor's MODEL
+    CLASS (User_Model / Login_User_Model / Portal_User_Model). Rsx_Model_Abstract
+    ::save() now stamps authorship automatically - which it never did before -
+    and a SOFT DELETE stamps its deleter, in the same UPDATE that sets deleted_at.
+
+    The deleted pair goes ONLY on tables that soft-delete (those with deleted_at),
+    which is the same rule the schema-hygiene pass always applied to the older
+    bare `deleted_by` column. A hard delete removes the row; there is nothing to
+    stamp.
+
+    The schema change is automatic (a framework migration renames every table it
+    finds via information_schema, and migrate:normalize_schema converges any table
+    it missed). Your DATA is preserved - the rename carries values across.
+
+    Three things are NOT automatic and are why this document exists:
+      1. Application code that reads or writes `created_by`/`updated_by`/
+         `deleted_by` by name.
+      2. Application MIGRATIONS that reference those names.
+      3. Pre-existing authorship values, which now have a NULL *_type and
+         therefore read as unattributed until you decide what they were.
+
+
+THE CHANGE
+    RSpade has three identity models. A bare `created_by` integer could not say
+    which one it held, and in practice different call sites wrote different id
+    spaces into the same column with nothing recording the difference. The
+    polymorphic pair - the framework-wide standard for any reference that can
+    point at more than one table - makes the species explicit, which is what
+    finally allows save() to stamp authorship on its own.
+
+
+WHAT SHIPS AUTOMATICALLY (informational)
+    * Migration 2026_08_09_103324_rename_audit_columns_to_pair_shape - discovers
+      every table carrying created_by/updated_by and renames + adds the type
+      columns. Idempotent; safe to run on an already-converged schema.
+    * Migration 2026_08_09_120837_rename_deleted_by_to_pair_shape - the same, for
+      deleted_by, on every table that soft-deletes or already carries the column.
+    * migrate:normalize_schema now enforces the pairs on every table and converges
+      the older spellings ({base}_user_id, then {base}) by RENAME. This runs on
+      every `php artisan migrate`, so a table the migration missed self-heals.
+      The deleted pair is enforced only where deleted_at exists.
+    * Rsx_Model_Abstract declares created_by_type/updated_by_type/deleted_by_type
+      as type-ref columns for EVERY model (a model that declares its own
+      $type_ref_columns does not lose them - the declarations are unioned).
+    * Rsx_Model_Abstract::save() stamps authorship, and a soft delete stamps the
+      deleter. Matrix and full contract:
+      `php artisan rsx:man model_normalization`, AUDIT AUTHORSHIP.
+    * Every model gains three stock morph relations: $record->created_by,
+      $record->updated_by and $record->deleted_by, returning the actor or null;
+      plus get_created_by_author() / get_updated_by_author() /
+      get_deleted_by_author() for the <Record_Author> display pair.
+    * Rsx_Detail_Table::create() emits the pairs on new detail tables.
+
+
+ACTION REQUIRED
+
+    1) FIND AND CONVERT APPLICATION CODE
+    -------------------------------------------------------------------------
+    grep -rn --include='*.php' --include='*.js' --include='*.jqhtml' \
+        -E "\bcreated_by\b|\bupdated_by\b|\bdeleted_by\b" rsx/
+
+    Classify each hit:
+
+    (a) A WRITE - a hand-stamp:
+
+            $record->created_by = Session::get_user_id();     // BEFORE
+
+        DELETE it. save() stamps authorship now, and it knows which identity
+        model the id belongs to (your hand-stamp did not). If you must keep an
+        explicit stamp, it wins over the auto-stamp - but you MUST set BOTH
+        halves, because a half-set pair reads as unattributed:
+
+            $record->created_by_type = 'Login_User_Model';    // AFTER
+            $record->created_by_id = $login_user->id;
+
+    (b) A READ that resolves the actor:
+
+            $user = Login_User_Model::find($record->created_by);   // BEFORE
+            $user = $record->created_by;                           // AFTER
+
+        The relation returns whichever identity model actually did the write, so
+        drop any assumption about which table the id pointed at.
+
+    (c) A QUERY / REPORT / DATAGRID column / ORDER BY / WHERE:
+
+            ->where('created_by', $id)          // BEFORE - column is gone
+            ->where('created_by_id', $id)       // AFTER
+
+        A WHERE on the TYPE column accepts a class name and converts it:
+
+            ->where('created_by_type', 'User_Model')
+
+    (d) A RELATION METHOD you wrote yourself named created_by()/updated_by()/
+        deleted_by():
+
+        DELETE it. Rsx_Model_Abstract declares all three. A subclass method of
+        the same name is now an override and must chain to parent
+        (PHP-PARENT-CHAIN-01) - deleting it is the intended fix.
+
+    (f) A HAND-STAMPED DELETER around a soft delete:
+
+            $record->deleted_by = Session::get_user_id();      // BEFORE
+            $record->delete();
+
+        DELETE the assignment. delete() stamps it now. If you keep an explicit
+        stamp, set BOTH halves BEFORE calling delete() and it is carried into the
+        soft delete's own statement (it wins over the auto-stamp):
+
+            $record->deleted_by_type = 'User_Model';           // AFTER
+            $record->deleted_by_id = $user->id;
+            $record->delete();
+
+        And DELETE any code that clears deleted_by on restore() - restore()
+        clears the pair itself.
+
+    (e) A docblock @property line: regenerated by
+        `php artisan rsx:constants:regenerate` (runs automatically after migrate).
+
+
+    2) FIND AND FIX APPLICATION MIGRATIONS
+    -------------------------------------------------------------------------
+    This one bites only on a from-scratch migrate (a new environment, a CI
+    provision, `rsx:test --fresh`) - but it bites HARD, because
+    migrate:normalize_schema runs between every pair of migrations, so the rename
+    happens immediately after the table that declared the old name is created.
+
+    grep -rn -E "\bcreated_by\b|\bupdated_by\b|\bdeleted_by\b" rsx/resource/migrations/
+
+    Safe (leave alone):
+        A `created_by BIGINT NULL` line INSIDE a CREATE TABLE, and an INDEX in
+        that same statement. The column is created and then renamed by the next
+        hygiene pass. (Redundant - the hygiene pass would add the columns anyway -
+        but harmless.)
+
+    MUST FIX - anything that names the column in a LATER statement:
+        ALTER TABLE t ADD COLUMN x ... AFTER updated_by     -> drop the AFTER clause
+        ALTER TABLE t DROP COLUMN created_by                -> the column is now
+                                                               created_by_id (and
+                                                               the hygiene pass
+                                                               re-adds it anyway)
+        INSERT INTO a (..., created_by, updated_by) SELECT ..., created_by, updated_by
+                                                            -> use the four pair
+                                                               column names
+        ALTER TABLE t ADD INDEX i (created_by)              -> created_by_id
+
+
+    3) DECIDE WHAT YOUR EXISTING AUTHORSHIP VALUES WERE
+    -------------------------------------------------------------------------
+    The rename preserves every value, so rows written before this release have
+    created_by_id set and created_by_type NULL. That reads as UNATTRIBUTED:
+    $record->created_by returns null (it does not throw, and it does not guess).
+
+    The framework cannot backfill the type for you - only you know which identity
+    your old code was writing. If you know, backfill it in one app migration:
+
+        DB::statement("
+            UPDATE contacts
+               SET created_by_type = (SELECT id FROM _type_refs WHERE class_name = 'User_Model')
+             WHERE created_by_id IS NOT NULL AND created_by_type IS NULL
+        ");
+
+    (Insert the _type_refs row first if the class has never been used as a type
+    ref: INSERT IGNORE INTO _type_refs (class_name, table_name, created_at,
+    updated_at) VALUES ('User_Model', 'users', NOW(3), NOW(3)).)
+
+    If you do NOT know, leave it. An honestly unattributed row beats a wrong one.
+
+
+    4) A CONFLICTING COLUMN OF YOUR OWN IS A HARD ERROR
+    -------------------------------------------------------------------------
+    If one of your tables already has its own column named created_by_id,
+    updated_by_id or deleted_by_id meaning something else, the migration and the
+    hygiene pass both REFUSE with a message naming the table. Rename your column
+    first - the framework audit pairs own those six names.
+
+
+    5) AUDIT YOUR SOFT-DELETE AND RESTORE PATHS
+    -------------------------------------------------------------------------
+    The deleter stamp is NEW behavior on an existing code path, so nothing fails
+    loudly if your code was doing this by hand. Check each place your app soft-
+    deletes or restores:
+
+        grep -rn --include='*.php' -E "->delete\(\)|->restore\(\)|->undelete\(\)" rsx/
+
+    * A hand-written deleted_by assignment is now redundant - remove it (see 1f).
+    * A hand-written "clear deleted_by on restore" is now redundant - remove it.
+    * A BULK soft delete stamps per record ONLY when the model has a realtime or
+      lifecycle surface (that is what makes ->delete() fetch and iterate). A plain
+      model runs one raw statement and stamps nothing. If you need the stamp on a
+      bulk sweep of a plain model, iterate it yourself:
+
+          foreach (Foo_Model::where(...)->result_set() as $foo) { $foo->delete(); }
+
+    * A HARD delete (a model without SoftDeletes) is not stamped and cannot be.
+      If you need to know who destroyed something, the model must soft-delete.
+
+    Pre-existing deleted_by values keep a NULL type and read as unattributed, the
+    same as the authorship pairs - backfill per section 3 if you know what they
+    were.
+
+
+VERIFICATION
+    php artisan migrate                  # converges the schema, regenerates docblocks
+    php artisan rsx:check                # flags leftover references your grep missed
+
+    Then exercise one real create and one real update through your UI and confirm:
+
+        SELECT created_by_id, created_by_type, updated_by_id, updated_by_type
+          FROM <your_table> ORDER BY id DESC LIMIT 1;
+
+    Both pairs populated on the create; only the updated pair moved on the update.
+    In PHP, $record->created_by must return the expected model instance.
+
+    Then soft-delete one record and restore it:
+
+        SELECT deleted_at, deleted_by_id, deleted_by_type
+          FROM <your_soft_deleting_table> WHERE id = <id>;
+
+    Populated after the delete, all three NULL again after the restore.
+
+    For the migration audit, the honest test is a from-scratch run:
+
+        php artisan rsx:test --fresh
+
+    which drops and re-migrates the test database end to end. A migration that
+    still names the old columns fails there with
+    "Unknown column 'created_by' in ...".

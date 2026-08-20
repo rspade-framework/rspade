@@ -1,0 +1,10 @@
+<Define:Calendar_Index_Action>
+<Page_Scaffold>
+    <Slot:main>
+        <Placeholder_Card $icon="bi bi-calendar3">
+            <Slot:title>Calendar coming soon</Slot:title>
+            <Slot:body>Scheduling, events, and calendar views will appear here.</Slot:body>
+        </Placeholder_Card>
+    </Slot:main>
+</Page_Scaffold>
+</Define:Calendar_Index_Action>

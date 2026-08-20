@@ -1,0 +1,18 @@
+<%--
+Tab_Panels - panel container bound to a sibling Tab_Bar
+
+default content - one <Tab_Panel $key="..."> per tab key
+
+Locates the sibling Tab_Bar, follows its "tab_change" event, and shows the
+matching panel while hiding the rest. Replaces hand-rolled show/hide JS.
+
+Usage:
+    <Tab_Bar $tabs=_tabs $hash="tab" />
+    <Tab_Panels>
+        <Tab_Panel $key="overview"> ... </Tab_Panel>
+        <Tab_Panel $key="activity"> ... </Tab_Panel>
+    </Tab_Panels>
+--%>
+<Define:Tab_Panels>
+    <%= content() %>
+</Define:Tab_Panels>

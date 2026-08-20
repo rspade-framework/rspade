@@ -1,0 +1,8 @@
+#!/usr/bin/env php
+<?php
+
+// Change to system directory
+chdir(__DIR__ . '/system');
+
+// Include the real artisan
+require __DIR__ . '/system/artisan';

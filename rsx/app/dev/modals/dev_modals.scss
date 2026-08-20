@@ -1,0 +1,21 @@
+.Dev_Modals {
+    // Component-specific styles
+
+    h1 {
+        margin-top: 20px;
+        margin-left: 15px;
+    }
+
+    .card {
+        // Card styles
+    }
+
+    .btn-action {
+        // Button styles
+    }
+
+    // Responsive adjustments
+    @include mobile {
+        // Mobile styles
+    }
+}

@@ -1,0 +1,37 @@
+<%--
+Placeholder_Card - a coming-soon / not-yet-built region: icon + title + reason + optional CTA
+
+$icon - a large muted icon class, e.g. "bi bi-file-earmark-bar-graph" [optional]
+$variant - "dashed" | "muted" (default "dashed"; validated loudly)
+<Slot:title> - the headline, e.g. "Report generation coming soon" (required)
+<Slot:body> - the explanation line [optional]
+<Slot:cta> - a call-to-action button [optional]
+
+The single placeholder/coming-soon component. Distinct from Empty_State (a
+zero-child list region within a populated feature) - Placeholder_Card stands in
+for a whole FEATURE that is not built yet. "dashed" reads as unbuilt scaffolding;
+"muted" is a calmer filled panel.
+
+Usage:
+    <Placeholder_Card $icon="bi bi-file-earmark-bar-graph">
+        <Slot:title>Report generation coming soon</Slot:title>
+        <Slot:body>Configurable reports and exports will appear here.</Slot:body>
+    </Placeholder_Card>
+--%>
+<Define:Placeholder_Card tag="div">
+    <% const _variant = this.args.variant || 'dashed'; %>
+    <% if (_variant !== 'dashed' && _variant !== 'muted') { %>
+        <% throw new Error('Placeholder_Card requires $variant "dashed" or "muted"'); %>
+    <% } %>
+    <% this.$.addClass('Placeholder_Card--' + _variant); %>
+    <% if (this.args.icon) { %>
+        <i class="Placeholder_Card__icon <%= this.args.icon %>"></i>
+    <% } %>
+    <div class="Placeholder_Card__title"><%= content('title') %></div>
+    <% if (this.args._slots && this.args._slots.body) { %>
+        <div class="Placeholder_Card__body"><%= content('body') %></div>
+    <% } %>
+    <% if (this.args._slots && this.args._slots.cta) { %>
+        <div class="Placeholder_Card__cta"><%= content('cta') %></div>
+    <% } %>
+</Define:Placeholder_Card>

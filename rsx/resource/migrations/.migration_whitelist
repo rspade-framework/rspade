@@ -1,0 +1,141 @@
+{
+    "description": "This file tracks migrations created via php artisan make:migration",
+    "purpose": "Prevents manually created migrations from running to avoid timestamp conflicts",
+    "migrations": {
+        "2025_09_16_075915_create_demo_products_table.php": {
+            "created_at": "2025-09-16T07:59:15+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_demo_products_table"
+        },
+        "2025_10_10_021141_create_companies_table.php": {
+            "created_at": "pre-whitelist",
+            "created_by": "system",
+            "command": "existing migration"
+        },
+        "2025_10_10_021204_create_company_departments_table.php": {
+            "created_at": "pre-whitelist",
+            "created_by": "system",
+            "command": "existing migration"
+        },
+        "2025_10_10_021223_create_contacts_table.php": {
+            "created_at": "pre-whitelist",
+            "created_by": "system",
+            "command": "existing migration"
+        },
+        "2025_10_10_021244_add_billing_contact_foreign_key_to_companies.php": {
+            "created_at": "pre-whitelist",
+            "created_by": "system",
+            "command": "existing migration"
+        },
+        "2025_10_28_025035_create_projects_table.php": {
+            "created_at": "2025-10-28T02:50:35+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_projects_table"
+        },
+        "2025_10_28_025113_create_tasks_table.php": {
+            "created_at": "2025-10-28T02:51:13+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_tasks_table"
+        },
+        "2025_10_28_043559_create_clients_table.php": {
+            "created_at": "2025-10-28T04:35:59+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_clients_table"
+        },
+        "2025_10_29_034934_add_soft_deletes_to_core_tables.php": {
+            "created_at": "2025-10-29T03:49:34+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_soft_deletes_to_core_tables"
+        },
+        "2025_12_26_023543_convert_client_status_to_enum.php": {
+            "created_at": "2025-12-26T02:35:44+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe convert_client_status_to_enum"
+        },
+        "2025_12_27_225305_convert_tasks_polymorphic_to_type_refs.php": {
+            "created_at": "2025-12-27T22:53:05+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe convert_tasks_polymorphic_to_type_refs"
+        },
+        "2026_01_29_180545_create_portal_invitations_table.php": {
+            "created_at": "2026-01-29T18:05:45+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_portal_invitations_table"
+        },
+        "2026_01_29_184331_create_portal_password_resets_table.php": {
+            "created_at": "2026-01-29T18:43:31+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_portal_password_resets_table"
+        },
+        "2026_04_07_214645_add_contact_id_to_portal_users_table.php": {
+            "created_at": "2026-04-07T21:46:45+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_contact_id_to_portal_users_table"
+        },
+        "2026_04_07_234811_add_portal_fields_to_clients_table.php": {
+            "created_at": "2026-04-07T23:48:11+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_portal_fields_to_clients_table"
+        },
+        "2026_04_07_234812_create_portal_memberships_table.php": {
+            "created_at": "2026-04-07T23:48:12+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_portal_memberships_table"
+        },
+        "2026_04_07_234812_create_shared_items_table.php": {
+            "created_at": "2026-04-07T23:48:12+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_shared_items_table"
+        },
+        "2026_04_08_060108_create_portal_projects_table.php": {
+            "created_at": "2026-04-08T06:01:08+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_portal_projects_table"
+        },
+        "2026_06_23_153413_create_announcements_table.php": {
+            "created_at": "2026-06-23T15:34:13+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_announcements_table"
+        },
+        "2026_06_24_074233_create_portal_requests_table.php": {
+            "created_at": "2026-06-24T07:42:33+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_portal_requests_table"
+        },
+        "2026_06_25_154452_create_portal_request_thread_tables.php": {
+            "created_at": "2026-06-25T15:44:52+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_portal_request_thread_tables"
+        },
+        "2026_06_25_163348_drop_portal_requests_table.php": {
+            "created_at": "2026-06-25T16:33:48+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe drop_portal_requests_table"
+        },
+        "2026_06_30_071030_create_parties_tables.php": {
+            "created_at": "2026-06-30T07:10:30+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_parties_tables"
+        },
+        "2026_07_01_080525_add_status_to_portal_invitations.php": {
+            "created_at": "2026-07-01T08:05:25+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_status_to_portal_invitations"
+        },
+        "2026_07_13_090000_task_management_hierarchy_schema.php": {
+            "created_at": "2026-07-13T09:00:00+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe task_management_hierarchy_schema"
+        },
+        "2026_07_16_143237_import_sample_documents.php": {
+            "created_at": "2026-07-16T14:32:37+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe import_sample_documents"
+        },
+        "2026_08_18_081308_cleanup_retired_portal_request_type_ref.php": {
+            "created_at": "2026-08-18T08:13:08+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe cleanup_retired_portal_request_type_ref"
+        }
+    }
+}

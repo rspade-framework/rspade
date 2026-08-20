@@ -1,0 +1,32 @@
+// ==========================================================================
+// OUTLINE CLASSIFICATION CHIPS  (Rule of Two Chips)
+// ==========================================================================
+// A FILLED pastel/colored pill is a STATUS (a workflow state, rendered by the
+// Status_Badge component from a model enum). An OUTLINED chip is a
+// CLASSIFICATION (a type, role, category, priority - a fact, not a state).
+// These `.badge-outline-*` classes are the outlined variant; pair them with
+// Bootstrap's `.badge` for padding / radius / font metrics.
+//
+//   <span class="badge badge-outline-secondary">High</span>
+//
+// Theme primitive (semantic view-page refactor, Batch C). Lives at the theme
+// root - it is a shared classification-chip vocabulary, not a component.
+
+$badge-outline-colors: (
+    'primary': $primary-color,
+    'secondary': $secondary-color,
+    'success': $success-color,
+    'info': $info-color,
+    'warning': $warning-color,
+    'danger': $danger-color,
+    'dark': $gray-800,
+);
+
+@each $name, $color in $badge-outline-colors {
+    .badge-outline-#{$name} {
+        background-color: transparent;
+        border: $border-width solid $color;
+        color: $color;
+        font-weight: $font-weight-medium;
+    }
+}

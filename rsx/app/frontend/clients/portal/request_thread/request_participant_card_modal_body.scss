@@ -1,0 +1,34 @@
+.Request_Participant_Card_Modal_Body {
+    text-align: center;
+
+    &__avatar {
+        display: flex;
+        justify-content: center;
+        margin-bottom: $spacing-md;
+    }
+
+    &__name {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-semibold;
+        color: $gray-900;
+        margin-bottom: $spacing-sm;
+    }
+
+    &__row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: $spacing-xs;
+        margin-bottom: $spacing-xs;
+        font-size: $font-size-sm;
+
+        a {
+            text-decoration: none;
+            color: $primary-color;
+
+            &:hover {
+                text-decoration: underline;
+            }
+        }
+    }
+}

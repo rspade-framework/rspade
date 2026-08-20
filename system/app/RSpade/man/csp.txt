@@ -1,0 +1,382 @@
+CSP(1)                           RSpade Manual                           CSP(1)
+
+NAME
+    csp - the framework's Content-Security-Policy: one composed policy per
+    realm, derived from declarations
+
+SYNOPSIS
+    # system/config/rsx.php (framework defaults; override in rsx/resource/config/rsx.php)
+    'csp' => [
+        'enabled'            => true,   # emit a header at all
+        'report_only'        => true,   # observe (true) or enforce (false)
+        'additional_sources' => [],     # TRANSITIVE origins only
+    ],
+
+    # What a staff page carries out of the box:
+    Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self'
+    'nonce-...'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;
+    font-src 'self' data:; connect-src 'self' wss://host ws://host;
+    object-src 'none'; base-uri 'self'; frame-ancestors 'self';
+    report-uri /_csp-report
+
+    # Triage during rollout:
+    tail -f storage/logs/csp_violations.log
+
+DESCRIPTION
+    A Content-Security-Policy tells the browser what a page is allowed to load
+    and execute. It is the single most effective mitigation for cross-site
+    scripting: an injected <script> that the policy does not permit simply does
+    not run, whatever bug let the markup in.
+
+    RSpade ships one, on every dispatched page, with no wiring. It is COMPOSED,
+    not written: the framework's own hardened directives, plus the origins of
+    every DECLARED external resource for that realm, plus a per-request nonce
+    for the framework's inline scripts. There is no policy string to maintain
+    and no middleware to register - and because the external origins derive
+    from *.externals.php declarations, the policy cannot drift from the code.
+    See: php artisan rsx:man external_resources
+
+    IT SHIPS OBSERVING, NOT BLOCKING. The default header is
+    Content-Security-Policy-Report-Only: the browser evaluates the policy,
+    posts a report for every violation, and loads the resource anyway. That is
+    how a policy is proven safe against a real application before it is
+    switched on. See ROLLOUT - the flip is a launch task, and it is on the
+    prelaunch checklist because report-only is a silent state.
+
+    ONE POLICY PER REALM, ONE COMPOSER. Staff and portal pages get their own
+    composed value from the same class, so a portal-only widget never widens
+    the staff policy.
+
+WHAT SHIPS
+    Header name        Content-Security-Policy-Report-Only  (report_only true)
+                       Content-Security-Policy              (report_only false)
+
+    Where it is set    The DISPATCHERS, not Kernel middleware:
+                       Dispatcher::__transform_response (staff) and
+                       Portal_Dispatcher::__build_response (portal). Every
+                       dispatched response funnels through those two points -
+                       native routes, SPA bootstraps, error screens, redirects.
+
+    What carries it    HTML responses only. A declared text/html type, or no
+                       declared type at all (a plain response($string) has not
+                       been prepared yet and will default to text/html; every
+                       non-HTML producer in the framework sets its type). A
+                       JSON envelope, a download or a rendition carries no
+                       policy - a policy governs what a DOCUMENT may load.
+
+    Never overwritten  A response that already carries either header keeps it
+                       (AssetHandler's static-HTML responses set their own).
+
+    Out of scope       Anything that never reaches an RSX dispatcher: vendor
+                       error pages, the ignition development error screen, and
+                       any non-dispatcher response. By design, not by accident.
+
+THE COMPOSED DIRECTIVE SET
+    Base (Rsx_Csp::_base_directives)
+
+        default-src      'self'
+        script-src       'self' 'nonce-{request nonce}'
+        style-src        'self' 'unsafe-inline'
+        img-src          'self' data:
+        font-src         'self' data:
+        connect-src      'self'  [+ wss://{host}, + ws://{host} outside strict
+                                  production, when realtime is enabled]
+        object-src       'none'
+        base-uri         'self'
+        frame-ancestors  'self'
+        report-uri       /_csp-report
+
+    'unsafe-inline' NEVER appears in script-src. Framework inline scripts carry
+    the nonce instead.
+
+    NO NONCE IN STYLE-SRC, DELIBERATELY. A nonce present in style-src makes
+    browsers IGNORE 'unsafe-inline' - and RSX depends on inline styles
+    pervasively (jqhtml, view transitions, every style="" attribute in the
+    tree, vendor-injected <style> elements). Adding one would break rendering
+    everywhere in exchange for very little: style injection is not script
+    execution. So style-src keeps 'unsafe-inline' and no nonce.
+
+    connect-src's websocket entries mirror the client exactly: the canonical
+    URL handed to the browser is wss://, and Rsx_Realtime downgrades it to
+    ws:// whenever the PAGE itself is plain http (loopback, the rsx:debug
+    harness) - possible in every mode except strict production, where http is
+    not served. So ws:// is whitelisted outside strict production only.
+
+    Merged in, in this order:
+
+    1. ASSET ORIGINS THIS RESPONSE ACTUALLY EMITTED. In development a bundle's
+       cdn_assets load from their own hosts; the emitter declares each one as
+       it writes it (Rsx_Bundle_Abstract -> Rsx_Csp::note_asset_origin), so the
+       whitelist is EXACTLY what this page loads and never a superset. In a
+       sealed build those assets are served from /_vendor (same-origin) and
+       contribute nothing.
+
+    2. DECLARED EXTERNAL RESOURCES for the realm
+       (Rsx_Externals::csp_hosts_for_realm): each entry's js origins into
+       script-src and css origins into style-src - but only while still fetched
+       externally, so a mirrored entry drops out of a sealed build's policy -
+       plus each entry's own `csp` extras (the frames it opens, the hosts it
+       calls), which apply in EVERY mode.
+
+    3. AN EXTERNAL STYLESHEET'S ORIGIN ALSO JOINS font-src, derived rather than
+       configured. A webfont stylesheet @font-face's against its own origin as
+       a matter of course, and nothing in our code names the font file - so
+       without this every icon font would report a violation no declaration
+       could fix. An origin already trusted to deliver CSS (which can restyle
+       the whole page) is trusted for the fonts that CSS names.
+
+    4. CONFIG rsx.csp.additional_sources, WIDEN-ONLY. Sources are APPENDED;
+       they can never replace or remove the framework's hardening, and
+       downstream config deep-merges additively on top. A directive the base
+       policy did not declare is CREATED seeded with 'self' (it was falling
+       back to default-src 'self'; adding one host must not silently narrow the
+       page's own same-origin allowance).
+
+       object-src is REFUSED outright, loudly. It is set to 'none' as
+       hardening, and appending to "nothing" would loosen it while reading like
+       an addition.
+
+    ADDITIONAL_SOURCES IS FOR TRANSITIVE EXTERNALS ONLY. A declared script that
+    goes on to load FURTHER scripts from origins the vendor picks at runtime
+    (an analytics or tag-manager loader is the classic case) cannot be
+    enumerated by any declaration. That is what this key is for. A resource the
+    PAGE loads directly belongs in a *.externals.php declaration, where the
+    whitelist derives from it automatically.
+
+THE NONCE
+    Rsx_Csp::nonce() mints 18 random bytes, base64-encoded, ONCE per request
+    and memoizes them. Every framework emitter of an inline <script> stamps the
+    same value the header carries:
+
+        - Rsx_Bundle_Abstract's window.rsxapp bootstrap script.
+        - Debugger's shutdown-time console echo, which has no Response object
+          to read a header from - which is exactly why the nonce is a static
+          and not a header lookup.
+
+    IT IS EXPORTED to the browser as window.rsxapp.csp_nonce, and the external
+    resource loader stamps it onto every <script>/<link> it appends. Page code
+    never reads it: if you find yourself wanting the nonce, you are about to
+    hand-inject something that belongs in a declaration.
+
+    window.rsxapp.csp.report_only is exported alongside it, so the development
+    violation catcher can say "reported" rather than "blocked" when nothing was
+    actually blocked.
+
+    _reset_request_state() drops the nonce and the noted asset origins. It is
+    the TESTING seam - a PHP test process is one long request, so a test
+    asserting nonce stability and one asserting a fresh nonce must be able to
+    draw the line themselves.
+
+    FULL PAGE CACHE INTERACTION. An #[FPC] page's HTML is cached by the FPC
+    proxy with its baked nonce inside it. On a cache HIT the proxy replays
+    status, content type, ETag and body only - it does NOT replay the CSP
+    header - so a cached public page is served with no policy at all, and the
+    stale nonce in its body is inert. FPC pages are therefore outside the
+    policy's coverage today; a public page whose protection matters should not
+    be #[FPC], or the proxy must learn to cache and replay the header
+    alongside the body.
+
+THE COLLECTOR
+    POST /_csp-report, served by Csp_Report_Controller, gate #[Auth('public')]
+    (mandatory - the reporter is a browser acting on its own behalf, often on a
+    page nobody is logged into) and CSRF-exempt at the Rsx_Csrf::enforce seam.
+
+    It accepts both wire shapes: `application/csp-report`'s single
+    {"csp-report": {...}} and the newer Reporting API's list of {type, url,
+    body} envelopes. Each report is appended as ONE JSON line to
+
+        storage/logs/csp_violations.log
+
+    with a timestamp and the user agent. json_encode is what makes the line
+    format safe - a report is attacker-influenced text and can never emit a raw
+    newline.
+
+    IT NEVER ERRORS. Every request answers 204, including a body that is not
+    JSON (kept verbatim, truncated, under an `invalid` key). A collector that
+    4xx'd would teach browsers to retry; one that threw would fill the
+    application log with noise generated by whatever a page happened to load.
+
+    NO TABLE IN v1. Triage is tail/jq over the file - a report is diagnostic
+    exhaust during rollout, not application data.
+
+    DEPLOYMENT NOTE: the path is served by the STAFF dispatcher. With
+    prefix-based portal detection a portal page posts here fine
+    (/_csp-report is not under the portal prefix). An install serving its
+    portal from a SEPARATE DOMAIN would need the same path routed there too.
+
+ROLLOUT
+    1. SHIP REPORT-ONLY (the default). Nothing is blocked; everything is
+       reported.
+
+    2. EXERCISE THE APPLICATION. Every screen, both realms, every third-party
+       widget, every file upload and preview, print views, error screens. A
+       violation only appears if a real page load produces it.
+
+    3. TRIAGE storage/logs/csp_violations.log. Every line is something a page
+       tried to load that an enforcing policy would have blocked. Each has
+       exactly one correct fix:
+
+         - A resource the page loads ITSELF -> declare it in a
+           *.externals.php file and load it with Rsx.load_external().
+         - An origin a DECLARED script fetches on its own ->
+           rsx.csp.additional_sources.
+         - An inline <script> in application markup -> move the code into a
+           bundled .js file. Do not reach for the nonce.
+
+    4. FLIP 'report_only' => false in rsx/resource/config/rsx.php once the log
+       stays clean through a full pass. The policy now blocks.
+
+    THE 'unsafe-eval' DECISION GATE. The framework ships NO 'unsafe-eval', and
+    that is deliberate: whether compiled jqhtml templates ever reach the
+    runtime expression evaluator (which uses new Function) has not been proven
+    either way, and the violation log is what answers it. If triage shows
+    script-src violations naming eval or a Function constructor from framework
+    code, STOP and escalate before enforcing - adding 'unsafe-eval' to the
+    policy gives back a large part of what CSP is for and is a framework-level
+    decision, not an application one.
+
+    In development the browser's own error is followed by an [RSX CSP] console
+    warning naming the directive, the blocked URI and the remedy, and saying
+    plainly whether the resource was blocked or merely reported.
+
+CONFIGURATION
+    'csp' => [
+        'enabled'            => true,
+        'report_only'        => true,
+        'additional_sources' => [],
+    ]
+
+    enabled             False emits no header on any response, anywhere.
+                        compose() returns null. An escape hatch, not a mode.
+
+    report_only         True (default) = Content-Security-Policy-Report-Only.
+                        False = enforce. See ROLLOUT.
+
+    additional_sources  directive => [sources], merged widen-only. TRANSITIVE
+                        externals only; object-src is refused. Downstream
+                        config deep-merges additively, so an app's array widens
+                        the framework's and never replaces it.
+
+    See: php artisan rsx:man config_rsx
+
+API REFERENCE
+    App\RSpade\Core\Csp\Rsx_Csp
+
+    nonce(): string
+        This request's nonce, minted once and memoized.
+
+    compose(string $realm): ?array
+        ['header' => name, 'value' => policy] or null when disabled.
+        $realm is 'staff' or 'portal'.
+
+    apply_to_response($response, string $realm): void
+        Stamp a dispatched response, subject to the HTML-only and
+        already-has-a-policy rules above. Non-responses are ignored.
+
+    note_asset_origin(string $directive, string $url): void
+        Declare an external origin this response actually emitted an asset
+        from. Called by the bundle emitter; application code never calls it.
+
+    is_enabled(): bool / is_report_only(): bool
+        The two config reads, in one place.
+
+    _reset_request_state(): void
+        Testing seam - drops the nonce and noted origins.
+
+    Constants: REPORT_PATH, HEADER_ENFORCE, HEADER_REPORT_ONLY,
+    UNWIDENABLE_DIRECTIVES.
+
+EXAMPLES
+    Allowing a transitive origin (the only thing config is for)
+
+        // rsx/resource/config/rsx.php
+        'csp' => [
+            'additional_sources' => [
+                'script-src'  => ['https://www.google-analytics.com'],
+                'connect-src' => ['https://www.google-analytics.com',
+                                  'https://analytics.google.com'],
+                'img-src'     => ['https://www.google-analytics.com'],
+            ],
+        ],
+
+        The gtag.js SCRIPT URL is not listed here - it is declared in
+        rsx/lib/analytics/analytics.externals.php and the policy derives from
+        that. Only what gtag.js goes on to fetch at runtime lives in config.
+
+    Enforcing, once the log is clean
+
+        // rsx/resource/config/rsx.php
+        'csp' => [
+            'report_only' => false,
+        ],
+
+    Reading the violation log
+
+        tail -n 50 storage/logs/csp_violations.log | jq -r \
+          '.report | "\(.["effective-directive"]) <- \(.["blocked-uri"]) on \(.["document-uri"])"'
+
+RSX VS LARAVEL
+    Laravel ships no Content-Security-Policy and has no opinion about one. The
+    conventional approach is a middleware that concatenates a hand-written
+    policy string, registered in the HTTP kernel, listing the hosts somebody
+    remembered the application uses. It drifts the moment a developer adds a
+    widget: the markup changes, the string does not, and the failure is a
+    silently broken page in production.
+
+    RSpade composes the policy from facts the framework already knows - the
+    declared external resources for the realm, the assets this very response
+    emitted, and its own inline scripts, which carry a nonce rather than
+    'unsafe-inline'. There is no policy string in application code, and the
+    only configuration is the rollout switch plus the transitive-origin
+    escape hatch. The header is set at the DISPATCHER rather than in kernel
+    middleware, so an app never registers middleware for it and a framework
+    upgrade can improve the policy without touching app code. (app/Http/
+    Kernel.php is framework-owned anyway; an app that does need middleware
+    of its own declares it in config - rsx:man config_rsx.)
+
+TROUBLESHOOTING
+    A resource is blocked (or reported) that the page needs
+        Do not edit a header - there is none to edit. Declare the resource:
+        php artisan rsx:man external_resources. If it is a transitive load by
+        a declared script, add the origin to rsx.csp.additional_sources.
+
+    An inline <script> in a Blade page is reported
+        Move the code into a bundled .js file with a page guard. Application
+        inline scripts are not nonce-stamped and never will be - the nonce
+        exists for framework-emitted bootstrap markup.
+
+    "Invalid csp.additional_sources directive 'object-src'"
+        object-src is hardening set to 'none'; additional_sources can only
+        append, which would loosen it. Nothing legitimate needs to widen it.
+
+    A JSON / download response has no policy
+        Correct. Only HTML documents carry one.
+
+    An error page has no policy
+        If it is an RSX error screen it does. Vendor and ignition error pages
+        never reach the dispatcher and are out of scope.
+
+    A public #[FPC] page has no policy
+        Also correct today - the FPC proxy replays a cached body without the
+        header. See THE NONCE, Full page cache interaction.
+
+    Realtime will not connect once enforcing
+        connect-src covers wss://{APP_URL host} always and ws://{host} outside
+        strict production. A host mismatch means APP_URL disagrees with the
+        host being browsed - fix APP_URL, not the policy.
+
+    Nothing is being reported at all
+        Confirm csp.enabled is true, that you are looking at a DISPATCHED HTML
+        page (view the response headers), and that storage/logs is writable.
+
+SEE ALSO
+    external_resources - the declarations the whitelist derives from
+    prelaunch_checklist - the entry that gates the report-only -> enforce flip
+    config_rsx - the csp block in context
+    bundle_api - cdn_assets and the head-rendered asset path
+    turnstile - a declared external with runtime csp extras
+    fpc - the full page cache and its replay behavior
+
+VERSION
+    RSpade Framework 1.0
+    Last Updated: 2026-08-18

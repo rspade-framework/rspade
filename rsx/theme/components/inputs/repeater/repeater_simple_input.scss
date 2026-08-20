@@ -1,0 +1,128 @@
+/**
+ * Repeater_Simple Styles
+ *
+ * A form input for managing lists of simple values.
+ * For simple inputs only (dropdowns, text, pickers) - not WYSIWYG or file uploads.
+ */
+
+.Repeater_Simple_Input {
+    // List container
+    &__list {
+        margin-bottom: $spacing-sm;
+
+        &:empty {
+            margin-bottom: 0;
+        }
+    }
+
+    // Individual item row
+    &__item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $spacing-sm;
+        padding: $spacing-sm $spacing-3;
+        background: $gray-100;
+        border-radius: $border-radius-md;
+        margin-bottom: $spacing-sm;
+
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+
+    &__item-content {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        flex: 1;
+        min-width: 0; // Allow text truncation
+    }
+
+    &__item-name {
+        font-weight: $font-weight-medium;
+        @include truncate;
+    }
+
+    // Remove button (on items)
+    // @SCSS-ANIM-01-EXCEPTION - Interactive button element
+    &__remove {
+        flex-shrink: 0;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: transparent;
+        color: $text-muted;
+        border-radius: $border-radius-sm;
+        cursor: pointer;
+        transition: $transition-fast;
+
+        &:hover {
+            background: $danger-color;
+            color: $white;
+        }
+    }
+
+    // Empty state
+    &__empty {
+        padding: $spacing-3;
+        text-align: center;
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+
+    // Pending picker row (shown when adding)
+    &__pending {
+        display: flex;
+        align-items: flex-start;
+        gap: $spacing-sm;
+        padding: $spacing-sm $spacing-3;
+        background: rgba($primary-color, 0.05);
+        border-radius: $border-radius-md;
+        margin-bottom: $spacing-sm;
+    }
+
+    &__pending-content {
+        display: flex;
+        align-items: flex-start;
+        gap: $spacing-sm;
+        flex: 1;
+        min-width: 0;
+
+        // All children (pickers, selects) take available space
+        > * {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    // Cancel button (on pending row)
+    // @SCSS-ANIM-01-EXCEPTION - Interactive button element
+    &__pending-cancel {
+        flex-shrink: 0;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: transparent;
+        color: $text-muted;
+        border-radius: $border-radius-sm;
+        cursor: pointer;
+        transition: $transition-fast;
+
+        &:hover {
+            background: $danger-color;
+            color: $white;
+        }
+    }
+
+    // Add button
+    &__add-btn {
+        // Uses .btn classes from template
+    }
+}

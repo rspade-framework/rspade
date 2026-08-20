@@ -1,0 +1,11 @@
+<%--
+Empty_Value - the one muted em-dash for a single empty cell/value
+
+Renders a muted em-dash for a fact with no value (replaces the scattered
+`<span class="text-muted">-</span>` and `|| '-'` idioms). For an empty LIST
+region use <Empty_State> instead.
+
+Usage:
+    <View_Field $label="Fax"><Empty_Value /></View_Field>
+--%>
+<Define:Empty_Value tag="span">&mdash;</Define:Empty_Value>

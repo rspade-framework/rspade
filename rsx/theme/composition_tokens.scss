@@ -1,0 +1,46 @@
+// ==========================================================================
+// COMPOSITION RELATIONSHIP TOKENS
+// ==========================================================================
+// The single source of truth for the spatial RELATIONSHIPS between the
+// semantic layout primitives (Page_Scaffold, the Section family, and the
+// content vocabulary). Introduced by the semantic view-page refactor
+// (Batch B, 2026-07-12).
+//
+// These are CSS custom properties (not Sass variables) on purpose: a single
+// edit here re-spaces every converted page app-wide, because no page and no
+// component hardcodes a gap of its own. variables.scss stays authoritative
+// for everything else (colors, radii, font sizes, the raw $spacing scale).
+//
+// Values are bound to the app's AS-BUILT spacing, surveyed across the
+// frontend layout and entity view pages. Where the as-built pages disagreed,
+// one standard was chosen and recorded in the registry
+// (rsx/resource/conventions/semantic_component_registry.md, "Token survey").
+//
+//   --block-gap    24px  gap between sibling blocks/sections within a column
+//                        (as-built: mb-4 between cards on every view page)
+//   --card-pad-y   16px  section interior vertical padding
+//                        (as-built: Bootstrap .card-body 16px; the $card-padding
+//                         token of 32px was never actually applied on view pages)
+//   --card-pad-x   20px  section interior horizontal padding
+//                        (16px as-built, stepped one notch to $spacing-5 for the
+//                         header anatomy a Section now carries; see registry)
+//   --col-gutter   24px  gap between the main and sidebar columns
+//                        (as-built: default Bootstrap row gutter, 24px)
+//   --page-pad     32px  outer page padding inside the scaffold
+//                        (as-built: Frontend_Spa_Layout page-content, $spacing-xl;
+//                         reduced to 16px on mobile, matching the layout)
+
+:root {
+    --block-gap: #{$spacing-lg};   // 24px
+    --card-pad-y: #{$spacing-md};  // 16px
+    --card-pad-x: #{$spacing-5};   // 20px
+    --col-gutter: #{$spacing-lg};  // 24px
+    --page-pad: #{$spacing-xl};    // 32px
+}
+
+// Page padding tightens on mobile, matching the as-built layout (16px).
+@include mobile {
+    :root {
+        --page-pad: #{$spacing-md}; // 16px
+    }
+}

@@ -1,0 +1,39 @@
+.Turnstile_Input {
+    display: block;
+
+    // Cloudflare's normal-size widget is 300x65. Reserving the height in both states keeps a
+    // form's layout identical whether or not the site has the feature enabled.
+    &__widget {
+        min-height: 65px;
+    }
+
+    &__placeholder {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 65px;
+        max-width: 300px;
+        padding: 0 16px;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        background-color: #f8f9fa;
+        color: #6c757d;
+        font-size: 13px;
+        user-select: none;
+    }
+
+    &__placeholder-icon {
+        flex: 0 0 auto;
+        width: 18px;
+        height: 18px;
+        opacity: 0.65;
+    }
+
+    &__placeholder-label {
+        font-weight: 500;
+    }
+
+    &__placeholder-note {
+        color: #adb5bd;
+    }
+}

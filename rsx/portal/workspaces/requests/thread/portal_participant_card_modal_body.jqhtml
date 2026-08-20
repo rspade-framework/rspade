@@ -1,0 +1,30 @@
+<%--
+Portal_Participant_Card_Modal_Body - static body for the portal participant contact card.
+Renders a large avatar/initials circle + name, email and (when present) phone for the
+$participant row passed by Portal_Participant_Card_Modal.
+--%>
+<Define:Portal_Participant_Card_Modal_Body tag="div">
+  <% const p = this.args.participant; %>
+  <div class="Portal_Participant_Card_Modal_Body__avatar">
+    <Person_Avatar
+      $name="<%= p.name %>"
+      $avatar_url="<%= str(p.avatar_url) %>"
+      $initials="<%= str(p.initials) %>"
+      $size="lg"
+    />
+  </div>
+
+  <div class="Portal_Participant_Card_Modal_Body__name"><%= p.name %></div>
+
+  <div class="Portal_Participant_Card_Modal_Body__row">
+    <i class="bi bi-envelope text-muted"></i>
+    <a href="mailto:<%= p.email %>"><%= p.email %></a>
+  </div>
+
+  <% if (p.phone) { %>
+    <div class="Portal_Participant_Card_Modal_Body__row">
+      <i class="bi bi-telephone text-muted"></i>
+      <a href="tel:<%= p.phone %>"><%= p.phone %></a>
+    </div>
+  <% } %>
+</Define:Portal_Participant_Card_Modal_Body>

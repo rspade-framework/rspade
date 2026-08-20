@@ -1,0 +1,57 @@
+<%-- Group Management DataGrid Component --%>
+
+<Define:Groups_DataGrid
+    extends="DataGrid_Abstract"
+    $data_source=Frontend_Settings_Group_Management_Controller.datagrid_fetch
+    $sort="id"
+    $order="desc"
+    $per_page=15
+    class="card DataGrid">
+
+    <Slot:DG_Card_Header>
+        <Card_Title>Group List</Card_Title>
+        <Card_Header_Right>
+            <Search_Input $sid="filter_input" $placeholder="Search groups..." />
+            <button class="btn btn-secondary btn-sm">Filter</button>
+        </Card_Header_Right>
+    </Slot:DG_Card_Header>
+
+    <Slot:DG_Table_Header>
+        <tr>
+            <th style="width: 40px;">
+                <input class="form-check-input" type="checkbox" $sid="select_all">
+            </th>
+            <th $sortby="id">ID</th>
+            <th $sortby="name">Name</th>
+            <th>Description</th>
+            <th>Members</th>
+            <th $sortby="created_at">Created</th>
+        </tr>
+    </Slot:DG_Table_Header>
+
+    <Slot:row>
+        <tr data-href="<%= Rsx.Route('Settings_Group_Management_View_Action', row.id) %>">
+            <td>
+                <input class="form-check-input row-checkbox" type="checkbox" value="<%= row.id %>">
+            </td>
+            <td>
+                #G<%= String(row.id).padStart(3, '0') %>
+            </td>
+            <td>
+                <strong><%= row.name %></strong>
+            </td>
+            <td>
+                <% if (row.description) { %>
+                    <%= row.description.length > 50 ? row.description.substring(0, 50) + '...' : row.description %>
+                <% } else { %>
+                    <em class="text-muted">No description</em>
+                <% } %>
+            </td>
+            <td>
+                <span class="badge bg-secondary"><%= row.member_count %> members</span>
+            </td>
+            <td><%= Rsx_Time.format_date(row.created_at) %></td>
+        </tr>
+    </Slot:row>
+
+</Define:Groups_DataGrid>

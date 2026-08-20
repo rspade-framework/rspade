@@ -1,0 +1,200 @@
+<Define:Contacts_View_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading contact details..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Contact"
+                $back_label="Go back to Contacts"
+                $back_url="<%= Rsx.Route('Contacts_Index_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <%
+        const _contact = this.data.contact;
+        const _projects = this.data.projects;
+        const _activity = this.data.activity;
+        const _tabs = [
+            { key: 'overview', label: 'Overview' },
+            { key: 'projects', label: 'Projects', count: _projects.length },
+            { key: 'activity', label: 'Activity', count: _activity.length },
+        ];
+    %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Card_Widget>
+                <Entity_Header>
+                    <Slot:title><%= _contact.full_name %></Slot:title>
+                    <Slot:chips>
+                        <% if (_contact.is_active) { %>
+                            <Status_Badge $label="Active" $badge="bg-success" />
+                        <% } else { %>
+                            <Status_Badge $label="Inactive" $badge="bg-secondary" />
+                        <% } %>
+                        <% if (_contact.priority) { %>
+                            <% const _pri = (_contact.priority__badge || 'bg-secondary').replace('bg-', 'badge-outline-'); %>
+                            <span class="badge <%= _pri %>"><%= _contact.priority__label %></span>
+                        <% } %>
+                    </Slot:chips>
+                    <Slot:meta>
+                        <span>Contact <%= _contact.contact_id_formatted %></span>
+                        <% if (_contact.title) { %><span><%= _contact.title %></span><% } %>
+                        <% if (_contact.client_id) { %>
+                            <span>Company: <Entity_Link $model="Client_Model" $id=_contact.client_id $small=true /></span>
+                        <% } %>
+                        <span>Created <%= Rsx_Time.format_date(_contact.created_at) %></span>
+                    </Slot:meta>
+                </Entity_Header>
+
+                <Tab_Bar $sid="tabs" $tabs=_tabs $hash="tab" $divided=true />
+
+                <Tab_Panels $sid="panels">
+                    <Tab_Panel $key="overview">
+                        <Section $title="Contact Information">
+                            <View_Fields>
+                                <View_Field $label="Email">
+                                    <% if (_contact.email) { %>
+                                        <a href="mailto:<%= _contact.email %>"><%= _contact.email %></a>
+                                    <% } else { %>
+                                        <Empty_Value />
+                                    <% } %>
+                                </View_Field>
+                                <View_Field $label="Secondary Email">
+                                    <% if (_contact.email_secondary) { %>
+                                        <a href="mailto:<%= _contact.email_secondary %>"><%= _contact.email_secondary %></a>
+                                    <% } else { %>
+                                        <Empty_Value />
+                                    <% } %>
+                                </View_Field>
+                                <View_Field $label="Work Phone">
+                                    <% if (_contact.phone_work) { %><%= _contact.phone_work %><% } else { %><Empty_Value /><% } %>
+                                </View_Field>
+                                <View_Field $label="Cell Phone">
+                                    <% if (_contact.phone_cell) { %><%= _contact.phone_cell %><% } else { %><Empty_Value /><% } %>
+                                </View_Field>
+                                <View_Field $label="Other Phone">
+                                    <% if (_contact.phone_other) { %><%= _contact.phone_other %><% } else { %><Empty_Value /><% } %>
+                                </View_Field>
+                            </View_Fields>
+                        </Section>
+
+                        <% if (_contact.address || _contact.city || _contact.state || _contact.zip) { %>
+                        <Section $title="Address">
+                            <% if (_contact.address) { %><div><%= _contact.address %></div><% } %>
+                            <% if (_contact.city || _contact.state || _contact.zip) { %>
+                                <div><%= _contact.city %><% if (_contact.city && _contact.state) { %>, <% } %><%= _contact.state %> <%= _contact.zip %></div>
+                            <% } %>
+                        </Section>
+                        <% } %>
+
+                        <% if (_contact.notes) { %>
+                        <Section $title="Internal Notes">
+                            <%br= _contact.notes %>
+                        </Section>
+                        <% } %>
+                    </Tab_Panel>
+
+                    <Tab_Panel $key="projects">
+                        <Section $title="Projects" $count=_projects.length $flush=true>
+                            <Slot:actions>
+                                <a href="<%= Rsx.Route('Projects_Edit_Action') %>?contact_id=<%= _contact.id %>" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-folder-plus"></i> Add Project
+                                </a>
+                            </Slot:actions>
+                            <Slot:body>
+                                <% if (_projects.length === 0) { %>
+                                    <Empty_State $icon="bi bi-folder">
+                                        <Slot:title>No projects yet</Slot:title>
+                                        <Slot:body>Projects where this contact is the primary contact will appear here.</Slot:body>
+                                    </Empty_State>
+                                <% } else { %>
+                                    <Record_Table>
+                                        <thead>
+                                            <tr><th>Name</th><th>Status</th><th>Priority</th><th>Due Date</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <% for (const project of _projects) { %>
+                                            <tr data-href="<%= Rsx.Route('Projects_View_Action', project.id) %>">
+                                                <td><%= project.name %></td>
+                                                <td><Status_Badge $label=project.status__label $badge=project.status__badge /></td>
+                                                <td>
+                                                    <% const _ppri = (project.priority__badge || 'bg-secondary').replace('bg-', 'badge-outline-'); %>
+                                                    <span class="badge <%= _ppri %>"><%= project.priority__label %></span>
+                                                </td>
+                                                <td><% if (project.due_date) { %><%= Rsx_Date.format(project.due_date) %><% } else { %><Empty_Value /><% } %></td>
+                                            </tr>
+                                            <% } %>
+                                        </tbody>
+                                    </Record_Table>
+                                <% } %>
+                            </Slot:body>
+                        </Section>
+                    </Tab_Panel>
+
+                    <Tab_Panel $key="activity">
+                        <Section $title="Activity" $count=_activity.length $flush=true>
+                            <% if (_activity.length === 0) { %>
+                                <Empty_State $icon="bi bi-activity">
+                                    <Slot:title>No activity yet</Slot:title>
+                                    <Slot:body>Changes to this contact will appear here.</Slot:body>
+                                </Empty_State>
+                            <% } else { %>
+                                <% for (const a of _activity) { %>
+                                    <Feed_Row $icon=a.icon $variant=a.variant>
+                                        <Slot:body><%!= a.html %></Slot:body>
+                                        <Slot:time><%= Rsx_Time.relative(a.created_at) %></Slot:time>
+                                    </Feed_Row>
+                                <% } %>
+                            <% } %>
+                        </Section>
+                    </Tab_Panel>
+                </Tab_Panels>
+            </Card_Widget>
+        </Slot:main>
+
+        <Slot:sidebar>
+            <Detail_Sidebar>
+                <Sidebar_Kpi_Group>
+                    <Kpi_Cell $clickable=true $tab="projects" $tooltip="Projects led by this contact">
+                        <Slot:label>Projects</Slot:label>
+                        <Slot:value><%= _projects.length %></Slot:value>
+                    </Kpi_Cell>
+                    <Kpi_Cell $clickable=true $tab="activity" $tooltip="Recorded activity for this contact">
+                        <Slot:label>Activity</Slot:label>
+                        <Slot:value><%= _activity.length %></Slot:value>
+                    </Kpi_Cell>
+                </Sidebar_Kpi_Group>
+
+                <View_Fields>
+                    <View_Field $label="Contact ID" $inline=true><%= _contact.contact_id_formatted %></View_Field>
+                    <View_Field $label="Created" $inline=true><%= Rsx_Time.format_date(_contact.created_at) %></View_Field>
+                    <View_Field $label="Updated" $inline=true><%= Rsx_Time.format_date(_contact.updated_at) %></View_Field>
+                </View_Fields>
+
+                <div class="d-grid gap-2">
+                    <a href="<%= Rsx.Route('Contacts_Edit_Action', _contact.id) %>" class="btn btn-primary btn-sm">
+                        <i class="bi bi-pencil"></i> Edit Contact
+                    </a>
+                    <% if (_contact.client_id) { %>
+                        <a href="<%= Rsx.Route('Clients_View_Action', _contact.client_id) %>#tab=portal" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-globe"></i> Manage Client Portal
+                        </a>
+                        <% if (_contact.portal_user_id) { %>
+                            <button $sid="view_as_client" type="button" class="btn btn-outline-secondary btn-sm" @click=this.view_as_client>
+                                <i class="bi bi-eye"></i> View as Client (read-only)
+                            </button>
+                        <% } %>
+                    <% } %>
+                </div>
+            </Detail_Sidebar>
+        </Slot:sidebar>
+    </Page_Scaffold>
+<% } %>
+</Define:Contacts_View_Action>

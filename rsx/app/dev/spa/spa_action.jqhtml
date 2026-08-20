@@ -1,0 +1,135 @@
+<Define:Dev_Spa_Action>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <h1>SPA Testing Page</h1>
+            <p class="lead">Test SPA navigation, exception handling, and enable/disable functionality</p>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Current State</h5>
+                </div>
+                <div class="card-body">
+                    <% if (this.args.id) { %>
+                        <div class="alert alert-info">
+                            <strong>Viewing ID:</strong> <%= this.args.id %>
+                        </div>
+                    <% } else { %>
+                        <div class="alert alert-secondary">
+                            <strong>No ID selected</strong>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Navigation Links</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="<%= Rsx.Route('Dev_Spa_Action') %>" class="btn btn-outline-primary">
+                            <i class="bi bi-house"></i> View Base (/dev/spa)
+                        </a>
+                        <a href="<%= Rsx.Route('Dev_Spa_Action', 1) %>" class="btn btn-outline-primary">
+                            <i class="bi bi-1-circle"></i> View ID 1
+                        </a>
+                        <a href="<%= Rsx.Route('Dev_Spa_Action', 2) %>" class="btn btn-outline-primary">
+                            <i class="bi bi-2-circle"></i> View ID 2
+                        </a>
+                        <a href="<%= Rsx.Route('Dev_Spa_Action', 3) %>" class="btn btn-outline-primary">
+                            <i class="bi bi-3-circle"></i> View ID 3
+                        </a>
+                        <a href="<%= Rsx.Route('Dev_Spa_Test_Exception_Action') %>" class="btn btn-outline-danger">
+                            <i class="bi bi-exclamation-triangle"></i> Exception Test Page
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">SPA Control</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Test enabling and disabling SPA navigation mode</p>
+                    <div class="d-grid gap-2">
+                        <button $sid="disable_spa" class="btn btn-warning">
+                            <i class="bi bi-pause-circle"></i> Disable SPA
+                        </button>
+                        <button $sid="enable_spa" class="btn btn-success">
+                            <i class="bi bi-play-circle"></i> Enable SPA
+                        </button>
+                    </div>
+                    <div class="alert alert-info mt-3 mb-0">
+                        <small>
+                            <strong>Note:</strong> When disabled, clicking navigation links will cause full page loads instead of SPA navigation.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Exception Handling</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Test unhandled exception handling and debug UI</p>
+                    <div class="d-grid gap-2">
+                        <button $sid="trigger_error" class="btn btn-danger">
+                            <i class="bi bi-exclamation-triangle"></i> Trigger Error Object
+                        </button>
+                        <button $sid="trigger_string_error" class="btn btn-danger">
+                            <i class="bi bi-exclamation-circle"></i> Trigger String Error
+                        </button>
+                    </div>
+                    <div class="alert alert-warning mt-3 mb-0">
+                        <small>
+                            <strong>Expected behavior:</strong>
+                            <ul class="mb-0">
+                                <li>Flash alert appears (rate limited)</li>
+                                <li>Debug error box prepends to content (dev mode only)</li>
+                                <li>Error logged to server</li>
+                                <li>SPA navigation disabled</li>
+                            </ul>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Testing Instructions</h5>
+                </div>
+                <div class="card-body">
+                    <ol>
+                        <li><strong>Multi-Route Navigation:</strong> Click the ID links above to test SPA navigation between routes</li>
+                        <li><strong>Disable SPA:</strong> Click "Disable SPA", then try clicking ID links - they should cause full page reloads</li>
+                        <li><strong>Enable SPA:</strong> Click "Enable SPA" to restore SPA navigation</li>
+                        <li><strong>Exception Handling:</strong> Click error buttons to test exception display and SPA auto-disable</li>
+                        <li><strong>Back Button:</strong> After triggering errors, test that back button still works (SPA navigation)</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</Define:Dev_Spa_Action>

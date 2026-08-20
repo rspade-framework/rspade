@@ -1,0 +1,22 @@
+// Record_Author - authorship display.
+//
+// Deliberately near-weightless: this component appears INSIDE someone else's sentence
+// ("Created by <Record_Author>"), so it inherits the surrounding type and colour and
+// styles only what is its own - the link affordance, and the muted treatment for an
+// unattributed record.
+.Record_Author {
+    display: inline;
+
+    &__link {
+        text-decoration: none;
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+
+    &__unattributed {
+        font-style: italic;
+        opacity: 0.75;
+    }
+}

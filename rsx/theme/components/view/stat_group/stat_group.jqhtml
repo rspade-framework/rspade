@@ -1,0 +1,28 @@
+<%--
+Stat_Group - dashboard telemetry: a responsive grid of KPI stat tiles
+
+default content - <Kpi_Cell> cells (the app's one KPI cell)
+
+The dashboard is the one legitimate home for a headline stat strip (an entity
+view keeps its telemetry in the sidebar - see Sidebar_Kpi_Group). Stat_Group
+lays the same KPI cell out edge-to-edge across the top of an overview page:
+four-up on a wide desktop, collapsing to two-up then one-up as the page
+narrows. The cell is levered, not duplicated - a stat tile and a sidebar KPI
+are the same display shape (uppercase label + large value + optional $alert),
+so both render through Kpi_Cell; only the group layout differs.
+
+Usage:
+    <Stat_Group>
+        <Kpi_Cell $tooltip="Projects in progress">
+            <Slot:label>Active Projects</Slot:label>
+            <Slot:value><%= _stats.active_projects %></Slot:value>
+        </Kpi_Cell>
+        <Kpi_Cell $alert=_has_overdue>
+            <Slot:label>Overdue Tasks</Slot:label>
+            <Slot:value><%= _stats.overdue_tasks %></Slot:value>
+        </Kpi_Cell>
+    </Stat_Group>
+--%>
+<Define:Stat_Group>
+    <%= content() %>
+</Define:Stat_Group>

@@ -1,0 +1,9 @@
+// View_Fields - a group of stacked label/value facts.
+.View_Fields {
+    display: grid;
+    // Flows to multiple columns when wide (main column), collapses to one in a
+    // narrow container (the sidebar) - no page media queries needed.
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--block-gap);
+    align-items: start;
+}

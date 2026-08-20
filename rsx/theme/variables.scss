@@ -1,0 +1,316 @@
+// RSX Application Variables
+// This file defines global SCSS variables used throughout the application
+// ALWAYS use these variables instead of hardcoded values
+// See rsx/theme/CLAUDE.md for guidelines
+
+// ==========================================================================
+// COLOR PALETTE
+// ==========================================================================
+
+// Primary Colors
+$primary-color: #0d6efd;
+$secondary-color: #6c757d;
+$success-color: #146c43;
+$warning-color: #ca8a04;
+$danger-color: #dc3545;
+$info-color: #0891b2;
+
+// Bootstrap variable overrides (Bootstrap uses different names)
+$primary: $primary-color;
+$secondary: $secondary-color;
+$success: $success-color;
+$warning: $warning-color;
+$danger: $danger-color;
+$info: $info-color;
+
+// Gradient (preserve original purple)
+$gradient-end-color: #764ba2;
+$primary-gradient: linear-gradient(135deg, $primary-color 0%, $gradient-end-color 100%);
+
+// Neutral Colors (aligned with Bootstrap)
+$white: #ffffff;
+$black: #000000;
+$gray-100: #f8f9fa;
+$gray-200: #e9ecef;
+$gray-300: #dee2e6;
+$gray-400: #ced4da;
+$gray-500: #adb5bd;
+$gray-600: #6c757d;
+$gray-700: #495057;
+$gray-800: #343a40;
+$gray-900: #212529;
+
+// Semantic Color Aliases
+$text-color: $gray-700;
+$text-muted: $gray-600;
+$border-color: $gray-300;
+$background-light: $gray-100;
+
+// Error/Alert Colors
+$error-bg: #fff3f3;
+$error-border: #f5c6cb;
+$error-text: #721c24;
+$warning-text: #856404;
+
+// ==========================================================================
+// TYPOGRAPHY
+// ==========================================================================
+
+$font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+$font-family-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+
+// Font Sizes (px only, never rem)
+$font-size-xs: 12px;
+$font-size-sm: 14px;
+$font-size-base: 16px;
+$font-size-lg: 18px;
+$font-size-xl: 20px;
+$font-size-2xl: 24px;
+$font-size-3xl: 30px;
+
+$font-weight-light: 300;
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+$line-height-base: 1.5;
+$line-height-tight: 1.25;
+$line-height-loose: 1.75;
+
+// ==========================================================================
+// SPACING
+// ==========================================================================
+
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+$spacing-2xl: 48px;
+$spacing-3xl: 64px;
+
+// Additional spacing for fine-tuning
+$spacing-1: 4px;
+$spacing-2: 8px;
+$spacing-3: 12px;
+$spacing-4: 16px;
+$spacing-5: 20px;
+$spacing-6: 24px;
+
+// ==========================================================================
+// BORDERS
+// ==========================================================================
+
+$border-radius-sm: 4px;
+$border-radius-md: 6px;
+$border-radius-lg: 8px;
+$border-radius-xl: 12px;
+$border-radius-full: 9999px;
+
+$border-width: 1px;
+$border-width-thick: 2px;
+
+// ==========================================================================
+// SHADOWS
+// ==========================================================================
+
+$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+$shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+$shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+$shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+$shadow-modal: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+// ==========================================================================
+// Z-INDEX
+// ==========================================================================
+
+$z-index-dropdown: 1000;
+$z-index-sticky: 1020;
+$z-index-fixed: 1030;
+$z-index-modal-backdrop: 1040;
+$z-index-modal: 1050;
+$z-index-popover: 1060;
+$z-index-tooltip: 1070;
+$z-index-modal-content: 1100;  // Above modals for dropdowns inside modals
+
+// ==========================================================================
+// RESPONSIVE BREAKPOINTS
+// ==========================================================================
+// Two-tier system: Tier 1 (Mobile vs Desktop) and Tier 2 (Granular devices)
+// See rsx/theme/responsive.scss for mixins and utilities
+
+// Breakpoints define where each tier STARTS
+// No -min/-max suffixes; calculate max inline as ($next-breakpoint - 0.02px)
+//
+// phone-sm:   0px      (implicit, viewport < $bp-phone-lg)
+// phone-lg:   400px    (viewport >= 400 and < $bp-tablet)
+// tablet:     800px    (viewport >= 800 and < $bp-desktop)
+// desktop-sm: 1024px   (viewport >= 1024 and < $bp-desktop-md)
+// desktop-md: 1200px   (viewport >= 1200 and < $bp-desktop-lg)
+// desktop-lg: 1640px   (viewport >= 1640 and < $bp-desktop-xl)
+// desktop-xl: 2200px   (viewport >= 2200)
+
+$bp-phone-lg: 400px;
+$bp-tablet: 800px;
+$bp-desktop: 1024px;
+$bp-desktop-md: 1200px;
+$bp-desktop-lg: 1640px;
+$bp-desktop-xl: 2200px;
+
+// Bootstrap grid breakpoints override
+$grid-breakpoints: (
+    xs: 0,
+    mobile: 0,
+    phone: 0,
+    phone-sm: 0,
+    phone-lg: 400px,
+    tablet: 800px,
+    desktop: 1024px,
+    desktop-sm: 1024px,
+    desktop-md: 1200px,
+    desktop-lg: 1640px,
+    desktop-xl: 2200px
+);
+
+// ==========================================================================
+// LAYOUT
+// ==========================================================================
+
+$container-max-width: 1280px;
+$container-padding: $spacing-lg;
+
+// Content width constraints
+// Semantic view-page refactor (D1): 2300px is the single standard, with the
+// content centered and Etsy-style margins growing beyond it on very wide
+// displays. Page_Scaffold owns the max-width; these tokens are the source.
+$content-max-width: 2300px;
+$content-max-width-wide: 2300px;
+
+// ==========================================================================
+// COMPONENTS - Cards
+// ==========================================================================
+
+$card-bg: $white;
+$card-border-radius: $border-radius-lg;
+$card-shadow: $shadow-lg;
+$card-padding: $spacing-xl;
+
+// ==========================================================================
+// COMPONENTS - Buttons
+// ==========================================================================
+
+$button-padding-x: $spacing-lg;
+$button-padding-y: $spacing-sm;
+$button-border-radius: $border-radius-md;
+$button-font-weight: $font-weight-semibold;
+$button-min-width: 80px;
+$button-min-width-sm: 60px;
+
+// ==========================================================================
+// COMPONENTS - Inputs
+// ==========================================================================
+
+$input-padding-x: $spacing-md;
+$input-padding-y: $spacing-sm;
+$input-border-radius: $border-radius-md;
+$input-border-color: $gray-300;
+$input-focus-border-color: $primary-color;
+
+// ==========================================================================
+// COMPONENTS - Modals
+// ==========================================================================
+
+$modal-min-width: 400px;
+$modal-min-width-mobile: 280px;
+$modal-min-height: 260px;
+$modal-header-padding: 12px 16px;
+$modal-body-padding: $spacing-lg;
+$modal-footer-padding: 16px 24px;
+
+// ==========================================================================
+// COMPONENTS - Navigation/Sidebar
+// ==========================================================================
+
+$nav-link-padding: 12px 16px;
+$nav-link-border-radius: $border-radius-md;
+$nav-section-margin: $spacing-lg;
+$nav-icon-size: 18px;
+$nav-icon-width: $spacing-lg;
+$nav-submenu-indent: 40px;
+
+// ==========================================================================
+// COMPONENTS - DataGrid
+// ==========================================================================
+
+$datagrid-cell-padding-y: 12px;
+$datagrid-cell-padding-x: 12px;
+$datagrid-header-bg: $gray-100;
+$datagrid-header-border: $border-width-thick solid $gray-300;
+$datagrid-row-hover-bg: $gray-100;
+$datagrid-checkbox-width: 40px;
+$datagrid-loading-padding: 60px 20px;
+$datagrid-spinner-size: 48px;
+
+// ==========================================================================
+// COMPONENTS - Icons
+// ==========================================================================
+
+$icon-size-sm: 16px;
+$icon-size-md: 24px;
+$icon-size-lg: 40px;
+$icon-size-xl: 48px;
+
+// ==========================================================================
+// TRANSITIONS
+// ==========================================================================
+
+$transition-duration-fast: 150ms;
+$transition-duration-base: 200ms;
+$transition-duration-slow: 300ms;
+
+$transition-base: all $transition-duration-base ease-in-out;
+$transition-fast: all $transition-duration-fast ease-in-out;
+$transition-slow: all $transition-duration-slow ease-in-out;
+
+// ==========================================================================
+// MIXINS
+// ==========================================================================
+
+// @SCSS-ANIM-01-EXCEPTION - Button mixin for clickable elements
+@mixin button-variant($bg-color, $text-color: $white) {
+    background-color: $bg-color;
+    color: $text-color;
+
+    &:hover {
+        background-color: darken($bg-color, 10%);
+    }
+
+    &:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba($bg-color, 0.5);
+    }
+
+    &:active {
+        background-color: darken($bg-color, 15%);
+    }
+}
+
+@mixin card {
+    background: $card-bg;
+    border-radius: $card-border-radius;
+    box-shadow: $card-shadow;
+    padding: $card-padding;
+}
+
+@mixin truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+// Primary color with alpha for hover effects
+@mixin primary-hover-bg($alpha: 0.1) {
+    background: rgba($primary-color, $alpha);
+}

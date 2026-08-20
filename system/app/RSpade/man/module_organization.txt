@@ -1,0 +1,410 @@
+MODULE_ORGANIZATION(3)          RSX Framework Manual          MODULE_ORGANIZATION(3)
+
+NAME
+    Module Organization - RSX application structure, directory layout, and
+    module/feature nomenclature
+
+SYNOPSIS
+    php artisan rsx:app:module:create <name> [--blade]
+    php artisan rsx:app:module:feature:create <module> <feature> [--blade]
+    php artisan rsx:app:submodule:create <module> <submodule>
+    php artisan rsx:app:submodule:feature:create <module> <submodule> <feature>
+    php artisan rsx:app:submodule:subfeature:create <module> <submodule> <feature> <subfeature>
+    php artisan rsx:app:component:create --name=<name>_component [--path=... | --module=... [--feature=...]]
+
+DESCRIPTION
+    All RSX application code lives under /rsx/ (the framework itself lives
+    under /system/; see rspade(3) for that split). This page is the single
+    canonical reference for how an RSX app is organized on disk: the top-level
+    directory layout, the module > submodule > feature > subfeature naming
+    ladder, and the three page-delivery patterns an app uses.
+
+    Unlike Laravel, where routes, controllers, views, and assets are scattered
+    across app/, routes/, resources/, and public/ and wired together by hand,
+    RSX co-locates everything for a page in one predictable directory and
+    discovers it automatically through the manifest. Filenames and class names
+    follow strict conventions so both developers and AI assistants can predict
+    exactly where a file lives from its route, and vice versa.
+
+    Three delivery patterns coexist (see APPLICATION PATTERNS below):
+
+        SPA Actions          Authenticated app areas (the primary pattern).
+        Blade module ladder  Public / server-rendered pages (login, SEO).
+        Client portal        A parallel authenticated experience under /rsx/portal/.
+
+TOP-LEVEL DIRECTORY STRUCTURE
+
+    /rsx/
+        app/                Application modules (SPA + Blade). See below.
+        models/             Eloquent models with fetch() methods.
+        lib/                Shared, non-visual libraries and utilities.
+        theme/              UI primitives, global SCSS, reusable components.
+            variables.scss  Global SCSS variables and mixins.
+            components/      Reusable jqhtml components.
+        services/           Background tasks / integrations (Rsx_Service_Abstract).
+        handlers/           Event and exception handlers.
+        commands/           Custom artisan commands.
+        resource/           Config overrides, migrations, man pages, archives.
+        public/             Static assets (images, downloads).
+        emails/             Blade email templates.
+        tests/              Application test suite (rsx:test).
+        portal/             Client portal (parallel app; see CLIENT PORTAL).
+        main.php            App-wide middleware hooks (Main_Abstract).
+        permission.php      Staff authorization methods (Permission).
+        portal_main.php     Portal middleware hooks (Portal_Main_Abstract).
+        portal_permission.php   Portal authorization methods.
+
+    Under app/, each top-level directory is a module. A module is either an SPA
+    bootstrap module (one #[SPA] controller + JavaScript Actions) or a Blade
+    module (server-rendered pages built from the module-ladder generators). The
+    reference app ships both: frontend (SPA), login (Blade), plus api, apidocs,
+    backend, dev, root, and ssr_test.
+
+APPLICATION PATTERNS
+
+    Choosing where a new page goes starts with picking the delivery pattern:
+
+    SPA Action (authenticated app areas -- primary pattern)
+        Client-side routing inside a single bootstrap controller. Navigation
+        happens without full page reloads. This is what the frontend module
+        and the portal use. See SPA STRUCTURE and spa(3).
+
+    CRUD list/view/edit (an entity inside an SPA module)
+        The standard sub-shape for a feature that Creates/Reads/Updates/Deletes
+        one entity: a controller plus list/, view/, and edit/ subdirectories of
+        Actions. See CRUD MODULE STRUCTURE and crud(3).
+
+    Blade module ladder (public / server-rendered pages)
+        The module > submodule > feature > subfeature generator scaffold, each
+        level producing a #[Route] controller + .blade.php + .js + .scss. Use
+        for login, password reset, marketing/SEO pages -- anything that must be
+        server-rendered or does not need SPA navigation. See BLADE MODULE
+        LADDER, routing(3), and blade_to_spa_conversion(3).
+
+    Client portal (external users)
+        A second authenticated experience with its own session, dispatch, and
+        routing under /rsx/portal/. See CLIENT PORTAL and portal(3).
+
+SPA STRUCTURE
+
+    An SPA module is one PHP bootstrap controller plus many JavaScript Actions
+    that navigate client-side within a persistent layout.
+
+    Generating one (SPA is the scaffolder's DEFAULT)
+
+        php artisan rsx:app:module:create <module>
+
+            rsx/app/<module>/
+                <module>_bundle.php             - module bundle (Rsx_Module_Bundle_Abstract)
+                <module>_spa_controller.php     - #[SPA] bootstrap, gated
+                <Module>_Spa_Layout.js          - persistent layout
+                <Module>_Spa_Layout.jqhtml      - layout template ($sid="content")
+                index/
+                    <Module>_Index_Action.js    - the module's index screen
+                    <Module>_Index_Action.jqhtml
+                    <module>_index_controller.php - Ajax endpoints, gated
+
+        php artisan rsx:app:module:feature:create <module> <feature>
+
+            rsx/app/<module>/<feature>/
+                <Feature>_Index_Action.js / .jqhtml
+                <module>_<feature>_controller.php
+
+        Every SPA feature lives in its own directory, the index feature
+        included, so a module root holds only module-wide files. Every
+        generated surface ships with its mandatory gate (#[Auth] / @auth).
+
+    Bootstrap controller (one per SPA module)
+        rsx/app/frontend/Frontend_Spa_Controller.php
+
+            #[Auth('is_logged_in')]
+            class Frontend_Spa_Controller extends Rsx_Controller_Abstract {
+                #[SPA]
+                public static function index(Request $request, array $params = []) {
+                    return rsx_view(SPA, ['bundle' => 'Frontend_Bundle']);
+                }
+            }
+
+        The class-level #[Auth] gates every surface in the class. Gates are
+        MANDATORY and surfaces are closed by default - a bootstrap with no
+        #[Auth] fails the manifest build - and pre_dispatch() performs NO
+        authorization anywhere (auth_gates(7)). The #[SPA] method returns the
+        SPA shell that boots the JavaScript router; the 'bundle' parameter names
+        the module bundle the shell loads and is required.
+
+    Actions (one per screen)
+        Each screen is a JavaScript class extending Spa_Action, declaring its
+        route, layout(s), and owning bootstrap controller via decorators:
+
+            @route('/clients')
+            @layout('Frontend_Spa_Layout')
+            @spa('Frontend_Spa_Controller::index')
+            @auth('is_logged_in')
+            class Clients_Index_Action extends Spa_Action {
+                async on_load() { ... }
+            }
+
+        Files: Clients_Index_Action.js + Clients_Index_Action.jqhtml, co-located
+        with the feature they belong to.
+
+    Layout (persists across navigation)
+        A class extending Spa_Layout whose template has a $sid="content"
+        element -- the region Actions render into. The layout persists as the
+        user navigates between Actions in the same chain, so its chrome
+        (sidebar, header) is built once. An optional on_action(url, action_name,
+        args) hook fires on each navigation for active-nav / header updates.
+
+            rsx/app/frontend/Frontend_Spa_Layout.js
+            rsx/app/frontend/Frontend_Spa_Layout.jqhtml
+
+    Sublayouts (nested layouts)
+        Stacking multiple @layout decorators nests persistent chrome. A submodule
+        such as settings gets its own sublayout with its own $sid="content":
+
+            @route('/frontend/settings/general')
+            @layout('Frontend_Spa_Layout')     // outer
+            @layout('Settings_Layout')         // nested sublayout
+            @spa('Frontend_Spa_Controller::index')
+            @auth('can_manage_site_settings')
+            class Settings_General_Action extends Spa_Action { }
+
+        Layouts persist across navigation within the same chain. Full routing,
+        dispatch, and lifecycle detail: spa(3).
+
+CRUD MODULE STRUCTURE
+
+    A feature that performs Create/Read/Update/Delete on one entity follows the
+    standard list/view/edit shape inside its SPA module:
+
+        rsx/app/frontend/clients/
+            clients_controller.php          - Ajax endpoints only
+            list/
+                Clients_Index_Action.js/.jqhtml     - List page
+                clients_datagrid.php/.jqhtml         - DataGrid backend + template
+            view/
+                Clients_View_Action.js/.jqhtml       - Detail view
+            edit/
+                Clients_Edit_Action.js/.jqhtml       - Add/Edit (dual-route)
+
+        rsx/models/client_model.php         - Model with fetch() method
+
+    SPA controllers hold Ajax endpoints only; a single edit Action handles both
+    add and edit via dual @route. Full pattern: crud(3).
+
+BLADE MODULE LADDER
+
+    Server-rendered pages use the four-level generator hierarchy:
+    Module > Submodule > Feature > Subfeature. This structure enforces clear
+    separation of concerns and predictable file organization.
+
+    The module and feature generators scaffold SPA by default; pass --blade to
+    get this ladder instead. The submodule and subfeature generators are Blade
+    only (an SPA module nests screens with sublayouts, not submodules).
+
+    Nomenclature
+
+        Module
+            Top-level section with a shared layout and common UI.
+            Rule: if pages share a layout, they belong in the same module.
+            Created with: rsx:app:module:create <name> --blade
+
+            Structure:
+                rsx/app/login/
+                    login_bundle.php
+                    login_layout.blade.php
+                    login_index_controller.php
+                    login_index.blade.php
+                    ...
+
+        Submodule
+            Group of pages within a module with its own embedded layout.
+            Rule: if pages within a module need their own layout and common
+            navigation, create a submodule.
+            Created with: rsx:app:submodule:create <module> <submodule>
+
+            Structure:
+                rsx/app/{module}/{submodule}/
+                    {module}_{submodule}_layout.blade.php
+                    {module}_{submodule}.scss
+                    {module}_{submodule}_index_controller.php
+                    ...
+
+        Feature
+            Page group for a specific entity or concept.
+            Rule: pages that operate on a single entity type are a feature.
+            Created with:
+                rsx:app:module:feature:create <module> <feature> --blade
+                rsx:app:submodule:feature:create <module> <submodule> <feature>
+
+            Structure:
+                rsx/app/{module}/{feature}/
+                    {module}_{feature}_controller.php
+                    {module}_{feature}.blade.php
+                    {module}_{feature}.js
+                    {module}_{feature}.scss
+
+        Subfeature
+            Individual operation within a feature (edit, view, export, ...).
+            Created with:
+                rsx:app:submodule:subfeature:create <module> <submodule> <feature> <subfeature>
+
+            Structure:
+                rsx/app/{module}/{submodule}/{feature}/{subfeature}/
+                    {module}_{submodule}_{feature}_{subfeature}_controller.php
+                    {module}_{submodule}_{feature}_{subfeature}.blade.php
+                    {module}_{submodule}_{feature}_{subfeature}.js
+                    {module}_{submodule}_{feature}_{subfeature}.scss
+
+    Class naming
+        Controllers are Module_Feature_Controller (e.g. Backend_Index_Controller
+        for a module's index feature); bundles are Module_Bundle (e.g.
+        Backend_Bundle). File names are the lowercase_with_underscores form of
+        the same prefix.
+
+    Routing
+        Routes are generated from the hierarchy:
+
+            Module index:           /{module}
+            Module feature:         /{module}/{feature}
+            Submodule index:        /{module}/{submodule}
+            Submodule feature:      /{module}/{submodule}/{feature}
+            Submodule subfeature:   /{module}/{submodule}/{feature}/{subfeature}
+
+        Controllers declare routes with #[Route] attributes:
+
+            #[Route('/{module}/{feature}', name: 'module.feature.index')]
+            public static function index(Request $request, array $params = [])
+
+CLIENT PORTAL
+
+    The portal is a full parallel authenticated experience for external users,
+    with its own session, dispatch, and routing. Its tree mirrors an SPA module
+    but lives under /rsx/portal/ and uses the portal routing family
+    (#[Portal_Route], @portal_spa):
+
+        rsx/portal/
+            Portal_Spa_Controller.php       - Portal SPA bootstrap
+            Portal_Layout.js/.jqhtml        - Portal layout
+            portal_bundle.php
+            auth/                           - Login, register, password reset
+            dashboard/  workspaces/  settings/  notifications/  invitations/
+
+    Never mix the staff Session with Portal_Session. Full detail: portal(3).
+
+COMPONENTS
+
+    Reusable jqhtml components are scaffolded with rsx:app:component:create. The
+    component name MUST end in _component:
+
+        rsx:app:component:create --name=my_widget_component --path=rsx/theme/components
+        rsx:app:component:create --name=user_card_component --module=frontend
+        rsx:app:component:create --name=form_field_component --module=frontend --feature=clients
+
+    Use --path for a free-standing location (typically rsx/theme/components), or
+    --module (optionally with --feature) to place the component inside a module.
+    --path cannot be combined with --module/--feature, and --feature requires
+    --module.
+
+EXAMPLES
+
+    SPA module and feature (the default)
+        php artisan rsx:app:module:create workspace
+        php artisan rsx:app:module:feature:create workspace clients
+
+    SPA feature with CRUD
+        Structure: frontend/clients (list/view/edit)
+        The frontend module already exists as an SPA module; add the feature
+        (rsx:app:module:feature:create frontend clients), then grow its Actions
+        into the CRUD shape above (see crud(3) for the full scaffold).
+
+    Blade module with feature
+        php artisan rsx:app:module:create login --blade
+        php artisan rsx:app:module:feature:create login reset_password --blade
+
+    Blade module with submodule and subfeature
+        php artisan rsx:app:module:create backend --blade
+        php artisan rsx:app:submodule:create backend users
+        php artisan rsx:app:submodule:feature:create backend users profile
+        php artisan rsx:app:submodule:subfeature:create backend users profile edit
+
+DECISION GUIDE
+
+    When creating new pages, ask in order:
+
+    1. Is this an authenticated app screen with client-side navigation?
+       YES -> Add an SPA Action to the relevant SPA module (frontend).
+       NO  -> Continue.
+
+    2. Is it CRUD on a single entity inside an SPA module?
+       YES -> Add a feature with list/view/edit Actions (crud(3)).
+
+    3. Must it be server-rendered (login, SEO, public)?
+       YES -> Blade module ladder. Then:
+              - Shares a layout with existing pages? -> add to that module.
+              - Needs its own layout within a module? -> create a submodule.
+              - A distinct operation on an entity?    -> create a subfeature.
+
+    4. Is it for external portal users?
+       YES -> Add it under /rsx/portal/ (portal(3)).
+
+COMMON MISTAKES
+
+    Building a Blade module for an authenticated app screen
+        The reference app's frontend area is an SPA. New authenticated screens
+        are SPA Actions, not Blade module features. Reach for the module ladder
+        only for public / server-rendered pages - and that is what --blade is
+        for; without it the generators produce an SPA module.
+
+    Creating a module instead of a feature
+        WRONG: rsx:app:module:create tasks
+        RIGHT: add a tasks feature to the existing frontend SPA module.
+        Reason: tasks shares the frontend layout, so it is a feature, not a
+        top-level module.
+
+    Creating a feature before its module (Blade ladder)
+        WRONG: rsx:app:module:feature:create tasks edit
+        RIGHT: rsx:app:module:create <module> first, then add features.
+        Error: "Module '<name>' does not exist".
+
+    Component name missing the _component suffix
+        WRONG: rsx:app:component:create --name=user_card
+        RIGHT: rsx:app:component:create --name=user_card_component
+        Error: 'Component name must be lowercase with underscores and end with
+        "_component"'.
+
+    Confusing submodule with feature
+        Submodule: has an embedded layout, groups related features.
+        Feature: a page group under the parent layout.
+        Submodule for: Settings, Reports, Admin sections.
+        Feature for: Clients, Tasks, Users, Projects.
+
+NAMING CONVENTIONS
+
+    Module / submodule / feature / subfeature names use lowercase with
+    underscores only: [a-z_]+
+
+        Valid:   frontend, client_portal, user_management
+        Invalid: Frontend, client-portal, userManagement, User_Management
+
+FILE NAMING
+
+    Blade-ladder files follow predictable patterns:
+
+        Controller:  {prefix}_controller.php
+        View:        {prefix}.blade.php
+        JavaScript:  {prefix}.js
+        SCSS:        {prefix}.scss
+        Layout:      {prefix}_layout.blade.php
+        Bundle:      {prefix}_bundle.php
+
+    Where prefix is {module}_{submodule}_{feature}_{subfeature}, omitting parts
+    that do not apply.
+
+    SPA Actions and layouts use Pascal_Case class filenames matching the class
+    name (Clients_Index_Action.js/.jqhtml, Frontend_Spa_Layout.js/.jqhtml);
+    their co-located Ajax controllers and DataGrids use the lowercase form
+    (clients_controller.php, clients_datagrid.php).
+
+SEE ALSO
+    spa(3), crud(3), portal(3), routing(3), controller(3), bundle_api(3),
+    external_api(3), blade_to_spa_conversion(3), rspade(3)

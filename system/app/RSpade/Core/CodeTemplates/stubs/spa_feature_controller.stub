@@ -1,0 +1,17 @@
+<?php
+
+namespace {{ namespace }};
+
+use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+
+/**
+ * {{ controller_class }} - Ajax endpoints for the {{ page_title }} feature.
+ *
+ * SPA controllers hold #[Ajax_Endpoint] methods only; routing lives in the
+ * Action decorators. The class-level gate is declared up front so the first
+ * endpoint added here is gated by default rather than by remembering to say so.
+ */
+#[Auth('{{ auth_check }}')]
+class {{ controller_class }} extends Rsx_Controller_Abstract
+{
+}

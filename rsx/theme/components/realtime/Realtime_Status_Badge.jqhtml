@@ -1,0 +1,4 @@
+<Define:Realtime_Status_Badge tag="div" title="Live updates are temporarily unavailable - reconnecting.">
+    <i class="bi bi-wifi-off Realtime_Status_Badge__icon"></i>
+    <span class="Realtime_Status_Badge__text">Connection lost</span>
+</Define:Realtime_Status_Badge>

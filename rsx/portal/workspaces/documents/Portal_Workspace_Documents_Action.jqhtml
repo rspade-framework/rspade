@@ -1,0 +1,64 @@
+<Define:Portal_Workspace_Documents_Action tag="div">
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main><Loading_Spinner $message="Loading documents..." /></Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Workspace"
+                $back_label="Back to Dashboard"
+                $back_url="<%= Rsx_Portal.Route('Portal_Dashboard_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <% const _docs = this.data.documents; %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Section $title="Documents" $count=_docs.length $flush=true>
+                <Slot:body>
+                    <% if (_docs.length === 0) { %>
+                        <Empty_State $icon="bi bi-folder2-open">
+                            <Slot:title>No documents yet</Slot:title>
+                            <Slot:body>Documents your firm shares with you for this workspace appear here.</Slot:body>
+                        </Empty_State>
+                    <% } else { %>
+                        <Record_Table>
+                            <thead>
+                                <tr><th>Document</th><th>Shared by</th><th>Shared</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                                <% for (const doc of _docs) { %>
+                                <tr>
+                                    <td>
+                                        <div class="Portal_Workspace_Documents_Action__doc">
+                                            <img src="<%= doc.thumbnail_url %>" alt="<%= doc.name %>" class="Portal_Workspace_Documents_Action__thumb">
+                                            <div class="Portal_Workspace_Documents_Action__doc-main">
+                                                <span class="Portal_Workspace_Documents_Action__name" title="<%= doc.name %>"><%= doc.name %></span>
+                                                <% if (doc.message) { %>
+                                                    <span class="Portal_Workspace_Documents_Action__message"><%= doc.message %></span>
+                                                <% } %>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><%= doc.shared_by %></td>
+                                    <td><% if (doc.shared_at) { %><%= Rsx_Time.relative(doc.shared_at) %><% } else { %><Empty_Value /><% } %></td>
+                                    <td>
+                                        <a href="<%= doc.download_url %>" class="btn btn-primary btn-sm" download>
+                                            <i class="bi bi-download"></i> Download
+                                        </a>
+                                    </td>
+                                </tr>
+                                <% } %>
+                            </tbody>
+                        </Record_Table>
+                    <% } %>
+                </Slot:body>
+            </Section>
+        </Slot:main>
+    </Page_Scaffold>
+<% } %>
+</Define:Portal_Workspace_Documents_Action>

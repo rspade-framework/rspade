@@ -1,0 +1,7 @@
+<Define:Party_Index_Action>
+<Page_Scaffold>
+    <Slot:main>
+        <Party_DataGrid />
+    </Slot:main>
+</Page_Scaffold>
+</Define:Party_Index_Action>

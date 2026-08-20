@@ -1,0 +1,15 @@
+/* Select_Input component styles */
+.Select_Input {
+    text-align: left;
+}
+
+/* TomSelect dropdown - appears above modals */
+.ts-dropdown {
+    z-index: $z-index-modal-content;
+    text-align: left;
+
+    /* Hide empty option in dropdown (still selectable via clearing input) */
+    .option[data-value=""] {
+        display: none;
+    }
+}

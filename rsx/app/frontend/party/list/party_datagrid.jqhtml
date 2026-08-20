@@ -1,0 +1,53 @@
+<%-- Extends Datagrid_Abstract --%>
+
+<Define:Party_DataGrid
+    extends="DataGrid_Abstract"
+    $data_source=Frontend_Party_Controller.datagrid_fetch
+    $sort="created_at"
+    $per_page=15
+    class="card DataGrid">
+
+    <Slot:DG_Card_Header>
+        <Card_Title>Parties</Card_Title>
+        <Card_Header_Right>
+            <Search_Input $sid="filter_input" $placeholder="Search parties..." />
+        </Card_Header_Right>
+    </Slot:DG_Card_Header>
+
+    <Slot:DG_Table_Header>
+        <tr>
+            <th data-sortby="id">ID</th>
+            <th data-sortby="name">Name</th>
+            <th data-sortby="type_id">Type</th>
+            <th data-sortby="email">Email</th>
+            <th>Phone</th>
+            <th data-sortby="created_at">Created</th>
+            <th style="width: 90px;">Actions</th>
+        </tr>
+    </Slot:DG_Table_Header>
+
+    <Slot:row>
+        <tr data-href="<%= Rsx.Route('Party_View_Action', row.id) %>">
+            <td>#PA<%= String(row.id).padStart(3, '0') %></td>
+            <td><%= row.name %></td>
+            <td><span class="badge <%= row.type_id__badge %>"><%= row.type_id__label %></span></td>
+            <td><%= row.email || '-' %></td>
+            <td><%= row.phone || '-' %></td>
+            <td><%= Rsx_Time.format_date(row.created_at) %></td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <a class="btn btn-outline-primary" href="<%= Rsx.Route('Party_View_Action', row.id) %>" title="View">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                    <a class="btn btn-outline-secondary" href="<%= Rsx.Route('Party_Edit_Action', row.id) %>" title="Edit">
+                        <i class="bi bi-pencil"></i>
+                    </a>
+                    <button class="btn btn-outline-danger" type="button" data-action="delete" data-id="<%= row.id %>" title="Delete">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    </Slot:row>
+
+</Define:Party_DataGrid>

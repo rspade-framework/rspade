@@ -1,0 +1,151 @@
+.js-tree-debug {
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    text-align: left;
+    width: 800px;
+    max-width: 100%;
+    height: 250px;
+    overflow: auto;
+    resize: both;
+    padding: 20px;
+    border: 1px solid #777;
+    border-radius: 4px;
+    background: #fafafa;
+
+    .js-tree-debug-node,
+    .JS_Tree_Debug_Node {
+        margin-left: 0;
+    }
+
+    .js-tree-debug-children {
+        margin-left: 20px;
+        border-left: 1px solid #e0e0e0;
+        padding-left: 8px;
+    }
+
+    .js-tree-debug-leaf {
+        padding: 1px 0;
+    }
+
+    .js-tree-debug-toggle {
+        display: inline-block;
+        width: 16px;
+        cursor: pointer;
+        user-select: none;
+
+        .js-tree-debug-arrow {
+            font-size: 10px;
+            color: #666;
+            transition: transform 0.15s ease; // @SCSS-ANIM-01-EXCEPTION
+            display: inline-block;
+        }
+
+        &:not(.js-tree-debug-collapsed) .js-tree-debug-arrow {
+            transform: rotate(90deg);
+        }
+
+        &:hover .js-tree-debug-arrow {
+            color: #333;
+        }
+    }
+
+    .js-tree-debug-key {
+        color: #881391;
+    }
+
+    .js-tree-debug-colon {
+        color: #666;
+    }
+
+    .js-tree-debug-preview {
+        color: #666;
+    }
+
+    .js-tree-debug-preview-collapsed {
+        color: #999;
+        font-style: italic;
+    }
+
+    .js-tree-debug-bracket-close {
+        color: #666;
+    }
+
+    // Value type colors
+    .js-tree-debug-string {
+        color: #c41a16;
+    }
+
+    .js-tree-debug-number {
+        color: #1c00cf;
+    }
+
+    .js-tree-debug-boolean {
+        color: #0d22aa;
+    }
+
+    .js-tree-debug-null,
+    .js-tree-debug-undefined {
+        color: #808080;
+        font-style: italic;
+    }
+
+    .js-tree-debug-value {
+        word-break: break-word;
+    }
+
+    .js-tree-debug-class-badge {
+        display: inline-block;
+        font-size: 10px;
+        padding: 0 4px;
+        margin-left: 4px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        background: #f5f5f5;
+        vertical-align: middle;
+        line-height: 1.4;
+
+        .js-tree-debug-class-name {
+            color: #881391; // Same as keys
+        }
+
+        .js-tree-debug-class-paren {
+            color: #666; // Same as colons/symbols
+        }
+
+        .js-tree-debug-class-id {
+            color: #1c00cf; // Same as numbers
+        }
+    }
+
+    // Relationship nodes (lazy-loaded)
+    .js-tree-debug-relationship {
+        .js-tree-debug-rel-key {
+            color: #0066cc;
+            font-style: italic;
+        }
+    }
+
+    // Loading state
+    .js-tree-debug-loading {
+        color: #888;
+        font-style: italic;
+    }
+
+    // Error state
+    .js-tree-debug-error {
+        color: #cc0000;
+    }
+
+    // Empty/no data state
+    .js-tree-debug-empty {
+        color: #888;
+        font-style: italic;
+    }
+
+    // Pending (not yet loaded)
+    .js-tree-debug-pending {
+        color: #999;
+        font-style: italic;
+    }
+}

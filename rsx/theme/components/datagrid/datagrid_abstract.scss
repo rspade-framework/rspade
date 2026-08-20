@@ -1,0 +1,202 @@
+/**
+ * DataGrid Component Styles (Phase 1)
+ *
+ * BEM naming: DataGrid_Abstract__element
+ *
+ * **Responsive Strategy**:
+ * - Desktop (>= 800px): Table layout
+ * - Mobile (< 800px): Card layout (Phase 1 - basic, will enhance in future)
+ *
+ * **Design Philosophy**:
+ * - Clean, minimal styling
+ * - Bootstrap 5 compatible
+ * - No shadows or excessive borders
+ * - Touch-friendly tap targets on mobile
+ */
+
+.DataGrid_Abstract {
+    /* Container */
+    &.card-body {
+        // Inherits Bootstrap card-body styles
+    }
+
+    /* Loading State */
+    &__loading {
+        text-align: center;
+        padding: $datagrid-loading-padding;
+
+        .spinner-border {
+            width: $datagrid-spinner-size;
+            height: $datagrid-spinner-size;
+        }
+    }
+
+    /* Desktop: Table Layout */
+    table {
+        thead th {
+            background-color: $datagrid-header-bg;
+            border-bottom: $datagrid-header-border;
+            font-weight: $font-weight-semibold;
+            white-space: nowrap;
+            vertical-align: middle;
+            padding: $datagrid-cell-padding-y $datagrid-cell-padding-x;
+        }
+
+        tbody {
+            // Fixed minimum height for consistent layout (set dynamically via JS)
+            // Prevents jumping when switching between loading/empty/results states
+            display: table-row-group;
+            position: relative;
+
+            // Loading and empty states
+            &.is-loading,
+            &.is-empty {
+                // Center content vertically within fixed height
+                tr {
+                    td {
+                        vertical-align: middle;
+                        height: 100%;
+                    }
+                }
+            }
+        }
+
+        tbody tr {
+            &:hover:not(.DataGrid_Abstract__loading-row):not(.DataGrid_Abstract__empty-row) {
+                background-color: $datagrid-row-hover-bg;
+            }
+
+            td {
+                vertical-align: middle;
+                padding: 0 $datagrid-cell-padding-x;
+            }
+        }
+
+        // Checkbox column
+        th:first-child,
+        td:first-child {
+            text-align: center;
+            width: $datagrid-checkbox-width;
+        }
+    }
+
+    // Sortable column headers
+    &__sortable-header {
+        cursor: pointer;
+        user-select: none;
+        color: inherit;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+
+        &:hover {
+            color: inherit;
+            text-decoration: underline;
+        }
+
+        i {
+            margin-left: 5px;
+            font-size: 0.8em;
+            vertical-align: middle;
+            color: $primary-color;
+        }
+    }
+
+    // Loading row state
+    &__loading-row {
+        // Styled via parent tbody.is-loading
+    }
+
+    // Empty row state
+    &__empty-row {
+        // Styled via parent tbody.is-empty
+    }
+
+    // Cell contents wrapped in links
+    &__row-link {
+        display: block;
+        color: inherit;
+        text-decoration: none;
+        width: 100%;
+        height: 100%;
+
+        &:hover {
+            color: inherit;
+            text-decoration: none;
+        }
+    }
+
+    // Text-only cells get vertical padding
+    &__cell-text-only {
+        padding: $datagrid-cell-padding-y $datagrid-cell-padding-x;
+    }
+
+    // Full-width link cells: transfer padding from cell to anchor
+    &__cell-full-link {
+        padding: 0;
+
+        > a {
+            display: block;
+            padding: $datagrid-cell-padding-y $datagrid-cell-padding-x;
+            color: inherit;
+            text-decoration: none;
+
+            &:hover {
+                color: inherit;
+                text-decoration: none;
+            }
+        }
+    }
+
+    /* Empty State */
+    &__empty {
+        text-align: center;
+        padding: $datagrid-loading-padding;
+
+        i {
+            display: block;
+            margin-bottom: $spacing-md;
+        }
+    }
+
+    /* Mobile Responsive - Phase 1 keeps table, will add cards later */
+    @include phone {
+        table {
+            font-size: $font-size-sm;
+
+            thead th {
+                padding: ($datagrid-cell-padding-y * 0.67) ($datagrid-cell-padding-x * 0.67);
+            }
+
+            tbody td {
+                padding: 0 ($datagrid-cell-padding-x * 0.67);
+
+                &.DataGrid_Abstract__cell-text-only {
+                    padding: ($datagrid-cell-padding-y * 0.67) ($datagrid-cell-padding-x * 0.67);
+                }
+
+                &.DataGrid_Abstract__cell-full-link > a {
+                    padding: ($datagrid-cell-padding-y * 0.67) ($datagrid-cell-padding-x * 0.67);
+                }
+            }
+        }
+    }
+
+    /* Print Styles */
+    @media print {
+        // Hide checkboxes
+        input[type='checkbox'] {
+            display: none !important;
+        }
+
+        // Expand table to full width
+        &__table-wrapper {
+            overflow: visible;
+        }
+
+        // Remove hover effects
+        &__table tbody tr:hover {
+            background-color: transparent;
+        }
+    }
+}

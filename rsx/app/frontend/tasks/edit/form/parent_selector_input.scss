@@ -1,0 +1,13 @@
+.Parent_Selector_Input {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-sm;
+
+    &__type {
+        // Native <select> styled as a Bootstrap form-select (class applied in markup).
+    }
+
+    &__entity {
+        // Wrapper toggled hidden when the type is "No parent".
+    }
+}

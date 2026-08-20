@@ -1,0 +1,130 @@
+{
+    "name": "rspade-framework",
+    "displayName": "RSpade Framework Support",
+    "description": "VS Code extension for RSpade framework with formatting and namespace management",
+    "version": "0.1.224",
+    "publisher": "rspade",
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "categories": [
+        "Programming Languages",
+        "Formatters",
+        "Other"
+    ],
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "configuration": {
+            "title": "RSpade Framework",
+            "properties": {
+                "rspade.enableFormatOnMove": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Automatically update namespaces when moving PHP files"
+                },
+                "rspade.pythonPath": {
+                    "type": "string",
+                    "default": "python",
+                    "description": "Path to Python executable (python or python3)"
+                },
+                "rspade.projectType": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Set to 'rspade' to enable RSpade framework features"
+                }
+            }
+        },
+        "commands": [
+            {
+                "command": "rspade.formatPhpFile",
+                "title": "RSpade: Format PHP File"
+            },
+            {
+                "command": "rspade.updateNamespace",
+                "title": "RSpade: Update Namespace for Current File"
+            },
+            {
+                "command": "rspade.copyRelativePathFromRoot",
+                "title": "RSpade: Copy Relative Path from Project Root"
+            },
+            {
+                "command": "rspade.refactorStaticMethod",
+                "title": "$(symbol-method) Rsx: Global Rename Method"
+            },
+            {
+                "command": "rspade.refactorClass",
+                "title": "$(symbol-class) Rsx: Global Rename Class"
+            },
+            {
+                "command": "rspade.sortClassMethods",
+                "title": "$(list-ordered) Rsx: Sort Class Methods"
+            }
+        ],
+        "menus": {
+            "explorer/context": [
+                {
+                    "command": "rspade.sortClassMethods",
+                    "when": "resourceExtname == .php",
+                    "group": "2_workspace"
+                }
+            ]
+        },
+        "keybindings": [
+            {
+                "command": "rspade.copyRelativePathFromRoot",
+                "key": "ctrl+shift+alt+c",
+                "mac": "cmd+shift+alt+c",
+                "when": "editorFocus"
+            }
+        ],
+        "languages": [
+            {
+                "id": "php",
+                "extensions": [
+                    ".php"
+                ]
+            }
+        ],
+        "grammars": [],
+        "semanticTokenTypes": [
+            {
+                "id": "conventionMethod",
+                "superType": "method",
+                "description": "Convention method automatically called by RSX framework"
+            }
+        ],
+        "semanticTokenScopes": [
+            {
+                "scopes": {
+                    "conventionMethod": ["entity.name.function.convention.rspade"]
+                }
+            }
+        ],
+        "configurationDefaults": {
+            "editor.semanticTokenColorCustomizations": {
+                "rules": {
+                    "conventionMethod": "#FFA500"
+                }
+            }
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./ && echo '\\n⚠️  IMPORTANT: To complete the VS Code extension update, run: ./build.sh\\n\\nThe build.sh script will:\\n- Install all prerequisite npm dependencies\\n- Compile TypeScript to JavaScript\\n- Package the extension\\n- Install it in VS Code for immediate use\\n\\n⛔ FOR DEVELOPERS/LLM AGENTS: Do NOT run \"npm install\" or \"npm run compile\" directly.\\nAlways use ./build.sh which handles everything automatically.\\n'",
+        "watch": "tsc -watch -p ./",
+        "pretest": "npm run compile && npm run lint",
+        "lint": "eslint src --ext ts",
+        "test": "node ./out/test/runTest.js"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.74.0",
+        "@types/node": "16.x",
+        "@typescript-eslint/eslint-plugin": "^5.45.0",
+        "@typescript-eslint/parser": "^5.45.0",
+        "eslint": "^8.28.0",
+        "typescript": "^4.9.3"
+    }
+}

@@ -1,0 +1,14 @@
+# RSpade release tree: byte-fidelity is REQUIRED.
+#
+# The release inventory (.rspade-release.json) hashes the EXACT bytes of every
+# file, and rsx:framework:verify compares a materialized downstream checkout
+# against those hashes. If git normalized line endings, a checkout would
+# materialize LF where an upstream package (e.g. vendored node_modules shipping
+# CRLF) stored CRLF, and every such file would false-flag as tampered. Disable
+# all text/eol conversion so the committed blobs and every checkout are byte-for-
+# byte identical to the inventoried tree.
+#
+# git honors .gitattributes per-directory, so this file also governs the vendored
+# rspade_project copy of this tree (system/**) and every converted downstream app
+# repo automatically - no separate file is needed there.
+* -text

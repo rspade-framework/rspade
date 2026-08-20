@@ -1,0 +1,89 @@
+<%-- Extends Datagrid_Abstract --%>
+
+<Define:Clients_DataGrid
+    extends="DataGrid_Abstract"
+    $data_source=Frontend_Clients_Controller.datagrid_fetch
+    $sort="id"
+    $order="desc"
+    $per_page=15
+    class="card DataGrid">
+
+    <Slot:DG_Card_Header>
+        <Card_Title>Client List</Card_Title>
+        <Card_Header_Right>
+            <Search_Input $sid="filter_input" $placeholder="Search clients..." />
+            <button class="btn btn-secondary btn-sm">Filter</button>
+        </Card_Header_Right>
+    </Slot:DG_Card_Header>
+
+    <Slot:DG_Table_Header>
+        <tr>
+            <th style="width: 40px;">
+                <input class="form-check-input" type="checkbox" $sid="select_all" />
+            </th>
+            <th data-sortby="id">ID</th>
+            <th data-sortby="name">Company Name</th>
+            <th data-sortby="city">Location</th>
+            <th>Phone</th>
+            <th>Website</th>
+            <th data-sortby="priority">Priority</th>
+            <th data-sortby="created_at">Created</th>
+            <th style="width: 120px;">Actions</th>
+        </tr>
+    </Slot:DG_Table_Header>
+
+    <Slot:row>
+        <tr data-href="<%= Rsx.Route('Clients_View_Action', row.id) %>">
+            <td>
+                <input class="form-check-input row-checkbox" type="checkbox" value="<%= row.id %>" />
+            </td>
+            <td>
+                #CL<%= String(row.id).padStart(3, '0') %>
+            </td>
+            <td>
+                <%= row.name %>
+            </td>
+            <td>
+                <% if (row.city && row.state) { %>
+                    <%= row.city %>, <%= row.state %>
+                <% } else if (row.city) { %>
+                    <%= row.city %>
+                <% } else if (row.state) { %>
+                    <%= row.state %>
+                <% } else { %>
+                    -
+                <% } %>
+            </td>
+            <td><%= row.phone || '-' %></td>
+            <td>
+                <% if (row.website) { %>
+                    <a href="<%= row.website %>" target="_blank" class="text-decoration-none">
+                        <i class="bi bi-link-45deg"></i>
+                    </a>
+                <% } else { %>
+                    -
+                <% } %>
+            </td>
+            <td>
+                <% if (row.priority === 4) { %>
+                    <span class="badge bg-danger">Urgent</span>
+                <% } else if (row.priority === 3) { %>
+                    <span class="badge bg-warning">High</span>
+                <% } else if (row.priority === 2) { %>
+                    <span class="badge bg-primary">Medium</span>
+                <% } else { %>
+                    <span class="badge bg-secondary">Low</span>
+                <% } %>
+            </td>
+            <td><%= Rsx_Time.format_date(row.created_at) %></td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <a class="btn btn-outline-primary" href="<%= Rsx.Route('Clients_View_Action', row.id) %>" title="View">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                </div>
+            </td>
+        </tr>
+    </Slot:row>
+
+</Define:Clients_DataGrid>

@@ -1,0 +1,272 @@
+// ==========================================================================
+// RSX RESPONSIVE SYSTEM
+// ==========================================================================
+//
+// Two-tier responsive breakpoint system for consistent mobile/desktop handling.
+//
+// TIER 1 - Semantic (Mobile vs Desktop):
+//   Mobile:  0 - 1023px  (phone + tablet combined)
+//   Desktop: 1024px+     (all desktop sizes)
+//
+// TIER 2 - Granular Device Classes:
+//   phone:      0 - 799px       All phones (composite, like "mobile" for phones)
+//   phone-sm:   0 - 399px       Small phones, compact screens
+//   phone-lg:   400 - 799px     Large phones, phablets
+//   tablet:     800 - 1023px    Tablets portrait, large phones landscape
+//   desktop-sm: 1024 - 1199px   Laptops, small monitors
+//   desktop-md: 1200 - 1639px   Standard monitors (1080p)
+//   desktop-lg: 1640 - 2199px   Large monitors (1440p)
+//   desktop-xl: 2200px+         Ultra-wide monitors, 4K
+//
+// BREAKPOINTS: 400, 800, 1024, 1200, 1640, 2200
+// No -min/-max variables; calculate max as ($next-breakpoint - 0.02px)
+//
+// USAGE:
+//   SCSS Mixins:
+//     @include mobile { ... }        // 0 - 1023px
+//     @include desktop { ... }       // 1024px+
+//     @include phone { ... }         // 0 - 799px
+//     @include phone-sm { ... }      // 0 - 399px
+//     @include phone-lg { ... }      // 400 - 799px
+//     @include tablet { ... }        // 800 - 1023px
+//     @include desktop-sm { ... }    // 1024 - 1199px
+//     @include desktop-md { ... }    // 1200 - 1639px
+//     @include desktop-lg { ... }    // 1640 - 2199px
+//     @include desktop-xl { ... }    // 2200px+
+//
+//   Bootstrap Utility Classes (auto-generated from $grid-breakpoints):
+//     .col-desktop-4, .col-tablet-12, .col-phone-lg-6   (zero-min breakpoints -
+//     mobile/phone/phone-sm - emit NO infix; use the unprefixed .col-6/.d-none/
+//     .p-2 base classes for them, per Bootstrap's mobile-first convention)
+//     .d-desktop-block, .d-phone-flex
+//     .p-desktop-4, .m-tablet-3
+//     ... and all other Bootstrap responsive utilities
+//
+//   Custom Utility Classes:
+//     .mobile-only, .desktop-only
+//     .phone-only, .tablet-only
+//     .hide-mobile, .hide-desktop, .hide-phone, .hide-tablet
+//
+// ==========================================================================
+
+// ==========================================================================
+// TIER 1 MIXINS: Mobile vs Desktop
+// ==========================================================================
+
+@mixin mobile {
+    @media (max-width: #{$bp-desktop - 0.02px}) {
+        @content;
+    }
+}
+
+@mixin desktop {
+    @media (min-width: $bp-desktop) {
+        @content;
+    }
+}
+
+// ==========================================================================
+// TIER 2 MIXINS: Device-specific ("only" ranges)
+// ==========================================================================
+
+@mixin phone {
+    @media (max-width: #{$bp-tablet - 0.02px}) {
+        @content;
+    }
+}
+
+@mixin phone-sm {
+    @media (max-width: #{$bp-phone-lg - 0.02px}) {
+        @content;
+    }
+}
+
+@mixin phone-lg {
+    @media (min-width: $bp-phone-lg) and (max-width: #{$bp-tablet - 0.02px}) {
+        @content;
+    }
+}
+
+@mixin tablet {
+    @media (min-width: $bp-tablet) and (max-width: #{$bp-desktop - 0.02px}) {
+        @content;
+    }
+}
+
+@mixin desktop-sm {
+    @media (min-width: $bp-desktop) and (max-width: #{$bp-desktop-md - 0.02px}) {
+        @content;
+    }
+}
+
+@mixin desktop-md {
+    @media (min-width: $bp-desktop-md) and (max-width: #{$bp-desktop-lg - 0.02px}) {
+        @content;
+    }
+}
+
+@mixin desktop-lg {
+    @media (min-width: $bp-desktop-lg) and (max-width: #{$bp-desktop-xl - 0.02px}) {
+        @content;
+    }
+}
+
+@mixin desktop-xl {
+    @media (min-width: $bp-desktop-xl) {
+        @content;
+    }
+}
+
+// ==========================================================================
+// TIER 2 MIXINS: "and up" ranges
+// ==========================================================================
+// Generated from $breakpoints-up map for consistency
+
+$breakpoints-up: (
+    'phone-lg': $bp-phone-lg,
+    'tablet': $bp-tablet,
+    'desktop-sm': $bp-desktop,
+    'desktop-md': $bp-desktop-md,
+    'desktop-lg': $bp-desktop-lg,
+    'desktop-xl': $bp-desktop-xl
+);
+
+@mixin phone-lg-up { @media (min-width: map-get($breakpoints-up, 'phone-lg')) { @content; } }
+@mixin tablet-up { @media (min-width: map-get($breakpoints-up, 'tablet')) { @content; } }
+@mixin desktop-sm-up { @media (min-width: map-get($breakpoints-up, 'desktop-sm')) { @content; } }
+@mixin desktop-md-up { @media (min-width: map-get($breakpoints-up, 'desktop-md')) { @content; } }
+@mixin desktop-lg-up { @media (min-width: map-get($breakpoints-up, 'desktop-lg')) { @content; } }
+@mixin desktop-xl-up { @media (min-width: map-get($breakpoints-up, 'desktop-xl')) { @content; } }
+
+// tablet-down is a special case (not in the -up pattern)
+@mixin tablet-down {
+    @media (max-width: #{$bp-desktop - 0.02px}) {
+        @content;
+    }
+}
+
+// ==========================================================================
+// UTILITY CLASSES
+// ==========================================================================
+
+// Tier 1: Mobile/Desktop visibility
+.mobile-only {
+    @include desktop {
+        display: none !important;
+    }
+}
+
+.desktop-only {
+    @include mobile {
+        display: none !important;
+    }
+}
+
+.hide-mobile {
+    @include mobile {
+        display: none !important;
+    }
+}
+
+.hide-desktop {
+    @include desktop {
+        display: none !important;
+    }
+}
+
+// Tier 2: Device-specific visibility
+.phone-only {
+    @include tablet-up {
+        display: none !important;
+    }
+}
+
+.tablet-only {
+    @include phone {
+        display: none !important;
+    }
+    @include desktop {
+        display: none !important;
+    }
+}
+
+.hide-phone {
+    @include phone {
+        display: none !important;
+    }
+}
+
+.hide-tablet {
+    @include tablet {
+        display: none !important;
+    }
+}
+
+// ==========================================================================
+// FIFTH-WIDTH COLUMNS (.col-5ths)
+// ==========================================================================
+// 20% width columns not available in Bootstrap's 12-column grid.
+// Follows same responsive pattern as Bootstrap column classes.
+// Generated via @each loop from $col-5ths-breakpoints map.
+
+@mixin col-5ths-styles {
+    flex: 0 0 20%;
+    max-width: 20%;
+}
+
+// Base class (always applies)
+.col-5ths {
+    @include col-5ths-styles;
+}
+
+// Responsive variants: breakpoint name => min-width value
+// mobile uses max-width (special case), others use min-width
+$col-5ths-breakpoints: (
+    'mobile': 'max' $bp-desktop,
+    'tablet': 'min' $bp-tablet,
+    'desktop': 'min' $bp-desktop,
+    'desktop-sm': 'min' $bp-desktop,
+    'desktop-md': 'min' $bp-desktop-md,
+    'desktop-lg': 'min' $bp-desktop-lg,
+    'desktop-xl': 'min' $bp-desktop-xl
+);
+
+@each $name, $config in $col-5ths-breakpoints {
+    $type: nth($config, 1);
+    $value: nth($config, 2);
+
+    .col-#{$name}-5ths {
+        @if $type == 'max' {
+            @media (max-width: #{$value - 0.02px}) {
+                @include col-5ths-styles;
+            }
+        } @else {
+            @media (min-width: $value) {
+                @include col-5ths-styles;
+            }
+        }
+    }
+}
+
+// ==========================================================================
+// CSS CUSTOM PROPERTIES (for JavaScript access)
+// ==========================================================================
+// Usage:
+//   const bp = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--bp-desktop'));
+//   const isDesktop = window.innerWidth >= bp;
+// Generated via @each loop from $css-breakpoints map.
+
+$css-breakpoints: (
+    'phone-lg': $bp-phone-lg,
+    'tablet': $bp-tablet,
+    'desktop': $bp-desktop,
+    'desktop-md': $bp-desktop-md,
+    'desktop-lg': $bp-desktop-lg,
+    'desktop-xl': $bp-desktop-xl
+);
+
+:root {
+    @each $name, $value in $css-breakpoints {
+        --bp-#{$name}: #{$value};
+    }
+}

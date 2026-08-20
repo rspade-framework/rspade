@@ -1,0 +1,21 @@
+<%--
+Breadcrumb_Item
+
+Individual breadcrumb item. Can be a link or active (current page).
+
+$href - Optional link URL. If omitted, renders as plain text.
+$active - Boolean. If true, renders as active item (current page).
+
+Usage:
+<Breadcrumb_Item href="<%= Rsx.Route('Frontend_Dashboard_Controller') %>">Dashboard</Breadcrumb_Item>
+<Breadcrumb_Item active>Current Page</Breadcrumb_Item>
+--%>
+<Define:Breadcrumb_Item tag="li" class="breadcrumb-item">
+  <% if (this.args.active) { %>
+    <%= content() %>
+  <% } else if (this.args.href) { %>
+    <a href="<%= this.args.href %>"><%= content() %></a>
+  <% } else { %>
+    <%= content() %>
+  <% } %>
+</Define:Breadcrumb_Item>

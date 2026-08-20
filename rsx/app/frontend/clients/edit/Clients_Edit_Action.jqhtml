@@ -1,0 +1,170 @@
+<Define:Clients_Edit_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading client details..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Client"
+                $back_label="Go back to Clients"
+                $back_url="<%= Rsx.Route('Clients_Index_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Rsx_Form $data="<%= JSON.stringify(this.data.form_data) %>" $controller="Frontend_Clients_Controller" $method="save">
+                <% if (this.data.is_edit) { %>
+                    <Hidden_Input $name="id" />
+                <% } %>
+
+                <Card_Widget>
+                    <Section $title="Basic Information" $icon="bi bi-building">
+                        <Form_Field $label="Company Name" $required=true
+                            $help="The official name of the client company"
+                            $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::company_name') %>">
+                            <Text_Input $name="name" $max_length=Client_Model.field_length('name') />
+                        </Form_Field>
+                        <Form_Field $label="Website"
+                            $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::website') %>">
+                            <Text_Input $name="website" $type="url" $placeholder="https://example.com" $max_length=Client_Model.field_length('website') />
+                        </Form_Field>
+                        <Form_Field $label="Email"
+                            $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::email') %>">
+                            <Text_Input $name="email" $type="email" $placeholder="contact@example.com" $max_length=Client_Model.field_length('email') />
+                        </Form_Field>
+                        <Form_Field $label="Phone"
+                            $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::phone') %>">
+                            <Phone_Text_Input $name="phone" $placeholder="(555) 123-4567" />
+                        </Form_Field>
+                        <Form_Field $label="Fax"
+                            $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::phone') %>">
+                            <Phone_Text_Input $name="fax" $placeholder="(555) 123-4568" />
+                        </Form_Field>
+                    </Section>
+
+                    <Section $title="Address" $icon="bi bi-geo-alt">
+                        <Form_Field $label="Street Address"
+                            $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::address') %>">
+                            <Text_Input $name="address_street" $placeholder="123 Main Street" $max_length=Client_Model.field_length('address_street') />
+                        </Form_Field>
+                        <Form_Field $label="City"
+                            $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::city') %>">
+                            <Text_Input $name="city" $placeholder="New York" $max_length=Client_Model.field_length('city') />
+                        </Form_Field>
+                        <Form_Field $label="State/Region">
+                            <Select_State_Input $name="state" />
+                        </Form_Field>
+                        <Form_Field $label="ZIP Code"
+                            $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::zip') %>">
+                            <Text_Input $name="zip" $placeholder="10001" $max_length=Client_Model.field_length('zip') />
+                        </Form_Field>
+                        <Form_Field $label="Country">
+                            <Select_Country_Input $name="address_country" $default_country="US" />
+                        </Form_Field>
+                    </Section>
+
+                    <Section $title="Business Details" $icon="bi bi-briefcase">
+                        <Form_Field $label="Industry">
+                            <Select_Input $name="industry" $options="<%= JSON.stringify(this.data.industry_options) %>" $placeholder="Select Industry..."
+                                $disabled=true />
+                        </Form_Field>
+                        <Form_Field $label="Company Size">
+                            <Select_Input $name="company_size" $options="<%= JSON.stringify(this.data.company_size_options) %>" $placeholder="Select Size..."
+                                $disabled=true />
+                        </Form_Field>
+                        <Form_Field $label="Established Year">
+                            <Text_Input $name="established_year" $type="number" $min=1800 $max=2025 $placeholder="2020" $max_length=-1 $disabled=true />
+                        </Form_Field>
+                        <Form_Field $label="Revenue Range">
+                            <Select_Input $name="revenue_range" $options="<%= JSON.stringify(this.data.revenue_options) %>" $placeholder="Select Range..."
+                                $disabled=true />
+                        </Form_Field>
+                    </Section>
+
+                    <Section $title="Social Media Profiles" $icon="bi bi-share">
+                        <Form_Field>
+                            <Slot:label><i class='bi bi-facebook'></i> Facebook</Slot:label>
+                            <Slot:body><Text_Input $name="facebook_url" $type="url" $placeholder="https://facebook.com/company"
+                                $max_length=Client_Model.field_length('facebook_url') $disabled=true /></Slot:body>
+                        </Form_Field>
+                        <Form_Field>
+                            <Slot:label><i class='bi bi-twitter'></i> Twitter</Slot:label>
+                            <Slot:body><Text_Input $name="twitter_handle" $prefix="@" $placeholder="username"
+                                $max_length=Client_Model.field_length('twitter_handle') $disabled=true /></Slot:body>
+                        </Form_Field>
+                        <Form_Field>
+                            <Slot:label><i class='bi bi-linkedin'></i> LinkedIn</Slot:label>
+                            <Slot:body><Text_Input $name="linkedin_url" $type="url" $placeholder="https://linkedin.com/company/name"
+                                $max_length=Client_Model.field_length('linkedin_url') $disabled=true /></Slot:body>
+                        </Form_Field>
+                        <Form_Field>
+                            <Slot:label><i class='bi bi-instagram'></i> Instagram</Slot:label>
+                            <Slot:body><Text_Input $name="instagram_handle" $prefix="@" $placeholder="username"
+                                $max_length=Client_Model.field_length('instagram_handle') $disabled=true /></Slot:body>
+                        </Form_Field>
+                    </Section>
+
+                    <Section $title="Status & Preferences" $icon="bi bi-journal-text">
+                        <Form_Field $label="Status">
+                            <Select_Input $name="status_id" $options="<%= JSON.stringify(this.data.status_options) %>" $disabled=true />
+                        </Form_Field>
+                        <Form_Field $label="Preferred Contact Method">
+                            <Select_Input $name="preferred_contact_method" $options="<%= JSON.stringify(this.data.contact_method_options) %>" $disabled=true />
+                        </Form_Field>
+                        <Form_Field>
+                            <Slot:label>&nbsp;</Slot:label>
+                            <Slot:body><Checkbox_Input $name="newsletter_opt_in" $label="Subscribe to newsletter" $disabled=true /></Slot:body>
+                        </Form_Field>
+                    </Section>
+
+                    <Section $title="Tags" $icon="bi bi-tags">
+                        <div $sid="tags-container">
+                            <% for (let tag of this.data.tags) { %>
+                                <div class="input-group mb-2">
+                                    <input type="text" class="form-control" name="tags[]"
+                                        value="<%= tag %>"
+                                        placeholder="e.g., VIP, Enterprise, Strategic Partner">
+                                    <button class="btn btn-danger remove-tag" type="button">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            <% } %>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-primary" $sid="add-tag">
+                            <i class="bi bi-plus"></i> Add Tag
+                        </button>
+                        <small class="form-text text-muted d-block mt-2">
+                            Use tags to categorize and organize your clients
+                        </small>
+                    </Section>
+
+                    <Section $title="Internal Notes" $icon="bi bi-journal-text">
+                        <Form_Field $label="Notes"
+                            $help="These notes are for internal use only and not visible to the client"
+                            $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::text') %>">
+                            <Text_Input $name="notes" $type="textarea" $rows=6 $placeholder="Internal notes about this client..."
+                                $max_length=-1 $disabled=true />
+                        </Form_Field>
+                    </Section>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="<%= Rsx.Route('Clients_Index_Action') %>" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Save Client
+                        </button>
+                    </div>
+                </Card_Widget>
+            </Rsx_Form>
+        </Slot:main>
+    </Page_Scaffold>
+<% } %>
+</Define:Clients_Edit_Action>

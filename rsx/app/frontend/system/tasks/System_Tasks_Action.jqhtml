@@ -1,0 +1,10 @@
+<Define:System_Tasks_Action>
+<Page_Scaffold>
+    <Slot:main>
+        <Placeholder_Card $icon="bi bi-list-task">
+            <Slot:title>Task monitoring coming soon</Slot:title>
+            <Slot:body>Registered tasks, schedules, last-run times, and execution logs will appear here.</Slot:body>
+        </Placeholder_Card>
+    </Slot:main>
+</Page_Scaffold>
+</Define:System_Tasks_Action>

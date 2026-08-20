@@ -1,0 +1,31 @@
+<%--
+Wysiwyg_Input
+
+WYSIWYG editor widget for forms using Quill.
+
+$placeholder - Placeholder text
+$seeder - Seeder function name for test data
+
+Widget interface:
+- val() - Get/set HTML content (sanitized via safe_html())
+- seed() - Fills with random content
+
+SECURITY NOTE: Data from this widget is rich HTML that will likely be displayed
+without HTML escaping. To prevent XSS attacks, always sanitize at every step:
+
+1. CLIENT DISPLAY: This widget's val() already sanitizes output, but when
+   displaying stored content, always use safe_html():
+       container.innerHTML = safe_html(data.description);
+
+2. SERVER DISPLAY (Blade): Use safe_html() before outputting:
+       {!! safe_html($project->description) !!}
+
+3. DATABASE SAVE: Sanitize before storing to stop malicious content early:
+       $model->description = safe_html($params['description']);
+
+Defense in depth - sanitize at ALL layers, not just one.
+--%>
+<Define:Wysiwyg_Input extends="Form_Input_Abstract">
+    <div $sid="editor" style="min-height: 200px; background: white;"></div>
+    <input type="hidden" $sid="hidden_input" />
+</Define:Wysiwyg_Input>

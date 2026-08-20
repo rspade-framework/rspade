@@ -1,0 +1,13 @@
+/**
+ * {{ feature_description }}
+ */
+@route('{{ route_path }}')
+@layout('{{ spa_layout_class }}')
+@spa('{{ spa_controller_target }}')
+@auth('{{ auth_check }}')
+class {{ action_class }} extends Spa_Action {
+    async on_load() {
+        // Load data through an #[Ajax_Endpoint] on {{ controller_class }}:
+        // this.data.items = await {{ controller_class }}.list();
+    }
+}

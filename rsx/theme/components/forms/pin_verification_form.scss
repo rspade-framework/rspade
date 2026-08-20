@@ -1,0 +1,36 @@
+/**
+ * Pin_Verification_Form Styles
+ *
+ * BEM naming: Pin_Verification_Form__element
+ */
+
+.Pin_Verification_Form {
+    &__inputs {
+        // Container styled via Bootstrap utilities in template
+    }
+
+    &__input {
+        width: 50px;
+        height: 60px;
+        font-size: $font-size-2xl;
+        font-weight: $font-weight-semibold;
+        padding: 0;
+        border: $border-width-thick solid $border-color;
+        border-radius: $border-radius-lg;
+        transition: $transition-base;
+
+        &:focus {
+            border-color: $primary-color;
+            box-shadow: 0 0 0 4px rgba($primary-color, 0.25);
+            outline: 0;
+        }
+
+        &.is-invalid {
+            border-color: $danger-color;
+        }
+    }
+
+    &__hint {
+        margin-top: 10px;
+    }
+}

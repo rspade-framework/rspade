@@ -1,0 +1,20 @@
+<%--
+Card_Widget - standalone card container (chrome + padded body, no header anatomy)
+
+default content - the card body; stacked children get the standard block rhythm
+
+The plain page-level card. For a titled section with header anatomy use
+<Section> instead.
+
+Usage:
+    <Card_Widget>
+        <Entity_Header> ... </Entity_Header>
+        <Tab_Bar ... />
+        <Tab_Panels> ... </Tab_Panels>
+    </Card_Widget>
+--%>
+<Define:Card_Widget extends="View_Section_Abstract" class="View_Section_Abstract">
+    <div class="Card_Widget__body">
+        <%= content() %>
+    </div>
+</Define:Card_Widget>

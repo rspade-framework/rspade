@@ -1,0 +1,231 @@
+ACTOR MODEL LAYER: get_display_name() IS GONE, IDENTITY MODELS MUST EXTEND AN ACTOR ABSTRACT
+Date: 2026-08-09
+
+SUMMARY
+    The three identity models (User_Model, Portal_User_Model, Login_User_Model)
+    now extend a new "actor" layer that gives every one of them a mandated
+    SoftDeletes, a guaranteed printed name, and a viewer-aware profile URL. This
+    is the display half of the authorship pairs that landed the same day
+    (see audit_authorship_pair_08_09.txt).
+
+    Three things need YOUR hands:
+
+      1. User_Model::get_display_name() WAS REMOVED. It is now
+         get_printed_name(), on every actor. PHP callers fatal; the JS-visible
+         fetch() key changed SILENTLY.
+
+      2. If you class-override any of the three identity models, your override
+         MUST extend the matching actor abstract and implement two methods. The
+         manifest build fails until it does.
+
+      3. If you have your own identity-ish model (something that signs in, or
+         that you stamp into a *_by_type column), converting it is optional but
+         is what makes it work with the new <Record_Author> widget.
+
+    Everything else - the deleted_at migration, the abstracts, the widget, the
+    rules - ships automatically.
+
+
+WHAT SHIPS AUTOMATICALLY (informational)
+    * Two new abstracts in App\RSpade\Core\Database\Models:
+        Rsx_Actor_Model_Abstract        (not site-scoped)
+        Rsx_Site_Actor_Model_Abstract   (site-scoped)
+      Both `use SoftDeletes` and declare two abstract methods.
+    * Migration 2026_08_09_112232_add_deleted_at_to_actor_tables adds deleted_at
+      to login_users and portal_users (users already had it). Idempotent.
+      migrate:normalize_schema then adds the matching deleted_by, as it does for
+      any table with deleted_at.
+    * Rsx_Model_Abstract::get_created_by_author() / get_updated_by_author(),
+      returning ['name' => string, 'url' => ?string] or null.
+    * A framework jqhtml component <Record_Author> that renders that pair.
+    * Auth_Gates::accessible_route($target, $realm, $params) - the non-throwing
+      sibling of can_access(): the URL when the surface exists AND its gates
+      pass, null otherwise.
+    * Two manifest-build rules: SEALED-01 (#[Sealed] property redeclaration) and
+      ACTOR-01 (stamp targets are actors; actors still soft-delete).
+    * Full contract: php artisan rsx:man actors
+
+
+ACTION 1 - REPLACE get_display_name() WITH get_printed_name()   [REQUIRED]
+
+    User_Model::get_display_name() no longer exists. get_full_name() is
+    UNCHANGED (it is still the raw first+last accessor and may be empty);
+    get_printed_name() is the never-empty one you print.
+
+    PHP - find every call:
+
+        grep -rn "get_display_name" rsx/
+
+    and rename it:
+
+        - $user->get_display_name()
+        + $user->get_printed_name()
+
+    This one fatals loudly, so it is easy to catch.
+
+    JAVASCRIPT - THIS ONE IS SILENT. User_Model::fetch() used to export the key
+    'get_display_name'; it now exports 'get_printed_name'. Any JS reading the old
+    key gets undefined and renders blank - no error anywhere.
+
+        grep -rn "get_display_name" rsx/ --include=*.js --include=*.jqhtml
+
+        - <%= user.get_display_name %>
+        + <%= user.get_printed_name %>
+
+    Check hand-rolled name resolution too. If you have JS or PHP doing something
+    like `record.first_name + ' ' + record.last_name || record.email`, that is
+    the logic get_printed_name() now owns; export the method's result from your
+    fetch()/endpoint and delete the duplicate.
+
+
+ACTION 2 - FIX YOUR IDENTITY-MODEL OVERRIDES   [REQUIRED IF YOU HAVE THEM]
+
+    If rsx/models/ contains a class-override replacing User_Model,
+    Portal_User_Model or Login_User_Model, the manifest build now FAILS with an
+    ACTOR-01 violation until it extends the actor layer.
+
+    Choose the abstract by the TABLE's shape, not by taste - the site abstract
+    installs the site global scope and the site write locks:
+
+        table has site_id      ->  Rsx_Site_Actor_Model_Abstract
+        table has no site_id   ->  Rsx_Actor_Model_Abstract
+
+    So:
+
+        User_Model           ->  Rsx_Site_Actor_Model_Abstract
+        Portal_User_Model    ->  Rsx_Site_Actor_Model_Abstract
+        Login_User_Model     ->  Rsx_Actor_Model_Abstract
+
+    Edit the override:
+
+        - class User_Model extends Rsx_Site_Model_Abstract
+        + class User_Model extends Rsx_Site_Actor_Model_Abstract
+
+    Delete any `use SoftDeletes;` inside the class body - the abstract supplies
+    it. Then implement the two methods. Copy the framework's versions as a
+    starting point (system/app/RSpade/Core/Models/User_Model.php) and adjust the
+    route names to YOUR screens:
+
+        public function get_printed_name(): string
+        {
+            $full_name = trim($this->first_name . ' ' . $this->last_name);
+            if ($full_name !== '') {
+                return $full_name;
+            }
+            $email = trim((string) $this->email);
+            if ($email !== '') {
+                return $email;
+            }
+            return 'User #' . (int) $this->id;
+        }
+
+        public function get_view_profile_url(): ?string
+        {
+            if (Rsx_Portal::is_portal_request()) {
+                return null;
+            }
+            if ((int) $this->id === (int) Session::get_user_id()) {
+                $own = Auth_Gates::accessible_route('Your_Profile_Action', Auth_Gates::REALM_STAFF);
+                if ($own !== null) {
+                    return $own;
+                }
+            }
+            return Auth_Gates::accessible_route(
+                'Your_User_Detail_Action',
+                Auth_Gates::REALM_STAFF,
+                (int) $this->id
+            );
+        }
+
+    RULES YOUR IMPLEMENTATIONS MUST FOLLOW (all enforced by nothing but your
+    discipline - get them wrong and the failure is a blank name or a dead link):
+
+        get_printed_name()
+          - never returns an empty string
+          - works on a TRASHED record (do not assume relations resolve; the
+            soft-delete scope hides related rows too)
+          - returns the SAME string trashed as live. Do NOT append "(deleted)".
+            Decorate in the widget or the screen, never in the model.
+
+        get_view_profile_url()
+          - use Auth_Gates::accessible_route(), never a hand-rolled role or
+            permission test. It reads the gates off the DESTINATION, so the link
+            and the page can never disagree, and a route you later delete
+            degrades to plain text instead of throwing.
+          - null is a normal answer. Return it when there is no page, or when the
+            viewer may not see one.
+          - NEVER memoize the result on the instance. The answer depends on who
+            is asking, not on the record.
+
+    If your app deletes identity rows with forceDelete() anywhere, review it now:
+    hard-deleting an actor leaves every audit column that ever named it pointing
+    at nothing, unrecoverably.
+
+
+ACTION 3 - CONVERT YOUR OWN ACTOR MODELS   [OPTIONAL]
+
+    If your app has its own signs-in / stamps-authorship model (a contractor
+    portal, a vendor login, an API principal you attribute writes to), convert
+    it and it works with <Record_Author> and everything built on it:
+
+      1. Add deleted_at to its table (a normal migration).
+      2. Extend the matching abstract (see ACTION 2 for how to choose).
+      3. Implement the two methods.
+
+    Nothing else to wire.
+
+
+ACTION 4 - ADOPT THE <Record_Author> WIDGET   [OPTIONAL, TEMPLATE DIFF]
+
+    The starter template now demonstrates authorship display on the client view
+    page. Two edits, if you want the same:
+
+    File: /rsx/models/client_model.php   (inside fetch(), before `return $data;`)
+    -------------------------------------------------------------------------
+        $data['get_created_by_author'] = $client->get_created_by_author();
+
+    NOTE the key: fetch()'s anti-aliasing rule (PHP-ALIAS-01) requires the array
+    key to match the method name exactly. 'created_by_author' is a build error.
+
+    File: /rsx/app/frontend/clients/view/Clients_View_Action.jqhtml
+    -------------------------------------------------------------------------
+    In the Entity_Header <Slot:meta> block:
+
+        - <span>Created <%= Rsx_Time.format_date(_client.created_at) %></span>
+        + <span>Created <%= Rsx_Time.format_date(_client.created_at) %>
+        +       by <Record_Author $author=_client.get_created_by_author /></span>
+
+    Apply the same two-step anywhere you show "Created by" / "Updated by":
+    resolve the pair server-side in the endpoint that already loaded the record,
+    then hand it to the widget. Do NOT build an endpoint that looks up the author
+    of an arbitrary record - that is a new identity-lookup surface gated by
+    nothing.
+
+    The widget renders a link when 'url' is non-null and plain text when it is
+    null. Child content is the placeholder for a null author (default "Unknown"):
+
+        <Record_Author $author=x>System</Record_Author>
+
+
+VERIFICATION
+    NOTE: ACTOR-01 / SEALED-01 are fatal at manifest build, so they can also fail the
+    PULL's own rebuild. If that happens, system/ is synced but UNCOMMITTED - do not run
+    rsx:clean or make an app commit; recover with
+    `php artisan rsx:framework:pull --no-rebuild`, then fix the violations. See
+    upstream_changes/polymorphic_morph_transparency_08_09.txt (IF THE PULL ITSELF DIES
+    AT THE REBUILD).
+
+    php artisan rsx:manifest:build     # ACTOR-01 / SEALED-01 fire here
+    php artisan migrate                # picks up deleted_at + deleted_by
+    grep -rn "get_display_name" rsx/   # must return nothing
+    php artisan rsx:check
+
+    Then load a screen that shows authorship, signed in as a user WITHOUT
+    user-management rights: the name must render as plain text, not a link.
+
+
+SEE ALSO
+    php artisan rsx:man actors
+    php artisan rsx:man model_normalization      (the auto-stamp matrix)
+    php artisan rsx:man auth_gates               (can_access / gate declarations)
+    upstream_changes/audit_authorship_pair_08_09.txt

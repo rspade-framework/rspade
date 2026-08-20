@@ -1,0 +1,42 @@
+<%--
+Status_Badge - filled pill for a model enum workflow status
+
+$model - model class name string (e.g. "Client_Model"); resolves the enum [required unless $label+$badge given]
+$status_id - the enum value on the model's status field [required unless $label+$badge given]
+$field="status_id" - the enum field name on the model [optional]
+$label - explicit label override (skips the model lookup) [optional]
+$badge - explicit badge class override, e.g. "bg-success" [optional]
+
+Renders ONE filled, Bootstrap-colored status pill from the model's enum
+`badge`/`label` mapping (the same convention `Model::$enums` declares). Pass
+$label + $badge directly when the caller already has them precomputed (e.g. a
+row payload that shipped `status__label` / `status__badge`).
+
+$editable (a change-status popover) is intentionally NOT built: it is only
+warranted where the entity has a real user-facing status-transition endpoint.
+Clients have none, so a clickable status chip would imply an action that does
+not exist. Add $editable in the batch that first converts an entity that can
+legitimately change status inline.
+
+Usage:
+    <Status_Badge $model="Client_Model" $status_id=_client.status_id />
+    <Status_Badge $label=row.status__label $badge=row.status__badge />
+--%>
+<Define:Status_Badge tag="span">
+    <%
+        let _label = this.args.label;
+        let _badge = this.args.badge;
+        const _has_value = this.args.status_id !== undefined && this.args.status_id !== null && this.args.status_id !== '';
+        if ((_label === undefined || _badge === undefined) && this.args.model && _has_value) {
+            const _field = this.args.field || 'status_id';
+            const _model_class = Manifest.get_class_by_name(this.args.model);
+            const _meta = _model_class ? _model_class[_field + '__enum'](this.args.status_id) : null;
+            if (_meta) {
+                if (_label === undefined) _label = _meta.label;
+                if (_badge === undefined) _badge = _meta.badge;
+            }
+        }
+        _badge = _badge || 'bg-secondary';
+    %>
+    <span class="badge <%= _badge %>"><%= _label %></span>
+</Define:Status_Badge>

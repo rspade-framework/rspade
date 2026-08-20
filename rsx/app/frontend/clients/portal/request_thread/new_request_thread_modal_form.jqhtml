@@ -1,0 +1,24 @@
+<%--
+New_Request_Thread_Modal_Form - the staff "New Request" form (title + opening message).
+Submitted via Frontend_Clients_Controller.request_thread_create with the client_id
+supplied by the modal's on_submit (not a form field).
+--%>
+<Define:New_Request_Thread_Modal_Form>
+
+  <Rsx_Form $controller="Frontend_Clients_Controller" $method="request_thread_create">
+
+    <div class="mb-3">
+      <Form_Field $label="Title" $required=true>
+        <Text_Input $name="title" $max_length=Portal_Request_Thread_Model.field_length('title') $placeholder="e.g. 2025 W-2 forms" $autofocus=true />
+      </Form_Field>
+    </div>
+
+    <div class="mb-3">
+      <Form_Field $label="Message" $required=true>
+        <Text_Input $name="body" $type="textarea" $max_length=-1 $rows="4" $placeholder="Describe what you need the client to send..." />
+      </Form_Field>
+    </div>
+
+  </Rsx_Form>
+
+</Define:New_Request_Thread_Modal_Form>

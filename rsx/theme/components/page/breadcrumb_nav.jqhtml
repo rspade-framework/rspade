@@ -1,0 +1,31 @@
+<%--
+Breadcrumb_Nav
+
+Renders a breadcrumb chain from an array of crumb objects.
+Uses Bootstrap 5 breadcrumb styling.
+
+$crumbs - Array of { label: string|null, url: string|null, is_active: boolean, resolved: boolean } objects.
+          The last item should have url: null (current page).
+          When label is null, shows "------" placeholder (still loading).
+
+Usage (from layout JS):
+    $breadcrumbs.component('Breadcrumb_Nav', { crumbs: [
+        { label: 'Dashboard', url: '/dashboard', is_active: false, resolved: true },
+        { label: 'Contacts', url: '/contacts', is_active: false, resolved: true },
+        { label: null, url: null, is_active: true, resolved: false }
+    ] });
+--%>
+<Define:Breadcrumb_Nav tag="nav" aria-label="breadcrumb">
+    <ol class="breadcrumb mb-0">
+        <% for (let i = 0; i < this.args.crumbs.length; i++) {
+            const crumb = this.args.crumbs[i];
+            const is_last = i === this.args.crumbs.length - 1;
+        %>
+            <% if (is_last || !crumb.url) { %>
+                <li class="breadcrumb-item active" aria-current="page"><% if (crumb.label === null) { %><span class="Breadcrumb_Nav__placeholder">------</span><% } else { %><%= crumb.label %><% } %></li>
+            <% } else { %>
+                <li class="breadcrumb-item"><a href="<%= crumb.url %>"><% if (crumb.label === null) { %><span class="Breadcrumb_Nav__placeholder">------</span><% } else { %><%= crumb.label %><% } %></a></li>
+            <% } %>
+        <% } %>
+    </ol>
+</Define:Breadcrumb_Nav>

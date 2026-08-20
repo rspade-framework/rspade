@@ -1,0 +1,172 @@
+/**
+ * Rsx_Modal Styling
+ *
+ * Overrides Bootstrap modal defaults to implement custom sizing and behavior
+ */
+
+// @SCSS-ANIM-01-EXCEPTION - Modal fly-in animation is intentional UX
+
+.Rsx_Modal {
+    // Display as flex for centering — targets the child .modal div ($sid="modal")
+    .modal {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+
+        &.show {
+            opacity: 1;
+        }
+    }
+
+    // Remove default margin, we control positioning
+    .modal-dialog {
+        margin: 0;
+        max-width: none;
+        width: auto;
+        min-width: $modal-min-width;
+        // Enable transitions for fly-in animation
+        transition: transform $transition-duration-fast ease-out, opacity $transition-duration-fast ease-out;
+    }
+
+    // Ensure content doesn't overflow
+    .modal-content {
+        max-height: 100%;
+        display: flex;
+        flex-direction: column;
+        min-height: $modal-min-height;
+        box-shadow: $shadow-modal;
+    }
+
+    // Header styling
+    .modal-header {
+        flex-shrink: 0;
+        border-bottom: $border-width solid $border-color;
+        background-color: $background-light;
+        padding: $modal-header-padding;
+
+        .modal-title {
+            font-weight: $font-weight-semibold;
+            font-size: $font-size-base;
+        }
+
+        .btn-close {
+            padding: $spacing-sm;
+            margin: (-$spacing-sm) (-$spacing-sm) (-$spacing-sm) auto;
+        }
+    }
+
+    // Body can scroll if needed
+    .modal-body {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        padding: $modal-body-padding;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+
+        // Forms should be left-aligned
+        form {
+            text-align: left;
+            width: 100%;
+        }
+
+        // When modal has an icon
+        &.has-icon {
+            justify-content: flex-start;
+            text-align: left;
+
+            .modal-icon {
+                flex-shrink: 0;
+                font-size: $icon-size-lg;
+                margin-right: $spacing-md;
+                align-self: flex-start;
+
+                // Error icon color
+                &.bi-exclamation-circle {
+                    color: $danger-color;
+                }
+            }
+
+            .modal-body-content {
+                flex: 1;
+            }
+        }
+
+        // Form error styling
+        .is-invalid {
+            border-color: $danger-color;
+        }
+
+        .invalid-feedback {
+            display: block;
+            color: $danger-color;
+            font-size: $font-size-sm;
+            margin-top: $spacing-xs;
+        }
+
+        .alert {
+            margin-bottom: $spacing-md;
+        }
+    }
+
+    // Footer with buttons
+    .modal-footer {
+        flex-shrink: 0;
+        border-top: $border-width solid $border-color;
+        padding: $modal-footer-padding;
+        display: flex;
+        gap: $spacing-sm;
+        justify-content: center;
+
+        .btn {
+            min-width: $button-min-width;
+        }
+    }
+
+    // Ensure modal is above backdrop
+    .modal {
+        z-index: $z-index-modal;
+    }
+
+    // Mobile specific styles
+    @include phone {
+        .modal-dialog {
+            margin: 5%;
+            max-width: 90%;
+            min-width: $modal-min-width-mobile;
+        }
+
+        .modal-body {
+            padding: $spacing-md;
+        }
+
+        .modal-footer {
+            padding: 12px $spacing-md;
+
+            .btn {
+                min-width: $button-min-width-sm;
+                font-size: $font-size-sm;
+            }
+        }
+    }
+
+}
+
+// Backdrop styling
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: $z-index-modal-backdrop;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba($black, 0.5);
+
+    // Remove backdrop fade transition
+    &.fade {
+        opacity: 1;
+        transition: none;
+    }
+}

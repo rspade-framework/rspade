@@ -1,0 +1,54 @@
+<Define:Api_Tester tag="div">
+<% const ep = this.args.endpoint; %>
+<% const verb = (ep.methods && ep.methods[0]) || 'GET'; %>
+<% const params = ep.api_params || []; %>
+<% const path_params = params.filter(p => ep.pattern.indexOf(':' + p.name) !== -1); %>
+<% const other_params = params.filter(p => ep.pattern.indexOf(':' + p.name) === -1); %>
+
+<div class="Api_Tester__request" $sid="form">
+    <div class="Api_Tester__reqline">
+        <span class="Api_Tester__verb Api_Tester__verb--<%= verb.toLowerCase() %>"><%= verb %></span>
+        <code class="Api_Tester__pattern"><%= ep.pattern %></code>
+    </div>
+
+    <% if (path_params.length) { %>
+        <div class="Api_Tester__group">
+            <div class="Api_Tester__group-title">Path parameters</div>
+            <% for (const p of path_params) { %>
+                <div class="Api_Tester__field">
+                    <label class="Api_Tester__label"><%= p.name %><span class="Api_Tester__req-mark">*</span></label>
+                    <%!= api_tester_input(p) %>
+                </div>
+            <% } %>
+        </div>
+    <% } %>
+
+    <% if (verb === 'GET' && other_params.length) { %>
+        <div class="Api_Tester__group">
+            <div class="Api_Tester__group-title">Query parameters</div>
+            <% for (const p of other_params) { %>
+                <div class="Api_Tester__field">
+                    <label class="Api_Tester__label"><%= p.name %><% if (p.required) { %><span class="Api_Tester__req-mark">*</span><% } %></label>
+                    <%!= api_tester_input(p) %>
+                </div>
+            <% } %>
+        </div>
+    <% } %>
+
+    <% if (verb === 'POST') { %>
+        <div class="Api_Tester__group">
+            <div class="Api_Tester__group-title">Request body (JSON)</div>
+            <textarea $sid="body" class="Api_Tester__body" spellcheck="false" rows="6"></textarea>
+        </div>
+    <% } %>
+
+    <div class="Api_Tester__actions">
+        <button type="button" $sid="send" class="Api_Tester__send"><%!= api_icon('play') %><span>Send request</span></button>
+        <span $sid="key_hint" class="Api_Tester__key-hint"></span>
+    </div>
+</div>
+
+<div $sid="response" class="Api_Tester__response">
+    <div class="Api_Tester__response-empty">Send the request to see the response.</div>
+</div>
+</Define:Api_Tester>

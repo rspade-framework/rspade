@@ -1,0 +1,11 @@
+<Define:{{ action_class }}>
+<%-- Compose named components here rather than page-specific markup. See rsx:man semantic_composition. --%>
+<div class="card">
+  <div class="card-header">
+    <h5 class="card-title mb-0">{{ page_title }}</h5>
+  </div>
+  <div class="card-body">
+    <p>{{ feature_description }}</p>
+  </div>
+</div>
+</Define:{{ action_class }}>

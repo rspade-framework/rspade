@@ -1,0 +1,99 @@
+<Define:Settings_Group_Management_View_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading group..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Group"
+                $back_label="Back to Group Management"
+                $back_url="<%= Rsx.Route('Settings_Group_Management_Index_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <% const _g = this.data.group; %>
+    <% const _member_count = _g.members ? _g.members.length : 0; %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Card_Widget>
+                <Entity_Header>
+                    <Slot:title><%= _g.name %></Slot:title>
+                    <Slot:subtitle>
+                        <% if (_g.description) { %><%= _g.description %><% } else { %>No description<% } %>
+                    </Slot:subtitle>
+                    <Slot:meta>
+                        <span>Created <%= Rsx_Time.format_date(_g.created_at) %></span>
+                        <span>Updated <%= Rsx_Time.format_date(_g.updated_at) %></span>
+                    </Slot:meta>
+                </Entity_Header>
+
+                <Section $title="Members" $count=_member_count $flush=true>
+                    <Slot:body>
+                        <% if (_g.members && _g.members.length > 0) { %>
+                            <Record_Table>
+                                <thead>
+                                    <tr><th>Name</th><th>Email</th></tr>
+                                </thead>
+                                <tbody>
+                                    <% for (const member of _g.members) { %>
+                                    <tr>
+                                        <td><%= member.full_name %></td>
+                                        <td><%= member.email %></td>
+                                    </tr>
+                                    <% } %>
+                                </tbody>
+                            </Record_Table>
+                        <% } else { %>
+                            <Empty_State $icon="bi bi-people">
+                                <Slot:title>No members in this group</Slot:title>
+                                <Slot:body>Add members from the Edit Group action.</Slot:body>
+                            </Empty_State>
+                        <% } %>
+                    </Slot:body>
+                </Section>
+            </Card_Widget>
+        </Slot:main>
+
+        <Slot:sidebar>
+            <Detail_Sidebar>
+                <Sidebar_Kpi_Group>
+                    <Kpi_Cell $tooltip="Members in this group">
+                        <Slot:label>Members</Slot:label>
+                        <Slot:value><%= _g.member_count %></Slot:value>
+                    </Kpi_Cell>
+                </Sidebar_Kpi_Group>
+
+                <View_Fields>
+                    <View_Field $label="Group ID" $inline=true>#G<%= String(_g.id).padStart(3, '0') %></View_Field>
+                    <View_Field $label="Created" $inline=true><%= Rsx_Time.format_date(_g.created_at) %></View_Field>
+                    <View_Field $label="Updated" $inline=true><%= Rsx_Time.format_date(_g.updated_at) %></View_Field>
+                </View_Fields>
+
+                <div class="d-grid gap-2">
+                    <button $sid="btn_edit_group" class="btn btn-primary btn-sm">
+                        <i class="bi bi-pencil"></i> Edit Group
+                    </button>
+                    <% if (!_g.deletion_protection) { %>
+                        <button $sid="btn_delete_group" class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-trash"></i> Delete Group
+                        </button>
+                    <% } %>
+                </div>
+
+                <% if (_g.deletion_protection) { %>
+                    <p class="text-muted small mb-0">
+                        <i class="bi bi-shield-lock"></i>
+                        This group is protected and cannot be deleted.
+                    </p>
+                <% } %>
+            </Detail_Sidebar>
+        </Slot:sidebar>
+    </Page_Scaffold>
+<% } %>
+</Define:Settings_Group_Management_View_Action>

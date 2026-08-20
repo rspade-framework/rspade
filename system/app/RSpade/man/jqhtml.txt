@@ -1,0 +1,2729 @@
+JQHTML(3)                      RSX Framework Manual                      JQHTML(3)
+
+NAME
+    JQHTML - jQuery-based HTML component system for semantic UI development
+
+SYNOPSIS
+    // Blade directive
+    <User_Card $name="John" $email="john@example.com" />
+
+    // PHP helper
+    {!! Jqhtml::component('User_Card', ['name' => 'John']) !!}
+
+    // JavaScript lifecycle class
+    class User_Card extends Jqhtml_Component {
+        async on_load() {
+            // Load async data - ONLY modify this.data
+            this.data = await User_Controller.get({id: this.args.id});
+        }
+
+        on_ready() {
+            // All children ready, safe for DOM manipulation
+            this.$sid('edit').on('click', () => this.edit());
+        }
+    }
+
+DESCRIPTION
+    JQHTML is a jQuery-based component system for building semantic,
+    reusable UI elements. Unlike complex frameworks requiring state
+    management and virtual DOM, JQHTML uses simple HTML templates with
+    optional jQuery-based JavaScript classes.
+
+    Components compile to JavaScript functions at build time (similar to
+    PHP templating). The system handles unique IDs, DOM updates, and
+    initialization automatically through the RSX manifest system.
+
+    Key characteristics:
+    - Semantic-first design (name what things ARE, not how they LOOK)
+    - Templates compile to JavaScript (not JSX, not runtime parsing)
+    - Components ARE jQuery objects (this.$ is genuine jQuery)
+    - Undefined components work immediately (incremental scaffolding)
+    - Six-stage deterministic lifecycle (on_create -> render -> on_render -> on_load -> on_loaded -> on_ready), plus on_stop for teardown
+    - Double-render pattern for loading states
+    - No build configuration required (auto-discovered)
+
+COMPONENT COMPLEXITY TIERS
+    Four tiers guide which patterns to use for a new component:
+
+    Static Components (template-only, no JS file):
+        Pure display from this.args. No lifecycle hooks needed.
+        Use for: badges, labels, static cards, layout wrappers.
+
+        <Define:Status_Badge>
+            <span class="badge <%= this.args.css_class %>">
+                <%= this.args.label %>
+            </span>
+        </Define:Status_Badge>
+
+    Simple Components (on_load + reload):
+        Fetch data in on_load(), re-fetch with reload() when this.args change.
+        Most common pattern. Framework handles caching and re-render.
+
+        class User_List extends Jqhtml_Component {
+            on_create() {
+                this.data.users = [];
+            }
+            async on_load() {
+                this.data = await User_Controller.list({
+                    filter: this.args.filter
+                });
+            }
+            on_ready() {
+                this.$sid('filter_btn').on('click', () => {
+                    this.args.filter = 'active';
+                    this.reload();  // Re-fetches via on_load()
+                });
+            }
+        }
+
+    Complex Components (on_load + jQuery DOM manipulation):
+        Use on_load() for initial/cached data, then jQuery for incremental
+        mutations after initialization. Avoids unnecessary network round-trips
+        and preserves user state (selections, scroll position, input).
+
+        class Chat_Widget extends Jqhtml_Component {
+            async on_load() {
+                this.data = await Chat_Controller.get_messages({
+                    channel: this.args.channel
+                });
+            }
+            on_ready() {
+                // Incremental updates via DOM, not reload()
+                this.socket = new WebSocket(this.args.ws_url);
+                this.socket.onmessage = (e) => {
+                    const msg = JSON.parse(e.data);
+                    this.$sid('messages').append(
+                        '<div class="message">' + Rsx.escape(msg.text) + '</div>'
+                    );
+                };
+            }
+            on_stop() {
+                this.socket.close();
+            }
+        }
+
+    Standalone Components (self-managed lifecycle + hand-rolled caching):
+        Deliberately does NOT use on_load()/on_loaded() or the framework
+        render/cache pipeline. Owns one explicit fetch method, stores
+        everything in this.state, and renders imperatively into $sid
+        containers rendered by a shell template.
+
+        Decision criteria - promote to Standalone only when ALL hold:
+        1. The DOM is heavily imperative and stateful BETWEEN renders
+           (context menus, drag-and-drop, inline-edit inputs, selection/
+           clipboard styling) such that a template re-render destroying
+           child DOM is unacceptable at unpredictable times (mid-drag,
+           mid-rename).
+        2. Because rendering cannot flow from this.data, the framework's
+           cached-stub -> revalidate -> conditional re-render machinery can
+           never deliver its instant-paint benefit.
+        3. The component mutates its own data server-side and refetches on
+           its own schedule (a write-through refresh path exists or is
+           needed).
+
+        If any criterion does not hold, use the Complex tier. Standalone is
+        a last resort, not an optimization.
+
+        Caching mandate:
+        RSpade's goal is that everything appears to load instantly wherever
+        possible, via cached paint + revalidation. A Standalone component
+        must not abandon that goal along with the pipeline - it must
+        implement stale-while-revalidate BY HAND:
+
+        - Cache the fetched payload via Rsx_Storage.session_set/get (the
+          SESSION tier - cleared on tab close, the right posture for
+          access-controlled data). Rsx_Storage auto-scopes keys by
+          session/user/site/build, so a simple key like
+          '{widget}:{parent_type}:{parent_id}' suffices - never hand-roll
+          scoping.
+        - On init: cache hit -> populate state and paint immediately ->
+          ALWAYS revalidate via the fetch method -> if
+          deep_equal(fresh, cached), do NOTHING (a redundant rebuild
+          reintroduces the flicker this pattern exists to kill); else
+          repaint and rewrite the cache.
+        - Write-through: every mutation's refetch path also updates the
+          cache.
+        - Cache server data only, never UI state (selection, clipboard,
+          scroll, view mode stay in-memory and reset with the component).
+        - Expose ONE clearly-named public revalidate entry point (e.g.
+          revalidate()). NEVER name it refresh(), reload(), render(), or
+          redraw() - those are reserved core methods with framework
+          lifecycle semantics, and overriding them breaks callers that
+          expect the core behavior (see RESERVED NAMES below).
+        - The header docblock MUST declare the component Standalone, so
+          maintainers and review tooling do not "fix" it back into
+          on_load() conformance.
+
+        Because a Standalone component defines no on_load(), the on_load
+        rules (JQHTML-LOAD-01/02) never apply to it; this.data is simply
+        unused.
+
+        Element tagging rules (critical for imperative DOM):
+        - $sid can ONLY be assigned in a .jqhtml template. It is a
+          template-compile mechanism ($id=/$sid= assign a computed,
+          component-scoped value to the element's id="" attribute);
+          it can never be set from JS via jQuery attributes.
+        - A shell template MAY declare stable $sid containers (as below)
+          and the component targets them with this.$sid(). A Standalone
+          component with NO template at all cannot use $sid anywhere -
+          it must use its own mechanism to tag and find elements.
+        - The imperatively-built DOM inside the containers can never
+          carry $sid, and tagging it by setting data-id via
+          $el.attr('data-id', ...) and selecting on [data-id=...] is
+          WRONG - the data-* namespace belongs to the component-args
+          machinery, and the jquery layer throws when it catches that
+          setter pattern. Track imperative elements with in-memory
+          references instead (a Map of record id -> jQuery element, as
+          below) or plain CSS classes.
+
+        Shell template - stable $sid containers only; the listing DOM is
+        built by JS:
+
+        <Define:File_Browser_Widget>
+            <div class="File_Browser_Widget__toolbar" $sid="toolbar"></div>
+            <div class="File_Browser_Widget__listing" $sid="listing">Loading...</div>
+        </Define:File_Browser_Widget>
+
+        /**
+         * File_Browser_Widget - STANDALONE-tier component (see COMPONENT
+         * COMPLEXITY TIERS).
+         *
+         * DELIBERATELY does not use on_load()/on_loaded() or the framework
+         * render/cache pipeline: the listing DOM carries imperative state
+         * between renders (selection styling, an open context menu, an
+         * inline-rename input) that a template re-render would destroy at
+         * unpredictable times. The widget self-manages its lifecycle and
+         * implements stale-while-revalidate caching by hand via
+         * Rsx_Storage (public entry point: revalidate() - a custom name;
+         * the core refresh()/reload() are reserved). Do NOT refactor this
+         * back into on_load() conformance.
+         *
+         * Cache contract:
+         *   key   : 'file_browser:' + parent_type + ':' + parent_id
+         *           (SESSION tier; auto-scoped by session/user/site/build)
+         *   value : the fetch payload (server data ONLY - never
+         *           selection/scroll/UI state)
+         *   write : on every fetch, including post-mutation refetches
+         *           (write-through)
+         */
+        class File_Browser_Widget extends Jqhtml_Component {
+
+            on_create() {
+                // ALL state lives here - this.data is deliberately unused.
+                this.state = {
+                    files: [],
+                    loaded: false,
+                    selected_ids: new Set(),  // UI state: in-memory only, never cached
+                    row_map: new Map(),       // record id -> jQuery row element
+                };
+            }
+
+            async on_ready() {
+                const cached = Rsx_Storage.session_get(this._cache_key());
+                if (cached) {
+                    // Instant paint from cache...
+                    this._apply(cached);
+                }
+                // ...then ALWAYS revalidate.
+                await this.revalidate();
+            }
+
+            // Public revalidate entry point. Custom name on purpose:
+            // refresh()/reload() are reserved core methods (RESERVED NAMES).
+            async revalidate() {
+                const fresh = await this.fetch_data_from_backend();
+                const cached = Rsx_Storage.session_get(this._cache_key());
+                if (this.state.loaded && deep_equal(fresh, cached)) {
+                    return;               // unchanged -> no rebuild, no flicker
+                }
+                Rsx_Storage.session_set(this._cache_key(), fresh);  // write-through
+                this._apply(fresh);
+            }
+
+            // The single fetch path - initial load and every post-mutation refetch.
+            async fetch_data_from_backend() {
+                return await File_Browser_Controller.get_contents({
+                    parent_type: this.args.parent_type,
+                    parent_id:   this.args.parent_id,
+                });
+            }
+
+            _cache_key() {
+                return 'file_browser:' + this.args.parent_type + ':' + this.args.parent_id;
+            }
+
+            _apply(payload) {
+                this.state.files = payload.files;
+                this.state.loaded = true;
+                this._rebuild_listing();
+            }
+
+            // Imperative render into the stable $sid container. Rows are
+            // tracked by in-memory reference (row_map), never by writing
+            // data-* attributes (see Element tagging rules above).
+            _rebuild_listing() {
+                const $listing = this.$sid('listing').empty();
+                this.state.row_map.clear();
+                for (const file of this.state.files) {
+                    const $row = $('<div class="File_Browser_Widget__row">')
+                        .text(file.name)
+                        .toggleClass('is-selected', this.state.selected_ids.has(file.id))
+                        .click(() => this._toggle_select(file.id));
+                    this.state.row_map.set(file.id, $row);
+                    $listing.append($row);
+                }
+            }
+
+            _toggle_select(id) {
+                // UI-state mutation: patch the DOM in place; no rebuild, nothing cached.
+                this.state.selected_ids.has(id)
+                    ? this.state.selected_ids.delete(id)
+                    : this.state.selected_ids.add(id);
+                this.state.row_map.get(id)
+                    .toggleClass('is-selected', this.state.selected_ids.has(id));
+            }
+
+            // Mutation: server write -> refetch -> write-through -> conditional rebuild.
+            async delete_file(id) {
+                await File_Browser_Controller.delete_file({ id: id });
+                await this.revalidate();
+            }
+        }
+
+    this.state Convention:
+        this.state is not a framework property - it has no special behavior.
+        Use it as convention for mutable UI state that changes after
+        initialization, distinct from this.data (immutable after on_load).
+
+        Choosing between this.args + reload() and this.state:
+        - Data change expressible as new arguments (filter switched, id
+          swapped) -> mutate this.args and call reload(). PREFERRED.
+        - A reload would cause needless network requests or destroy
+          in-progress user input -> track the change in this.state.
+        - Component has NO dynamic data loads at all -> this.state for
+          every state need.
+
+            on_create() {
+                this.state = { selected_ids: [], is_expanded: false };
+            }
+            on_ready() {
+                this.$sid('toggle').on('click', () => {
+                    this.state.is_expanded = !this.state.is_expanded;
+                    this.$sid('panel').toggle(this.state.is_expanded);
+                });
+            }
+
+DISPLAY VS. EDIT (ARCHITECTURAL RULE)
+    this.data is the source of truth for DISPLAY. Render templates
+    from this.data directly. Never mirror this.data into this.state
+    on load and render from the mirror.
+
+    This rule applies to pipeline-managed components (the Static,
+    Simple, and Complex tiers). A component whose header docblock
+    declares the STANDALONE tier (see COMPONENT COMPLEXITY TIERS)
+    renders from this.state by design and is exempt; any rsx:check
+    rule enforcing the display rule must honor that declaration.
+
+    this.state is the EDITOR BUFFER. When the user starts editing
+    data that the component owns, clone this.data into this.state at
+    the moment editing begins, mutate this.state freely while the
+    user works, then save through a controller and call this.reload()
+    to refetch this.data and discard this.state.
+
+    Why the distinction matters:
+        After on_load() the framework decides whether to re-render
+        by comparing JSON.stringify(this.data) before and after.
+        Identical -> the second render is skipped. So a display path
+        that reads from a this.state copy of this.data will not
+        refresh when a reload returns the same values (e.g. a save
+        that produced no field changes), and the DOM keeps showing
+        pre-load state.
+
+    Editor pattern:
+        async on_load() {
+            this.data.values = await Foo_Controller.list();
+        }
+
+        _ensure_editing() {
+            // Clone only on first edit, not on load
+            if (!this.state.edits) {
+                this.state.edits = clone(this.data.values);
+            }
+        }
+
+        async _save() {
+            await Foo_Controller.save_all(this.state.edits);
+            this.state.edits = null;
+            this.reload();   // refetches this.data, discards state
+        }
+
+        # Template: prefer state if user is mid-edit, else this.data
+        # <% const rows = this.state.edits || this.data.values; %>
+
+    AJAX placement:
+        Component AJAX belongs in on_load() (save handlers excepted).
+        Never re-fetch into this.data from an event handler. After
+        any save mutation, call this.reload() rather than fetching
+        again - reload() re-runs on_create() then on_load(), which
+        keeps the framework's caching, freezing, and re-render
+        heuristics aligned with what the template sees.
+
+SEMANTIC-FIRST DESIGN
+    JQHTML is designed for mechanical thinkers who think structurally
+    rather than visually. Components represent logical concepts, not
+    visual elements. This is not a style preference - it is the core
+    design tenet of the framework and the way a professional RSX
+    application is assembled.
+
+    From the creator:
+    "I think mechanically, not visually. JQHTML lets me composite
+    concepts in HTML, rather than elements with cryptic class names."
+
+    The Tenet: Pages Are Compositions of Concepts
+
+    A well-built RSX page (Action) reads as a sequence of named
+    concepts - the way a well-engineered program's main routine reads
+    as a sequence of calls to well-named functions, not as one long
+    routine with logic, formatting, and presentation interleaved. A
+    page template that is mostly component invocations plus the small
+    amount of glue logic that computes their inputs is the goal. A
+    500-line template weaving markup, styling hooks, and business
+    logic together is a symptom of skipping this step, not a natural
+    outcome of a complex page.
+
+    This produces applications that are composable (concepts combine
+    predictably), reusable (a concept defined once serves every page
+    that needs it), and extendable (new pages are built by arranging
+    existing concepts, not by re-deriving markup). This is what
+    experienced engineers mean when they say an architecture should
+    read like the domain it models - RSX just makes it the path of
+    least resistance.
+
+    Three concrete rules follow from the tenet:
+
+    1. If an element's definition, look, or function is abstract from
+       the specific page it appears on, it is a component - not a
+       styled <div>.
+
+           <User_Card />                 What it IS
+           <Product_List />              Logical concept
+           <Kpi_Cell />           A tangible, reusable concept
+
+           <div class="card">            How it LOOKS
+           <ul class="list">             Visual element
+           <div class="sidebar-kpi-row"> A style, not a thing
+
+       This applies even to something as small as a template-only
+       component with nothing but markup and an SCSS file - no .js
+       file is required until real behavior exists (see COMPONENT
+       COMPLEXITY TIERS above and TEMPLATE-ONLY COMPONENTS below).
+       Making the concept is cheap. Not making it is what produces
+       copy-pasted markup and page-specific CSS overrides scattered
+       across the app.
+
+    2. A component owns its COMPLETE appearance in its own SCSS file.
+       If a page reaches back in with a page-scoped override
+       (".My_Page__kpi-row { ... }"), the "component" renders
+       differently on every page that uses it, which defeats the
+       point of naming it in the first place. A genuine difference in
+       appearance is a $variant or modifier arg on the component, so
+       every consumer shares it. See `php artisan rsx:man scss`
+       (COMPONENT-FIRST PHILOSOPHY section) for the SCSS-side rules
+       this implies - the same tenet, seen from the stylesheet.
+
+    3. Displayed content flows as innerHTML - content() or named
+       slots (see CONTENT AND SLOTS below) - never through
+       attributes. Args/attributes are for DATA (this.args.user_id,
+       this.args.count), behavioral preferences and flags ($variant,
+       $disabled), and genuinely supplementary text a caller would
+       never need to style or mark up (a tooltip string, an
+       aria-label). They are the wrong channel for content a caller
+       AUTHORS for display - a heading, a label, a caption, anything
+       that might one day want an icon, a link, or emphasis.
+
+           <%-- content is content; args are preferences --%>
+           <Kpi_Cell $alert=is_overdue $tooltip="Open tasks">
+               <Slot:label>Open Tasks</Slot:label>
+               <Slot:value><%= open_count %></Slot:value>
+           </Kpi_Cell>
+
+           <%-- content trapped in attributes - undesignable text --%>
+           <Kpi_Cell $label="Open Tasks" $value=open_count />
+
+       A useful test: is the value DATA the component formats itself
+       (this.args.name from a user record, this.args.count from a
+       query), or is it CONTENT the page author is composing (a
+       heading someone typed, a label someone chose)? Data belongs in
+       an arg. Authored content belongs in innerHTML or a slot, even
+       when it happens to be one word today - it may need markup
+       tomorrow, and an attribute can never carry that.
+
+       Dual-channel chrome components are the sanctioned middle ground:
+       structural wrappers (Section, Card_Widget, Form_Field) accept a
+       PLAIN-TEXT $title/$label arg as a convenience AND a matching slot
+       that wins when present. Plain text may ride the arg; the instant
+       it wants an icon, a link, or emphasis it moves to the slot. HTML
+       inside an arg string is a defect in every case. See
+       `php artisan rsx:man semantic_composition` (Title/Label Channel
+       Rule).
+
+       Exception: components instantiated from Blade's uppercase-tag
+       syntax cannot receive innerHTML at all (self-closing tags only
+       - see BLADE SYNTAX below); their content necessarily passes
+       through attributes. That is a real structural constraint of
+       that one instantiation path, not a license to do the same in
+       ordinary jqhtml-to-jqhtml composition, which has no such
+       limitation.
+
+    4. Lean on this wherever it makes sense, especially at the page
+       (Action) level. When in doubt, name the concept.
+
+    Undefined components render as <div> with the component name as a
+    class. This enables incremental scaffolding: build page structure
+    with semantic names first, define component templates later.
+
+        <!-- Works immediately without definitions -->
+        <Dashboard>
+            <Stats_Panel />
+            <Activity_Feed />
+        </Dashboard>
+
+        <!-- Renders as: -->
+        <div class="Dashboard">
+            <div class="Stats_Panel"></div>
+            <div class="Activity_Feed"></div>
+        </div>
+
+TEMPLATE SYNTAX
+    Templates stored as .jqhtml files compile to JavaScript functions:
+
+    <Define:User_Card>
+        <div class="card">
+            <img $sid="avatar" src="<%= this.data.avatar %>" />
+            <h3 $sid="name"><%= this.data.name %></h3>
+            <p $sid="email"><%= this.data.email %></p>
+            <button $sid="edit">Edit</button>
+        </div>
+    </Define:User_Card>
+
+    Template expressions:
+    <%= expression %>   - Escaped HTML output (safe, default)
+    <%!= expression %>  - Unescaped raw output (pre-sanitized content only)
+    <%br= expression %> - Escaped output with newlines converted to <br /> tags
+    <% statement; %>    - JavaScript statements (loops, conditionals)
+    <%-- comment --%>   - JQHTML comments (not HTML <!-- --> comments)
+
+    The <%br= %> syntax is useful for displaying multi-line text (like notes
+    or descriptions) where you want to preserve line breaks without allowing
+    arbitrary HTML. It escapes HTML first, then converts \n to <br />.
+
+    Attributes:
+    $sid="name"              - Scoped ID (becomes id="name:component_id")
+    $attr=value             - Component parameter (becomes this.args.attr)
+                              Note: Also creates data-attr HTML attribute
+    @event=this.method      - Event binding (see EVENT BINDING)
+    data-attr="value"       - HTML data attributes
+    class="my-class"        - CSS classes (merged with component name)
+
+    Conditional Attributes (v2.2.162+):
+    Place if statements directly in attribute context to conditionally apply
+    attributes based on component arguments:
+
+        <input type="text"
+            <% if (this.args.required) { %>required="required"<% } %>
+            <% if (this.args.min !== undefined) { %>min="<%= this.args.min %>"<% } %> />
+
+    Works with static values, interpolated expressions, and multiple conditionals
+    per element. Compiles to Object.assign() with ternary operators at build time.
+    No nested conditionals or else clauses supported - use separate if statements.
+
+    NEVER put <% %> INSIDE a quoted attribute value:
+        Conditional logic toggles a WHOLE attribute, placed BETWEEN
+        attributes. A <% %> block inside a quoted value renders as
+        literal text and silently corrupts the attribute:
+
+            class="base<% if (x) { %> extra<% } %>"     WRONG - literal text
+
+        To make a VALUE conditional, compute it in a <% %> block and
+        interpolate the whole thing:
+
+            <% const cls = 'base' + (x ? ' extra' : ''); %>
+            <div class="<%= cls %>">
+
+        (A value that STARTS with <%= is fine; <% appearing mid-string
+        inside the quotes is not.)
+
+    Raw-text elements (<textarea>, <pre>):
+        HTML raw-text elements do not take interpolation or nested
+        jqhtml content. <%= %> inside <textarea> emits the literal
+        template text, and nested tags/interpolation inside <pre>
+        throw at template compile ("Invalid content in <pre>"). Render
+        both EMPTY in the template and set their content from JS:
+
+            on_render() {
+                this.$sid('notes').val(this.data.notes);        // textarea
+                this.$sid('code')[0].textContent = this.data.snippet;  // pre
+            }
+
+DEFINE TAG CONFIGURATION
+    <Define> IS the component's root element - it does not wrap one. The
+    tag="" attribute chooses what element it renders as (default div):
+
+        <Define:My_Button tag="button" class="btn">Click Me</Define:My_Button>
+
+    The <Define> tag supports three types of attributes:
+
+    1. extends="Parent_Component"
+        Explicit template inheritance (alternative to class-based)
+
+    2. $property=value
+        Set default this.args values in template
+
+    3. Regular HTML attributes
+        Standard attributes (class, id, tag, data-*, etc.)
+
+    Setting Default Args with $ Attributes:
+        Use $ prefix on <Define> tag to configure default this.args
+        values without requiring a JavaScript class:
+
+        <Define:Data_Grid
+            $api=Product_Controller.list_products
+            $per_page=25
+            $theme="dark"
+        >
+            <table class="table">
+                <% for (let item of this.data.items) { %>
+                    <tr><td><%= item.name %></td></tr>
+                <% } %>
+            </table>
+        </Define:Data_Grid>
+
+        Component automatically has:
+            this.args.api = Product_Controller.list_products (function)
+            this.args.per_page = 25 (number)
+            this.args.theme = "dark" (string literal)
+
+    Quoted vs Unquoted $ Attributes:
+        Unquoted - Raw JavaScript expressions (function refs, identifiers):
+            $handler=User_Controller.fetch_user  (function reference)
+            $count=42                             (number)
+            $enabled=true                         (boolean)
+
+        Quoted - String literals:
+            $theme="light"                        (string)
+            $user_id="123"                        (string "123", not number)
+
+    Template-Only Components:
+        Components can be fully configured in templates without
+        requiring JavaScript classes. The parent class can access
+        this.args values set in child template Define tags.
+
+        Example - Reusable data grid configured in template:
+
+            <Define:Users_Grid
+                $api=User_Controller.list_users
+                $columns="ID,Name,Email"
+            >
+                <%= content() %>
+            </Define:Users_Grid>
+
+        No JavaScript class needed - template provides all configuration.
+        Parent component accesses this.args.api and this.args.columns.
+
+    Use Cases:
+        - Template-only components (no JavaScript class required)
+        - Reusable components with configurable controllers
+        - Default values overridable at instantiation
+        - Declarative component configuration
+
+    Template compilation:
+    - Compiles to JavaScript render functions at build time
+    - Not JSX, not runtime parsing
+    - Generates working sourcemaps for debugging
+    - Similar to PHP templating philosophy
+    - All code in <% %> must be SYNCHRONOUS (no async/await)
+
+COMPONENT ARGUMENTS
+    The $ prefix passes arguments to child components as this.args.
+    Critical distinction between quoted and unquoted values:
+
+    Quoted Values = Literal Strings:
+        <UserCard $title="User Profile" />
+        <!-- Result: this.args.title = "User Profile" -->
+
+        <UserCard $expr="this.user" />
+        <!-- Result: this.args.expr = "this.user" (string, NOT object!) -->
+
+    Unquoted Values = JavaScript Expressions:
+        <UserCard $user=this.data.user />
+        <!-- Result: this.args.user = {actual user object} -->
+
+        <UserCard $count=42 />
+        <!-- Result: this.args.count = 42 (number) -->
+
+        <UserCard $enabled=true />
+        <!-- Result: this.args.enabled = true (boolean) -->
+
+    Complex Expressions (use parentheses):
+        <UserCard $status=(user.active ? 'online' : 'offline') />
+        <UserCard $data=({...this.user, modified: true}) />
+
+    No Spaces in Unquoted Expressions:
+        Unquoted expressions cannot contain spaces - the parser treats
+        a space as the end of the expression:
+            $alert=(is_overdue > 0)    WRONG - space breaks parsing
+            $alert=(is_overdue>0)      CORRECT
+            $alert=computed_alert      CORRECT - precompute in a <% %> block
+
+    Implementation detail: $attr=value also creates data-attr HTML
+    attribute. This is vestigial from v1. For practical purposes,
+    focus on: $attr=value sets this.args.attr
+
+EVENT BINDING
+    Event binding with @ prefix (values must be UNQUOTED):
+
+    <Define:Button>
+        <button @click=this.handle_click @mouseover=this.handle_hover>
+            <%= content() %>
+        </button>
+    </Define:Button>
+
+    Common events:
+    @click, @change, @submit, @focus, @blur, @mouseover, @mouseout
+
+    Syntax: @eventname=this.method_name
+
+    Placement (critical):
+        @event works on child HTML elements INSIDE the template. It does
+        NOT work on the <Define> tag itself - attributes on <Define> are
+        component args, not DOM attributes. To bind the component's ROOT
+        element, use an inline block:
+
+            <% this.$.click(() => this.handle_root_click()); %>
+
+THIS.ARGS VS THIS.DATA
+    Two distinct data sources with strict lifecycle rules:
+
+    this.args - Component State (what to load):
+        - Source: Passed from parent via $attr=value
+        - Purpose: Component state that determines what on_load() fetches
+        - Mutability: Modifiable in all methods EXCEPT on_load()
+        - Usage: Page numbers, filters, sort order, configuration
+        - Examples: this.args.page, this.args.filter, this.args.user_id
+
+    this.data - Loaded Data (from APIs):
+        - Source: Set in on_load() lifecycle method
+        - Purpose: Data fetched from APIs based on this.args
+        - Mutability: ONLY modifiable in on_create() and on_load()
+        - Freeze Cycle: Frozen after on_create(), unfrozen during on_load(),
+          frozen again after on_load() completes
+        - Initial State: Empty object {} on first render
+        - Examples: API responses, fetched records, computed results
+
+    Lifecycle Restrictions (ENFORCED):
+        - on_create(): Can modify this.data (set defaults)
+        - on_load(): Can ONLY access this.args and this.data
+                     Cannot access this.$, this.$sid(), or any other properties
+                     Can modify this.data freely
+        - on_ready() / event handlers: Can modify this.args, read this.data
+                                        CANNOT modify this.data (frozen)
+
+    State Management Pattern:
+        class Product_List extends Jqhtml_Component {
+            on_create() {
+                // Set default state for on_load()
+                this.args.filter = this.args.filter || 'all';
+                this.args.page = this.args.page || 1;
+
+                // Set default data for template
+                this.data.products = [];
+                this.data.loading = false;
+            }
+
+            async on_load() {
+                // Read state from this.args
+                const filter = this.args.filter;
+                const page = this.args.page;
+
+                // Fetch and set this.data
+                this.data = await Product_Controller.list({
+                    filter: filter,
+                    page: page
+                });
+            }
+
+            on_ready() {
+                // Modify state, then reload
+                this.$sid('filter_btn').on('click', () => {
+                    this.args.filter = 'active';  // Change state
+                    this.reload();  // Re-fetch with new state
+                });
+            }
+        }
+
+    Error Messages:
+        Violations throw runtime errors with detailed fix suggestions.
+        Example: "Cannot modify this.data outside of on_create() or on_load()."
+
+COMMON PATTERNS AND PITFALLS
+    Correct usage examples:
+        <!-- Pass object reference -->
+        <UserList $users=this.data.users />
+
+        <!-- Pass literal string (short, non-displayed DATA - fine) -->
+        <UserList $empty_message="No results" />
+
+        <!-- Displayed page content (a heading/caption) belongs in
+             content(), NOT an attribute - see SEMANTIC-FIRST DESIGN rule 3 -->
+        <Header><%= 'Dashboard' %></Header>
+        <!-- or, if Header is data-driven from this.data, no arg at all -->
+
+        <!-- Pass computed value -->
+        <Badge $count=this.data.items.length />
+
+        <!-- Pass callback -->
+        <Button $onClick=this.handleClick />
+
+    Common mistakes to avoid:
+        <!-- WRONG: Passes string "this.data.users" not the array -->
+        <UserList $users="this.data.users" />
+
+        <!-- WRONG: Missing quotes on literal string -->
+        <Header $title=Dashboard />  <!-- Tries to evaluate variable -->
+
+        <!-- WRONG: Displayed/authored content trapped in an attribute
+             instead of content()/slots (see SEMANTIC-FIRST DESIGN rule 3) -->
+        <Header $title="Dashboard" />
+
+        <!-- WRONG: Using this.data for input parameters -->
+        class Component {
+            on_create() {
+                const userId = this.data.userId;  // WRONG - use this.args
+                const userId = this.args.userId;  // CORRECT
+            }
+        }
+
+CONTROL FLOW AND LOOPS
+    Templates support full JavaScript control flow using brace syntax:
+
+        <% if (this.data.show) { %>
+            <div>Visible content</div>
+        <% } else { %>
+            <div>Hidden content</div>
+        <% } %>
+
+        <% for (let i = 0; i < 10; i++) { %>
+            <div>Item <%= i %></div>
+        <% } %>
+
+    Common Loop Patterns:
+        // Array iteration
+        <% for (let user of this.data.users) { %>
+            <p><%= user.name %> - <%= user.email %></p>
+        <% } %>
+
+        // With index
+        <% for (let [idx, user] of this.data.users.entries()) { %>
+            <div>#<%= idx + 1 %>: <%= user.name %></div>
+        <% } %>
+
+        // Object properties
+        <% for (let key in this.data.settings) { %>
+            <p><%= key %>: <%= this.data.settings[key] %></p>
+        <% } %>
+
+        // Object.entries
+        <% for (let [key, val] of Object.entries(this.data.config)) { %>
+            <span><%= key %> = <%= val %></span>
+        <% } %>
+
+    JavaScript in Templates:
+        Template JavaScript must be SYNCHRONOUS - no async/await:
+        - Templates render entire HTML at once
+        - All code in <% %> must complete immediately
+        - Async operations belong in on_load() lifecycle method
+
+        <%
+            // ALLOWED: Synchronous calculations
+            let total = 0;
+            for (let item of this.data.items) {
+                total += item.price;
+            }
+        %>
+        <p>Total: $<%= total.toFixed(2) %></p>
+
+COMMENTS IN TEMPLATES
+    JQHTML uses its own comment syntax, NOT HTML comments:
+
+    Correct - JQHTML comments (parser removes, never in output):
+        <%--
+        This is a JQHTML comment
+        Completely removed during compilation
+        Perfect for component documentation
+        --%>
+
+    Incorrect - HTML comments (parser DOES NOT remove):
+        <!--
+        This is an HTML comment
+        Parser treats this as literal HTML
+        Will appear in rendered output
+        Still processes JQHTML directives inside!
+        -->
+
+    Critical difference:
+        HTML comments <!-- --> do NOT block JQHTML directive execution.
+        Code inside HTML comments will still execute, just like PHP code
+        inside HTML comments in .php files still executes.
+
+        WRONG - This WILL execute:
+            <!-- <% dangerous_code(); %> -->
+
+        CORRECT - This will NOT execute:
+            <%-- <% safe_code(); %> --%>
+
+    Component docblocks:
+        A component's contract is documented in a JQHTML comment (never an
+        HTML comment) directly above its <Define:> tag. This is the canonical
+        docblock convention; treat <Define> like a class definition and
+        document what goes in (args), what comes out (data/methods), and how
+        it is extended (slots).
+
+        <%--
+        User_Card_Component - Displays a user profile in a card layout.
+
+        $user_id - ID of user to display
+        $show_avatar - Whether to show profile photo (default: true)
+
+        this.data.user - User object from on_load()
+
+        refresh_card() - Re-fetch and re-render (public method)
+
+        <Slot:actions> - Optional button row rendered in the footer
+
+        Usage:
+            <User_Card_Component $user_id=this.args.id />
+        --%>
+        <Define:User_Card_Component>
+            <%-- Component template here --%>
+        </Define:User_Card_Component>
+
+        First line is load-bearing: "Component_Name - <summary, 12 words or
+        fewer>". A hyphen, en dash, or em dash separates name from summary.
+        The `rsx:jqhtml:glossary` tool parses exactly this line to build the
+        component glossary; `rsx:jqhtml:glossary --missing` lists components
+        lacking a parsable summary (keep it at zero). semantic_composition(3)
+        rule 3 "Docblock contract" governs the same convention.
+
+        Sections (include only the ones that apply, in this order):
+            Name - summary   First line, always.
+            $arg - desc      One flat line per argument; show "(default: X)"
+                             for optionals. A formal "ARGUMENTS:" header is
+                             optional and rarely used - the bare lines suffice.
+            this.data.field  Shape produced after on_load() (contract, not
+                             implementation).
+            method()         Public methods external code may call. Never
+                             document private/internal helpers.
+            <Slot:name>      One line per named slot the component accepts,
+                             with the bare variable a data-slot receives
+                             (a slot named `row` binds its data to `row`;
+                             see CONTENT AND SLOTS).
+            Usage:           A concrete invocation snippet. Common (~half of
+                             real docblocks) and recommended.
+
+        Scale documentation to complexity. A trivial input (Checkbox_Input,
+        a static Card) may need only the first line or no docblock at all; a
+        complex component (a form, a DataGrid) documents args, data, methods,
+        and slots fully. Document the public contract, not the implementation.
+
+        Delimiter is enforced: opening a docblock with `<!-- -->` before the
+        <Define:> tag is a CRITICAL, manifest-time build error
+        (JQHTML-COMMENT-01) - HTML comments do not block directive execution
+        (see above), so they are never valid for docblocks. Use `<%-- --%>`.
+
+        `<Block:Name>` extension-point tags are NOT a jqhtml construct - the
+        only extension mechanism is named slots (<Slot:name> +
+        content('name', data), see CONTENT AND SLOTS).
+
+COMPONENT LIFECYCLE
+    Six-stage deterministic lifecycle (plus on_stop for teardown):
+
+    on_create -> render -> on_render -> on_load -> on_loaded -> on_ready
+
+    1. on_create() (synchronous, runs BEFORE first render)
+       - Setup default state BEFORE template executes
+       - Initialize this.data properties so template can reference them
+       - Must be synchronous (no async/await)
+       - Perfect for abstract component base classes
+       - Example: this.data.rows = this.data.rows || [];
+
+    2. render (automatic, top-down)
+       - Template executes, DOM created
+       - First render: can safely reference properties set in on_create()
+       - Parent completes before children
+       - Not overridable
+
+    3. on_render() (top-down)
+       - Fires immediately after render, BEFORE children ready
+       - Hide uninitialized elements
+       - Set initial visual state
+       - Prevents flash of uninitialized content
+       - Parent completes before children
+
+    4. on_load() (bottom-up, siblings in parallel, CAN be async)
+       - Load async data based on this.args
+       - ONLY access this.args and this.data (RESTRICTED)
+       - CANNOT access this.$, this.$sid(), or any other properties
+       - ONLY modify this.data - modifying ANY other property of this
+         (this.state, this.args, custom properties) throws a runtime
+         error, as does DOM access
+       - NO child component access
+       - Siblings at same depth execute in parallel
+       - Children complete before parent
+       - If this.data changes, triggers automatic re-render
+       - Runtime enforces access restrictions with clear errors
+
+    5. on_loaded() (runs on REAL component, not detached proxy)
+       - this.data is frozen (read-only)
+       - this.$, this.state, this.args are accessible
+       - Use sparingly for one-off post-load setup that needs
+         this.$ or this.state access.
+       - Render templates from this.data directly. Only clone
+         this.data into this.state when the user will edit and
+         later save (see DISPLAY VS. EDIT below). A template that
+         reads from a this.state copy of this.data will go stale
+         on a reload returning identical values, because the
+         framework gates the post-load re-render on a
+         JSON.stringify(this.data) snapshot comparison.
+       - Runs after on_load() re-render completes
+
+    6. on_ready() (bottom-up)
+       - All children guaranteed ready
+       - Safe for DOM manipulation
+       - Attach event handlers
+       - Initialize plugins
+       - Children complete before parent
+
+    Depth-Ordered Execution:
+    - First: on_create runs before anything else (setup state)
+    - Top-down: render, on_render (parent before children)
+    - Bottom-up: on_load, on_ready (children before parent)
+    - Parallel: Siblings at same depth during on_load()
+
+    Critical rules:
+    - Use on_create() to initialize default state before template runs
+    - Never modify DOM in on_load() - only update this.data
+    - on_load() runs in parallel for siblings (DOM unpredictable)
+    - Data changes during load trigger automatic re-render
+    - on_create(), on_render(), on_stop() must be synchronous
+    - on_load(), on_loaded(), and on_ready() can be async
+
+    One auxiliary hook lives OUTSIDE these six stages: on_viewport_resize()
+    (see its own section below) - fired after on_render()/on_ready() and on
+    debounced window resize.
+
+ON_RENDER(): SCOPE, IDEMPOTENCY, AND THE CACHED-COMPONENT PATTERN
+    on_render() vs on_ready() is the most consequential lifecycle choice a
+    component author makes. Get it wrong and you either double-bind event
+    handlers (on_render is not idempotent) or you default everything to
+    on_ready() "to be safe" and the UI sits half-formatted for seconds while
+    async children load. This section is the authoritative contract.
+
+    The synchronous chain and its reach
+        create() -> render() -> on_render() is fully synchronous and recurses
+        through the WHOLE subtree - plain HTML and child components alike -
+        until it reaches a component whose body depends on an on_load() fetch.
+        If nothing in a subtree overrides on_load(), the entire subtree (every
+        nested component included) finishes rendering - including on_render()
+        firing top-down through all of it - BEFORE anything yields to the async
+        on_load/on_ready phases. A parent can therefore access a child in its
+        own on_render() as long as that child does not override async on_load().
+
+    First render can be a cache hit, not just a reload()
+        In 'html' cache mode, create() calls the cache reader for any component
+        with a custom on_load(). On a cache hit, the cached HTML is injected
+        into the DOM and on_render() fires on it IMMEDIATELY - before on_load()
+        has even started. Once the real on_load() data lands, the framework
+        forces exactly one more re-render if the fetched data differs from what
+        was painted (none if it matches). This is the framework's own
+        stale-while-revalidate pattern: paint instantly from cache, reconcile
+        moments later. It is also why on_render() may fire more than once.
+
+    Default / safe rule (use this for nearly every component)
+        on_render() should only read, format, or attach handlers to raw HTML
+        elements owned directly by the component's OWN template - DOM nodes with
+        no other component's boundary between them and this component's root.
+        This is unconditionally safe and is the correct default.
+
+    Advanced pattern: reaching into a first-generation child
+        on_render() MAY interact with a component instantiated directly by this
+        component's own template (a "first-generation" child, possibly separated
+        only by plain wrapper HTML with no other component boundary between)
+        IF AND ONLY IF that child exposes functions deliberately written to be
+        lifecycle-timing-indifferent: safe to call before the child has finished
+        its own load/render (producing correct results some other way, typically
+        by buffering) AND safe to call again afterward, with both call sites
+        converging on the same correct end state. This is NOT a general escape
+        hatch. It requires the CHILD's own API to be designed for it; most
+        components have no such contract and must not be treated as if they do.
+
+        Canonical example - Form_Input_Abstract.val()
+        (/rsx/theme/components/inputs/form_input_abstract.js). Its val(value)
+        setter applies the value immediately if the input is already ready;
+        otherwise it buffers the value into a private field and returns without
+        complaint, and the concrete widget's own on_ready() applies the buffered
+        value when it marks itself ready:
+
+            val(value) {
+                if (this._is_ready) {
+                    this._set_value(value);   // ready: apply now
+                } else {
+                    this._pending_value = value;  // not ready: buffer
+                }
+            }
+            // _mark_ready(), called from the concrete widget's on_ready(),
+            // flushes any buffered _pending_value via _set_value().
+
+        The file's own header states the contract: callers must never care
+        about component lifecycle timing - val(value) MUST produce identical
+        results whether called before the component initializes (buffered) or
+        after (applied immediately). If a caller needs await component.ready()
+        or timing tricks to make val() work, the component is broken. This is
+        the MECHANISM that makes an early/on_render call safe. Form_Input_Abstract
+        is the reference for building this kind of timing-indifferent child;
+        see /rsx/theme/components/inputs/CLAUDE.md ("Core Contract: Timing
+        Indifference") for the full authoring contract. (Note: the real call
+        site today, Rsx_Form.vals(), calls val() from the FORM's on_ready(),
+        not on_render() - Form_Input_Abstract is cited here for its mechanism,
+        not as an example of code that currently calls it from on_render().)
+
+    The cache-hit caveat (critical)
+        There is NO framework API - no public property, no getter, no emitted
+        event - exposing a child component's cache-hit state to its parent. The
+        cache fields are internal, and no render/ready/load event carries
+        cache-state data. So if on_render() logic inspects a child's rendered
+        DOM to decide whether to read, manipulate, or communicate with it, it
+        must assume BOTH of the following simultaneously:
+
+        a. The child may have populated NOTHING yet. A dynamic component (one
+           with on_load()) is not guaranteed to have had a cache hit; if it
+           did not, there is no pre-rendered content there.
+        b. If the child HAS populated something, treat it as STALE/provisional,
+           not final. A cache-hit render is a stale-while-revalidate paint; the
+           real on_load() fetch may still be in flight and can still change the
+           data and trigger a re-render.
+
+        Never write on_render() logic that treats "the child already has visible
+        content" as "the child's content is correct/current."
+
+    Idempotency (mandatory)
+        on_render() may fire more than once per instance: the initial render
+        (possibly a cached-stub render, see above), the post-on_load() re-render
+        if this.data changed, and every subsequent render()/redraw()/reload().
+        Any DOM event handler it registers must be deregistered first or use a
+        namespaced idempotent bind:
+
+            on_render() {
+                this.$sid('save_btn').off('click.save').on('click.save', () => this._save());
+            }
+
+        Prefer registering persistent handlers once in on_create() via
+        this.on()/this.once() when the handler does not depend on freshly
+        rendered DOM.
+
+    Why this exists (performance framing)
+        This synchronous on_render() reach is what makes the cached-component
+        stale-while-revalidate pattern deliver value: a dynamic component with a
+        cache hit paints fully-styled, fully-populated content INSTANTLY on
+        create(), with correct-but-possibly-different data reconciling moments
+        later via the automatic on_load()-triggered re-render, instead of
+        sitting visually half-formed until the async, bottom-up, potentially
+        slow on_ready() phase reaches it. on_ready() is always correct/safe but
+        can lag visibly behind first paint by however long the slowest
+        descendant's on_load() takes. Prefer on_render() for self-directed
+        visual formatting that has no child/data dependency (honoring the safe
+        rule, cache-hit caveat, and idempotency above); reserve on_ready() for
+        work that genuinely needs child readiness or finalized data.
+
+ON_VIEWPORT_RESIZE (jqhtml 2.3.52+)
+    An auxiliary hook OUTSIDE the six-stage lifecycle, for components whose
+    layout requires imperative measurement against the viewport:
+
+        on_viewport_resize(viewport_width) {
+            // viewport_width = window.innerWidth in CSS pixels
+        }
+
+    When it fires:
+        - after every on_render()
+        - after every on_ready() (initial boot, render(), and reload paths)
+        - on window resize, debounced 30ms (trailing edge), for EVERY live
+          component in the document, in document order
+
+    Contract:
+        - MUST be synchronous, like on_render().
+        - The width is window.innerWidth (the width CSS media queries resolve
+          against, scrollbar gutter included), NOT $(window).width(). It is 0
+          under SSR.
+        - ONE framework-owned window listener fans out to all components -
+          never bind your own window resize handler, and there is nothing to
+          unbind in on_stop(): a stopped/removed component simply stops being
+          dispatched to.
+        - Errors are isolated per component: a throwing handler is logged and
+          the dispatch continues to the rest of the page. Isolation is not
+          license - a handler that throws is still a defect.
+        - Idempotency is required for the same reason as on_render(): the
+          post-render and post-ready firings mean it runs several times per
+          lifecycle pass with the same width.
+
+    When NOT to use it: pure styling responds to width via CSS media/container
+    queries (see rsx:man responsive) and Responsive.is_*() for coarse branches.
+    Override this hook only when layout genuinely requires measuring - e.g.
+    recomputing a canvas size, virtualized row math, or repositioning an
+    imperatively-managed overlay.
+
+HOOK DECISION MATRIX
+    I want to...                                        Hook            Why
+    ------------------------------------------------    ------------    ------------------------------------------------
+    Set this.data/this.state defaults                   on_create       Before first render
+    Register a persistent component-level handler       on_create       Persists across renders; on_ready() risks
+      (this.on/once)                                                    infinite loops from event replay
+    Fetch data                                          on_load         Only place this.data is writable post-create;
+                                                                        NO DOM or child access here
+    Format/decorate the component's OWN just-rendered   on_render       Fires ~instantly after draw, even on a cached
+      markup                                                            stub render; must be idempotent, own-template
+                                                                        only
+    Bind a handler to a static direct-descendant HTML   on_render       Child DOM recreated each render, must
+      element                                             (dedup guard) re-attach; on_ready() also valid
+                                                          or on_ready
+    Call a function on a first-generation child built   on_render       Only if the child's own contract supports
+      to be timing-indifferent (Form_Input_Abstract      (cautiously)   pre-ready calls; otherwise use on_ready
+      .val())
+    Interact with a child that has no such contract     on_ready        Children guaranteed ready only here
+      (call methods, read state, bind its events)
+    Read the finalized/correct this.data for post-draw  on_ready        on_render may see a stale cached stub or
+      logic                                                             default this.data
+    Start a socket/subscription/observer                on_ready        One-time, needs a stable tree
+    Measure/react to viewport width imperatively        on_viewport_    Fired post-render/post-ready + debounced window
+      (canvas sizing, virtualized rows)                   resize        resize; CSS media queries first, this hook last
+    Teardown (sockets, observers, timers)               on_stop         Symmetric with on_ready setup
+
+LIFECYCLE SKIP FLAGS
+    Two flags truncate the component lifecycle. Both cascade to children
+    automatically and are excluded from cache identity.
+
+    _load_only
+        on_create + on_load only. No render, no children, no DOM hooks.
+
+        Lifecycle:
+            on_create() -> on_load() -> READY
+
+        Skips: render, on_render, on_loaded, on_ready
+        No child components are created (render never runs).
+
+        Use case: Loading data from a component without creating its UI.
+        Example: Spa.load_detached_action() uses this to fetch action data
+        (title, breadcrumbs) without rendering the full page.
+
+        Usage:
+            $('<div>').component('My_Action', { id: 5, _load_only: true });
+
+    _load_render_only
+        on_create + render + on_load + re-render. No DOM-interaction hooks.
+
+        Lifecycle:
+            on_create() -> render -> on_load() -> re-render -> READY
+
+        Skips: on_render, on_loaded, on_ready
+        Children ARE created (render runs), and their on_load() fires too.
+        The full component tree is built with loaded data, but no DOM
+        interaction (event handlers, plugin init, layout measurement).
+
+        Use case: Preloading SPA routes to warm the Ajax/ORM cache. The
+        entire page tree loads data in the background so that when the user
+        navigates, cached data makes the page instant.
+
+        Usage:
+            $('<div>').component('My_Action', {
+                id: 5,
+                _load_render_only: true,
+                use_cached_data: true
+            });
+
+    Cascading:
+        Both flags propagate from parent to children during render.
+        A child can override by explicitly setting the flag to false.
+
+    Cache Identity:
+        These flags (and all _ prefixed args) are excluded from cache keys.
+        A component with {id: 1, _load_only: true} shares the same cache
+        as {id: 1} without the flag.
+
+ON_CREATE() USE CASES
+    The on_create() method runs BEFORE the first render, making it perfect
+    for initializing default state that templates will reference:
+
+    Example: Preventing "not iterable" errors
+        class DataGrid_Abstract extends Jqhtml_Component {
+            on_create() {
+                // Initialize defaults BEFORE template renders
+                this.data.rows = [];
+                this.data.loading = true;
+                this.data.is_empty = false;
+            }
+
+            async on_ready() {
+                // Later: load actual data
+                await this.load_page(1);
+            }
+        }
+
+        Template can now safely iterate:
+            <% for(let row of this.data.rows) { %>
+                <%= content('row', row); %>
+            <% } %>
+
+    Without on_create(), template would fail with "this.data.rows is not
+    iterable" because this.data starts as {} before on_load() runs.
+
+    Abstract Component Pattern:
+        Use on_create() in abstract base classes to ensure child templates
+        have required properties initialized:
+
+        class Form_Abstract extends Jqhtml_Component {
+            on_create() {
+                // Set defaults that all forms need
+                this.data.fields = this.data.fields || [];
+                this.data.errors = this.data.errors || {};
+                this.data.submitting = false;
+            }
+        }
+
+DOUBLE-RENDER PATTERN
+    Components may render TWICE if on_load() modifies this.data:
+
+    1. on_create() sets defaults: this.data.rows = []
+    2. First render: template uses empty rows array
+    3. on_load() populates this.data.rows with actual data
+    4. Automatic re-render with populated data
+    5. on_ready() fires after second render (only once)
+
+    Use for loading states:
+        <Define:Product_List>
+            <% if (Object.keys(this.data).length === 0) { %>
+                <!-- FIRST RENDER: Loading state -->
+                <div class="spinner">Loading products...</div>
+            <% } else { %>
+                <!-- SECOND RENDER: Actual data -->
+                <% for (let product of this.data.products) { %>
+                    <Product_Card $product_id=product.id />
+                <% } %>
+            <% } %>
+        </Define:Product_List>
+
+    Example class:
+        class Product_List extends Jqhtml_Component {
+            on_render() {
+                // Fires TWICE: before and after data load
+                const is_loading = Object.keys(this.data).length === 0;
+                console.log('Rendered, loading?', is_loading);
+            }
+
+            async on_load() {
+                this.data.products = await Product_Controller.list();
+                // Automatic re-render happens after this completes
+            }
+
+            on_ready() {
+                // Fires ONCE after second render
+                console.log('Ready with', this.data.products.length, 'products');
+            }
+        }
+
+LOADING STATE PATTERN (CRITICAL)
+    NEVER manually call this.render() in on_load() - The framework handles
+    re-rendering automatically when this.data changes.
+
+    The correct pattern for loading states:
+    1. Use simple this.data.loaded flag at END of on_load()
+    2. Check !this.data.loaded in template for loading state
+    3. Trust automatic re-rendering - don't call this.render()
+    4. NO nested state objects - don't use this.data.state.loading
+
+    INCORRECT Pattern (Common Mistakes):
+        class Product_List extends Jqhtml_Component {
+            async on_load() {
+                // WRONG: Setting loading state at START
+                this.data.state = {loading: true};
+                this.render();  // WRONG: Manual render call
+
+                const response = await $.ajax({url: '...', ...});  // WRONG: $.ajax()
+                // ($.ajax is overridden framework-wide to THROW - all
+                //  component AJAX goes through Controller.method() stubs;
+                //  see rsx:man jquery)
+
+                if (response.success) {
+                    this.data = {
+                        records: response.records,
+                        state: {loading: false}  // WRONG: Nested state
+                    };
+                }
+            }
+        }
+
+        Template for incorrect pattern:
+            <% if (this.data.state && this.data.state.loading) { %>
+                <!-- WRONG: Complex state check -->
+                Loading...
+            <% } %>
+
+    CORRECT Pattern:
+        class Product_List extends Jqhtml_Component {
+            async on_load() {
+                // CORRECT: NO loading flags at start
+                // CORRECT: NO manual this.render() calls
+
+                // CORRECT: Use Ajax endpoint pattern
+                const response = await Product_Controller.list_products({
+                    page: 1,
+                    per_page: 25
+                });
+
+                // CORRECT: Populate this.data directly
+                this.data.records = response.records;
+                this.data.total = response.total;
+                this.data.page = response.page;
+
+                // CORRECT: Simple flag at END
+                this.data.loaded = true;
+
+                // Automatic re-render happens because this.data changed
+            }
+        }
+
+        Template for correct pattern:
+            <Define:Product_List>
+                <% if (!this.data || !this.data.loaded) { %>
+                    <!-- FIRST RENDER: Loading state -->
+                    <div class="loading-spinner text-center">
+                        <div class="spinner-border"></div>
+                        <p>Loading products...</p>
+                    </div>
+                <% } else if (this.data.records && this.data.records.length > 0) { %>
+                    <!-- SECOND RENDER: Data loaded -->
+                    <div class="table-responsive">
+                        <table class="table">
+                            <% for (let record of this.data.records) { %>
+                                <tr><td><%= record.name %></td></tr>
+                            <% } %>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <!-- Empty state -->
+                    <div class="text-center">
+                        <p>No records found</p>
+                    </div>
+                <% } %>
+            </Define:Product_List>
+
+    Why this pattern works:
+    1. First render: this.data = {} (empty) - Template shows loading
+    2. on_load() executes: Populates this.data and sets loaded = true
+    3. Automatic re-render: Framework detects this.data changed
+    4. Second render: this.data.loaded === true - Template shows data
+
+    Key principles:
+    - Trust the framework - Automatic re-rendering when this.data changes
+    - Simple is better - Use flat this.data.loaded flag, not nested objects
+    - Check at template level - !this.data.loaded in template, not JS
+    - Never call this.render() manually in on_load() - breaks lifecycle
+
+    Anti-Patterns to Avoid:
+    - NEVER call this.render() manually in on_load()
+    - NEVER use nested state objects (this.data.state.loading)
+    - NEVER set loading flags at START of on_load()
+    - ONLY set this.data.loaded = true at END
+
+JAVASCRIPT COMPONENT CLASS
+    Optional JavaScript class for behavior:
+
+    class Product_Grid extends Jqhtml_Component {
+        on_render() {
+            // Fires immediately after render, before children ready
+            // Hide uninitialized grid to prevent visual glitches
+            this.$.css('opacity', '0');
+        }
+
+        on_create() {
+            // Quick synchronous setup
+            // Set instance properties
+            this.selected = [];
+        }
+
+        async on_load() {
+            // Fetch data - NO DOM manipulation allowed!
+            // ONLY update this.data
+            this.data.products = await Product_Controller.list();
+            // Template re-renders automatically with new data
+        }
+
+        on_ready() {
+            // All children ready, safe for DOM
+            // Attach event handlers
+            this.$sid('select_all').on('click', () => this.select_all());
+            this.$.animate({opacity: 1}, 300);
+        }
+
+        select_all() {
+            // Custom method called from event handler
+            this.$.find('.product').addClass('selected');
+        }
+    }
+
+COMPONENTS ARE JQUERY
+    this.$ is a genuine jQuery object, not a wrapper.
+    All jQuery methods work directly:
+
+        class Dashboard extends Jqhtml_Component {
+            on_ready() {
+                // All jQuery methods available
+                this.$.addClass('active');
+                this.$.css('background', '#f0f0f0');
+                this.$.fadeIn(300);
+                this.$.on('click', () => this.handle_click());
+
+                // Traversal
+                this.$.find('.item').addClass('selected');
+                this.$.parent().addClass('has-dashboard');
+
+                // Manipulation
+                this.$.append('<div>New content</div>');
+                this.$.empty();
+            }
+        }
+
+    No abstraction layers, no virtual DOM - direct jQuery manipulation.
+    The DOM is the state. Update it directly.
+
+CLASS-TEMPLATE ASSOCIATION
+    Automatic by naming convention:
+    - Template ID in .jqhtml file: <Define:User_Card>
+    - JavaScript class with same name: class User_Card extends Jqhtml_Component
+    - Both named "User_Card" = automatically associated
+
+    The JavaScript class is optional. Components work with template only.
+
+NAMING CONVENTIONS
+    Component Names (Like_This_With_Underscores - RSpade convention):
+        - Component names start uppercase, words separated by underscores
+        - Examples: User_Card, Test_Component_1, Product_List
+        - This matches the RSX class convention used everywhere else in
+          the framework (see rsx:man coding_standards)
+
+    Filenames (snake_case - RSpade convention):
+        - Filenames SHOULD use lowercase with underscores (snake_case)
+        - Framework allows PascalCase or snake_case variations
+        - snake_case is the official RSpade convention
+
+    Examples:
+        Component: Test_Component_1
+        Files: test_component_1.jqhtml, test_component_1.js
+
+        Component: User_Card
+        Files: user_card.jqhtml, user_card.js
+
+        Component: Product_List
+        Files: product_list.jqhtml, product_list.js
+
+    The filename is the component name lowercased (the manifest resolves
+    names case-insensitively in rsx/):
+        Test_Component_1 -> test_component_1.jqhtml (recommended)
+        Test_Component_1 -> Test_Component_1.jqhtml (allowed, not convention)
+
+INSTANTIATION METHODS
+    Server-side (Blade uppercase tags):
+        <User_Card $name="John" $email="john@example.com" />
+
+    Server-side (PHP helper):
+        {!! Jqhtml::component('User_Card', ['name' => 'John']) !!}
+
+    Client-side (jQuery):
+        // The object IS the component's args (this.args.name = 'John')
+        $('#target').component('User_Card', { name: 'John' });
+
+    Replacing Existing Components:
+        When called on an element with an existing component, .component()
+        destroys the old component and creates a new one. Class preservation:
+        - Removed: PascalCase component names (capital start, no __)
+        - Preserved: Utility classes (text-muted), BEM child classes (Parent__child)
+        - Preserved: All HTML attributes
+
+        This allows parent components to add BEM-style classes for targeting
+        (e.g., Parent__slot) that survive child component replacement.
+
+    Client-side (HTML attributes):
+        <div class="_Component_Init" data-component-init-name="User_Card"
+             data-component-args='{"name": "John"}'>
+        </div>
+
+BLADE SYNTAX (UPPERCASE TAGS)
+    RSX includes a Blade precompiler for uppercase component tags:
+
+    Self-closing uppercase tags (recommended):
+        <User_Card $name="John" $email="john@example.com" />
+        <Counter_Widget $title="My Counter" $initial_value=0 />
+
+    These transform to Jqhtml::component() calls automatically.
+
+    Important rules:
+        - Component names MUST start with uppercase letter
+        - Only self-closing tags allowed in Blade (no innerHTML/slot content)
+        - Use $ prefix for component args: $name="value"
+        - Use content() for a single content region, named slots for
+          multiple - see CONTENT AND SLOTS below
+
+    Regular PHP syntax also works:
+        {!! Jqhtml::component('User_Card', ['name' => 'John']) !!}
+
+DOM CLASS CONVENTION
+    All instantiated jqhtml components receive CSS classes on their
+    DOM elements:
+
+    - 'Component' - All components
+    - Component name (e.g., 'User_Card') - For targeting
+
+        // Select all jqhtml components on the page
+        const components = $('.Component');
+
+        // Check if an element is a jqhtml component
+        if ($element.hasClass('Component')) {
+            // This is a jqhtml component
+        }
+
+        // Access component instance
+        const component = $element.data('component');
+        const component = $('#my-comp').component();
+
+CREATING COMPONENTS
+    Generate new components with the RSX command:
+
+        php artisan rsx:app:component:create --name=my_widget --path=rsx/theme/components
+
+    Creates:
+        - my_widget.jqhtml - Template with <%= content() %> pattern
+        - My_Widget.js - Class extending Jqhtml_Component
+
+    Components automatically discovered by manifest system.
+
+LIFECYCLE EVENT CALLBACKS
+    External code can register callbacks for lifecycle events using
+    the .on() and .once() methods. Useful when you need to know when
+    a component reaches a certain state.
+
+    Supported Events:
+        'render' - Fires after render phase completes
+        'create' - Fires after create phase completes
+        'load'   - Fires after load phase completes (data available)
+        'loaded' - Fires after on_loaded() completes (this.data set and frozen)
+        'ready'  - Fires after ready phase completes (fully initialized)
+
+    Methods:
+        .on(event, callback)   - Register callback, fires on every occurrence
+        .once(event, callback) - Register callback, fires only once
+
+        Both methods share the same behavior:
+        - If the event already fired, callback executes immediately
+        - Returns this for chaining
+        - Custom events also supported (see CUSTOM COMPONENT EVENTS)
+
+        The difference: .on() fires on every future occurrence (useful for
+        re-renders), while .once() fires at most once and then removes itself.
+
+    Awaiting Data in Async Methods:
+        When a method needs data that may not be loaded yet, await the
+        'loaded' event. If the event already fired, the callback executes
+        immediately. Use .once() since you only need notification once:
+
+            async get_display_name() {
+                // Wait for on_load() to complete if not already
+                await new Promise(resolve => this.once('loaded', resolve));
+                return `${this.data.first_name} ${this.data.last_name}`;
+            }
+
+        This pattern is useful for breadcrumb methods or other async accessors
+        that need loaded data but may be called before on_load() completes.
+
+    Basic usage:
+        // Get component instance and register callback
+        const component = $('#my-component').component();
+        component.on('ready', (comp) => {
+            console.log('Component ready!', comp);
+            // Access component data, DOM, etc.
+        });
+
+        // Fire only once (even across re-renders)
+        component.once('ready', (comp) => {
+            console.log('First ready!', comp);
+        });
+
+        // Chain directly
+        $('#my-component').component().on('ready', (component) => {
+            console.log('User data:', component.data.user);
+        });
+
+        // Multiple callbacks for same event
+        component
+            .on('render', () => console.log('Dashboard rendered'))
+            .on('create', () => console.log('Dashboard created'))
+            .on('loaded', () => console.log('Dashboard data loaded'))
+            .on('ready', () => console.log('Dashboard ready'));
+
+    Key behaviors:
+        - Immediate execution: If lifecycle event already occurred,
+          callback fires immediately (both .on() and .once())
+        - .on(): Callback persists for future occurrences (re-renders)
+        - .once(): Callback fires once then auto-removes
+        - Multiple callbacks: Can register multiple for same event
+        - Chaining: Both return this so you can chain calls
+
+    Example - Wait for component initialization:
+        // React when dashboard component is ready
+        $('#parent').component('Dashboard').on('ready', function() {
+            console.log('Dashboard loaded:', this.data);
+        });
+
+        // One-time notification when data loads
+        $('#data-grid').component().once('loaded', (comp) => {
+            const total = comp.data.items.reduce((sum, i) => sum + i.value, 0);
+            $('#total').text(total);
+        });
+
+CUSTOM COMPONENT EVENTS
+    Components can fire and listen to custom events using the jqhtml event
+    bus. Unlike jQuery's .trigger()/.on(), the jqhtml event bus guarantees
+    callback execution even if the event fired before the handler was
+    registered. This is critical for component lifecycle coordination.
+
+    Firing Events:
+        // Fire event from within a component
+        this.trigger('my_event');
+        this.trigger('my_event', { key: 'value' });
+
+    Listening to Events:
+
+        From parent component (using $sid):
+            // In parent's on_ready()
+            this.sid('child_component').on('my_event', (component, data) => {
+                console.log('Event from:', component);
+                console.log('Event data:', data);
+            });
+
+            // Listen only once
+            this.sid('child_component').once('my_event', (component, data) => {
+                console.log('First occurrence only');
+            });
+
+        From external code:
+            $('#element').component().on('my_event', (component, data) => {
+                // Handle event
+            });
+
+    Callback Signature:
+        .on('event_name', (component, data) => { ... })
+        .once('event_name', (component, data) => { ... })
+
+        - component: The component instance that fired the event
+        - data: Optional data passed as second argument to trigger()
+
+    Key Difference from jQuery Events:
+        jQuery events are lost if fired before handler registration:
+
+            // jQuery - BROKEN: Event fires before handler exists
+            child.$.trigger('initialized');    // Lost!
+            parent.$sid('child').on('initialized', handler);  // Never called
+
+        JQHTML events work regardless of timing:
+
+            // JQHTML - WORKS: Event queued, fires when handler registers
+            child.trigger('initialized');      // Queued
+            parent.sid('child').on('initialized', handler);  // Called immediately!
+
+        This enables reliable parent-child communication during component
+        initialization, when event timing is unpredictable.
+
+    Example - Child notifies parent of state change:
+
+        // Child component (Tab_Bar.js)
+        set_active_tab(key) {
+            this.state.active_tab = key;
+            this.render();
+            this.trigger('tab:change', { key: key });
+        }
+
+        // Parent component (Settings_Page.js)
+        on_ready() {
+            this.sid('tabs').on('tab:change', (component, data) => {
+                this.show_panel(data.key);
+            });
+        }
+
+    IMPORTANT: Do not use jQuery's .trigger() for custom events in jqhtml
+    components. The code quality rule JQHTML-EVENT-01 enforces this.
+
+EVENT HANDLER PLACEMENT
+
+    Where to register event handlers depends on what you're attaching to:
+
+    Component Events (this.on()/this.once()) - Register in on_create():
+        Component events attach to this.$ which persists across re-renders.
+        Register once in on_create() to avoid infinite loops.
+
+            on_create() {
+                // Component event - register once
+                this.on('file-drop', (_, data) => this._handle(data));
+                this.once('initialized', () => this._setup());
+            }
+
+        DANGER: If registered in on_ready() and the handler triggers
+        render()/reload(), the framework's event replay mechanism causes
+        an infinite loop (event fires -> handler runs -> re-render ->
+        on_ready() re-registers -> event replays -> infinite loop).
+
+    Child Component Events (this.sid().on()) - Register in on_ready():
+        Listening to events from child components is safe in on_ready()
+        because the handler is on the child, not this component.
+
+            on_ready() {
+                // Child component events - safe in on_ready()
+                this.sid('tabs').on('tab:change', (_, data) => {
+                    this._show_panel(data.key);
+                });
+            }
+
+    DOM Events on Child Elements - Register in on_render() or on_ready():
+        Child DOM elements are recreated on each render, so their handlers
+        must be re-attached after each render. Because on_render() can fire
+        more than once per instance (a cached-stub render, the post-on_load()
+        re-render, and every render()/redraw()/reload()), the bind MUST be
+        idempotent: deregister first, or use a namespaced .off().on() pair, so
+        repeated renders do not stack duplicate handlers.
+
+            on_render() {
+                // DOM events on children - re-attach after each render,
+                // dedup-guarded because on_render can fire multiple times
+                this.$sid('save_btn').off('click.save').on('click.save', () => this._save());
+                this.$sid('filter').off('change.filter').on('change.filter', () => this._filter());
+            }
+
+    Summary:
+        this.on/once('event', ...)         -> on_create() (component events)
+        this.sid('child').on/once('event') -> on_ready() (child component events)
+        this.$sid('elem').on('click')      -> on_render() (child DOM events,
+                                              dedup-guarded)
+
+$REDRAWABLE ATTRIBUTE - LIGHTWEIGHT COMPONENTS
+    Convert any HTML element into a re-renderable component using the
+    $redrawable attribute. This parser-level transformation enables
+    selective re-rendering without creating separate component classes.
+
+    How It Works:
+        The $redrawable attribute triggers a parser transformation that
+        converts the element into a <Redrawable> component:
+
+        <!-- Write this: -->
+        <div $redrawable $sid="counter">
+            Count: <%= this.data.count %>
+        </div>
+
+        <!-- Parser transforms to: -->
+        <Redrawable tag="div" $sid="counter">
+            Count: <%= this.data.count %>
+        </Redrawable>
+
+        The Redrawable component renders as the specified tag type (default
+        is div) while providing full component functionality including
+        lifecycle hooks, data management, and selective re-rendering.
+
+    Selective Re-rendering from Parent:
+        Use the render(id) delegation syntax to re-render only specific
+        child components:
+
+        class Dashboard extends Jqhtml_Component {
+            async increment_counter() {
+                this.data.count++;
+                // Re-render only the counter element, not entire dashboard
+                this.render('counter');  // Finds child with $sid="counter"
+            }
+        }
+
+    render(id) Delegation Syntax:
+        - this.render('counter') finds child with $sid="counter"
+        - Verifies element is a component (has $redrawable or is proper
+          component class)
+        - Calls its render() method to update only that element
+        - Perfect for live data displays, counters, status indicators,
+          real-time feeds
+        - Parent component's DOM remains unchanged
+
+    Error Handling:
+        - Clear error if $sid doesn't exist in children
+        - Clear error if element isn't configured as component
+        - Guides developers to correct usage patterns
+
+    Use Cases:
+        - Live counters and metrics that update frequently
+        - Status indicators that change independently
+        - Real-time data feeds (notifications, chat messages)
+        - Dynamic lists that need incremental updates
+        - Any element needing selective updates without full page re-render
+        - Avoiding unnecessary re-renders of static sibling elements
+
+    Benefits:
+        - No need to create separate component classes
+        - Lightweight - just add $redrawable attribute
+        - Full component lifecycle (on_load, on_ready, etc.)
+        - Efficient - only updates what changed
+        - Clear errors guide correct usage
+
+LIFECYCLE MANIPULATION METHODS
+    Components provide methods to control their lifecycle and state after
+    initial render.
+
+    Method Summary (jqhtml v2.3.52+):
+
+        reload(always_render = true)
+                    - Restore this.data to defaults, call on_load(), then
+                      re-render (always if always_render, else only if data changed)
+        refresh()   - reload(false): refetch, re-render ONLY if this.data changed
+        render()    - Re-renders with full lifecycle (waits for children, calls
+                      on_ready); returns Promise<void> resolving when complete
+        redraw()    - Alias for render()
+        gate_load(promise)
+                    - Register (in on_create) a promise the FIRST on_load() waits on
+        ready()     - Returns promise that resolves when full lifecycle complete
+        rendered()  - Returns promise that resolves when render complete (not children)
+
+    reload(always_render = true)
+        Re-fetch data and re-render - Restores this.data to on_create() state,
+        calls on_load() to fetch fresh data, then re-renders.
+
+        The always_render parameter controls the re-render:
+            - true (default): always re-render after on_load(), even if the
+              fetched data is identical to what is on screen.
+            - false: re-render ONLY if this.data actually changed after on_load()
+              (compared as a JSON snapshot). This is exactly what refresh() does
+              (below) - no repaint when nothing changed.
+
+        Usage:
+            class User_Card extends Jqhtml_Component {
+                async refresh_user_data() {
+                    await this.reload();  // Fetches fresh data, always repaints
+                    console.log('User data updated');
+                }
+
+                on_ready() {
+                    this.$sid('filter_btn').on('click', async () => {
+                        this.args.filter = 'active';  // Update state
+                        await this.reload();  // Re-fetch with new state
+                    });
+                }
+            }
+
+        Behavior:
+            - Restores this.data to snapshot from on_create()
+            - Calls on_load() to fetch fresh data based on current this.args
+            - Re-renders per always_render (see above); a render runs the full
+              lifecycle (waits for children, calls on_ready())
+            - Returns promise - await for completion
+            - Use when: this.args changed and need to re-fetch data
+
+        Lifecycle: restore this.data -> on_load() -> render()? -> on_ready() -> trigger('ready')
+
+    refresh()
+        Re-fetch data, re-render only if it changed - equivalent to
+        reload(false). Calls on_load() exactly as reload() does, but re-renders
+        ONLY when this.data (its JSON snapshot) differs from what was last
+        rendered. A refetch that returns identical data repaints nothing.
+
+        This is the recommended callback for realtime subscriptions and any
+        poll-style "check for updates" flow - a no-op notification causes no
+        visual churn (see rsx:man realtime, SUBSCRIBING).
+
+        Usage:
+            on_create() {
+                // Refetch on every change notification, repaint only on a real change
+                this.subscribe(Client_Model, this.args.id, () => this.refresh());
+            }
+
+        Behavior:
+            - Same debounce queue as reload(); the two coalesce, and reload()
+              takes precedence (if a reload() is queued alongside a refresh(),
+              the component re-renders unconditionally)
+            - Returns promise - await for completion
+            - Use when: refetching to check for updates without forcing a repaint
+
+    gate_load(promise)
+        Register a "load gate" - a promise that this component's FIRST on_load()
+        waits on before running. Used to order the first fetch after some
+        asynchronous precondition (its flagship consumer is the realtime
+        auto-gate that makes a subscribe-before-load fetch race-free - see
+        rsx:man realtime, SUBSCRIBING).
+
+        Contract:
+            - Register during on_create() ONLY. Calling it after the first load
+              has begun throws (fail loud).
+            - Multiple gates accumulate and are awaited together via
+              Promise.allSettled. A REJECTED gate does NOT abort the load - it
+              is an ordering hint, not a data dependency; the load proceeds after
+              settlement (the rejection is logged on the debug channel).
+            - ONE-SHOT: gates delay the first on_load() only. reload() and
+              refresh() never re-await gates.
+            - Delays ONLY the on_load phase - never on_create(), the initial
+              render, on_render(), or the cached-content first paint
+              (stale-while-revalidate is preserved).
+            - reload(), refresh(), or stop() called WHILE a gate is still holding
+              the first load releases the wait immediately and resumes the
+              lifecycle; a later gate settlement then does nothing.
+            - No-op during SSR (the server cannot await arbitrary client promises).
+            - jqhtml has no knowledge of WHAT is being awaited. The caller
+              supplies the promise, so policy such as a timeout must be baked
+              into the promise you pass.
+
+        Usage:
+            on_create() {
+                // First on_load() waits until `some_ready` settles (or the
+                // timeout the caller baked into the promise wins).
+                this.gate_load(some_ready_promise);
+            }
+
+    render()
+        Re-render component - Re-executes template with full lifecycle,
+        waits for children, calls on_ready().
+
+        Usage:
+            class Counter extends Jqhtml_Component {
+                increment() {
+                    this.data.count++;
+                    this.render();  // Update UI
+                }
+            }
+
+        Behavior:
+            - Re-executes template with current this.data
+            - Waits for all child components to be ready
+            - Calls on_ready() after children ready
+            - Triggers 'ready' event when complete
+            - Returns Promise<void> resolving when the FULL render lifecycle
+              (DOM update, children ready, on_ready) completes, so
+              `await this.render()` is a real sequencing point. (Before
+              2.3.52 render()/redraw() returned void and awaiting them
+              resolved immediately - code that needed to wait had to use
+              this.ready(). That workaround still works but is no longer
+              necessary after a render() you initiated.)
+            - Called on a stopped component: no-op, returns a resolved promise
+            - Use when: Data changed and UI needs updating
+
+        Lifecycle: _render() -> wait for children -> on_ready() -> trigger('ready')
+
+        Note: redraw() is an alias for render()
+
+    NOTE: reinitialize() method removed in v2.2.201.
+          Use reload() for re-fetching data (99% of cases).
+          For complete reset, remove component and create new instance.
+
+    stop()
+        Component stopping - Removes component and all children from DOM.
+
+        Usage:
+            class Modal extends Jqhtml_Component {
+                close() {
+                    this.stop();  // Remove modal from DOM
+                }
+            }
+
+        Behavior:
+            - Calls on_stop() hook if defined
+            - Recursively stops all child components
+            - Removes DOM element completely
+            - Adds _Component_Stopped class before removal
+            - Synchronous - completes immediately
+            - Use when: Component no longer needed
+
+        on_stop() hook example:
+            class Chat_Widget extends Jqhtml_Component {
+                on_stop() {
+                    // Clean up websocket connection
+                    this.socket.close();
+                    console.log('Chat widget stopped');
+                }
+            }
+
+    ready()
+        Wait for component to complete full lifecycle including all children.
+
+        Usage:
+            const component = $(element).component();
+            await component.ready();
+            // Component and all children are now fully loaded
+
+        Behavior:
+            - Returns promise that resolves when full lifecycle is complete
+            - Waits for on_load() of this component AND all descendants
+            - Waits for on_ready() of this component AND all descendants
+            - Use when: You need component to be fully interactive
+
+    rendered()
+        Wait for component's render to complete (does not wait for children's data).
+
+        Usage:
+            const component = $(element).component();
+            await component.rendered();
+            // DOM is rendered, but children may still be loading data
+
+        Behavior:
+            - Returns promise that resolves after render phase completes
+            - Does NOT wait for child components' on_load() or on_ready()
+            - Use when: You need DOM structure but don't need child data
+            - Faster than ready() when child data loading is unnecessary
+
+        Example - SPA layout navigation:
+            // Update nav active state without waiting for action to load data
+            await layout.rendered();
+            layout.$sid('nav').find('.active').removeClass('active');
+            layout.$sid('nav').find(`[href="${url}"]`).addClass('active');
+
+RESERVED NAMES (METHODS AND EVENTS)
+    Component authors add custom methods and fire custom events on the same
+    class and event bus the framework uses. Two reserved namespaces exist;
+    colliding with either silently replaces or shadows framework behavior.
+
+    Reserved METHOD names (the Jqhtml_Component surface):
+        Lifecycle hooks:
+            on_create, on_render, on_load, on_loaded, on_ready, on_stop,
+            on_viewport_resize
+        Lifecycle methods:
+            reload, refresh, render, redraw, stop, ready, rendered,
+            gate_load, subscribe
+        Access / traversal / events:
+            sid, $sid, closest, find, instantiator, on, once, trigger
+        Properties:
+            $, data, args, state, _cid (and every _-prefixed internal)
+
+        Rule: custom component logic ALWAYS uses its own unique method
+        names (revalidate(), rebuild_listing(), apply_filter(), ...) -
+        never a reserved name. Overriding a core method is permitted only
+        as a deliberate OOP-style override in unusual edge cases: same
+        contract, calls the parent implementation, documented in the
+        docblock. Defining refresh() "because the name fits" is a defect -
+        callers (and the framework's own debounce queue) expect the core
+        reload(false) semantics from that name.
+
+    Reserved EVENT names:
+        create, load, loaded, ready, render, stop
+
+        These are the lifecycle events the framework fires internally
+        (with no payload) - a custom event with the same name collides
+        with the replay machinery and handlers cannot tell the two apart.
+        Pick a distinct name: 'preview_loaded' not 'loaded', 'tab:change'
+        not 'render'.
+
+SYNCHRONOUS REQUIREMENTS
+    CRITICAL: These lifecycle methods MUST be synchronous (no async, no await):
+
+    Method                 Synchronous Required    Can Use await
+    -------------------    --------------------    -------------
+    on_create()            YES                     NO
+    on_render()            YES                     NO
+    on_stop()              YES                     NO
+    on_viewport_resize()   YES                     NO
+    on_load()              NO (async allowed)      YES
+    on_loaded()            NO (async allowed)      YES
+    on_ready()             NO (async allowed)      YES
+
+    Framework needs predictable execution order for lifecycle coordination.
+
+    Example - Correct synchronous hooks:
+        class MyComponent extends Jqhtml_Component {
+            on_create() {
+                this.counter = 0;  // Sync setup
+            }
+
+            on_render() {
+                this.counter++;  // Sync update
+            }
+
+            on_stop() {
+                console.log('Stopped');  // Sync cleanup
+            }
+        }
+
+    Example - WRONG (async hooks not allowed):
+        class MyComponent extends Jqhtml_Component {
+            async on_create() {  // DON'T DO THIS
+                await this.setup();
+            }
+        }
+
+ACCESSING COMPONENT INSTANCE
+    From element:
+        const component = $('#my-component').component();
+        console.log(component.data.name);   // READ is fine anywhere
+        component.reload();                 // mutate via lifecycle, never
+                                            // by writing this.data (frozen
+                                            // outside on_create/on_load)
+
+    From class:
+        // All instances tracked in Jqhtml_Component.instances
+        User_Card.instances.forEach(instance => {
+            instance.refresh();   // e.g. revalidate every instance
+        });
+
+DOM UTILITIES
+    Component instance methods and properties:
+
+    this.$
+        jQuery wrapped component root element
+        This is genuine jQuery - all methods work directly
+
+    this.$sid(name)
+        Get scoped element as jQuery object
+        Example: this.$sid('edit') gets element with $sid="edit"
+        Returns jQuery object, NOT component instance
+
+    this.sid(name)
+        Get scoped child component instance directly
+        Example: this.sid('my_component') gets component instance
+        Returns component instance, NOT jQuery object
+
+        CRITICAL: this.$sid() vs this.sid() distinction
+        - this.$sid('foo') -> jQuery object (for DOM manipulation)
+        - this.sid('foo') -> Component instance (for calling methods)
+
+        Common mistake:
+            const comp = this.sid('foo').component();  // WRONG
+            const comp = this.sid('foo');              // CORRECT
+
+        Getting component from jQuery:
+            const $elem = this.$sid('foo');
+            const comp = $elem.component();  // CORRECT (jQuery -> component)
+
+    this.data
+        Component data object
+        Starts as empty object {}
+        Writable ONLY in on_create() and on_load() (frozen elsewhere -
+        writes outside those hooks throw)
+        After on_load(), the framework re-renders only if the JSON
+        snapshot of this.data changed
+
+    this.args
+        Component input parameters from attributes
+        Set during construction from $attr=value
+        Treat as read-only
+
+    this._cid
+        Unique component instance ID for scoping
+        Used internally for ID generation
+
+    this.closest(...)
+        Component-aware ancestor traversal: matches COMPONENTS only,
+        never plain (non-instantiated) divs. Use to find the nearest
+        enclosing component of a type.
+
+    this.find(...)
+        Component-aware descendant traversal (components only, same
+        matching rule as closest()).
+
+    this.instantiator()
+        The component that rendered this one in ITS template - the
+        template author, which is not always the DOM parent. Matches
+        components only.
+
+NESTING COMPONENTS
+    Components can contain other components:
+
+    <Define:Dashboard>
+        <div class="dashboard">
+            <% for (let widget of this.data.widgets) { %>
+                <Widget_Card $widget_id=widget.id $data=widget />
+            <% } %>
+        </div>
+    </Define:Dashboard>
+
+    Nested components initialize after parent (bottom-up for on_create,
+    on_load, on_ready).
+
+SCOPED IDS
+    Use $sid attribute for component-scoped element IDs:
+
+    Template:
+        <Define:User_Card>
+            <h3 $sid="title">Name</h3>
+            <p $sid="email">Email</p>
+            <button $sid="edit_btn">Edit</button>
+        </Define:User_Card>
+
+    Rendered HTML (automatic scoping):
+        <div class="User_Card Component">
+            <h3 id="title:c123">Name</h3>
+            <p id="email:c123">Email</p>
+            <button id="edit_btn:c123">Edit</button>
+        </div>
+
+    Access with this.$sid():
+        class User_Card extends Jqhtml_Component {
+            on_ready() {
+                // Use logical name
+                this.$sid('title').text('John Doe');
+                this.$sid('email').text('john@example.com');
+                this.$sid('edit_btn').on('click', () => this.edit());
+            }
+        }
+
+    Why scoped IDs: Multiple component instances need unique IDs
+    without conflicts. Framework automatically appends :component_id
+    to prevent collisions.
+
+    $sid IS TEMPLATE-ONLY (critical):
+        $sid/$id are template-compile mechanisms: the parser assigns a
+        computed, component-scoped value to the element's id=""
+        attribute, and this.$sid() resolves that computed value - the
+        whole process is invisible to the developer. A $sid can ONLY
+        be declared in a .jqhtml template. It can NEVER be created
+        from JS by setting attributes on a jQuery element, and a
+        component with no template cannot use $sid at all (see the
+        Standalone tier in COMPONENT COMPLEXITY TIERS for the
+        alternative: in-memory element references).
+
+    The data-id anti-pattern (throws):
+        Do not imitate scoping by writing data-id (or other data-*
+        identity attributes) onto elements from JS and selecting on
+        them:
+
+            $row.attr('data-id', file.id);              // WRONG
+            $listing.find('[data-id="' + id + '"]');    // WRONG
+
+        The data-* namespace belongs to the component-args machinery
+        ($attr=value also emits data-attr), and this pattern bypasses
+        the entire $id/$sid scoping design. It is wrong enough that
+        the jquery layer throws an exception and stops rendering when
+        it catches the setter form. Track imperatively-created
+        elements with in-memory references (a Map of id -> element)
+        or CSS classes instead.
+
+EXAMPLES
+    Card with async data loading:
+        class Product_Card extends Jqhtml_Component {
+            async on_load() {
+                // Load product data
+                this.data = await Product_Controller.get({
+                    id: this.args.product_id
+                });
+                // Template re-renders automatically with data
+            }
+
+            on_ready() {
+                // Attach event handlers after data loaded
+                this.$sid('buy').on('click', async () => {
+                    await Cart.add(this.data.id);
+                    this.$sid('buy').text('Added!').prop('disabled', true);
+                });
+
+                this.$sid('favorite').on('click', () => {
+                    this.$.toggleClass('favorited');
+                });
+            }
+        }
+
+    List with loading state:
+        <!-- todo_list.jqhtml -->
+        <Define:Todo_List>
+            <div>
+                <% if (Object.keys(this.data).length === 0) { %>
+                    <div class="loading">Loading todos...</div>
+                <% } else { %>
+                    <% for (let todo of this.data.todos) { %>
+                        <div class="todo">
+                            <input type="checkbox"
+                                   <%= todo.done ? 'checked' : '' %>>
+                            <span><%= todo.text %></span>
+                        </div>
+                    <% } %>
+                <% } %>
+            </div>
+        </Define:Todo_List>
+
+        class Todo_List extends Jqhtml_Component {
+            async on_load() {
+                this.data = await Todo_Controller.list();
+            }
+
+            on_ready() {
+                this.$.on('change', 'input', (e) => {
+                    const index = $(e.target).closest('.todo').index();
+                    this.toggle_todo(index);
+                });
+            }
+
+            async toggle_todo(index) {
+                // this.data is frozen here - persist the change server-side,
+                // then refetch (refresh() repaints only if data changed).
+                await Todo_Controller.toggle({ id: this.data.todos[index].id });
+                await this.refresh();
+            }
+        }
+
+    Form with validation:
+        class Contact_Form extends Jqhtml_Component {
+            on_ready() {
+                this.$.on('submit', (e) => {
+                    e.preventDefault();
+                    if (this.validate()) {
+                        this.submit();
+                    }
+                });
+            }
+
+            validate() {
+                const email = this.$sid('email').val();
+                if (!email.includes('@')) {
+                    this.$sid('error').text('Invalid email');
+                    return false;
+                }
+                this.$sid('error').text('');
+                return true;
+            }
+
+            async submit() {
+                await Contact_Controller.send({
+                    email: this.$sid('email').val(),
+                    message: this.$sid('message').val(),
+                });
+
+                this.$.html('<p>Thank you!</p>');
+            }
+        }
+
+CONTENT AND SLOTS
+    JQHTML provides two patterns for passing content from parent to child.
+    (The look-named "Card" / "Card_Layout" wrappers below illustrate the
+    content()/slot MECHANICS only; for how to NAME real components by concept
+    rather than look, see `php artisan rsx:man semantic_composition`.)
+
+    1. content() Function (Single Content Region)
+        The content() function is the standard way to accept innerHTML
+        when a component has ONE content region:
+
+        <!-- Define component -->
+        <Define:Card>
+            <div class="card">
+                <div class="card-body">
+                    <%= content() %>  <!-- Outputs passed innerHTML -->
+                </div>
+            </div>
+        </Define:Card>
+
+        <!-- Use component -->
+        <Card>
+            <h3>Card Title</h3>
+            <p>This content goes where content() is called</p>
+        </Card>
+
+        Works exactly like regular HTML - intuitive and simple.
+        Perfect for: wrappers, containers, cards, modals.
+
+    2. Named Slots (Multiple Content Regions)
+        Named slots are simply what a component with MORE THAN ONE
+        content region needs - not an advanced, rare, or escape-hatch
+        feature. A component with two or more distinct content areas
+        uses slots the same way a single-region component uses
+        content(); neither is more "primary" than the other.
+
+        Child templates use content('slotname') to render named slots:
+
+        <!-- Define with named slots -->
+        <Define:Card_Layout>
+            <div class="card">
+                <div class="card-header"><%= content('header') %></div>
+                <div class="card-body"><%= content('body') %></div>
+                <div class="card-footer"><%= content('footer') %></div>
+            </div>
+        </Define:Card_Layout>
+
+        Parent templates provide content using <Slot:slotname> tags:
+
+        <!-- Use with named slots -->
+        <Card_Layout>
+            <Slot:header><h3>User Profile</h3></Slot:header>
+            <Slot:body>
+                <p>Name: <%= this.data.name %></p>
+                <p>Email: <%= this.data.email %></p>
+            </Slot:body>
+            <Slot:footer>
+                <button class="btn">Save</button>
+            </Slot:footer>
+        </Card_Layout>
+
+        Critical rules:
+        - Cannot mix regular content with named slots
+        - If ANY named slots present, ALL content must be in slots
+        - Child template syntax: <%= content('slotname') %>
+        - Parent template syntax: <Slot:slotname>content</Slot:slotname>
+
+    Decision Guide:
+        Use content() when the component has a single content region:
+        - Wrappers or containers
+        - Cards, modals, panels with one body
+        - Enhancing child content
+
+        Use named slots when the component has more than one content
+        region:
+        - Multiple distinct content areas (header/body/footer)
+        - Complex layouts (DataGrid, Wizard)
+        - Different templates for different states
+
+        The choice is purely how many content regions exist - neither
+        option is advanced or reserved for edge cases. A $attribute,
+        however, is NEVER the right channel for displayed or authored
+        content: content the caller composes for display flows as
+        innerHTML (content() or a slot), while args carry only data,
+        preferences/flags, and supplementary strings. See
+        SEMANTIC-FIRST DESIGN above.
+
+    3. Slot-Based Template Inheritance (v2.2.108+)
+        When a component template contains ONLY slots (no HTML wrapper),
+        it automatically inherits the parent class template structure.
+
+        This enables abstract base components with customizable content,
+        allowing child classes to extend parent templates without
+        duplicating HTML structure.
+
+        Parent template (DataGrid_Abstract.jqhtml):
+            <Define:DataGrid_Abstract>
+              <table class="table">
+                <thead><tr><%= content('header') %></tr></thead>
+                <tbody>
+                  <% for (let record of this.data.records) { %>
+                    <tr><%= content('row', record) %></tr>
+                  <% } %>
+                </tbody>
+              </table>
+            </Define:DataGrid_Abstract>
+
+        Parent JavaScript class (Users_DataGrid.js):
+            class Users_DataGrid extends DataGrid_Abstract {
+              async on_load() {
+                const result = await User_Controller.list_users({page: 1});
+                this.data.records = result.users;
+                this.data.loaded = true;
+              }
+            }
+
+        Child template - slot-only (Users_DataGrid.jqhtml):
+            <Define:Users_DataGrid>
+              <Slot:header>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+              </Slot:header>
+
+              <Slot:row>
+                <td><%= row.id %></td>
+                <td><%= row.name %></td>
+                <td><%= row.email %></td>
+              </Slot:row>
+            </Define:Users_DataGrid>
+
+        Result: Users_DataGrid renders using DataGrid_Abstract HTML
+        structure with customized slot content.
+
+        Data Passing to Slots:
+            Parents pass data to slots via second parameter:
+            <%= content('slotname', data) %>
+
+            Child templates receive data via slot parameter:
+            <Slot:row>
+              <td><%= row.id %></td>
+            </Slot:row>
+
+            The slot parameter name matches the slot name automatically.
+
+        Reserved Word Validation:
+            Slot names cannot be JavaScript reserved words.
+            Parser rejects with fatal error:
+
+            <Slot:function>Content</Slot:function>  <!-- ERROR: reserved word -->
+            <Slot:if>Content</Slot:if>                <!-- ERROR: reserved word -->
+            <Slot:header>Content</Slot:header>        <!-- Valid -->
+
+            Reserved words include: function, if, for, class, const, let,
+            var, while, switch, return, try, catch, and others.
+
+        Requirements:
+            - Child template contains ONLY slot definitions (no HTML)
+            - JavaScript class extends parent: class Child extends Parent
+            - Parent template defines slots using content('slotname')
+            - Runtime walks prototype chain via Object.getPrototypeOf()
+
+        Implementation:
+            - Parser detects slot-only templates
+            - Generates {_slots: {...}} format instead of HTML instructions
+            - Runtime finds parent template by walking prototype chain
+            - Parent template structure inherited automatically
+            - All compilation happens at build time
+
+        Use Cases:
+            - Abstract data tables with customizable column layouts
+            - Page layouts with variable content sections
+            - Card variations with different headers/bodies/footers
+            - Form patterns with customizable field sets
+            - Any component hierarchy with shared structure
+
+TEMPLATE-ONLY COMPONENTS
+    Components can exist as .jqhtml files without a companion .js file.
+    This is fine for simple display-only components that just render
+    input data with conditionals - no lifecycle hooks or event handlers
+    needed beyond what's possible inline.
+
+    When to use template-only:
+        - Component just displays data passed via arguments
+        - Only needs simple conditionals in the template
+        - No complex event handling beyond simple button clicks
+        - Mentally easier than creating a separate .js file
+
+    Inline Event Handlers:
+        Define handlers in template code, reference with @event syntax:
+
+        <Define:Retry_Button>
+            <% this.handle_click = () => window.location.reload(); %>
+            <button class="btn btn-primary" @click=this.handle_click>
+                Retry
+            </button>
+        </Define:Retry_Button>
+
+        Note: @event values must be UNQUOTED (not @click="this.method").
+
+    Inline Argument Validation:
+        Throw errors early if required arguments are missing:
+
+        <Define:User_Badge>
+            <%
+            if (!this.args.user_id) {
+                throw new Error('User_Badge: $user_id is required');
+            }
+            if (!this.args.name) {
+                throw new Error('User_Badge: $name is required');
+            }
+            %>
+            <span class="badge"><%= this.args.name %></span>
+        </Define:User_Badge>
+
+    Complete Example (error page component):
+        <%--
+        Not_Found_Error_Page_Component
+        Displays when a record cannot be found.
+        --%>
+        <Define:Not_Found_Error_Page_Component class="text-center py-5">
+            <div class="mb-4">
+                <%-- Icon size lives in this component's own SCSS
+                     (.Not_Found_Error_Page_Component__icon { font-size: 64px; }),
+                     never an inline style. --%>
+                <i class="bi bi-exclamation-triangle-fill text-warning
+                          Not_Found_Error_Page_Component__icon"></i>
+            </div>
+            <h3 class="mb-3"><%= this.args.record_type %> Not Found</h3>
+            <p class="text-muted mb-4">
+                The <%= this.args.record_type.toLowerCase() %> you are
+                looking for does not exist or has been deleted.
+            </p>
+            <a href="<%= this.args.back_url %>" class="btn btn-primary">
+                <%= this.args.back_label %>
+            </a>
+        </Define:Not_Found_Error_Page_Component>
+
+    This pattern is not necessarily "best practice" for complex components,
+    but it works well and is pragmatic for simple display components. If
+    the component needs lifecycle hooks, state management, or complex
+    event handling, create a companion .js file instead.
+
+INTEGRATION WITH RSX
+    JQHTML automatically integrates with the RSX framework:
+    - Templates discovered by manifest system during build
+    - Processor converts .jqhtml to JavaScript render functions
+    - Bundle system includes generated code automatically
+    - No manual registration or configuration required
+    - Templates compile at build time with working sourcemaps
+
+MANIFEST INTEGRATION
+    The manifest system handles automatic discovery:
+    - Caches component names during manifest build
+    - Enables Blade precompiler validation
+    - Supports component auto-discovery
+    - Generates JavaScript class stubs for components
+    - Tracks all .jqhtml files in included directories
+
+    Components automatically found in directories scanned by
+    manifest system (typically /rsx/ and included paths).
+
+    Build process flow:
+    1. Manifest build scans included directories
+    2. Finds all .jqhtml template files
+    3. Finds matching .js class files (optional)
+    4. Registers component names for path-agnostic access
+    5. Templates compile to JavaScript during bundle compilation
+
+BUNDLE INCLUSION
+    Components included via bundle system:
+
+        class Frontend_Bundle extends Rsx_Bundle_Abstract
+        {
+            public static function define(): array
+            {
+                return [
+                    'include' => [
+                        'jqhtml',                  // Framework library
+                        'rsx/theme/components',    // All .jqhtml files
+                        'rsx/app/frontend',        // Module directory
+                    ],
+                ];
+            }
+        }
+
+    All .jqhtml and .js files in included directories are
+    automatically discovered, compiled, and bundled.
+
+    Generated JavaScript added to bundle automatically.
+
+SERVER-SIDE RENDERING
+    Jqhtml::component() renders initial HTML server-side.
+    JavaScript hydrates on client for interactivity.
+
+    Benefits:
+    - SEO friendly
+    - Fast initial render
+    - Progressive enhancement
+    - Works without JavaScript (degraded)
+
+DEBUGGING
+    Enable debug mode by assigning a logger object; the runtime calls its
+    .log(component, phase, status, data) on every lifecycle transition:
+        window.JQHTML_DEBUG = {
+            log: (component, phase, status, data) =>
+                console.log(`[jqhtml] ${component} ${phase} ${status}`, data)
+        };
+
+    Logs:
+    - Component initialization
+    - Template compilation
+    - Data binding
+    - Lifecycle events
+
+PERFORMANCE
+    - Templates cached after first compilation
+    - Use data-component-init-name for server-side initial render
+    - Minimize DOM manipulation in lifecycle methods
+    - Leverage automatic re-render via this.data changes
+    - Sibling components load in parallel during on_load()
+
+SEE ALSO
+    anchors(1), bundle_api(3), controller(3), manifest_api(3),
+    semantic_composition(3), scss(3)
+
+RSX Framework                    2025-10-07                         JQHTML(3)

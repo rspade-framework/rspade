@@ -1,0 +1,7 @@
+<Define:Contacts_Index_Action>
+<Page_Scaffold>
+    <Slot:main>
+        <Contacts_DataGrid />
+    </Slot:main>
+</Page_Scaffold>
+</Define:Contacts_Index_Action>

@@ -1,0 +1,164 @@
+<Define:Settings_User_Management_View_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading user..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="User"
+                $back_label="Back to User Management"
+                $back_url="<%= Rsx.Route('Settings_User_Management_Index_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <%
+        const _u = this.data.user;
+        const _name = (_u.first_name || _u.last_name)
+            ? (_u.first_name + ' ' + _u.last_name).trim()
+            : 'No name set';
+        const _profile = _u.user_profile;
+        const _session_count = _u.recent_sessions ? _u.recent_sessions.length : 0;
+    %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Card_Widget>
+                <Entity_Header>
+                    <Slot:title><%= _name %></Slot:title>
+                    <Slot:chips>
+                        <% if (_u.is_enabled) { %>
+                            <Status_Badge $label="Active" $badge="bg-success" />
+                        <% } else { %>
+                            <Status_Badge $label="Disabled" $badge="bg-danger" />
+                        <% } %>
+                        <% if (_u.role_id__label) { %>
+                            <span class="badge badge-outline-primary"><%= _u.role_id__label %></span>
+                        <% } %>
+                    </Slot:chips>
+                    <Slot:subtitle>
+                        <%= _u.email || 'No email' %><% if (_profile && _profile.title) { %> &middot; <%= _profile.title %><% } %>
+                    </Slot:subtitle>
+                    <Slot:meta>
+                        <span>Member since <%= Rsx_Time.format_date(_u.created_at) %></span>
+                    </Slot:meta>
+                </Entity_Header>
+
+                <Section $title="Contact Information">
+                    <View_Fields>
+                        <View_Field $label="Email">
+                            <% if (_u.email) { %><%= _u.email %><% } else { %><Empty_Value /><% } %>
+                        </View_Field>
+                        <View_Field $label="Phone">
+                            <% if (_u.phone) { %><%= _u.phone %><% } else { %><Empty_Value /><% } %>
+                        </View_Field>
+                        <View_Field $label="First Name">
+                            <% if (_u.first_name) { %><%= _u.first_name %><% } else { %><Empty_Value /><% } %>
+                        </View_Field>
+                        <View_Field $label="Last Name">
+                            <% if (_u.last_name) { %><%= _u.last_name %><% } else { %><Empty_Value /><% } %>
+                        </View_Field>
+                    </View_Fields>
+                </Section>
+
+                <% if (_profile) { %>
+                <Section $title="Profile Information">
+                    <View_Fields>
+                        <View_Field $label="Title">
+                            <% if (_profile.title) { %><%= _profile.title %><% } else { %><Empty_Value /><% } %>
+                        </View_Field>
+                        <View_Field $label="Department">
+                            <% if (_profile.department) { %><%= _profile.department %><% } else { %><Empty_Value /><% } %>
+                        </View_Field>
+                        <% if (_profile.bio) { %>
+                            <View_Field $label="Bio"><%= _profile.bio %></View_Field>
+                        <% } %>
+                    </View_Fields>
+                </Section>
+                <% } %>
+
+                <Section $title="Account & Access">
+                    <View_Fields>
+                        <View_Field $label="Account Status">
+                            <% if (_u.is_enabled) { %>
+                                <Status_Badge $label="Enabled" $badge="bg-success" />
+                            <% } else { %>
+                                <Status_Badge $label="Disabled" $badge="bg-danger" />
+                            <% } %>
+                        </View_Field>
+                        <View_Field $label="Invite Status">
+                            <% if (_u.invitation_status === 'accepted') { %>
+                                <Status_Badge $label="Accepted" $badge="bg-success" />
+                            <% } else if (_u.invitation_status === 'expired') { %>
+                                <Status_Badge $label="Expired" $badge="bg-danger" />
+                            <% } else { %>
+                                <Status_Badge $label="Pending" $badge="bg-warning" />
+                            <% } %>
+                        </View_Field>
+                        <View_Field $label="Site Role">
+                            <span class="badge badge-outline-primary"><%= _u.role_id__label || 'Member' %></span>
+                        </View_Field>
+                    </View_Fields>
+                </Section>
+
+                <Section $title="Recent Activity" $count=_session_count $flush=true>
+                    <Slot:body>
+                        <% if (_u.recent_sessions && _u.recent_sessions.length > 0) { %>
+                            <Record_Table>
+                                <thead>
+                                    <tr><th>Date</th><th>IP Address</th><th>Device</th><th>Status</th></tr>
+                                </thead>
+                                <tbody>
+                                    <% for (const session of _u.recent_sessions) { %>
+                                    <tr>
+                                        <td><%= session.last_active %></td>
+                                        <td><%= session.ip_address %></td>
+                                        <td><span class="text-muted small"><%= session.user_agent %></span></td>
+                                        <td>
+                                            <% if (session.active) { %>
+                                                <Status_Badge $label="Active" $badge="bg-success" />
+                                            <% } else { %>
+                                                <Status_Badge $label="Inactive" $badge="bg-secondary" />
+                                            <% } %>
+                                        </td>
+                                    </tr>
+                                    <% } %>
+                                </tbody>
+                            </Record_Table>
+                        <% } else { %>
+                            <Empty_State $icon="bi bi-clock-history">
+                                <Slot:title>No recent activity</Slot:title>
+                                <Slot:body>Sign-in sessions for this user will appear here.</Slot:body>
+                            </Empty_State>
+                        <% } %>
+                    </Slot:body>
+                </Section>
+            </Card_Widget>
+        </Slot:main>
+
+        <Slot:sidebar>
+            <Detail_Sidebar>
+                <View_Fields>
+                    <View_Field $label="User ID" $inline=true>#U<%= String(_u.id).padStart(3, '0') %></View_Field>
+                    <View_Field $label="Member Since" $inline=true><%= Rsx_Time.format_date(_u.created_at) %></View_Field>
+                </View_Fields>
+
+                <div class="d-grid gap-2">
+                    <button $sid="btn_edit_user" class="btn btn-primary btn-sm">
+                        <i class="bi bi-pencil"></i> Edit User
+                    </button>
+                    <% if (_u.invitation_status !== 'accepted' && _u.is_enabled) { %>
+                        <button $sid="btn_resend_invite" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-envelope"></i> Resend Invite
+                        </button>
+                    <% } %>
+                </div>
+            </Detail_Sidebar>
+        </Slot:sidebar>
+    </Page_Scaffold>
+<% } %>
+</Define:Settings_User_Management_View_Action>

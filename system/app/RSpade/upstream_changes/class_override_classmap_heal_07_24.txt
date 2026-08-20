@@ -1,0 +1,70 @@
+CLASS OVERRIDE: STALE COMPOSER CLASSMAP SELF-HEALING
+Date: 2026-07-24
+
+SUMMARY
+    The class-override system (rsx:man class_override) renames an overridden
+    framework file to <Name>.php.upstream during the manifest rebuild. Composer's
+    committed classmap (system/vendor/composer/autoload_classmap.php) still maps the
+    old framework FQCN to the now-renamed .php path, so composer's ClassLoader would
+    include a missing file and Laravel's HandleExceptions would promote that warning
+    to a fatal - crashing any framework code that referenced the overridden class by
+    its old FQCN (the "we overrode File_Attachment_Model and the app fatals" class of
+    bug). This is now fixed in core. Affects any downstream app that overrides a
+    framework class AND has framework/app code referencing the old framework FQCN.
+
+THE CHANGE
+    Overriding a framework class used to be fragile: as soon as the framework file
+    became .upstream, the stale committed classmap pointed at a missing file.
+    Composer returns a classmap entry without checking the file exists and then
+    bare-includes it; the resulting PHP warning was being promoted to a fatal by
+    Laravel's error handler, before RSX's own fallback loader (which resolves by
+    simple name and aliases the old FQCN to your override) could run. The override
+    "worked" only until some code touched the old FQCN inline.
+
+THE FIX
+    Two orthogonal core mechanisms (owner ruling 2026-07-24, Option B), both in
+    /system/ - they arrive automatically via the submodule merge, nothing to copy:
+
+    1. Runtime tolerance (App\RSpade\Core\Autoloader): a scoped PHP error-handler
+       carve-out swallows ONLY the include warning originating from composer's
+       vendor/composer/ClassLoader.php, letting composer's miss fall through to the
+       RSX fallback loader. Every other warning / error / file keeps its existing
+       fail-loud behavior; an unresolved class still fatals normally.
+
+    2. Data hygiene (manifest rebuild): immediately after the override rename/restore
+       pass settles, the rebuild validates the classmap against the filesystem and,
+       if any entry points at a missing file, runs a blocking `composer dump-autoload`
+       to regenerate it. Dev/rebuild-only (sealed prod builds already regenerate the
+       composer autoloader in rsx:prod:build).
+
+ACTION REQUIRED
+    1. REMOVE LOCAL WORKAROUNDS. If your app grew any compensating logic around the
+       old crash - a hand-run `composer dump-autoload` step baked into your deploy
+       purely to un-stale the override classmap, a try/catch swallowing a
+       "class not found / failed to open stream" around an overridden class, a
+       committed .php.upstream cleanup hack, or an avoidance rule forbidding inline
+       FQCNs to overridden classes - it is now redundant. Delete it; the core
+       mechanisms cover it.
+
+    2. EXPECT A ONE-TIME vendor/composer DIRTY DIFF. The first manifest rebuild after
+       this pull (any dev page load or `php artisan rsx:manifest:build`) may
+       regenerate system/vendor/composer/autoload_classmap.php and autoload_static.php
+       if your committed classmap was stale (an active override, or simply classes
+       added since your last dump). This is EXPECTED and CORRECT - commit the
+       regenerated files (they are version-controlled per the snapshot rule). It is a
+       one-time settle; it will not churn on every rebuild once committed.
+
+    3. PREFER `use` IMPORTS over inline `\App\RSpade\...\Class` FQCNs to overridden
+       classes. With the fix an inline FQCN no longer crashes, but imports (which the
+       manifest's Php_Fixer maintains) keep the dependency graph legible. Hygiene,
+       not correctness.
+
+VERIFICATION
+    - Override a framework class (copy it into rsx/ with the same class name), load
+      any dev page. The framework file becomes <Name>.php.upstream, the app runs, and
+      references to the old framework FQCN resolve to your override (no fatal).
+    - `php -r '$m=include "system/vendor/composer/autoload_classmap.php"; foreach($m
+      as $c=>$p){ if(!file_exists($p)){echo "STALE $c\n";}}'` prints nothing after a
+      rebuild - the classmap has no missing-file entries.
+    - Remove the override file, rebuild: the .php.upstream is restored to .php and the
+      old FQCN resolves to the framework class again.

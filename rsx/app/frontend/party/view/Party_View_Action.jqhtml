@@ -1,0 +1,157 @@
+<Define:Party_View_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading party..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Party"
+                $back_label="Go back to Parties"
+                $back_url="<%= Rsx.Route('Party_Index_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <% const _p = this.data.party; const _d = this.data.detail; const _activity = this.data.activity; %>
+    <% const _detail_title = _p.type_id__label + ' Details'; %>
+    <%
+        const _tabs = [
+            { key: 'overview', label: 'Overview' },
+            { key: 'activity', label: 'Activity', count: _activity.length },
+        ];
+    %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Card_Widget>
+                <Entity_Header>
+                    <Slot:title><%= _p.name %></Slot:title>
+                    <Slot:chips>
+                        <% const _type = (_p.type_id__badge || 'bg-secondary').replace('bg-', 'badge-outline-'); %>
+                        <span class="badge <%= _type %>"><%= _p.type_id__label %></span>
+                    </Slot:chips>
+                    <Slot:meta>
+                        <span>Party <%= _p.party_id_formatted %></span>
+                        <span>Created <%= Rsx_Time.format_date(_p.created_at) %></span>
+                    </Slot:meta>
+                </Entity_Header>
+
+                <Tab_Bar $sid="tabs" $tabs=_tabs $hash="tab" $divided=true />
+
+                <Tab_Panels $sid="panels">
+                    <Tab_Panel $key="overview">
+                        <Section $title="Contact Information">
+                            <View_Fields>
+                                <View_Field $label="Email">
+                                    <% if (_p.email) { %><a href="mailto:<%= _p.email %>"><%= _p.email %></a><% } else { %><Empty_Value /><% } %>
+                                </View_Field>
+                                <View_Field $label="Phone">
+                                    <% if (_p.phone) { %><%= _p.phone %><% } else { %><Empty_Value /><% } %>
+                                </View_Field>
+                            </View_Fields>
+                        </Section>
+
+                        <% if (_p.notes) { %>
+                        <Section $title="Notes">
+                            <%br= _p.notes %>
+                        </Section>
+                        <% } %>
+
+                        <Section $title=_detail_title>
+                            <% if (_p.type_id === Party_Model.TYPE_PERSON && _d) { %>
+                                <View_Fields>
+                                    <View_Field $label="First Name">
+                                        <% if (_d.first_name) { %><%= _d.first_name %><% } else { %><Empty_Value /><% } %>
+                                    </View_Field>
+                                    <View_Field $label="Last Name">
+                                        <% if (_d.last_name) { %><%= _d.last_name %><% } else { %><Empty_Value /><% } %>
+                                    </View_Field>
+                                    <View_Field $label="Title">
+                                        <% if (_d.title) { %><%= _d.title %><% } else { %><Empty_Value /><% } %>
+                                    </View_Field>
+                                    <View_Field $label="Date of Birth">
+                                        <% if (_d.date_of_birth) { %><%= Rsx_Date.format(_d.date_of_birth) %><% } else { %><Empty_Value /><% } %>
+                                    </View_Field>
+                                </View_Fields>
+                            <% } else if (_p.type_id === Party_Model.TYPE_COMPANY && _d) { %>
+                                <View_Fields>
+                                    <View_Field $label="Legal Name">
+                                        <% if (_d.legal_name) { %><%= _d.legal_name %><% } else { %><Empty_Value /><% } %>
+                                    </View_Field>
+                                    <View_Field $label="Tax Identifier">
+                                        <% if (_d.tax_identifier) { %><%= _d.tax_identifier %><% } else { %><Empty_Value /><% } %>
+                                    </View_Field>
+                                    <View_Field $label="Industry">
+                                        <% if (_d.industry) { %><%= _d.industry %><% } else { %><Empty_Value /><% } %>
+                                    </View_Field>
+                                    <View_Field $label="Employees">
+                                        <% if (_d.employee_count) { %><%= _d.employee_count %><% } else { %><Empty_Value /><% } %>
+                                    </View_Field>
+                                </View_Fields>
+                            <% } else { %>
+                                <Empty_State $icon="bi bi-diagram-3">
+                                    <Slot:title>No type-specific details</Slot:title>
+                                    <Slot:body>A <%= _p.type_id__label %>'s fields are all universal &mdash; it has no additional detail table.</Slot:body>
+                                </Empty_State>
+                            <% } %>
+                        </Section>
+                    </Tab_Panel>
+
+                    <Tab_Panel $key="activity">
+                        <Section $title="Activity" $count=_activity.length $flush=true>
+                            <% if (_activity.length === 0) { %>
+                                <Empty_State $icon="bi bi-activity">
+                                    <Slot:title>No activity yet</Slot:title>
+                                    <Slot:body>Changes to this party will appear here.</Slot:body>
+                                </Empty_State>
+                            <% } else { %>
+                                <% for (const a of _activity) { %>
+                                    <Feed_Row $icon=a.icon $variant=a.variant>
+                                        <Slot:body><%!= a.html %></Slot:body>
+                                        <Slot:time><%= Rsx_Time.relative(a.created_at) %></Slot:time>
+                                    </Feed_Row>
+                                <% } %>
+                            <% } %>
+                        </Section>
+                    </Tab_Panel>
+                </Tab_Panels>
+            </Card_Widget>
+        </Slot:main>
+
+        <Slot:sidebar>
+            <Detail_Sidebar>
+                <Sidebar_Kpi_Group>
+                    <Kpi_Cell $clickable=true $tab="activity" $tooltip="Recorded activity for this party">
+                        <Slot:label>Activity</Slot:label>
+                        <Slot:value><%= _activity.length %></Slot:value>
+                    </Kpi_Cell>
+                </Sidebar_Kpi_Group>
+
+                <View_Fields>
+                    <View_Field $label="Party ID" $inline=true><%= _p.party_id_formatted %></View_Field>
+                    <View_Field $label="Type" $inline=true><%= _p.type_id__label %></View_Field>
+                    <View_Field $label="Created" $inline=true><%= Rsx_Time.format_date(_p.created_at) %></View_Field>
+                    <View_Field $label="Updated" $inline=true><%= Rsx_Time.format_date(_p.updated_at) %></View_Field>
+                </View_Fields>
+
+                <div class="d-grid gap-2">
+                    <a href="<%= Rsx.Route('Party_Edit_Action', _p.id) %>" class="btn btn-primary btn-sm">
+                        <i class="bi bi-pencil"></i> Edit Party
+                    </a>
+                </div>
+                <div class="d-flex justify-content-end">
+                    <Action_Menu $label="More party actions">
+                        <button $sid="delete-party" type="button" class="dropdown-item text-danger">
+                            <i class="bi bi-trash"></i> Delete Party
+                        </button>
+                    </Action_Menu>
+                </div>
+            </Detail_Sidebar>
+        </Slot:sidebar>
+    </Page_Scaffold>
+<% } %>
+</Define:Party_View_Action>

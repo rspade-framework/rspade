@@ -1,0 +1,64 @@
+<Define:Action_Logs_View_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading action log details..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Action Log"
+                $back_label="Go back to Action Log"
+                $back_url="<%= Rsx.Route('Action_Logs_Index_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <% const _log = this.data.log; %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Card_Widget>
+                <Entity_Header>
+                    <Slot:title><%!= _log.render %></Slot:title>
+                    <Slot:chips>
+                        <span class="badge badge-outline-primary"><%= _log.type_id__label %></span>
+                    </Slot:chips>
+                    <Slot:meta>
+                        <span><%= Rsx_Time.format_datetime(_log.created_at) %></span>
+                        <span><%= Rsx_Time.relative(_log.created_at) %></span>
+                    </Slot:meta>
+                </Entity_Header>
+
+                <Section $title="Details">
+                    <View_Fields>
+                        <View_Field $label="Initiator">
+                            <% if (_log.actor_display) { %><%= _log.actor_display %><% } else { %><Empty_Value /><% } %>
+                        </View_Field>
+                        <View_Field $label="Target">
+                            <% if (_log.subject_display) { %><%= _log.subject_display %><% } else { %><span class="text-muted">(deleted)</span><% } %>
+                        </View_Field>
+                    </View_Fields>
+                </Section>
+
+                <% if (_log.metadata && Object.keys(_log.metadata).length > 0) { %>
+                <Section $title="Additional Data">
+                    <pre class="Action_Logs_View_Action__json"><%= JSON.stringify(_log.metadata, null, 2) %></pre>
+                </Section>
+                <% } %>
+            </Card_Widget>
+        </Slot:main>
+
+        <Slot:sidebar>
+            <Detail_Sidebar>
+                <View_Fields>
+                    <View_Field $label="Action Log ID" $inline=true>#<%= _log.id %></View_Field>
+                    <View_Field $label="Site ID" $inline=true><%= _log.site_id %></View_Field>
+                </View_Fields>
+            </Detail_Sidebar>
+        </Slot:sidebar>
+    </Page_Scaffold>
+<% } %>
+</Define:Action_Logs_View_Action>

@@ -1,0 +1,103 @@
+UPDATE-MECHANISM FIX: rsx:framework:pull self-heals its live script from .dist
+================================================================================
+
+Date:       2026-06-30
+Severity:   IMPORTANT - affects the framework updater itself; one-time manual
+            step recommended on the FIRST pull that includes this change.
+Affects:    system/artisan (interceptor), bin/framework-pull-upstream.sh(.dist)
+
+>>> ATTENTION UPDATER / DOWNSTREAM AGENT <<<
+This change fixes the update path that you are running RIGHT NOW. Because the
+fix lives in the very script that pulls updates, the install that just ran the
+pull was still executing the OLD generated script. Read "WHAT YOU MUST DO ONCE"
+below and apply it before relying on the next update. Surface this to Brian.
+
+PROBLEM
+-------
+
+`rsx:framework:pull` is intercepted in system/artisan BEFORE Laravel boots and
+shells out to bin/framework-pull-upstream.sh. That live .sh is generated and
+git-IGNORED; only bin/framework-pull-upstream.sh.dist is tracked.
+
+Nothing ever re-materialized .sh from .dist after install. So the script that
+pulls framework fixes could never pull its OWN fix: we shipped an improved
+override-artifact cleanup into .dist, but every downstream kept running the
+stale .sh it materialized at install time. Symptoms reported downstream:
+
+  1. The non-stash pull refused with a dirty tree, blaming manifest-generated
+     override artifacts (the .upstream renames, deleted framework originals, and
+     `use App\RSpade\Core\Models\X;` -> `use Rsx\Models\X;` repoints) that ARE
+     regenerable and should have been reverted automatically.
+  2. --stash "worked" only by accident and still aborted whenever the incoming
+     update touched the same files the manifest rewrites, because the stale flow
+     let the app re-generate those artifacts before the merge (a race).
+
+Root cause was NOT the cleanup logic (the tracked .dist already reverts all
+three artifact classes before the dirty-check, pre-boot, with no race). The root
+cause was that the fixed .dist never reached the live .sh.
+
+SOLUTION
+--------
+
+system/artisan now self-heals the live script on every `rsx:framework:pull`:
+before running, it copies bin/framework-pull-upstream.sh.dist over
+bin/framework-pull-upstream.sh whenever the live file is missing or its contents
+differ (md5). The .sh is generated, so edits belong in .dist. From the next pull
+onward the live script always matches the tracked template, permanently killing
+the stale-script class of bug.
+
+Design notes (unchanged behavior, now documented):
+  - We did NOT make --stash the default. The default path reverts ONLY
+    regenerable override artifacts and still warns/aborts on genuine user edits
+    in system/. --stash remains the opt-in escape hatch for real local changes.
+  - The cleanup stays in bash, pre-boot, disk/git-driven ON PURPOSE. An
+    invariant comment in .dist forbids moving it into PHP/the manifest: a
+    manifest-driven revert would boot Laravel, and a dev-mode boot regenerates
+    the very artifacts being cleaned -> the race returns.
+
+WHAT YOU MUST DO ONCE (first pull that includes this change)
+------------------------------------------------------------
+
+The pull you just completed ran the OLD interceptor, so the new self-heal did
+not apply to it. The new system/artisan landed via this merge and will self-heal
+automatically on the NEXT pull. To refresh the live script immediately (so it is
+correct before then), run from the project root:
+
+    cp system/bin/framework-pull-upstream.sh.dist system/bin/framework-pull-upstream.sh
+    chmod +x system/bin/framework-pull-upstream.sh
+
+If a PRIOR pull is currently STUCK (dirty tree from override artifacts) and you
+cannot reach this merge, recover the regenerable artifacts by hand, then pull:
+
+    # restore deleted framework originals
+    git status --porcelain | grep '^ D ' | sed 's/^ D //' | xargs -r -I{} git checkout HEAD -- "{}"
+    # remove .upstream companions (NOT under rsx/)
+    find . -name '*.upstream' -type f | grep -v './rsx/' | xargs -r rm -f
+    # revert system/ files whose ONLY diff is `use` statements (inspect first)
+    git diff --name-only -- . ':(exclude)rsx' | grep '\.php$'
+
+No action is required for any subsequent updates.
+
+FILES CHANGED
+-------------
+
+    system/artisan
+        Interceptor materializes the live .sh from .sh.dist (md5 compare) before
+        running, in addition to the existing missing-file guard.
+
+    system/bin/framework-pull-upstream.sh.dist
+        Added an INVARIANT comment to the override-cleanup block: it must remain
+        bash, pre-boot, disk/git-driven; nothing between it and the merge may
+        boot artisan.
+
+    system/app/RSpade/Commands/Framework/Framework_Pull_Command.php
+        Stub signature now documents --diff and --stash (help-text accuracy only;
+        the stub never executes - artisan intercepts first).
+
+VERIFICATION
+------------
+
+    # live script matches the tracked template after any pull invocation
+    md5sum system/bin/framework-pull-upstream.sh system/bin/framework-pull-upstream.sh.dist
+    # help lists all three flags
+    php artisan rsx:framework:pull --help

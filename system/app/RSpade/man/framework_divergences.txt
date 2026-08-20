@@ -1,0 +1,430 @@
+NAME
+    framework_divergences - intentional departures from stock Laravel behavior
+
+SYNOPSIS
+    php artisan rsx:man framework_divergences
+
+DESCRIPTION
+    This page is the log of every place where RSpade takes something Laravel
+    already does and makes it work DIFFERENTLY - a method that now throws, a
+    syntax that is now rejected, a default that is now something else.
+
+    It is deliberately NOT a feature list. New architecture that Laravel has no
+    equivalent for (the manifest, jqhtml, bundles, the task system, the portal)
+    is documented in its own man page and does not belong here. The test for an
+    entry is: "would a Laravel developer's existing muscle memory produce wrong
+    or broken code here?" If yes, it is a divergence.
+
+    Why the log exists. RSpade is opinionated by design, and most of these
+    divergences are enforced by something that throws - either at runtime, at
+    manifest-build time, or as an rsx:check violation. A developer who hits one
+    of those errors should be able to find the rule, the reason, and the
+    replacement in one place, rather than reverse-engineering intent from a
+    stack trace. Each entry therefore names the ENFORCEMENT MECHANISM, not just
+    the policy: the difference between "should not" and "cannot" is the whole
+    point.
+
+    Enforcement vocabulary used below:
+
+        FATAL           throws at runtime or during the manifest build; the
+                        code cannot ship
+        rsx:check       a static code-quality rule, reported by
+                        `php artisan rsx:check` with a rule id and a severity
+        CONVENTION      a documented directive with no code enforcement
+
+DATABASE AND MODELS
+
+    Mass Assignment Prohibited
+        Change          Every mass-assignment entry point throws
+                        App\Exceptions\MassAssignmentException.
+        Affected        fill(), forceFill(), create(), update(), firstOrCreate(),
+                        firstOrNew(), updateOrCreate()
+        Reason          Security and code clarity. Explicit per-field assignment
+                        makes every write auditable by reading the method.
+        Implementation  Rsx_Model_Abstract overrides each method (FATAL). The
+                        guard fires only when an attributes array is actually
+                        passed, so a no-argument call is not an error.
+        Correct form
+                            $user = new User_Model();
+                            $user->name  = $params['name'];
+                            $user->email = $params['email'];
+                            $user->save();
+
+    No $fillable / $guarded Properties
+        Change          Models must not declare $fillable, and must not declare
+                        a $guarded other than ['*'].
+        Reason          Mass assignment is prohibited outright, so the arrays
+                        that whitelist it are meaningless - and a populated
+                        $fillable implies a capability that does not exist.
+        Implementation  rsx:check rule PHP-MASS-01 ("Mass Assignment Property
+                        Check"), severity CRITICAL. Rsx_Model_Abstract itself is
+                        exempt.
+
+    Eager Loading Prohibited
+        Change          Every eager-loading method throws RuntimeException.
+        Affected        with(), load(), loadMissing(), loadCount(), loadMorph(),
+                        loadAggregate(), loadMax/Min/Sum/Avg/Exists(),
+                        withCount(), withMax/Min/Sum/Avg/Exists(),
+                        withAggregate()
+        Reason          Eager loading hides the query shape and invites
+                        recursive relationship loading. RSpade wants the
+                        queries a page runs to be readable from the page.
+        Implementation  Rsx_Model_Abstract blocks the instance methods,
+                        RestrictedEloquentBuilder blocks the query-builder
+                        methods, RestrictedEloquentCollection blocks the
+                        collection methods (all FATAL).
+        Note            For the specific N+1 that class-table inheritance
+                        creates, the sanctioned bulk loader is
+                        Model::preload_details($collection) - see
+                        rsx:man detail_tables.
+
+    Restricted Database Commands
+        Change          Destructive schema commands are overridden.
+        Affected        db:wipe, migrate:fresh, migrate:refresh, migrate:reset
+        Reason          Prevent accidental data loss. RSpade migrations are
+                        forward-only, so "rebuild from scratch" is never the
+                        routine answer to a schema problem.
+        Implementation  Restricted_Database_Command base class in
+                        App\RSpade\Commands\Restricted. Note that
+                        migrate:reset is a CONTROLLED override rather than a
+                        flat refusal: it blocks production, blocks the Claude
+                        Code environment, and requires migration mode.
+        Not affected    migrate:rollback is NOT overridden - it is moot,
+                        because no migration defines a down() method.
+
+    Forward-Only Migrations
+        Change          Generated migrations contain no down() method.
+        Affected        make:migration:safe and every migration stub
+        Reason          Prevent data loss; a reversible migration is a fiction
+                        as soon as the up() has destroyed anything.
+        Implementation  Customized stubs under system/stubs/ carry an explicit
+                        "down() method is prohibited in RSpade framework" note;
+                        a warning is printed after each migration is created.
+
+    Recursive Migration Discovery, Ordered by Timestamp Basename
+        Change          Migration files are discovered RECURSIVELY beneath each
+                        base directory (system/database/migrations,
+                        rsx/resource/migrations), and the complete union runs in
+                        order of TIMESTAMP BASENAME across all directories -
+                        not per-directory concatenation.
+        Reason          Laravel runs each registered path's files
+                        independently. RSpade interleaves them by basename so a
+                        foreign-key migration can reference an
+                        earlier-timestamped table living in a DIFFERENT
+                        migration directory (framework-core schema referencing
+                        template-app tables, or vice versa). Before this, a
+                        nested directory could be silently never executed on a
+                        fresh database and be absent from the migration hash.
+        Implementation  MigrationPaths::get_all_migration_files() is the single
+                        source of truth, backed by _scan_migration_files()
+                        (RecursiveDirectoryIterator) and _sort_by_basename().
+                        Every runner, validator, and hash call site consumes
+                        that one set: Maint_Migrate, MigrationValidator,
+                        migrate:pending, and the test-suite migration hash.
+        Constraint      The basename is the canonical identity (Laravel records
+                        migrations by basename, and .migration_whitelist tracks
+                        them by basename), so it drives discovery, ordering,
+                        de-duplication, and "already ran" checks. Basenames
+                        MUST be unique across all migration directories.
+
+    Polymorphic Type References Are Integers
+        Change          A morph *_type column stores a BIGINT type-ref id, not
+                        Laravel's class-name string.
+        Reason          Narrow columns, indexable joins, and rename-safety - a
+                        model rename does not rewrite every row.
+        Implementation  Type_Ref_Registry populates Relation::morphMap() with
+                        BOTH the class-name alias and the stringified integer
+                        id, so morphTo/morphOne/morphMany/associate/
+                        whereMorphedTo/whereHasMorph keep working unchanged.
+                        The divergence is transparent to Eloquent.
+        See also        rsx:man polymorphic
+
+ROUTING AND DISPATCH
+
+    Route Parameter Syntax
+        Change          Route parameters use :param, not Laravel's {param}.
+        Affected        Every #[Route] and #[Portal_Route] path
+        Reason          Clearer, and it does not collide visually with Blade.
+        Implementation  RouteResolver COMPILES :param. The old syntax is
+                        REJECTED by rsx:check rule ROUTE-SYNTAX-01, which runs
+                        during the manifest scan and throws
+                        YoureDoingItWrongException (FATAL - the build fails).
+
+    Resource Routes Prohibited
+        Change          Resource-route helpers throw RuntimeException.
+        Affected        Route::resource(), apiResource(), resources(),
+                        apiResources(), singleton(), singletons()
+        Reason          Enforce explicit route declarations; RSpade does not
+                        assume REST verb-to-method mapping.
+        Implementation  RestrictedRouter, installed by
+                        Rsx_Restricted_Routing_Provider (FATAL).
+
+    HTTP Methods Limited to GET and POST
+        Change          Non-GET/POST route registration throws RuntimeException.
+        Affected        Route::put(), patch(), delete(), options(), any()
+        Reason          Simplify HTTP semantics - POST performs every
+                        modification. Browsers only ever emit GET and POST
+                        natively, and the rest buy nothing but ceremony.
+        Implementation  RestrictedRouter blocks the helpers and addRoute()
+                        validates the allowed set (FATAL).
+
+AUTHORIZATION
+
+    #[Auth] Is Mandatory - Surfaces Are Closed By Default
+        Change          Every dispatchable surface must DECLARE its gate.
+                        Laravel treats an ungated route as public; RSpade
+                        treats it as a build error.
+        Affected        #[Route], #[Portal_Route], #[SPA], #[Ajax_Endpoint],
+                        #[Ajax_Endpoint_Model_Fetch], #[Api_Endpoint], and
+                        @route JS actions
+        Reason          Closed-by-default. An omission is the most common
+                        authorization defect, and it is invisible in review; a
+                        build failure is not.
+        Implementation  Auth_ManifestSupport validates during the manifest
+                        build and FAILS with a per-violation worklist (file,
+                        member, the exact line to add, and the check names
+                        available in that realm). There is no off switch and no
+                        attribute-free spelling of "open" - a public surface
+                        writes #[Auth('public')].
+        Also            pre_dispatch() performs NO authorization anywhere.
+        Supersedes      The former @auth-exempt / @portal-auth-exempt docblock
+                        markers and Portal_Permission::route_is_exempt(). That
+                        syntax is DEAD - it is silently ignored, so any code
+                        still relying on it is now ungated and will fail the
+                        build. Removed 2026-08-07.
+        See also        rsx:man auth_gates
+
+    Portal ORM Fetch Dispatches by Request Context
+        Change          The single ORM endpoint (Orm_Controller::fetch /
+                        fetch_relationship) calls a model's portal_fetch() in a
+                        portal request and fetch() otherwise. The method name is
+                        chosen by Rsx_Portal::is_portal_request(), not by a
+                        second controller.
+        Reason          Portal records need their own fail-closed authorization
+                        contract, without a duplicate ORM endpoint or two
+                        parallel implementations of the same transport.
+        Implementation  Orm_Controller::_resolve_fetch_method_name() selects the
+                        method; the Portal_Authorizable trait supplies the gated
+                        portal_fetch(), which defers to the model's fail-closed
+                        portal_can_read(). rsx:check rule PORTAL-MODEL-FETCH-01
+                        requires a model exposing portal_fetch() to declare and
+                        call portal_can_read().
+
+    window.rsxapp.portal Block
+        Change          Portal page bundles inject a `portal` block into
+                        window.rsxapp (is_auth, user, client_roles map) for the
+                        client-side Portal_Permission mirror.
+        Reason          Lets portal JS hide UI affordances by membership and
+                        role. UI-ONLY - the server remains the enforcement
+                        boundary, always.
+        Implementation  Rsx_Bundle_Abstract::_build_portal_permission_block()
+                        resolves the app's Portal_Permission through the
+                        manifest, so core carries no hard dependency on app
+                        code. Consumed by Core/Js/Portal_Permission.js.
+
+SESSIONS
+
+    Session Configuration Replaced Wholesale
+        Change          Laravel's config/session.php does not exist. Session
+                        retention is configured under rsx.php 'sessions', and
+                        the model is an IDLE TIMEOUT reaped by a scheduled
+                        task - not a fixed cookie lifetime.
+        Reason          A single long-lived cookie plus a server-side idle
+                        window gives a better experience than repeated
+                        surprise logouts, while still expiring abandoned
+                        sessions and keeping the table bounded.
+        Current values  sessions.web_timeout_minutes = 131400 (about 91 days
+                        idle) for a session carrying an identity;
+                        sessions.anonymous_timeout_minutes = 43200 (30 days)
+                        for one carrying none;
+                        sessions.max_web_sessions_per_user = 25, which signs
+                        out a user's oldest WEB sessions at each sign-in.
+        Implementation  Session_Cleanup_Service (hourly, chunked) deletes idle
+                        rows. Machine session types (api, playwright, cli) keep
+                        their own shorter backstops.
+        See also        rsx:man session
+
+    Laravel's session() Helper Prohibited
+        Change          Laravel's session() helper is a violation; use the
+                        static Session:: facade.
+        Reason          One session mechanism, not two. RSpade sessions are
+                        database rows with their own lifecycle, not the PHP
+                        session bag Laravel's helper reaches.
+        Implementation  rsx:check rule PHP-SESSION-01, severity HIGH.
+
+QUERIES AND CACHING
+
+    Date Math Belongs in SQL, Not in PHP
+        Change          Building a query bound from Carbon::now()->subDays(n)
+                        in PHP is a violation; use MySQL INTERVAL arithmetic in
+                        the query.
+        Reason          Keeps the comparison in one timezone and one clock, and
+                        keeps the predicate index-usable.
+        Implementation  rsx:check rule PHP-DATE-CALC-01, severity MEDIUM.
+
+    Config and View Caching Dropped from optimize:cache
+        Change          optimize:cache caches ROUTES and EVENTS only, and
+                        refuses to run outside production. config:cache,
+                        view:cache, route:cache, event:cache and cache:clear are
+                        all overridden.
+        Reason          Laravel's config cache FREEZES env() at cache time,
+                        which is fundamentally incompatible with RSpade's
+                        runtime configuration model - a cached config silently
+                        serves stale deployment facts.
+        Implementation  Optimize_Cache_Command plus per-command overrides in
+                        App\RSpade\Commands\Restricted.
+        See also        rsx:man app_mode
+
+FRONTEND AND STYLING
+
+    This section's counterpart is Bootstrap rather than Laravel: Bootstrap 5 is
+    the vendored CSS framework, and the same test applies - would a Bootstrap
+    developer's muscle memory produce broken markup here?
+
+    Bootstrap Breakpoints Replaced Wholesale
+        Change          The breakpoint set xs/sm/md/lg/xl/xxl no longer exists.
+                        It is replaced by two tiers of DEVICE names: mobile
+                        (0-1023) / desktop (1024+), and phone-sm, phone-lg,
+                        phone, tablet, desktop-sm, desktop-md, desktop-lg,
+                        desktop-xl.
+        Affected        Every breakpoint-infixed utility class (.col-*, .d-*,
+                        spacing, order, offset, text alignment) and the
+                        media-breakpoint-up/down/only mixins. .col-md-6,
+                        .d-lg-none and @include media-breakpoint-up(lg) match
+                        nothing.
+        Reason          A class named for a device says what the rule is FOR;
+                        a class named for a size has to be re-derived from a
+                        pixel table every time it is read. Aliasing the old
+                        names would have kept two vocabularies alive for the
+                        same concept.
+        Implementation  $grid-breakpoints is overridden in
+                        rsx/theme/variables.scss BEFORE Bootstrap is imported
+                        (rsx/theme/vendor/bootstrap_custom.scss), so Bootstrap's
+                        own generators emit only the RSX names. CONVENTION -
+                        nothing throws: an unmatched class is silently inert,
+                        which is exactly why the stock names were removed rather
+                        than aliased.
+        Correct form
+                            <div class="col-12 col-desktop-6">
+                            @include desktop { ... }
+        Not affected    Unprefixed Bootstrap classes (.col-6, .d-none, .p-2)
+                        are unchanged and ARE the mobile-first base - the
+                        zero-width tiers generate no infix at all, so
+                        .col-mobile-6 and .d-mobile-none do not exist.
+        See also        rsx:man responsive
+
+NAMING CONVENTIONS
+
+    Underscore Case for Custom Methods
+        Change          Custom PHP methods use underscore_case, not camelCase.
+        Affected        Controllers, models, services - any method you write
+        Reason          Consistency and readability across a codebase that is
+                        underscore-cased everywhere else.
+        Implementation  rsx:check rule PHP-NAMING-01 ("PHP Method Naming
+                        Convention"), severity MEDIUM - a reported violation,
+                        not a fatal. Suppress a justified case with an
+                        @PHP-NAMING-01-EXCEPTION comment carrying a rationale.
+        Not affected    Framework methods keep their original names (toArray,
+                        broadcastOn, ...); the rule carries an allowlist.
+
+GIT OPERATIONS
+
+    All Git Goes Through the rsx:git Proxy
+        Change          Bare `git` is replaced by
+                        `php artisan rsx:git <any git command>` - same
+                        subcommands, flags, exit codes, stdin and TTY.
+        Reason          In a downstream app, system/ is a vendored,
+                        machine-owned tree. The proxy keeps framework churn out
+                        of application commits, wraps tree-rewriting operations
+                        in a maintenance window, and resolves system/ conflicts
+                        to the incoming release.
+        Implementation  system/bin/rsx-git.sh, fronted pre-boot by
+                        system/artisan. A Claude Code PreToolUse hook
+                        (system/bin/claude-git-guard.sh) blocks a bare `git`
+                        and prints the rsx:git equivalent.
+        Staging         The old "always use git add -A" directive is now
+                        ENFORCED rather than merely documented: the proxy
+                        injects a whole-tree pathspec, minus system/ and every
+                        submodule gitlink. The rule is "the whole tree except
+                        the framework zone".
+        Note            In the framework MONOREPO the proxy is inert
+                        passthrough - system/ is authored source there.
+        See also        rsx:man rsx_git
+
+ERROR MESSAGES
+
+    Educational Exception Messages
+        Change          Custom exceptions explain the rule, name the offending
+                        model and method, list the attempted fields, and print
+                        both the incorrect and the correct form.
+        Reason          A developer meeting an RSpade constraint for the first
+                        time should learn the pattern from the error, not from
+                        a search. The constraints are unusual by design, so the
+                        exceptions carry the teaching.
+        Implementation  MassAssignmentException::build_message() is the
+                        reference implementation; other custom exceptions
+                        follow it.
+        See also        rsx:man error_handling
+
+DEVELOPMENT WORKFLOW
+
+    Snapshot-Protected Migrations (Development Only)
+        Change          `php artisan migrate` takes a filesystem snapshot of
+                        the MySQL datadir before running, commits it on
+                        success, and rolls back automatically on failure.
+        Reason          A partially-applied migration leaves a database in a
+                        state no forward-only system can repair. The snapshot
+                        makes a failed migrate a non-event.
+        Implementation  Unified Maint_Migrate command; snapshots live under
+                        /var/lib/mysql_backup.
+        Gating          DEVELOPMENT mode only, and skipped for framework-only
+                        migration runs. Debug and production run without
+                        snapshots. Development outside Docker is a HARD ERROR
+                        directing you to RSX_MODE=debug - there is no silent
+                        unprotected fallback.
+        See also        rsx:man migrations
+
+    No Service Restart After a Code Change
+        Change          Never restart PHP-FPM or Nginx after editing code.
+        Status          This is an ENVIRONMENT fact, not a framework
+                        divergence - no framework code implements it. It is
+                        recorded here because it contradicts a deeply held
+                        Laravel-deployment habit.
+        Development     OPcache is expected to be OFF, so an edited file is
+                        live on the next request. Restarting accomplishes
+                        nothing and interrupts work.
+        Production      A sealed production build expects OPcache ON;
+                        `rsx:prod:verify` reports its posture (advisory only).
+                        Deployment there is a seal refresh, not a hand restart.
+        See also        rsx:man app_mode
+
+ADDING AN ENTRY
+
+    Add an entry when framework code changes what an existing LARAVEL feature
+    does. Include, in this order:
+
+        Change          one sentence, in the present tense
+        Affected        the exact methods, commands, or files
+        Reason          why - this is the part that stops the change being
+                        undone by a future contributor who only sees the cost
+        Implementation  the class, rule id, or stub that enforces it, and
+                        whether it is FATAL, an rsx:check rule (with severity),
+                        or a CONVENTION
+
+    Do NOT add an entry for new RSpade architecture that has no Laravel
+    counterpart - that belongs in its own man page. Do not date entries: a
+    divergence log describes the CURRENT state, and dated lines rot into a
+    changelog. Where a divergence SUPERSEDED an earlier RSpade mechanism, say
+    so in a Supersedes line (as the #[Auth] entry does), because that is the
+    one case where a reader may be holding stale knowledge.
+
+SEE ALSO
+    rsx:man rspade               Framework philosophy and overview
+    rsx:man auth_gates           The mandatory #[Auth] system
+    rsx:man migrations           Forward-only migrations and snapshots
+    rsx:man polymorphic          Integer type refs and the morph map
+    rsx:man session              Session lifecycle and retention
+    rsx:man rsx_git              The git proxy
+    php artisan rsx:check        Reports the rule ids above with their
+                                 severities and remediation text
+    rsx:man app_mode             Development / debug / production modes

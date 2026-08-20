@@ -1,0 +1,16 @@
+// Portal_Workspace_Requests_Action - near-empty.
+//
+// The page composes from the semantic vocabulary (Page_Scaffold / Section /
+// Record_Table / Status_Badge / Empty_State). The one survivor is the request-title
+// cell truncation (a table cell owns its own overflow; nowhere shared to live).
+.Portal_Workspace_Requests_Action {
+
+    &__title {
+        display: block;
+        font-weight: $font-weight-medium;
+        max-width: 420px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}

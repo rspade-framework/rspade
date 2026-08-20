@@ -1,0 +1,33 @@
+<%--
+Feed_Row - one activity/timeline entry: icon tile + event summary + time
+
+$icon="bi bi-building" - the leading icon class [optional]
+$variant - icon accent color: primary|success|info|warning|danger|secondary
+           (default primary) [optional]
+<Slot:body> - the "actor verb object" summary (may carry links) (required)
+<Slot:time> - a relative timestamp, right-aligned [optional]
+
+A single-line event summary, DISTINCT from Author_Meta_Row (an authored-post
+byline with an avatar). Use Feed_Row for activity/audit feeds where each row is
+"someone did something to something" - e.g. an action-log entry, whose render()
+already emits the linked summary.
+
+Usage:
+    <Feed_Row $icon="bi bi-folder" $variant="success">
+        <Slot:body><%!= _entry.html %></Slot:body>
+        <Slot:time><%= Rsx_Time.relative(_entry.created_at) %></Slot:time>
+    </Feed_Row>
+--%>
+<Define:Feed_Row tag="div">
+    <% const _variant = this.args.variant || 'primary'; %>
+    <% this.$.addClass('Feed_Row--' + _variant); %>
+    <div class="Feed_Row__icon-tile">
+        <% if (this.args.icon) { %>
+            <i class="Feed_Row__icon <%= this.args.icon %>"></i>
+        <% } %>
+    </div>
+    <div class="Feed_Row__body"><%= content('body') %></div>
+    <% if (this.args._slots && this.args._slots.time) { %>
+        <div class="Feed_Row__time"><%= content('time') %></div>
+    <% } %>
+</Define:Feed_Row>

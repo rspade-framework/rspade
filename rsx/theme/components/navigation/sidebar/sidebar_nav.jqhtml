@@ -1,0 +1,76 @@
+<%--
+Sidebar_Nav - Hierarchical Sidebar Navigation Component
+
+Abstract component for building hierarchical navigation with expandable sections.
+Handles active state detection and auto-expansion of parent items.
+
+USAGE:
+    <Sidebar_Nav $sections=sections_data />
+
+    Where sections_data is an array of section objects:
+    [
+        {
+            title: "Section Title",
+            items: [
+                { label: "Dashboard", icon: "bi-house-door", href: "/dashboard" },
+                {
+                    label: "Email",
+                    icon: "bi-envelope",
+                    href: "/email",
+                    subitems: [
+                        { label: "Status", href: "/email/status" },
+                        { label: "History", href: "/email/history" },
+                        { label: "Templates", href: "/email/templates" }
+                    ]
+                }
+            ]
+        }
+    ]
+
+ARGUMENTS:
+    $sections - Array of section objects defining navigation structure
+
+BEHAVIOR:
+    - Automatically detects active items based on current URL
+    - Expands parent items if child is active (no animation on initial load)
+    - Supports nested navigation up to one level deep
+--%>
+<Define:Sidebar_Nav class="navbar-collapse d-desktop-block collapse" id="sidebarNav">
+    <% for (const section of this.data.sections) { %>
+        <div class="Sidebar_Nav__section">
+            <% if (section.title) { %>
+                <div class="Sidebar_Nav__section-title"><%= section.title %></div>
+            <% } %>
+
+            <% for (const item of section.items) { %>
+                <% if (item.subitems && item.subitems.length > 0) { %>
+                    <%-- Expandable item --%>
+                    <div class="Sidebar_Nav__item-expandable<%= item.has_active_child ? ' expanded' : '' %>">
+                        <a href="<%= item.href %>" class="Sidebar_Nav__link-expandable<%= item.active || item.has_active_child ? ' active' : '' %>">
+                            <% if (item.icon) { %>
+                                <i class="<%= 'bi ' + item.icon %>"></i>
+                            <% } %>
+                            <span><%= item.label %></span>
+                            <i class="bi bi-chevron-down ms-auto Sidebar_Nav__expand-icon"></i>
+                        </a>
+                        <div class="Sidebar_Nav__submenu" style="<%= item.has_active_child ? 'display: block;' : '' %>">
+                            <% for (const subitem of item.subitems) { %>
+                                <a href="<%= subitem.href %>" class="Sidebar_Nav__subitem<%= subitem.active ? ' active' : '' %>">
+                                    <%= subitem.label %>
+                                </a>
+                            <% } %>
+                        </div>
+                    </div>
+                <% } else { %>
+                    <%-- Regular item --%>
+                    <a href="<%= item.href %>" class="Sidebar_Nav__link<%= item.active ? ' active' : '' %>">
+                        <% if (item.icon) { %>
+                            <i class="<%= 'bi ' + item.icon %>"></i>
+                        <% } %>
+                        <span><%= item.label %></span>
+                    </a>
+                <% } %>
+            <% } %>
+        </div>
+    <% } %>
+</Define:Sidebar_Nav>

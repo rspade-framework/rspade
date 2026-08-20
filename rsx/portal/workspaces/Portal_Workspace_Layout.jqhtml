@@ -1,0 +1,52 @@
+<%--
+    Portal_Workspace_Layout - per-client workspace sublayout (Overview / Requests / Documents).
+
+    Persistent header (engagement name + role) + left vertical pills nav + a $sid="content"
+    body the per-tab sub-action renders into. The :id is read from on_action() (see the JS),
+    which fills the header text + pill hrefs via DOM writes - the template renders the static
+    shell only (it cannot render() in on_action without wiping the already-mounted action).
+
+    Membership gate lives in the tab actions: each runs its own three-state off
+    Portal_Workspaces_Controller.get(), which fails closed for a non-member.
+
+    Used as a nested layout:
+      @layout('Portal_Layout')
+      @layout('Portal_Workspace_Layout')
+      class Portal_Workspace_Overview_Action extends Spa_Action { }
+--%>
+<Define:Portal_Workspace_Layout tag="div" class="container py-4">
+
+    <%-- Persistent header: client name + the caller's role (filled by on_action) --%>
+    <div class="Portal_Workspace_Layout__header">
+        <a href="<%= Rsx_Portal.Route('Portal_Dashboard_Action') %>" class="Portal_Workspace_Layout__back">
+            <i class="bi bi-chevron-left"></i> Dashboard
+        </a>
+        <h1 class="Portal_Workspace_Layout__title" $sid="title"></h1>
+        <p class="Portal_Workspace_Layout__role d-none" $sid="role-wrap">Your role: <span class="badge badge-outline-secondary" $sid="role"></span></p>
+    </div>
+
+    <div class="row">
+
+        <%-- Left: vertical pills nav (hrefs filled by on_action) --%>
+        <div class="col-12 col-desktop-3">
+            <nav class="Portal_Workspace_Layout__nav nav flex-column">
+                <a class="Portal_Workspace_Layout__pill nav-link" data-page="overview" href="#">
+                    <i class="bi bi-grid-1x2 me-2"></i>Overview
+                </a>
+                <a class="Portal_Workspace_Layout__pill nav-link" data-page="requests" href="#">
+                    <i class="bi bi-inbox me-2"></i>Requests
+                </a>
+                <a class="Portal_Workspace_Layout__pill nav-link" data-page="documents" href="#">
+                    <i class="bi bi-folder2-open me-2"></i>Documents
+                </a>
+            </nav>
+        </div>
+
+        <%-- Right: the per-tab sub-action renders here --%>
+        <div class="col-12 col-desktop-9">
+            <div class="Portal_Workspace_Layout__content" $sid="content"></div>
+        </div>
+
+    </div>
+
+</Define:Portal_Workspace_Layout>

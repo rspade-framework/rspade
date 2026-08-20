@@ -1,0 +1,5 @@
+<Define:Pagination_Controls tag="nav" aria-label="Table pagination">
+  <ul class="pagination pagination-sm mb-0">
+    <%= content() %>
+  </ul>
+</Define:Pagination_Controls>

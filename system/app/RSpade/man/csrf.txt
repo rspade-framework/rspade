@@ -1,0 +1,135 @@
+NAME
+    csrf - automatic CSRF protection (no end-developer work required)
+
+DESCRIPTION
+    RSpade enforces CSRF protection on every state-changing request
+    automatically. Application developers write #[Ajax_Endpoint] methods and
+    <Rsx_Form> components exactly as normal; the framework attaches, transmits,
+    and verifies the CSRF material end to end. There is NOTHING for an app
+    developer to do - no token to fetch, embed, send, or check. This page is a
+    reference for how the mechanism works and what it protects.
+
+    Enforcement is two complementary layers, applied at the dispatch seam for
+    POST requests only (GET never mutates and is never checked):
+
+    1. ORIGIN / REFERER (all POSTs, whether or not a session exists)
+       A cross-site browser POST always carries an Origin header the attacker
+       cannot forge. If a request presents an Origin (or, failing that, a
+       Referer) whose host is not this host, it is rejected. This closes
+       login-CSRF (see PROTECTION). Requests with neither header (curl,
+       server-to-server) are allowed - they are not cross-site browser POSTs.
+
+    2. SYNCHRONIZER TOKEN (session-bearing POSTs only)
+       If a session exists, a CSRF token is required and must match the token
+       bound to that session (constant-time comparison). If no session exists,
+       the request is allowed: there is no victim session to forge against, so
+       a missing token is harmless. This is what lets anonymous, session-less
+       requests (e.g. a public page's reads, or the login POST itself) work
+       without a token while every authenticated action is protected.
+
+THE TOKEN
+    A 32-byte random token is minted ONCE when a session is created and stored
+    on the session row (_sessions.csrf_token). It is stable for the life of the
+    session - it is NOT rotated on login, identity change, or impersonation
+    (consistent with RSpade's session-token immutability). It is never exported
+    to JavaScript except as window.rsxapp.csrf.
+
+    window.rsxapp.csrf is populated on page render ONLY when a session already
+    exists; on an anonymous first-visit page it is null (no session is created
+    merely to emit a token). The token lives only in same-origin JavaScript and
+    in the HttpOnly session cookie's paired server row - never in a cookie a
+    page can read - so a cross-site attacker cannot obtain it.
+
+TRANSPORT (handled for you)
+    AJAX and file upload:
+        The token rides the request header X-CSRF-Token. It is attached in ONE
+        place - the framework's jQuery $.ajax chokepoint - so every
+        Controller.method() call (direct and batched) and every /_upload
+        multipart POST carries it automatically when window.rsxapp.csrf is set.
+        It is never attached to external cross-domain requests (no token leak).
+
+    Native <form> POSTs (the login/auth pages):
+        A global submit listener injects a hidden <input name="_csrf_token">
+        from window.rsxapp.csrf just before the form submits, if the token is
+        set and the form does not already carry one. <Rsx_Form> submits via
+        AJAX (not a native POST), so it is covered by the header path above; the
+        stray hidden field, if present, is excluded from its serialized values.
+
+    The server reads the token from the X-CSRF-Token header first, then the
+    _csrf_token body field.
+
+    Blade forms (@csrf):
+        The @csrf directive is overridden by RSpade and emits the BROWSER's one
+        csrf_token. There is one session per browser (one `rsx` cookie, one
+        _sessions row) shared by the staff app and the portal, so there is exactly
+        one token and nothing to fork on - a staff form and a portal form carry
+        the same value, and both dispatchers verify against the same row. It emits
+        NOTHING when the browser has no session yet, which is correct: a
+        session-less POST needs no token. Use @csrf; never hand-roll a hidden
+        _csrf_token input.
+
+ENFORCEMENT POINT
+    A single POST-gated check in the staff Dispatcher and an IDENTICAL one in the
+    Portal_Dispatcher (App\RSpade\Core\Session\Rsx_Csrf::enforce($request)),
+    placed AFTER the external-API branch. This one seam covers
+    /_ajax/:controller/:action, /_ajax/_batch, /_upload, and native #[Route(POST)]
+    controllers. Both calls are the same call because both channels serve the same
+    browser session and the same token - Rsx_Csrf takes no realm argument. A
+    failure returns a clean auth-style error (AJAX contract for /_ajax and
+    /_upload, a 419 for native form POSTs) with no stack trace. The portal channel
+    is the same path under the portal base (<portal-prefix>/_ajax/..., or
+    /_ajax/... on a portal domain); the path test matches both spellings.
+
+    The rejection is an already-rendered response carried by an
+    HttpResponseException, and Rsx_Exception_Handler honors that exception
+    BEFORE running the handler chain - so no error handler (the fatal screen
+    outside dev+debug, the Playwright plain-text dump, an app-registered
+    handler) can replace the documented contract with a 500.
+
+    has_session() is read-only - the check never creates a session for a
+    token-less anonymous caller.
+
+PROTECTION (threat model)
+    Forged mutation (classic CSRF): an attacker page tries to POST a state
+        change that rides the victim's session cookie. Blocked three ways: the
+        session cookie is SameSite=Lax (not sent on cross-site POST), the Origin
+        check rejects the foreign origin, and the synchronizer token is absent.
+
+    Login-CSRF (forcing a victim into the ATTACKER'S account): the attacker
+        cross-site-POSTs the login form with the attacker's own credentials, so
+        the victim ends up logged into the attacker's account and their data
+        lands there. SameSite=Lax does NOT stop this - login needs no existing
+        cookie, so there is nothing for SameSite to withhold. It is closed by
+        the ORIGIN/REFERER check (layer 1): the forced login POST carries the
+        attacker's Origin and is rejected; a genuine same-origin login carries
+        this host's Origin and passes.
+
+    External API (#[Api_Endpoint], /api/vN/*): exempt. It authenticates with a
+        Bearer token and a cookie-less headless Session - there is no ambient
+        cookie to forge, and the request is branched off before the CSRF seam.
+
+    GET requests: never checked - reads do not mutate, and same-origin policy
+        already prevents a cross-site attacker from reading a response.
+
+FOR DEVELOPERS
+    Nothing. Write endpoints and forms normally:
+        #[Ajax_Endpoint] public static function save(...) { ... }
+        <Rsx_Form $controller="..." $method="save"> ... </Rsx_Form>
+    Both are CSRF-protected automatically. Do not attach, read, or verify a
+    token yourself.
+
+FILES
+    system/app/RSpade/Core/Session/Rsx_Csrf.php        Server enforcement
+    system/app/RSpade/Core/Js/Rsx_Csrf.js              Native-form token injection
+    system/app/RSpade/Core/Js/Rsx_Jq_Helpers.js        AJAX/upload header attach
+    system/app/RSpade/Core/Session/Session.php         Token mint + verify (staff)
+    system/app/RSpade/Core/Portal/Portal_Session.php   Token mint + verify (portal)
+    system/app/RSpade/Core/Providers/Rsx_Bundle_Provider.php
+                                                       @csrf directive (realm-aware)
+    system/app/RSpade/Core/Exceptions/Rsx_Exception_Handler.php
+                                                       Honors the rejection response verbatim
+
+SEE ALSO
+    session, auth, portal, ajax_error_handling, external_api
+
+RSpade                           2026-08-09                            CSRF(7)

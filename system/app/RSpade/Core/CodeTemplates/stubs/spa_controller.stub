@@ -1,0 +1,30 @@
+<?php
+
+namespace {{ module_namespace }};
+
+use Illuminate\Http\Request;
+use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+
+/**
+ * SPA bootstrap for the {{ module_title }} module.
+ *
+ * Every Action in this module names this controller in its @spa() decorator.
+ * The class-level gate covers every surface in the class; #[Auth] is mandatory
+ * (the manifest build fails without it).
+ */
+#[Auth('{{ auth_check }}')]
+class {{ spa_controller_class }} extends Rsx_Controller_Abstract
+{
+    /**
+     * SPA entry point for the {{ module_title }} module
+     *
+     * @param Request $request
+     * @param array $params
+     * @return mixed
+     */
+    #[SPA]
+    public static function index(Request $request, array $params = [])
+    {
+        return rsx_view(SPA, ['bundle' => '{{ bundle_class }}']);
+    }
+}

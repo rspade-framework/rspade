@@ -1,0 +1,34 @@
+{
+  "name": "jqhtml/laravel-bridge",
+  "description": "Laravel integration bridge for JQHTML template error reporting and source maps",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "JQHTML Team"
+    }
+  ],
+  "require": {
+    "php": "^7.4|^8.0",
+    "illuminate/support": "^8.0|^9.0|^10.0|^11.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Jqhtml\\LaravelBridge\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Jqhtml\\LaravelBridge\\Tests\\": "tests/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Jqhtml\\LaravelBridge\\JqhtmlServiceProvider"
+      ]
+    }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}

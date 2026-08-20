@@ -1,0 +1,89 @@
+realtime_touch() METHOD OVERRIDE NOW FIRES WITHOUT $realtime = true (CORE FIX)
+Date: 2026-07-21
+
+SUMMARY
+    An overridden realtime_touch(): array method now walks its parent-touch cascade
+    on every write of the child - a save(), a bulk ->update(), or a bulk ->delete() -
+    INDEPENDENT of the child's own public static $realtime flag, exactly as the
+    #[Realtime_Touch] ATTRIBUTE already did. Previously the METHOD rung was reachable
+    only when $realtime was truthy, so a touch-only model that shipped ONLY
+    realtime_touch() (the polymorphic/conditional escape-hatch case the method exists
+    for) emitted nothing. This is a Category 2 core fix: it arrives automatically via
+    the submodule, but if you set $realtime = true purely to open that gate, you now
+    have a workaround to REVERT.
+
+THE BUG
+    realtime_touch() (the method rung of the touch-cascade ladder) was documented and
+    intended to "fire INDEPENDENTLY of the child's own $realtime flag." That held for
+    the rung-1 #[Realtime_Touch] attribute but NOT for the method override: the method
+    cascade was walked only inside queue_model_change(), which both emission paths
+    (per-row save/delete and the hydrated bulk path) entered only when static::$realtime
+    was set. has_realtime_surface() DID count a method override, so bulk writes were
+    intercepted and rows hydrated - and then emitted nothing. A model shipping only
+    realtime_touch() (a fully polymorphic child with no belongsTo, no subscribers of
+    its own) was provably dead code: the exact scenario the escape hatch exists for.
+
+THE FIX
+    Informational only - lives in /system/ core, arrives via the submodule on your
+    next `php artisan rsx:framework:pull`. Nothing to copy.
+
+    - New Realtime_Emissions::queue_touch_cascade($model) walks the realtime_touch()
+      cascade WITHOUT publishing the child's own frame.
+    - Rsx_Model_Abstract::_realtime_emit_on_write() (the save/delete path) now:
+        if ($realtime)                      -> queue_model_change (own frame + cascade)
+        elseif overrides realtime_touch()   -> queue_touch_cascade (parents only, no own)
+      and always runs the attribute-touch pass. The hydrated bulk-builder path applies
+      the same rule.
+    - Net semantics, now identical between the attribute and the method: a touch-only
+      child (no $realtime) notifies its PARENTS on save/update/delete but publishes NO
+      own-model frame. Setting $realtime = true additionally publishes the child's own
+      frame (unchanged). realtime_emit() still publishes an own frame on demand.
+
+ACTION REQUIRED
+    1. Revert any $realtime = true you added SOLELY to make a method-only touch fire.
+       If a model exists only to touch a parent (a polymorphic pivot/association with
+       an overridden realtime_touch() and nothing subscribing to the model itself), the
+       method override alone is now sufficient. Remove the flag line (and the docblock
+       explaining the workaround). INTENDED CONSEQUENCE: once reverted, that model stops
+       publishing its OWN change frames - which is correct, because nothing subscribes
+       to it directly; only its parents' frames matter.
+
+       Example (the template's originating case): rsx/models/entity_association_model.php
+       set `public static $realtime = true;` purely to open the gate. After pulling,
+       that line reduces to the realtime_touch() override alone.
+
+       Find candidates:
+           grep -rn "public static \$realtime = true" rsx/models
+
+       For each hit, keep the flag ONLY if something actually subscribes to that model
+       directly (a page doing this.subscribe(That_Model, id, ...)). If the flag exists
+       only to reach a realtime_touch() override, remove it.
+
+    2. Do NOT change #[Realtime_Touch]-attributed models. They were already correct;
+       this fix brings the METHOD rung up to the attribute's behavior, not the reverse.
+
+    3. Nothing else. Apps with no realtime_touch() overrides, or that legitimately want
+       the child's own frames, need no action.
+
+    When you have reverted any gate-only $realtime flags (or confirmed none exist),
+    mark this change fulfilled:
+
+        php artisan rsx:framework:upstream_changes:mark realtime_touch_method_gate_07_21 --fulfilled
+
+VERIFICATION
+    Framework-side: Realtime_Method_Touch_Test locks down the fix -
+    test_save_walks_method_cascade_without_realtime_flag,
+    test_builder_update_walks_method_cascade,
+    test_builder_delete_walks_method_cascade (touch-only method model, no $realtime ->
+    parent emission on save/update/delete),
+    test_own_frame_still_requires_realtime_flag (no own frame without the flag), and
+    test_manual_realtime_emit_still_publishes_own_frame.
+
+    For your own code, after reverting a gate-only flag:
+    - Open a page that watches the PARENT (this.subscribe(Parent_Model, id, ...)).
+    - From another tab/CLI, save or bulk ->update()/->delete() a child row whose
+      realtime_touch() returns that parent.
+    - Confirm the parent page refreshes exactly once, with no $realtime on the child.
+
+SEE ALSO
+    php artisan rsx:man realtime   (touch-cascade ladder: attribute rung vs method rung)

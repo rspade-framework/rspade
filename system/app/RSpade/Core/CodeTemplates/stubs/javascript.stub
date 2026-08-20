@@ -1,0 +1,20 @@
+class {{ js_class }} {
+    static init() {
+        if (!$(".{{ view_class }}").exists()) return;
+
+        // Initialize your component here
+        console.log('{{ js_class }} initialized');
+
+        // Example: Handle button clicks
+        $('.btn-action').on('click', function() {
+            // Handle action
+        });
+
+        // Example: Initialize tooltips
+        $('[data-bs-toggle="tooltip"]').tooltip();
+    }
+
+    static on_app_ready() {
+        {{ js_class }}.init();
+    }
+}

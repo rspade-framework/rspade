@@ -1,0 +1,31 @@
+<%--
+Generic_Error_Page_Component
+
+Displays for unexpected or unhandled errors that don't match any specific error type.
+This is the fallback error display when no specialized error component is appropriate.
+Used for ERROR_GENERIC and any unrecognized error codes.
+
+$error_data - The full error object to display
+--%>
+<Define:Generic_Error_Page_Component class="text-center py-5">
+    <div class="Generic_Error_Page_Component__icon">
+        <i class="bi bi-x-circle-fill text-danger" style="font-size: 4rem;"></i>
+    </div>
+    <h3 class="Generic_Error_Page_Component__title">An Error Occurred</h3>
+    <% if (typeof this.args.error_data === 'string') { %>
+        <p class="Generic_Error_Page_Component__message"><%= this.args.error_data %></p>
+    <% } else { %>
+        <div class="mb-4 d-inline-block">
+            <JS_Tree_Debug_Component
+                $data=this.args.error_data
+                $expand_depth=2
+            />
+        </div>
+    <% } %>
+    <% this.handle_retry = () => window.location.reload(); %>
+    <div>
+        <button class="btn btn-primary" @click=this.handle_retry>
+            Try Again
+        </button>
+    </div>
+</Define:Generic_Error_Page_Component>

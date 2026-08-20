@@ -1,0 +1,8 @@
+// Custom Bootstrap Build
+// This file imports custom variable overrides BEFORE Bootstrap's defaults
+
+// 1. Import custom variables first (these override Bootstrap defaults)
+@import "../variables";
+
+// 2. Import Bootstrap (which will use our overridden variables)
+@import "bootstrap5/scss/bootstrap";

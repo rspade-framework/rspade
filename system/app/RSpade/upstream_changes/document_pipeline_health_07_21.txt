@@ -1,0 +1,142 @@
+DOCUMENT TEXT EXTRACTION + IN-BROWSER PREVIEW + rsx:health (CORE ADDITIONS)
+Date: 2026-07-21
+
+SUMMARY
+    Three framework-core capabilities landed together: (1) automatic document TEXT
+    EXTRACTION into a full-text-searchable store, (2) an in-browser DOCUMENT PREVIEW
+    system (<Document_Preview> + pdf.js + cached PDF renditions), and (3) rsx:health,
+    a command that verifies the environment can run all of it. All arrive automatically
+    via the submodule and are backward-additive - an app that adopts nothing keeps
+    working. This is a Category 2 document because there are NEW BINARY DEPENDENCIES to
+    provision (a fleet apt line) and two framework migrations that run on pull; the rest
+    is capability you simply gain.
+
+THE CHANGE
+    New in /system/ core (informational - arrives via the submodule):
+
+    1. Document text extraction (framework-internal, no app wiring).
+       Every uploaded document is queued and its text extracted into _search_indexes,
+       keyed on the DEDUPLICATED blob (File_Storage_Model) so identical bytes extract
+       exactly once. The queue is the _file_storage.is_indexed flag - there is NO stored
+       PENDING state; the absence of a row IS the queue. Search_Index_Service::
+       index_pending (#[Exclusive], */5 cron + a prompt kick on blob creation/
+       materialization) drains one blob per pass. Terminal statuses: EXTRACTED / FAILED
+       / UNSUPPORTED (an image/scan is UNSUPPORTED, not FAILED - no OCR). Formats: PDF
+       (poppler pdftotext), Office (headless LibreOffice), plain text.
+
+       App-facing API:
+           File_Attachment_Model::search_text($query, $mode='BOOLEAN')  // Eloquent Builder
+           $attachment->get_extracted_text()      // ?string  (null = pending)
+           $attachment->get_extraction_status()   // ?int STATUS_*  (null = pending)
+       search_text() returns a Builder of matching ATTACHMENTS; _search_indexes carries
+       NO site_id (the dedup blob is cross-site), so YOU add site scoping at the join.
+
+       Re-queue / audit: php artisan rsx:search:reindex
+           --status | --all | --failed | --below-version=N | --storage=ID | --attachment=ID
+
+    2. In-browser document preview.
+       <Document_Preview $attachment_id=this.args.id /> renders a real preview by
+       resolving a viewer server-side (Pdf_Viewer / Image_Viewer / Icon_Viewer terminal;
+       registry config('rsx.preview.viewers'), app-overridable). Events OUT:
+       preview_loaded {pages, width, height, ratio} and page_changed {page}. NOTE the
+       load event is preview_loaded, NOT loaded - 'loaded' is a reserved jqhtml
+       lifecycle event and a custom event may not reuse it. pdf.js is lazy-loaded from
+       /_preview/pdfjs.mjs (+ pdf_worker.mjs) and is NEVER bundled. Office documents are
+       served as a cached soffice->PDF rendition by /_preview/pdf/:key (dual-gated:
+       file.thumbnail.authorize AND file.download.authorize).
+
+    3. rsx:health.
+       php artisan rsx:health [--json] verifies every dependency, service, and
+       environment invariant, reporting OK/WARN/FAIL/INFO with a remediation hint. Exit
+       code is 1 iff at least one FAIL (WARN/INFO are advisory) so it gates a deploy
+       pipeline or container healthcheck. Checks are declared WHERE their feature lives
+       via a bare #[Health_Check('label')] attribute - your app declares its own the
+       same way. Full reference: rsx:man health.
+
+    4. Two framework migrations (run automatically on pull).
+       - 2026_07_16_130944_alter_search_indexes_add_extraction_status  (adds status_id,
+         error, extractor_version to _search_indexes; drops its site_id)
+       - 2026_07_16_130948_alter_file_storage_add_is_indexed  (adds is_indexed)
+       They are framework-core (ship with rspade_system) and apply with your normal
+       post-pull migrate. No app migration is involved.
+
+    5. The three extension points (Rsx::trigger_resolve chains; first non-null wins,
+       null -> framework default; out-of-contract fails loud):
+           document.extract_text       {storage, path, mime}
+               -> null | string | ['status'=>'unsupported'|'failed','error'=>?]
+           document.preview_rendition  {attachment, request}   (after the auth gates)
+               -> null | Response | ['path'=>abs pdf] | ['unsupported'=>true]
+           document.thumbnail_render   {attachment, path, type, width, height}
+               -> null | string (WebP) | ['unsupported'=>true]
+
+    Full reference: rsx:man document_search, rsx:man health.
+
+THE FIX
+    Not a fix - net-new capability. It all lives in /system/ and reaches you via the
+    submodule; there is nothing to copy into your own code. This document exists for
+    the provisioning action (dependencies + migrations) and the OneDrive/external-bytes
+    interaction below.
+
+ACTION REQUIRED
+    1. Provision the binary dependencies (the fleet apt line).
+       Extraction and preview shell out to headless LibreOffice and poppler-utils.
+       On every node that serves the app (Debian/Ubuntu):
+
+           apt-get install -y --no-install-recommends \
+               libreoffice poppler-utils fonts-liberation fonts-dejavu-core
+
+       - poppler-utils (pdftotext) backs PDF text extraction.
+       - headless LibreOffice (soffice) backs Office extraction AND Office->PDF
+         renditions AND Office thumbnails (one shared soffice slot pool).
+       - fonts: without a general font family soffice substitutes poorly (add
+         fonts-noto-cjk etc. for non-Latin content).
+       Nodes that render no documents can set LIBREOFFICE_ENABLED=false / rsx.search.
+       enabled=false; those mimes then read as UNSUPPORTED with no soffice call.
+
+    2. No npm action. pdf.js (pdfjs-dist) ships in the framework's committed
+       node_modules and is served by the framework's own /_preview/pdfjs.mjs route.
+       You do NOT run npm install for it.
+
+    3. Run rsx:health as your container-readiness gate.
+       After provisioning, `php artisan rsx:health` should report OK for LibreOffice,
+       poppler-utils, and the search-index backlog. Wire it into your deploy/CI/
+       container healthcheck (it exits non-zero only on a FAIL).
+
+    4. External / OneDrive bytes (only if you use the attachment-handler seam).
+       A blob is queued for extraction only when it is MATERIALIZED (resident). For an
+       attachment whose bytes live externally, extraction stays pending until the bytes
+       become resident, then the materialize path queues + kicks it - no silent FAILED.
+       Two options if you need text sooner:
+       - Rely on materialize-then-queue (default): the first byte access materializes
+         and the blob is queued automatically.
+       - Intercept document.extract_text with your own #[OnEvent] handler that fetches
+         and extracts from the external source directly.
+       get_extraction_status() reads the residency without forcing a materialization
+       (a non-resident attachment reads as pending).
+
+    5. Adopting search/preview in your UI (optional):
+       - Files index: File_Attachment_Model::search_text($q)->where('site_id', ...)->get()
+       - Preview pane: <Document_Preview $attachment_id=... /> and listen for
+         preview_loaded / page_changed.
+       - Custom formats/renderers: one #[OnEvent] resolve handler per stage (item 5 of
+         THE CHANGE).
+
+    When you have provisioned the dependencies (item 1), confirmed rsx:health is green
+    (item 3), and decided on the OneDrive interaction (item 4 if applicable), mark this
+    change fulfilled:
+
+        php artisan rsx:framework:upstream_changes:mark document_pipeline_health_07_21 --fulfilled
+
+VERIFICATION
+    - `php artisan rsx:health` reports OK (or intentional INFO) for LibreOffice
+      (soffice), poppler-utils (pdftotext), and Search Index Backlog; exit code 0.
+    - Upload a text-bearing PDF and a .docx; after the extraction task runs,
+      $attachment->get_extraction_status() is EXTRACTED and search_text() finds them.
+    - <Document_Preview $attachment_id=...> renders the PDF (canvas, page navigation)
+      and, with LibreOffice present, the .docx via its cached rendition.
+    - `php artisan rsx:search:reindex --status` shows the queue/indexed/version counts.
+
+SEE ALSO
+    php artisan rsx:man document_search   extraction, search, preview, the three chains
+    php artisan rsx:man health            rsx:health + the #[Health_Check] attribute
+    php artisan rsx:man libreoffice       shared soffice slot pool

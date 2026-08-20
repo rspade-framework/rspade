@@ -1,0 +1,143 @@
+<Define:Portal_Dashboard_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main><Loading_Spinner $message="Loading your activity..." /></Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <% const _invites = this.data.pending_invitations;
+       const _threads = this.data.action_threads;
+       const _workspaces = this.data.workspaces;
+       const _notifications = this.data.notifications;
+       const _unread = this.data.unread_count;
+       const _has_unread = _unread > 0; %>
+    <Page_Scaffold $ratio="8/4">
+        <Slot:main>
+
+            <%-- Pending per-client invitations: Accept / Decline --%>
+            <% if (_invites.length > 0) { %>
+                <Section $title="Invitations" $icon="bi bi-envelope-paper" $count=_invites.length $flush=true>
+                    <Slot:body>
+                        <% for (const invite of _invites) { %>
+                            <div class="Portal_Dashboard_Action__invite" data-invite-id="<%= invite.invitation_id %>">
+                                <div class="Portal_Dashboard_Action__invite-text">
+                                    <strong><%= invite.client_name %></strong> invited you to their portal.
+                                </div>
+                                <div class="Portal_Dashboard_Action__invite-actions">
+                                    <button type="button" class="btn btn-sm btn-primary" data-accept-invite="<%= invite.invitation_id %>">Accept</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-decline-invite="<%= invite.invitation_id %>">Decline</button>
+                                </div>
+                            </div>
+                        <% } %>
+                    </Slot:body>
+                </Section>
+            <% } %>
+
+            <%-- Request threads across the caller's workspaces awaiting their response --%>
+            <% if (_threads.length > 0) { %>
+                <Section $title="Action needed" $icon="bi bi-exclamation-circle" $count=_threads.length $flush=true>
+                    <Slot:body>
+                        <Record_Table>
+                            <thead><tr><th>Request</th><th>Workspace</th><th>Status</th></tr></thead>
+                            <tbody>
+                                <% for (const thread of _threads) { %>
+                                <tr data-href="<%= Rsx_Portal.Route('Portal_Request_Thread_Action', {id: thread.client_id, thread_id: thread.id}) %>">
+                                    <td><span class="Portal_Dashboard_Action__row-title"><%= thread.title %></span></td>
+                                    <td><%= thread.client_name %></td>
+                                    <td><Status_Badge $label=thread.status_label $badge=thread.badge /></td>
+                                </tr>
+                                <% } %>
+                            </tbody>
+                        </Record_Table>
+                    </Slot:body>
+                </Section>
+            <% } %>
+
+            <%-- No active client access (zero memberships) --%>
+            <% if (!this.data.has_client_access) { %>
+                <Section $title="Workspace access">
+                    <Empty_State $icon="bi bi-building">
+                        <Slot:title>No active client access yet</Slot:title>
+                        <Slot:body>You don't have access to any client workspaces yet.<% if (_invites.length > 0) { %> Accept an invitation above to get started.<% } %></Slot:body>
+                    </Empty_State>
+                </Section>
+            <% } %>
+
+            <%-- What's New feed --%>
+            <Section $title="What's New" $flush=true>
+                <Slot:actions>
+                    <% if (_has_unread) { %>
+                        <button type="button" class="btn btn-sm btn-outline-secondary js-mark-all-read">Mark all read</button>
+                    <% } %>
+                </Slot:actions>
+                <Slot:body>
+                    <% if (_notifications.length === 0) { %>
+                        <Empty_State $icon="bi bi-check2-circle">
+                            <Slot:title>You're all caught up</Slot:title>
+                            <Slot:body>New activity will show up here.</Slot:body>
+                        </Empty_State>
+                    <% } else { %>
+                        <div class="Portal_Dashboard_Action__feed">
+                            <% for (const item of _notifications) { %>
+                                <% const is_unread = item.read_at === null;
+                                   const payload = item.payload || {};
+                                   const has_url = !!payload.url;
+                                   let item_classes = 'Portal_Dashboard_Action__item';
+                                   if (is_unread) item_classes += ' Portal_Dashboard_Action__item--unread';
+                                   if (has_url || is_unread) item_classes += ' Portal_Dashboard_Action__item--actionable'; %>
+                                <div class="<%= item_classes %>"
+                                     data-notification-id="<%= item.id %>"
+                                     data-notification-unread="<%= is_unread ? 'true' : 'false' %>"
+                                     <% if (has_url) { %>data-notification-url="<%= payload.url %>"<% } %>>
+                                    <div class="Portal_Dashboard_Action__item-marker">
+                                        <% if (is_unread) { %><span class="Portal_Dashboard_Action__dot" title="Unread"></span><% } %>
+                                    </div>
+                                    <div class="Portal_Dashboard_Action__item-body">
+                                        <% if (payload.title) { %>
+                                            <div class="Portal_Dashboard_Action__item-title"><%= payload.title %></div>
+                                        <% } else if (!payload.body) { %>
+                                            <div class="Portal_Dashboard_Action__item-title"><%= item.type %></div>
+                                        <% } %>
+                                        <% if (payload.body) { %>
+                                            <div class="Portal_Dashboard_Action__item-text"><%br= payload.body %></div>
+                                        <% } %>
+                                        <div class="Portal_Dashboard_Action__item-meta">
+                                            <span><%= Rsx_Time.relative(item.created_at) %></span>
+                                            <% if (has_url) { %>
+                                                <span class="Portal_Dashboard_Action__item-cta">View<i class="bi bi-chevron-right"></i></span>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                </div>
+                            <% } %>
+                        </div>
+                    <% } %>
+                </Slot:body>
+            </Section>
+        </Slot:main>
+
+        <%-- Sidebar: My Workspaces --%>
+        <Slot:sidebar>
+            <Section $title="My Workspaces" $count=_workspaces.length $flush=true>
+                <Slot:body>
+                    <% if (_workspaces.length === 0) { %>
+                        <Empty_State $icon="bi bi-grid-1x2">
+                            <Slot:title>No workspaces yet</Slot:title>
+                        </Empty_State>
+                    <% } else { %>
+                        <Record_Table>
+                            <tbody>
+                                <% for (const ws of _workspaces) { %>
+                                <tr data-href="<%= Rsx_Portal.Route('Portal_Workspace_Overview_Action', ws.client_id) %>">
+                                    <td><span class="Portal_Dashboard_Action__ws-name"><%= ws.name %></span></td>
+                                    <td class="text-end"><span class="badge badge-outline-secondary"><%= ws.role_label %></span></td>
+                                </tr>
+                                <% } %>
+                            </tbody>
+                        </Record_Table>
+                    <% } %>
+                </Slot:body>
+            </Section>
+        </Slot:sidebar>
+    </Page_Scaffold>
+<% } %>
+</Define:Portal_Dashboard_Action>

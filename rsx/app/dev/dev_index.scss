@@ -1,0 +1,16 @@
+.Dev_Index {
+    // Component-specific styles
+
+    .card {
+        // Card styles
+    }
+
+    .btn-action {
+        // Button styles
+    }
+
+    // Responsive adjustments
+    @include mobile {
+        // Mobile styles
+    }
+}

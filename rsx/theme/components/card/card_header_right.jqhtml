@@ -1,0 +1,5 @@
+<Define:Card_Header_Right class="d-flex gap-2">
+
+  <%= content() %>
+
+</Define:Card_Header_Right>

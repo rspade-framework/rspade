@@ -1,0 +1,36 @@
+.Realtime_Status_Badge {
+    // Hidden by default: no space reserved, no fade visible until it is shown.
+    // --shown toggles presence (display), --visible drives the opacity fade. The
+    // two-class split lets JS reflow between them so the fade-in actually animates
+    // (see Realtime_Status_Badge.js _apply_visibility).
+    display: none;
+    align-items: center;
+    gap: $spacing-xs;
+    padding: $spacing-xs $spacing-sm;
+    border-radius: $border-radius-full;
+
+    // Warning palette (amber pill, dark text) — a subtle, serious signal against
+    // the dark header navbar, consistent with the portal read-only banner
+    // (bg-warning text-dark).
+    background-color: $warning-color;
+    color: $gray-900;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    line-height: 1;
+    white-space: nowrap;
+
+    opacity: 0;
+    transition: opacity $transition-duration-base ease;
+
+    &--shown {
+        display: inline-flex;
+    }
+
+    &--visible {
+        opacity: 1;
+    }
+
+    &__icon {
+        font-size: $font-size-sm;
+    }
+}

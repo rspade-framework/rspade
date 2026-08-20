@@ -1,0 +1,346 @@
+RSX-LOCKD: LOCKS LEAVE REDIS, AND THE 30-SECOND LEASE IS GONE
+Date: 2026-08-10
+
+    *** HARD PREREQUISITE - READ THIS BEFORE YOU PULL ***
+
+    This release replaces the Redis lock backend with a standalone lock daemon,
+    rsx-lockd. Your container MUST run it as a supervisor program. Without it,
+    every web-cluster lock THROWS - which includes the per-tenant site write lock
+    the framework takes on any request that mutates site data. Your application
+    will be down.
+
+    Add the supervisor program described in ACTION 1. It is safe to add BEFORE
+    the pull (the wrapper script waits for the daemon files to arrive), and it
+    must be running once the pull finishes.
+
+    This is an infrastructure change to your container image, not a code edit.
+    If you cannot change your container, do not take this release yet.
+
+SUMMARY
+    RsxLocks no longer uses Redis at all. Web-cluster locks are now served by
+    rsx-lockd (system/bin/rsx-lockd/), a zero-dependency Node daemon that ships
+    inside the framework-owned bin/ zone and therefore arrives with the pull.
+
+    THE CONNECTION IS THE LOCK. A lock is held from the moment it is granted
+    until it is released or until the holder's socket dies. There is no lease,
+    no TTL, no renewal and no heartbeat anywhere in the system.
+
+    Affects EVERY app that uses RsxLocks, and every app at all (the site write
+    lock is taken by the framework itself).
+
+THE BUG THIS FIXES
+    The old Redis lock wrote its key with a hardcoded 30-second TTL. $timeout
+    was only the WAIT budget; nothing bounded or extended the HOLD. A critical
+    section that ran longer than 30 seconds silently lost mutual exclusion: the
+    key expired, another process acquired the "exclusive" lock, and both ran
+    believing they held it. No exception, no log line, nothing to detect it
+    with.
+
+    If your app holds an RsxLocks write lock across anything slow - an external
+    API sync, an import, a full-table rebuild, a file walk - IT WAS BROKEN AND
+    IS NOW CORRECT. You do not need to change that code. You should re-read any
+    workaround you built around the old behavior (see ACTION 7).
+
+THE CHANGE
+    Two kinds of lock, named explicitly:
+
+    WEB-CLUSTER LOCK (RsxLocks::CLUSTER_LOCK) - spans every web server in the
+        cluster, the same way the cluster shares one database. Served by
+        rsx-lockd. Full readers-writer semantics, strict FIFO grant order, and
+        deadlock refusal at enqueue. named_write_lock(), named_read_lock(),
+        site_write_lock() and site_read_lock() are all cluster locks.
+
+    SYSTEM LOCK (RsxLocks::SYSTEM_LOCK) - THIS BOX ONLY, backed by flock(), and
+        EXCLUSIVE ONLY (there is no system READ lock). New helper:
+        RsxLocks::system_lock($name). For genuinely local resources only.
+
+    The API, with every signature:
+
+        RsxLocks::named_write_lock(string $name, ?int $timeout = null): string
+        RsxLocks::named_read_lock(string $name, ?int $timeout = null): string
+        RsxLocks::site_write_lock(int $site_id, ?int $timeout = null): string
+        RsxLocks::site_read_lock(int $site_id, ?int $timeout = null): string
+        RsxLocks::system_lock(string $name, ?int $timeout = null): string
+        RsxLocks::get_lock(string $domain, string $name, string $type, ?int $timeout = null): string
+        RsxLocks::release_lock(string $token): bool          <- was void
+        RsxLocks::upgrade_lock(string $token, ?int $timeout = null): string
+        RsxLocks::acquire_semaphore(string $name, int $max_slots, ?int $timeout = null): ?string
+        RsxLocks::release_semaphore(?string $token): void
+        RsxLocks::get_semaphore_usage(string $name, int $max_slots): int
+        RsxLocks::get_lock_stats(string $domain, string $name): array
+        RsxLocks::force_clear_lock(string $domain, string $name): void
+
+    REMOVED, and a reference to any of these is a FATAL:
+
+        RsxLocks::SERVER_LOCK              -> RsxLocks::CLUSTER_LOCK or SYSTEM_LOCK
+        RsxLocks::DATABASE_LOCK            -> (never had a use; pick one of the two)
+        RsxLocks::LOCK_APPLICATION         -> gone; there is no per-request lock
+        RsxLocks::LOCK_MIGRATION           -> gone (0 references anywhere)
+        RsxBootstrap::upgrade_to_write_lock()      -> gone
+        RsxBootstrap::temporarily_release_lock()   -> gone
+        Rsx_Site_Model_Abstract::acquire_site_lock_for_id()  -> gone
+        config('rsx.locking.timeout')             -> gone (see ACTION 4)
+        config('rsx.locking.always_write_lock')   -> gone
+        config('rsx.locking.site_always_write')   -> gone
+
+    ALSO GONE: the per-request server:APPLICATION read lock. A read-only web
+    request now takes no lock at all and never opens a socket to anything.
+
+    NEW BEHAVIOR you may see for the first time:
+        - A wait now defaults to FOREVER (ACTION 6).
+        - A lock request that would close a wait-for cycle is REFUSED at once
+          with a RuntimeException naming every participant in the cycle, instead
+          of hanging. If you have a lock-ordering bug, this is how you will find
+          out. Read the cycle text; it names the host and pid of each holder.
+        - Grants are strict FIFO, so a writer can no longer be starved by a
+          stream of readers.
+
+ACTION REQUIRED
+
+    1. RUN THE DAEMON. THIS IS THE PREREQUISITE.
+
+       Add to your container's supervisor configuration (adjust the path to your
+       project root):
+
+           [program:rsx-lockd]
+           command=bash /var/www/html/system/bin/rsx-lockd/lockd-run.sh
+           directory=/var/www/html
+           autostart=true
+           autorestart=true
+           startsecs=5
+           stopwaitsecs=10
+           stdout_logfile=/var/log/supervisor/rsx-lockd.log
+           stderr_logfile=/var/log/supervisor/rsx-lockd-error.log
+           stdout_logfile_maxbytes=10MB
+           stderr_logfile_maxbytes=10MB
+           stdout_logfile_backups=5
+           stderr_logfile_backups=5
+           killasgroup=true
+           stopasgroup=true
+
+       A checked-in reference copy ships at system/supervisor/rsx-lockd.conf.
+
+       NOTE the `bash ` prefix - it is mandatory. The exec bit is unreliable on a
+       downstream tree (core.fileMode false plus the pull's rsync), and a bare
+       path spelling produces "Permission denied".
+
+       Recommended order:
+
+           a. Add the program and `supervisorctl reread && supervisorctl update`.
+              lockd-run.sh WAITS for lockd.js to exist before exec'ing node, so
+              on a box that has not pulled yet the program simply sits in
+              "starting" instead of burning its retries. Adding it early is safe.
+           b. php artisan rsx:framework:pull
+           c. supervisorctl status rsx-lockd     -> RUNNING
+           d. php artisan rsx:health             -> "Lock Server" OK
+
+       If you add it only AFTER the pull, do steps a/c/d immediately - between
+       the end of the pull and the daemon starting, every cluster lock throws.
+
+       The daemon needs Node 18+ (you already have it - the realtime relay and
+       the build tooling use it) and APP_KEY, which it reads from the
+       environment or from your project-root .env. It has zero npm dependencies.
+
+    2. ADD THE TWO .env KEYS.
+
+       In your project-root .env (the authoritative file; system/.env is a
+       symlink to it):
+
+           LOCK_SERVER_HOST=127.0.0.1
+           LOCK_SERVER_PORT=6210
+
+       Both have the same defaults in config, so a box without them still works.
+       Add them anyway - they are deployment facts and belong beside
+       REALTIME_WS_PORT.
+
+       Port 6210 was chosen because it is free alongside the ports RSpade
+       already uses (6200 realtime, 6379 redis, 3200/3201 fpc/ssr, 3306 mysql).
+       If it collides with something in YOUR environment, change it - on BOTH
+       sides, per ACTION 3.
+
+    3. UNDERSTAND THE TWO CONFIG FILES (they are hand-synced, on purpose).
+
+       The daemon is a Node process. It cannot read Laravel's config, so the
+       listen side and the connect side are two separate files:
+
+           LISTEN  system/bin/rsx-lockd/lockd.conf  (JSON, read by the daemon)
+                   overridden by <project-root>/lockd.conf if you create one
+           CONNECT config('rsx.locks.server_host' / 'server_port'), from the
+                   .env keys in ACTION 2
+
+       They hold LEGITIMATELY DIFFERENT VALUES: the daemon binds 0.0.0.0:6210
+       (so other cluster members can reach it), while PHP dials 127.0.0.1:6210.
+       That is not a mistake to "fix". What must agree is the PORT.
+
+       IF YOU CHANGE THE DAEMON'S CONFIG, EDIT THE PROJECT-ROOT lockd.conf, NOT
+       THE SHIPPED ONE. system/bin/ is a framework-owned zone that the pull
+       hard-syncs, so an edit to system/bin/rsx-lockd/lockd.conf is overwritten
+       on your next update. Copy it up one level instead:
+
+           cp system/bin/rsx-lockd/lockd.conf ./lockd.conf
+           # edit ./lockd.conf - it wins over the shipped file
+
+    4. DELETE THE RETIRED CONFIG KEYS.
+
+       In rsx/resource/config/rsx.php, remove the whole 'locking' block if you
+       have one:
+
+           'locking' => [
+               'timeout'            => ...,   // DEAD
+               'always_write_lock'  => ...,   // DEAD
+               'site_always_write'  => ...,   // DEAD
+           ],
+
+       Find it:
+
+           grep -rn "locking" rsx/resource/config/
+
+       Nothing reads these any more, so leaving them is harmless - but a config
+       key that looks like it controls locking and does not is a trap for the
+       next person. There is deliberately NO replacement timeout key: a wait is
+       a per-call argument, and its default is "forever".
+
+    5. FIX ANY USE OF THE REMOVED CONSTANTS AND HELPERS.
+
+           grep -rn "SERVER_LOCK\|DATABASE_LOCK\|LOCK_APPLICATION\|LOCK_MIGRATION" rsx/
+           grep -rn "upgrade_to_write_lock\|temporarily_release_lock" rsx/
+           grep -rn "acquire_site_lock_for_id" rsx/
+
+       Each of these is now a fatal error, so this one self-corrects loudly -
+       but find them before your users do. The conversion:
+
+           - RsxLocks::get_lock(RsxLocks::SERVER_LOCK, $name, RsxLocks::WRITE_LOCK)
+           + RsxLocks::named_write_lock($name)
+
+           - RsxLocks::get_lock(RsxLocks::SERVER_LOCK, $name, RsxLocks::READ_LOCK)
+           + RsxLocks::named_read_lock($name)
+
+       Ask yourself, per lock: would two SERVERS doing this at the same time be
+       corruption, or merely duplicated work? Corruption -> cluster (named_*).
+       Duplicated work on local state -> RsxLocks::system_lock($name).
+
+    6. AUDIT YOUR TIMEOUTS. THIS IS THE MOST LIKELY SURPRISE.
+
+       $timeout now defaults to NULL, which means WAIT FOREVER. It used to
+       default to 30 seconds. Any call you wrote WITHOUT a timeout will now
+       block indefinitely instead of throwing after 30 seconds:
+
+           grep -rn "named_write_lock(\|named_read_lock(\|site_write_lock(\|site_read_lock(\|upgrade_lock(" rsx/
+
+       For each hit with NO second argument, decide deliberately:
+
+           - A background task, a queue worker, a CLI import: waiting forever is
+             almost always RIGHT. The work has to happen; waiting is the correct
+             way to be second in line. Leave it.
+           - A WEB REQUEST holding a browser connection open: pass a number.
+             A user should get an error, not a hung page.
+
+             $token = RsxLocks::named_write_lock('rebuild_report_cache', 10);
+
+       Also note what a timeout still is NOT: it is a WAIT budget, never a
+       bound on how long the lock is HELD. There is nothing to set for that.
+
+       A hang that used to be a 30-second exception is now a genuine wait. To
+       see what is holding what:
+
+           node system/bin/rsx-lockd/lockd.js dump
+
+    7. RE-READ COMPENSATING CODE BUILT AROUND THE OLD 30-SECOND LEASE.
+
+       If any of your code re-acquires a lock mid-run, "refreshes" it, chunks a
+       critical section to stay under 30 seconds, or comments that a lock
+       "expires" - that logic is now unnecessary and possibly harmful.
+
+           grep -rn "lock" rsx/ | grep -i "renew\|refresh\|expire\|re-acquire\|reacquire"
+
+       Delete it. A re-acquire of a lock this process already holds is now
+       counted client-side and returns the same token - harmless but pointless.
+
+       Likewise, if you chose Task_Lock (MySQL GET_LOCK) over RsxLocks purely to
+       escape the 30-second lease, that reason is gone. Either is now correct;
+       RsxLocks additionally gives you readers-writer semantics, FIFO ordering
+       and deadlock refusal.
+
+    8. CHECK release_lock()'s NEW RETURN VALUE WHERE IT MATTERS.
+
+       release_lock() now returns bool. FALSE means the backend no longer had
+       you as the holder - i.e. rsx-lockd RESTARTED while you held the lock, so
+       mutual exclusion was NOT in force for the whole critical section. The
+       framework logs that as an error either way, so you need to do nothing.
+
+       But if a long critical section can act on the news - abort, re-verify,
+       re-run - check it:
+
+           $token = RsxLocks::named_write_lock('nightly_reconcile');
+           try {
+               // ... hours of work ...
+           } finally {
+               if (!RsxLocks::release_lock($token)) {
+                   $task->error('Lost the lock mid-run - results are suspect.');
+               }
+           }
+
+       Existing `RsxLocks::release_lock($token);` statements need no change; PHP
+       does not care that a value is now returned.
+
+    9. SEMAPHORES: DROP THE DEAD 4th ARGUMENT.
+
+       acquire_semaphore() lost its $lease_ttl parameter - there is no lease any
+       more, and a slot is held until released or until the holder dies:
+
+           - RsxLocks::acquire_semaphore('my_pool', 2, 30, 60);
+           + RsxLocks::acquire_semaphore('my_pool', 2, 30);
+
+           grep -rn "acquire_semaphore(" rsx/
+
+       PHP ignores extra arguments to a userland function, so a stale 4-argument
+       call will NOT fatal - it will silently pass a value nobody reads. Clean
+       them up. As with locks, the 3rd argument (the wait) now defaults to NULL
+       = wait forever, and a numeric wait still returns NULL on expiry.
+
+VERIFICATION
+
+    1. The daemon is up and reachable:
+
+           supervisorctl status rsx-lockd
+           php artisan rsx:health          # "Lock Server" -> OK
+           node system/bin/rsx-lockd/lockd.js dump
+
+       rsx:health reports FAIL with the supervisor program named if it is down,
+       and INFO while a maintenance window is up (it is stopped on purpose then).
+
+    2. Real mutual exclusion, from two shells at the same time:
+
+           node system/bin/rsx-lockd/lockd.js exec --name=demo -- sleep 5
+
+       The second shell must block until the first finishes, and both must exit
+       with the child's exit code.
+
+    3. The lock survives longer than 30 seconds (the whole point):
+
+           node system/bin/rsx-lockd/lockd.js exec --name=demo -- sleep 45
+
+       and, from a second shell during those 45 seconds, `dump` must still show
+       the first connection HOLDING it and the second WAITING - not two holders.
+
+    4. Your app: exercise a page that saves a record (that takes the tenant
+       write lock) and a file upload (that takes FILE_WRITE). Then:
+
+           node system/bin/rsx-lockd/lockd.js dump
+
+       must show zero holders once the requests are done - a lock left behind
+       after a request means something is not releasing.
+
+    5. A maintenance round trip, confirming the degradation:
+
+           php artisan rsx:maintenance:enable --reason="lock test"
+           php artisan migrate                 # must still work (flock backend)
+           php artisan rsx:maintenance:disable
+
+    6. Your own suites:
+
+           php artisan rsx:test
+           php artisan rsx:check
+
+    Full contract: php artisan rsx:man locks
+    Daemon protocol / config / CLI reference: system/bin/rsx-lockd/README.md

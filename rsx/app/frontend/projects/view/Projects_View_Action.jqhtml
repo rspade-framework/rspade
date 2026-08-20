@@ -1,0 +1,246 @@
+<Define:Projects_View_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading project details..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Project"
+                $back_label="Go back to Projects"
+                $back_url="<%= Rsx.Route('Projects_Index_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <%
+        const _project = this.data.project;
+        const _tasks = this.data.tasks;
+        const _subprojects = this.data.subprojects;
+        const _contacts = this.data.contacts;
+        const _assigned_users = this.data.assigned_users;
+        const _activity = this.data.activity;
+        const _open_tasks = _tasks.filter(t => t.status === Task_Model.STATUS_PENDING || t.status === Task_Model.STATUS_IN_PROGRESS).length;
+        const _overdue_tasks = _tasks.filter(t => t.is_overdue).length;
+        const _has_overdue = _overdue_tasks > 0;
+        const _tabs = [
+            { key: 'overview', label: 'Overview' },
+            { key: 'tasks', label: 'Tasks', count: _tasks.length },
+            { key: 'subprojects', label: 'Subprojects', count: _subprojects.length },
+            { key: 'activity', label: 'Activity', count: _activity.length },
+        ];
+    %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Card_Widget>
+                <Entity_Header>
+                    <Slot:title><%= _project.name %></Slot:title>
+                    <Slot:chips>
+                        <Status_Badge $label=_project.status__label $badge=_project.status__badge />
+                        <% if (_project.priority) { %>
+                            <% const _pri = (_project.priority__badge || 'bg-secondary').replace('bg-', 'badge-outline-'); %>
+                            <span class="badge <%= _pri %>"><%= _project.priority__label %></span>
+                        <% } %>
+                    </Slot:chips>
+                    <Slot:meta>
+                        <span>Project <%= _project.project_id_formatted %></span>
+                        <% if (_project.client_id) { %>
+                            <span>Client: <Entity_Link $model="Client_Model" $id=_project.client_id $small=true /></span>
+                        <% } %>
+                        <% if (_project.parent_project_id) { %>
+                            <span>Part of: <Entity_Link $model="Project_Model" $id=_project.parent_project_id $small=true /></span>
+                        <% } %>
+                        <span>Created <%= Rsx_Time.format_date(_project.created_at) %></span>
+                    </Slot:meta>
+                </Entity_Header>
+
+                <Tab_Bar $sid="tabs" $tabs=_tabs $hash="tab" $divided=true />
+
+                <Tab_Panels $sid="panels">
+                    <Tab_Panel $key="overview">
+                        <% const _desc_text = _project.description ? $('<div>').html(_project.description).text().trim() : ''; %>
+                        <% if (_desc_text) { %>
+                        <Section $title="Description">
+                            <%!= safe_html(_project.description) %>
+                        </Section>
+                        <% } %>
+
+                        <% if (_project.start_date || _project.due_date || _project.budget) { %>
+                        <Section $title="Timeline & Budget">
+                            <View_Fields>
+                                <View_Field $label="Start Date">
+                                    <% if (_project.start_date) { %><%= Rsx_Date.format(_project.start_date) %><% } else { %><Empty_Value /><% } %>
+                                </View_Field>
+                                <View_Field $label="Due Date">
+                                    <% if (_project.due_date) { %><%= Rsx_Date.format(_project.due_date) %><% } else { %><Empty_Value /><% } %>
+                                </View_Field>
+                                <View_Field $label="Budget">
+                                    <% if (_project.budget) { %><%= _project.budget_formatted %><% } else { %><Empty_Value /><% } %>
+                                </View_Field>
+                            </View_Fields>
+                        </Section>
+                        <% } %>
+
+                        <% if (_project.notes) { %>
+                        <Section $title="Internal Notes">
+                            <%br= _project.notes %>
+                        </Section>
+                        <% } %>
+
+                        <Section $title="Assigned Users" $icon="bi bi-people" $count=_assigned_users.length>
+                            <% if (_assigned_users.length === 0) { %>
+                                <Empty_State $icon="bi bi-people">
+                                    <Slot:title>No assigned users</Slot:title>
+                                    <Slot:body>Team members assigned to this project will appear here.</Slot:body>
+                                </Empty_State>
+                            <% } else { %>
+                                <People_List $people=_assigned_users />
+                            <% } %>
+                        </Section>
+
+                        <Section $title="Contacts" $icon="bi bi-person-lines-fill" $count=_contacts.length>
+                            <% if (_contacts.length === 0) { %>
+                                <Empty_State $icon="bi bi-person-lines-fill">
+                                    <Slot:title>No contacts</Slot:title>
+                                    <Slot:body>Client contacts linked to this project will appear here.</Slot:body>
+                                </Empty_State>
+                            <% } else { %>
+                                <People_List $people=_contacts $clickable=true />
+                            <% } %>
+                        </Section>
+                    </Tab_Panel>
+
+                    <Tab_Panel $key="tasks">
+                        <Section $title="Tasks" $count=_tasks.length $flush=true>
+                            <Slot:body>
+                                <% if (_tasks.length === 0) { %>
+                                    <Empty_State $icon="bi bi-check2-square">
+                                        <Slot:title>No tasks yet</Slot:title>
+                                        <Slot:body>Tasks created for this project will appear here.</Slot:body>
+                                    </Empty_State>
+                                <% } else { %>
+                                    <Record_Table>
+                                        <thead>
+                                            <tr><th>Task</th><th>Status</th><th>Due Date</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <% for (const task of _tasks) { %>
+                                            <tr data-href="<%= Rsx.Route('Tasks_View_Action', task.id) %>">
+                                                <td><%= task.title %></td>
+                                                <td><Status_Badge $label=task.status__label $badge=task.status__badge /></td>
+                                                <td>
+                                                    <% if (task.due_date) { %>
+                                                        <% if (task.is_overdue) { %>
+                                                            <span class="text-danger"><%= Rsx_Date.format(task.due_date) %></span>
+                                                        <% } else { %>
+                                                            <%= Rsx_Date.format(task.due_date) %>
+                                                        <% } %>
+                                                    <% } else { %>
+                                                        <Empty_Value />
+                                                    <% } %>
+                                                </td>
+                                            </tr>
+                                            <% } %>
+                                        </tbody>
+                                    </Record_Table>
+                                <% } %>
+                            </Slot:body>
+                        </Section>
+                    </Tab_Panel>
+
+                    <Tab_Panel $key="subprojects">
+                        <Section $title="Subprojects" $count=_subprojects.length $flush=true>
+                            <Slot:body>
+                                <% if (_subprojects.length === 0) { %>
+                                    <Empty_State $icon="bi bi-diagram-3">
+                                        <Slot:title>No subprojects</Slot:title>
+                                        <Slot:body>Projects nested under this project will appear here.</Slot:body>
+                                    </Empty_State>
+                                <% } else { %>
+                                    <Record_Table>
+                                        <thead>
+                                            <tr><th>Name</th><th>Status</th><th>Priority</th><th>Due Date</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <% for (const sub of _subprojects) { %>
+                                            <tr data-href="<%= Rsx.Route('Projects_View_Action', sub.id) %>">
+                                                <td><%= sub.name %></td>
+                                                <td><Status_Badge $label=sub.status__label $badge=sub.status__badge /></td>
+                                                <td>
+                                                    <% if (sub.priority) { %>
+                                                        <% const _spri = (sub.priority__badge || 'bg-secondary').replace('bg-', 'badge-outline-'); %>
+                                                        <span class="badge <%= _spri %>"><%= sub.priority__label %></span>
+                                                    <% } else { %>
+                                                        <Empty_Value />
+                                                    <% } %>
+                                                </td>
+                                                <td>
+                                                    <% if (sub.due_date) { %><%= Rsx_Date.format(sub.due_date) %><% } else { %><Empty_Value /><% } %>
+                                                </td>
+                                            </tr>
+                                            <% } %>
+                                        </tbody>
+                                    </Record_Table>
+                                <% } %>
+                            </Slot:body>
+                        </Section>
+                    </Tab_Panel>
+
+                    <Tab_Panel $key="activity">
+                        <Section $title="Activity" $count=_activity.length $flush=true>
+                            <% if (_activity.length === 0) { %>
+                                <Empty_State $icon="bi bi-activity">
+                                    <Slot:title>No activity yet</Slot:title>
+                                    <Slot:body>Changes to this project will appear here.</Slot:body>
+                                </Empty_State>
+                            <% } else { %>
+                                <% for (const a of _activity) { %>
+                                    <Feed_Row $icon=a.icon $variant=a.variant>
+                                        <Slot:body><%!= a.html %></Slot:body>
+                                        <Slot:time><%= Rsx_Time.relative(a.created_at) %></Slot:time>
+                                    </Feed_Row>
+                                <% } %>
+                            <% } %>
+                        </Section>
+                    </Tab_Panel>
+                </Tab_Panels>
+            </Card_Widget>
+        </Slot:main>
+
+        <Slot:sidebar>
+            <Detail_Sidebar>
+                <Sidebar_Kpi_Group>
+                    <Kpi_Cell $clickable=true $tab="tasks" $tooltip="Tasks that are pending or in progress">
+                        <Slot:label>Open Tasks</Slot:label>
+                        <Slot:value><%= _open_tasks %></Slot:value>
+                    </Kpi_Cell>
+                    <Kpi_Cell $clickable=true $tab="tasks" $alert=_has_overdue $tooltip="Open tasks past their due date">
+                        <Slot:label>Overdue</Slot:label>
+                        <Slot:value><%= _overdue_tasks %></Slot:value>
+                    </Kpi_Cell>
+                    <Kpi_Cell $clickable=true $tab="subprojects" $tooltip="Projects nested under this project">
+                        <Slot:label>Subprojects</Slot:label>
+                        <Slot:value><%= _subprojects.length %></Slot:value>
+                    </Kpi_Cell>
+                </Sidebar_Kpi_Group>
+
+                <View_Fields>
+                    <View_Field $label="Project ID" $inline=true><%= _project.project_id_formatted %></View_Field>
+                    <View_Field $label="Created" $inline=true><%= Rsx_Time.format_date(_project.created_at) %></View_Field>
+                    <View_Field $label="Updated" $inline=true><%= Rsx_Time.format_date(_project.updated_at) %></View_Field>
+                </View_Fields>
+
+                <div class="d-grid gap-2">
+                    <a href="<%= Rsx.Route('Projects_Edit_Action', _project.id) %>" class="btn btn-primary btn-sm">
+                        <i class="bi bi-pencil"></i> Edit Project
+                    </a>
+                </div>
+            </Detail_Sidebar>
+        </Slot:sidebar>
+    </Page_Scaffold>
+<% } %>
+</Define:Projects_View_Action>

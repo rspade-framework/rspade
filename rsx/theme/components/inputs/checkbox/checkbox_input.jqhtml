@@ -1,0 +1,24 @@
+<%--
+Checkbox_Input
+
+Checkbox widget for forms.
+
+$label - Label text to display next to checkbox
+$checked_value - Value when checked (default: "1")
+$unchecked_value - Value when unchecked (default: "0")
+$disabled - Boolean to disable the checkbox (still returns value via val())
+
+Widget interface:
+- val() - Get/set checked state (returns checked_value or unchecked_value)
+- seed() - Randomly checks/unchecks
+--%>
+<Define:Checkbox_Input extends="Form_Input_Abstract">
+    <div class="form-check">
+        <input $sid="input" class="form-check-input" type="checkbox" <% if (this.data.checked) { %>checked<% } %> <% if (this.args.disabled) { %>disabled<% } %>>
+        <% if (this.args.label) { %>
+            <label $sid="label" class="form-check-label">
+                <%= this.args.label %>
+            </label>
+        <% } %>
+    </div>
+</Define:Checkbox_Input>

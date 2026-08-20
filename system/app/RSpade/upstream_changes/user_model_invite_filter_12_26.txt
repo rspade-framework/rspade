@@ -1,0 +1,100 @@
+USER_MODEL INVITE FIELD FILTERING - MIGRATION GUIDE
+Date: 2025-12-26
+
+SUMMARY
+    The framework User_Model now filters out all invite_* fields in its fetch()
+    method for security. Invitation data (invite_code, invite_accepted_at,
+    invite_expires_at) should never be exposed to the client via Ajax fetch.
+
+    If your application overrides User_Model or has a custom user model that
+    extends it, you must apply the same filtering to your fetch() method.
+
+AFFECTED FILES
+    Any custom User_Model implementations or overrides:
+    - /rsx/models/user_model.php (if exists)
+    - Any model that stores invitation data with invite_* prefixed fields
+
+CHANGES REQUIRED
+
+    1. Add invite_* Field Filtering to Custom User Models
+
+       If you have a custom fetch() method in a User_Model override, add the
+       invite_* field filtering after toArray():
+
+       BEFORE:
+           #[Ajax_Endpoint_Model_Fetch]
+           public static function fetch($id)
+           {
+               $user = static::withTrashed()->find($id);
+               if (!$user) {
+                   return false;
+               }
+
+               $data = $user->toArray();
+
+               // ... your customizations
+
+               return $data;
+           }
+
+       AFTER:
+           #[Ajax_Endpoint_Model_Fetch]
+           public static function fetch($id)
+           {
+               $user = static::withTrashed()->find($id);
+               if (!$user) {
+                   return false;
+               }
+
+               $data = $user->toArray();
+
+               // Filter out invite_* fields - these contain sensitive invitation data
+               foreach (array_keys($data) as $key) {
+                   if (str_starts_with($key, 'invite_')) {
+                       unset($data[$key]);
+                   }
+               }
+
+               // ... your customizations
+
+               return $data;
+           }
+
+    2. Check Other Models with Invitation Fields
+
+       If you have other models that store invitation data with invite_* prefix,
+       apply the same pattern:
+
+           // Filter out invite_* fields - sensitive invitation data
+           foreach (array_keys($data) as $key) {
+               if (str_starts_with($key, 'invite_')) {
+                   unset($data[$key]);
+               }
+           }
+
+SECURITY RATIONALE
+
+    Invitation fields contain sensitive data that should never reach the client:
+
+    - invite_code: The secret code used to accept an invitation. Exposing this
+      allows unauthorized invitation acceptance.
+
+    - invite_expires_at: While less sensitive, combined with other data could
+      inform timing attacks.
+
+    - invite_accepted_at: User activity metadata that may have privacy
+      implications.
+
+VERIFICATION
+
+    1. Test that User_Model.fetch() does not return invite_* fields:
+
+       php artisan rsx:ajax User_Model fetch --args='{"id":1}'
+
+       The response should NOT contain invite_code, invite_accepted_at, or
+       invite_expires_at.
+
+    2. If you have a custom override, verify the same for your model.
+
+REFERENCE
+    Framework User_Model: system/app/RSpade/Core/Models/User_Model.php

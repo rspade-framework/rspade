@@ -1,0 +1,58 @@
+<%--
+Profile_Photo_Input
+
+Profile photo upload widget that displays a thumbnail and provides upload functionality.
+
+$width - Thumbnail width in pixels (default: 96)
+$height - Thumbnail height in pixels (default: 96)
+$accept - File types to accept (default: image/jpeg,image/png,image/gif)
+$max_size - OPTIONAL tighter cap in MB. Omit it: the framework ceiling
+            (rsx.files.max_file_size) already applies and is enforced server-side,
+            so a number here only narrows it further.
+$placeholder - Placeholder image URL when no photo is set
+$show_remove - Show remove button (default: false)
+
+The widget value (via val() getter/setter) is the attachment key.
+
+Usage:
+<Form_Field $label="Profile Photo">
+    <Profile_Photo_Input $name="profile_photo" />
+</Form_Field>
+
+<Profile_Photo_Input $width=128 $height=128 $show_remove=true />
+--%>
+<Define:Profile_Photo_Input extends="Form_Input_Abstract">
+
+    <div class="d-flex align-items-center">
+        <div class="position-relative">
+            <% if (this.state.thumbnail_url) { %>
+                <img $sid="photo"
+                    src="<%= this.state.thumbnail_url %>"
+                    class="rounded-circle me-3"
+                    alt="Profile Photo"
+                    width="<%= this.args.width || 96 %>"
+                    height="<%= this.args.height || 96 %>"
+                style="opacity: 1;">
+            <% } else { %>
+                <div $sid="photo" class="user-profile-icon me-3" style="width: <%= this.args.width || 96 %>px; height: <%= this.args.height || 96 %>px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-person-circle" style="font-size: <%= Math.round((this.args.width || 96) * 0.75) %>px;"></i>
+                </div>
+            <% } %>
+            <div $sid="spinner" class="position-absolute top-50 start-50 translate-middle d-none">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Uploading...</span>
+                </div>
+            </div>
+        </div>
+        <div>
+            <input type="file" $sid="file_input" class="d-none" accept="<%= this.args.accept || 'image/jpeg,image/png,image/gif' %>">
+            <button type="button" $sid="upload_btn" class="btn btn-sm btn-primary me-2">Upload New Photo</button>
+            <% if (this.args.show_remove && this.state.attachment_key) { %>
+                <button type="button" $sid="remove_btn" class="btn btn-sm btn-danger">Remove</button>
+            <% } %>
+            <% const max_bytes = this._max_bytes(); %>
+            <div class="form-text mt-2">JPG, PNG or GIF.<% if (max_bytes > 0) { %> Max size <%= Ajax.bytes_to_size_label(max_bytes) %>.<% } %></div>
+        </div>
+    </div>
+
+</Define:Profile_Photo_Input>

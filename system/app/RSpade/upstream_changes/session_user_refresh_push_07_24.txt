@@ -1,0 +1,89 @@
+SESSION / USER REFRESH PUSH (realtime control plane)
+Date: 2026-07-24
+
+SUMMARY
+    Two new server-driven "push to reload" behaviors ride the existing realtime
+    WebSocket relay. When a session's identity is mutated (login/logout, identity
+    change, tenant switch) or a staff user's record/ACL changes, the relay pushes
+    a targeted {type:'refresh'} frame to the matching live browser connections,
+    which do ONE deduped full-page reload (window.location.reload()) at
+    max(500ms floor, 5s user-idle), suppressed while the tab is navigating away
+    (beforeunload flag; cleared on pageshow + a 10s watchdog) so it never yanks
+    the initiating tab mid-interaction.
+
+    This is entirely framework-core (/system/). It arrives automatically via the
+    submodule - there is NO /rsx/ template code to copy. This document exists
+    because the change alters two things a downstream app may rely on or override,
+    plus a client-connection behavior change worth knowing.
+
+THE CHANGE
+    - Connection tokens now carry realm: 'staff' | 'portal' (staff and portal
+      session ids come from different tables with overlapping integer ranges; the
+      realm disambiguates a targeted session-refresh). The Node relay stamps
+      conn.realm and matches it.
+    - A new control channel (rsx_rt:control) + relay routing (route_control):
+      frames are matched by connection STAMPS (realm + session_id, or realm +
+      site_id + user_id), NOT by any topic/subscription.
+    - New framework-internal PHP API: Realtime::push_session_refresh($realm,
+      $session_id) and Realtime::push_user_refresh($site_id, $user_id). No-ops
+      when realtime is disabled; buffered through Realtime_Emissions (same
+      afterCommit/outbox as publish() - discarded on rollback, transmitted once
+      after the web response).
+    - Emission sites wired in core: Session::set_login_user_id()/set_site_id()/
+      logout(), Portal_Session::set_portal_user_id()/logout() (confirmed-different
+      gated); User_Model save/soft-delete (first_name/last_name/role_id/
+      is_enabled); User_Permission_Model grant/deny/remove.
+    - Client (Rsx_Realtime): when realtime is enabled AND window.rsxapp.session_hash
+      is a non-empty string (a session cookie existed at render), it holds a
+      SYSTEM ANCHOR connection for the whole page lifetime (suppresses
+      idle-disconnect) so a page with zero subscriptions still receives refresh
+      pushes. A first-visit anonymous page (session_hash null) does NOT
+      auto-connect - it keeps lazy connect-on-first-watch(). It handles the
+      {type:'refresh'} frame globally.
+
+THE FIX
+    All of the above lives in /system/ (Realtime.php, Realtime_Emissions.php,
+    Session.php, Portal_Session.php, User_Model.php, User_Permission_Model.php,
+    bin/realtime-server.js, Core/Js/Rsx_Realtime.js). Informational only -
+    downstream receives it automatically via the submodule. If REALTIME_ENABLED
+    is false, everything is a no-op.
+
+ACTION REQUIRED
+    1. CLASS-OVERRIDE APPS. If your app overrides User_Model or
+       User_Permission_Model via the manifest class-override pattern (a copy in
+       /rsx/models replacing the core class), your copy will NOT have the new
+       save()/delete() overrides or the grant/deny/remove push. Re-copy the
+       framework class, or replicate: in User_Model::save(), capture
+       $this->exists && $this->isDirty(['first_name','last_name','role_id',
+       'is_enabled']) BEFORE parent::save() and, on success, call
+       Realtime::push_user_refresh((int)$this->site_id, (int)$this->id);
+       mirror in delete() (push whenever an existing row is deleted); and in the
+       User_Permission_Model grant/deny/remove static methods push the affected
+       user after the write. (Most apps do NOT override these and need nothing.)
+
+    2. CUSTOM SESSION-MUTATION CODE. If you log a user in/out or switch tenants by
+       writing the session row directly (DB::table / raw SQL) instead of going
+       through Session::set_login_user_id()/set_site_id() (staff) or
+       Portal_Session::set_portal_user_id() (portal), no refresh is pushed. Call
+       Realtime::push_session_refresh('staff'|'portal', $session_id) yourself
+       after such a write if you want open tabs to reload.
+
+    3. ANCHORED CLIENT. With realtime enabled, any bundle page that rendered WITH
+       a session cookie (window.rsxapp.session_hash non-empty) now opens a
+       WebSocket at boot and holds it for the page lifetime. A first-visit
+       anonymous page (no cookie, session_hash null) does NOT - it keeps the old
+       lazy connect-on-first-watch(), so no socket/session is created for a
+       visitor who has none. If your app has custom expectations about when the
+       realtime socket opens, re-verify them against this gate.
+
+VERIFICATION
+    - Open two staff tabs logged in as the same user; log out in one - the other
+      reloads shortly after (>= 0.5s, once that tab has been idle ~5s and is not
+      mid-navigation).
+    - Edit a user's name/role/enabled (or grant/deny a permission) in an admin
+      screen; that user's open tabs reload; an unrelated field edit (e.g. phone)
+      does not.
+    - Confirm a re-save of an identical value (same login_user_id / same field)
+      produces no reload (silent).
+    - php artisan rsx:test Realtime_Session_Refresh_Test Realtime_User_Refresh_Test
+      --framework (framework-side proof of the plumbing + gating).

@@ -1,0 +1,15 @@
+--- a/lib/decorators.js
++++ b/lib/decorators.js
+@@ -957,6 +957,12 @@
+       }
+       const [newPath] = path.replaceWith(newExpr);
+       originalClassPath = newPath.get("callee").get("body").get("body.0.key");
++      if (needsDeclarationForClassBinding && originalClass.id) {
++        const bindingStmt = newPath.getStatementParent();
++        if (bindingStmt) {
++          bindingStmt.insertAfter(_core.types.variableDeclaration("var", [_core.types.variableDeclarator(_core.types.identifier(originalClass.id.name), _core.types.cloneNode(classIdLocal))]));
++        }
++      }
+     }
+   }
+   if (!classInitInjected && classInitCall) {

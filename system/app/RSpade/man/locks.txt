@@ -1,0 +1,549 @@
+LOCKS(1)                          RSpade Manual                          LOCKS(1)
+
+NAME
+    RsxLocks - connection-held advisory locks and counting semaphores
+
+SYNOPSIS
+    use App\RSpade\Core\Locks\RsxLocks;
+
+    // Web-cluster locks (served by rsx-lockd, span every web server)
+    $token = RsxLocks::named_write_lock($name, $timeout = null);
+    $token = RsxLocks::named_read_lock($name, $timeout = null);
+    $token = RsxLocks::site_write_lock($site_id, $timeout = null);
+    $token = RsxLocks::site_read_lock($site_id, $timeout = null);
+
+    // System lock (flock, THIS BOX ONLY, exclusive only)
+    $token = RsxLocks::system_lock($name, $timeout = null);
+
+    // Release - returns false if we were no longer the holder
+    $held = RsxLocks::release_lock($token);
+
+    // Low level, and the read -> write promotion
+    $token = RsxLocks::get_lock($domain, $name, $type, $timeout = null);
+    $write = RsxLocks::upgrade_lock($read_token, $timeout = null);
+
+    // Counting semaphore (a max-concurrency quota, cluster-wide)
+    $slot = RsxLocks::acquire_semaphore($name, $max_slots, $timeout = null);
+    RsxLocks::release_semaphore($slot);
+    $used = RsxLocks::get_semaphore_usage($name, $max_slots);
+
+    // Monitoring / emergencies
+    $stats = RsxLocks::get_lock_stats($domain, $name);
+    RsxLocks::force_clear_lock($domain, $name);
+
+DESCRIPTION
+    A lock is held from the moment it is granted until it is released or until
+    the holder dies. There is NO lease, NO TTL, NO renewal and NO heartbeat
+    anywhere in this system. A critical section may run for a second or for a
+    day and it keeps its lock throughout; a holder that is SIGKILLed releases
+    instantly.
+
+    That is the whole design. Every clock-based lock (a Redis key with an
+    expiry, an advisory row with a TTL) has the same defect: pick a duration and
+    you have picked the moment at which mutual exclusion silently stops being
+    true, with two holders each believing they are alone and no error anywhere.
+    The usual patch - lease plus renewal plus heartbeat - adds three moving
+    parts to preserve the same wrong idea. A socket answers the only question a
+    lock actually has to answer, "is the holder still there?", and the kernel
+    answers it the instant the process dies.
+
+    All locks are ADVISORY: they coordinate cooperating callers, they do not
+    enforce anything at the data layer.
+
+TWO KINDS OF LOCK
+    The choice between them is not a tuning knob. They are different things.
+
+    WEB-CLUSTER LOCK (RsxLocks::CLUSTER_LOCK)
+        Spans every web server in the cluster, in the same way the cluster
+        shares one database. Served by the rsx-lockd daemon over a socket, with
+        full readers-writer semantics, strict FIFO grant order, and deadlock
+        refusal at enqueue. Use it for anything guarding SHARED state: a tenant,
+        the blob store, a cluster-wide concurrency quota.
+
+        named_write_lock(), named_read_lock(), site_write_lock() and
+        site_read_lock() are all cluster locks. This is the default; when in
+        doubt, this is the one you want.
+
+    SYSTEM LOCK (RsxLocks::SYSTEM_LOCK)
+        THIS BOX ONLY, backed by flock() over files in storage/flock/, and
+        EXCLUSIVE ONLY - there is no such thing as a system READ lock, and
+        asking for one is a shouldnt_happen. Use it only where the contended
+        resource is genuinely local: build artifacts on local disk, a local
+        helper process, this machine's environment. Rare by design.
+
+        The test: if two servers doing this at the same time would be a
+        CORRECTNESS problem, it is a cluster lock. If it would merely be
+        DUPLICATED WORK, a system lock is right.
+
+DOMAIN ASSIGNMENT
+    Every framework lock and why it is where it is:
+
+        Lock                    Kind     Why
+        ---------------------------------------------------------------------
+        SITE_<id>               cluster  the tenant write lock - two servers
+                                         mutating one tenant is corruption.
+                                         NOTE: the AUTOMATIC acquisition (on the
+                                         first save() to a site-scoped model) is
+                                         DISABLED as of 2026-08-11, backlog B-87.
+                                         site_write_lock() still works when a
+                                         caller asks for it deliberately.
+        FILE_WRITE              cluster  the blob store is shared; a box must
+                                         not race another box's upload
+        FILE_BLOB_DISPOSAL      cluster  a box must not unlink a blob another
+                                         box just referenced
+        libreoffice_thumbnail   cluster  a cluster-wide render quota (see
+                                         KNOWN GRANULARITY LIMIT below)
+        MANIFEST_BUILD          system   build artifacts on local disk
+        BUNDLE_BUILD            system   build artifacts on local disk
+        SSR_RENDER              system   a per-box node process
+        ENVIRONMENT_UPDATES     system   per-box environment mutation
+        cache_build:<key>       system   the cache is per-box; a duplicate
+                                         build elsewhere is wasted work, not
+                                         corruption
+
+    A read-only web request takes NO LOCK AT ALL and never opens a socket. The
+    old per-request application read lock is gone; nothing ever took it as a
+    writer, so it only cost a connection.
+
+WAITING AND TIMEOUTS
+    $timeout is a WAIT budget and nothing else. It never bounds how long a
+    granted lock is HELD.
+
+        null (the default everywhere)   wait forever
+        <int> seconds                   wait that long, then throw
+
+    Wait-forever is the right answer far more often than any number, which is
+    why it is the default. A blocking acquire arms no timer, sends no traffic
+    and polls nothing: the process is parked in the kernel until the lock is
+    free. Pass a number only when the caller genuinely has something better to
+    do than wait.
+
+    A wait timeout throws RuntimeException with exactly this message:
+
+        Failed to acquire WRITE lock for cluster:SITE_1 after 30 seconds
+
+    That wording is load-bearing (the framework updater greps it to classify a
+    retryable pull failure) and is produced identically by the daemon, the PHP
+    client and the flock backend. Do not reword it.
+
+FIFO AND DEADLOCK REFUSAL
+    One ordered queue per lock name; grants come off the head only.
+
+        - head is a writer: granted when there are no holders at all, and the
+          pass STOPS there (this is what prevents writer starvation)
+        - head is a reader: granted when no writer holds, and the pass keeps
+          going, so a run of consecutive readers grants as one batch
+
+    Nothing ever bypasses a queued waiter, so request order is grant order.
+
+    Before parking a waiter the daemon walks the wait-for graph - the
+    requester, the lock it wants, that lock's holders AND its queued waiters,
+    what each of those waits for, and onward. If the walk returns to the
+    requester, the request is refused immediately rather than parked:
+
+        RuntimeException: Deadlock: acquiring WRITE lock cluster:FILE_BLOB_DISPOSAL
+        would close a wait-for cycle
+          c11 [web-01:900] waits for WRITE lock cluster:FILE_BLOB_DISPOSAL -> blocked by c12 [web-01:901]
+          c12 [web-01:901] waits for WRITE lock cluster:FILE_WRITE -> blocked by c11 [web-01:900]
+
+    The cycle text names every participant with its host and pid, and IS the
+    debugging payload - read it rather than guessing. This check exists
+    PRECISELY BECAUSE wait-forever is the default: without it, one lock-ordering
+    mistake is a permanent hang instead of an error message. A deadlock message
+    is deliberately worded differently from a timeout, because a deadlock is not
+    retryable and must never be classified as one.
+
+    A long queue behind one slow holder is NOT a deadlock and will not be
+    refused. That is the system working.
+
+RELEASING
+    release_lock($token): bool
+
+        TRUE  - we still held it (including a nested release that leaves an
+                outer hold in place).
+        FALSE - the backend no longer had us as the holder. For a cluster lock
+                that means RSX-LOCKD RESTARTED WHILE WE HELD THE LOCK, so mutual
+                exclusion was not in force for the whole critical section. The
+                framework logs this as an error automatically; if your critical
+                section can act on the news (abort, re-verify, re-run), check
+                the return value.
+
+    Always release in a finally block:
+
+        $token = RsxLocks::named_write_lock('rebuild_report_cache');
+        try {
+            // ... however long this takes ...
+        } finally {
+            RsxLocks::release_lock($token);
+        }
+
+    release_lock() never throws. A transport failure at release time IS the
+    answer (the daemon died, therefore the lock is gone), and throwing there
+    would replace the caller's real exception with this one.
+
+    Releasing is not strictly required for correctness: the connection closes at
+    the end of the script and the daemon releases everything it held. Release
+    anyway - holding a lock for the rest of a request that no longer needs it is
+    a queue everyone else waits in.
+
+REENTRANCY
+    Reentrancy is CLIENT-SIDE. A nested acquire of the same lock in the same
+    process increments a count, returns the same token, and never leaves the
+    process; the daemon sees exactly one acquire per lock per connection (and
+    answers a second one with an error, deliberately). An inner release_lock()
+    unwinds one level and returns true; the outermost one reaches the backend.
+
+    At shutdown the counts are ignored and everything is released outright - a
+    nested count is a fact about a call stack that no longer exists.
+
+LOCK GROUPS AND SUBPROCESSES
+    A lock belongs to a CONNECTION, and a subprocess opens its own. So a child is
+    a stranger to the daemon - including a stranger to its own parent.
+
+    So any lock this process holds that the child also needs produces:
+
+        $token = RsxLocks::named_write_lock('rebuild_index');
+        passthru('php artisan some:command');     // child wants the same lock
+
+    ...a child queued behind its own parent while the parent blocks in waitpid.
+    Neither can move, and NOTHING REPORTS IT: the deadlock detector walks lock
+    state, and the parent's half of this cycle is an OS wait. It wedged a framework
+    test run for twelve hours on 2026-08-11.
+
+    (That incident was caused by the AUTOMATIC per-tenant write lock, which took
+    cluster:SITE_<id> on the first save() to any site-scoped model. That mechanism
+    is DISABLED as of 2026-08-11 - see backlog B-87 - but the hazard is general:
+    it applies to every lock, and named locks are taken by hand all the time.)
+
+    A GROUP is that process tree. A connection may name a group_id at handshake;
+    when its group already holds a lock it is granted immediately, past any queue.
+    Bypassing the queue is required, not an optimization - queueing behind a
+    FOREIGN waiter deadlocks just as hard, since that waiter cannot be granted
+    until the parent releases and the parent is waiting on the child. It costs the
+    foreign waiter nothing: the group already excluded it, and it stays excluded
+    until the parent releases either way.
+
+    Three boundaries keep the hole from widening:
+
+      - A member releases only what IT acquired. A dying child never drops the
+        parent's grant; a child explicitly releasing an inherited lock removes only
+        its own holder entry. The group is consulted at GRANT time, never release.
+      - Read-held is NOT inherited as write. That would be a cross-process upgrade
+        and would let one group hold read and write at once. A parent that will
+        spawn a writer takes the WRITE lock before spawning.
+      - A different group is an ordinary stranger.
+
+    You never construct a group id. Rsx_Artisan does:
+
+        use App\RSpade\Core\Console\Rsx_Artisan;
+
+        $exit = Rsx_Artisan::passthru('rsx:bundle:compile');           // streams
+        $exit = Rsx_Artisan::run('migrate', ['--force'], $output);     // captures
+        Rsx_Artisan::dispatch_detached('rsx:task:worker');             // detached
+
+    It attaches --_lock-group=<id> (the `--_` internal-flag convention, stripped
+    pre-boot) to every SYNCHRONOUS spawn. There is no way to switch that off,
+    because there is no case where a blocked parent wants its child to deadlock.
+
+    dispatch_detached() does NOT propagate by default, and its opt-in is spelled
+    $propagate_locks_and_i_will_wait for a reason: two processes running
+    concurrently under one lock destroys the exclusion both believe they have,
+    silently. Pass it only when the caller genuinely joins the spawned process
+    before continuing its own critical section.
+
+    ARTISAN-SPAWN-01 (rsx:check) enforces this. Artisan::call() is in-process on
+    this connection, already reentrant, and is not flagged.
+
+LOCKS INSIDE A TASK
+    A task worker is ONE long-lived process running many unrelated tasks, so
+    "held until the process exits" is the wrong lifetime: the first task to write
+    to a tenant would hold that tenant's write lock against the entire cluster for
+    the worker's whole life, and every later task in that worker would inherit
+    exclusivity it never asked for.
+
+    Task_Worker_Command therefore takes RsxLocks::_checkpoint() before each task
+    and RsxLocks::_release_since($checkpoint) in its finally. Locks acquired during
+    the task are released at its boundary; locks the WORKER holds are in the
+    checkpoint and survive. Reentrancy counts are flattened (a count describes a
+    call stack that has ended), and the site-lock registry is purged in step so the
+    next task re-acquires rather than believing it still holds one.
+
+    This is a safety net, not a licence. Release your own locks in a finally - a
+    task that ends still holding one is released AND named in a [WORKER] warning.
+
+    Both methods are framework-internal (the `_` prefix). Application code has no
+    reason to call them.
+
+    Backlog B-85 covers the open policy question this exposed: a task should
+    DECLARE whether it wants the site write lock at all, since a long-running task
+    that reads and writes alongside other writers usually should not have it.
+
+UPGRADING A READ LOCK
+    upgrade_lock($read_token, $timeout = null): string
+
+    Converts a held READ lock to WRITE and returns the token to use from then
+    on (it may differ from the one passed in). NOT ATOMIC, deliberately: the
+    read hold is dropped FIRST and the write request joins the tail of the queue
+    like any other, so another writer can run in between. RE-VERIFY whatever you
+    read before the upgrade.
+
+    The upside is the one that matters: two readers upgrading at the same time
+    cannot deadlock, because each has already given up its read, so one is
+    granted and the other simply waits behind it. An atomic promotion would hang
+    both forever under a wait-forever default.
+
+    Upgrading a lock already held WRITE (which every system lock is) returns the
+    same token unchanged, so an unconditional call is safe. No framework code
+    calls this today; it is here for an application that holds a
+    named_read_lock() and discovers it must write.
+
+COUNTING SEMAPHORES
+    acquire_semaphore(name, max_slots, timeout = null): ?string
+
+        Grants up to max_slots simultaneous holders of one name, cluster-wide.
+        A slot is held exactly like a lock - until released or until the
+        holder's connection dies - so a crashed holder frees its slot
+        immediately and there is no lease to outlive.
+
+        - max_slots <= 0 means UNLIMITED: a sentinel token is returned at once,
+          no socket is opened and nothing is gated.
+        - timeout null (the default) waits forever for a free slot; a numeric
+          timeout returns NULL instead of throwing, and the caller decides how
+          to degrade.
+
+    release_semaphore(?token): void
+        Releases a slot. Safe with null or a sentinel token (both no-ops), and
+        never throws.
+
+    get_semaphore_usage(name, max_slots): int
+        Slots currently held cluster-wide, for monitoring.
+
+    USAGE PATTERN (always release in finally):
+
+        $slot = RsxLocks::acquire_semaphore('libreoffice_thumbnail', 2, 30);
+        if ($slot === null) {
+            // No slot within the wait window - degrade deliberately.
+            throw new \Exception('no concurrency slot');
+        }
+        try {
+            // ... bounded expensive work ...
+        } finally {
+            RsxLocks::release_semaphore($slot);
+        }
+
+    Semaphores are the mechanism behind config('rsx.libreoffice.max_concurrent')
+    (see rsx:man libreoffice): the LibreOffice renderer and the text extractor
+    take a slot named 'libreoffice_thumbnail' before shelling out, so at most N
+    conversions run at once.
+
+KNOWN GRANULARITY LIMIT
+    The semaphore is CLUSTER-WIDE, and for the LibreOffice quota that is
+    knowingly the wrong granularity: soffice concurrency is a per-box CPU and
+    memory limit, so N should be per-box, not per-fleet. On a single-server
+    deployment the two are identical, which is why it is acceptable today.
+    Per-server quotas are part of the multi-web-server clustering epic in the
+    backlog, not a defect to work around.
+
+MAINTENANCE MODE
+    A CLUSTER LOCK IS GRANTED AS A NO-OP (owner ruling 2026-08-11). Maintenance
+    stops rsx-lockd along with the rest of the fleet, and the quiesce is the
+    point: web requests are 503, the task runners are refused, the background
+    workers are killed. A lock exists to exclude a concurrent writer; under a
+    fleet-wide quiesce there is no concurrent writer, so the lock has nothing
+    left to do. It is granted instantly, holds nothing, touches no file, and
+    waits for no one.
+
+    It USED to degrade to the flock backend, on the reasoning that a single-box
+    lock is equivalent to a cluster-wide one once the fleet is down. True, and
+    beside the point: it bought exclusion against a peer maintenance had already
+    removed, and it cost real contention against php-fpm during rsx:debug and
+    similar work. See the backlog locks epic for the revisit.
+
+    SYSTEM locks are NOT affected and never degrade - they guard genuinely local
+    resources whose contenders (a concurrent artisan command, a lingering
+    worker) are exactly what maintenance does NOT stop.
+
+    What differs while the fleet is quiesced:
+
+    - A cluster acquisition returns a `maint:` token immediately. Reentrancy,
+      release() and the shutdown sweep behave exactly as always - the
+      bookkeeping is real even though the exclusion is not.
+    - A cluster lock CANNOT time out: nothing is held anywhere, so nothing waits.
+      A SYSTEM lock still can, and still throws the canonical message the
+      framework updater's retry classification greps for.
+    - upgrade_lock() on a no-op READ mints the WRITE identity and carries the
+      reentrancy count across; on a WRITE it returns the same token.
+    - Semaphores return the unlimited sentinel. Capping concurrency is
+      meaningless with the services stopped and running tasks killed.
+    - get_lock_stats() reports only "held by this process or not" - for a
+      maintenance grant there IS nothing elsewhere, by construction.
+      force_clear_lock() on a cluster lock is inert: there is no state to clear.
+
+    The backend is chosen at ACQUISITION time from the per-process
+    RSPADE_MAINT_MODE snapshot, and every held lock is released through the
+    backend that granted it - a lock can never straddle the two. A process that
+    booted BEFORE maintenance went up carries a "no maintenance" snapshot and
+    can meet a stopped daemon; on that failure path only, the flag is re-read
+    from disk and the process degrades from then on. A refused connection with
+    NO flag on disk stays exactly as loud as it has always been.
+
+    See rsx:man maintenance_mode.
+
+THE RSX LOCKD DAEMON
+    system/bin/rsx-lockd/ - a standalone Node process, zero npm dependencies,
+    speaking newline-delimited JSON over TCP and/or a unix socket. It runs under
+    supervisor:
+
+        [program:rsx-lockd]
+        command=bash /var/www/html/system/bin/rsx-lockd/lockd-run.sh
+        autostart=true
+        autorestart=true
+        startsecs=5
+
+    IT MUST BE RUNNING. Outside maintenance mode there is no degraded mode:
+    every cluster lock throws if the daemon is unreachable, which means a site
+    write lock throws, which means the app is down. rsx:health reports it as
+    "Lock Server" - OK when listening, FAIL when not (with the supervisor
+    program named in the remediation), INFO while the maintenance flag is up
+    because it is stopped on purpose then.
+
+    Connections authenticate with an HMAC-SHA256 hello over host:pid:ts keyed
+    by APP_KEY, within a 60-second replay window. Clock skew over a minute
+    between a web server and the daemon is a hello rejection; fix NTP rather
+    than widening the window.
+
+    THE CONNECTION MODEL is one connection per SCRIPT EXECUTION - opened lazily
+    on the first cluster-lock request, all locks multiplexed over it, closed at
+    the end of the script. Deliberately NOT persistent across requests: a PHP-FPM
+    worker serves thousands of requests, and a socket that outlived a request
+    would carry that request's locks into the next one on the same worker.
+
+    CONFIGURATION lives on both sides and is hand-synced, because the daemon is
+    a Node process that cannot read Laravel's config:
+
+        listen side   system/bin/rsx-lockd/lockd.conf (or <project>/lockd.conf,
+                      which wins - system/bin/ is a framework-owned zone whose
+                      shipped copy is overwritten on framework pull)
+        connect side  config('rsx.locks.server_host' / 'server_port'), from
+                      LOCK_SERVER_HOST / LOCK_SERVER_PORT in .env
+                      plus connect_retries / connect_retry_delay_ms
+
+    The two are legitimately different VALUES: the daemon binds 0.0.0.0:6210 and
+    PHP dials 127.0.0.1:6210. Change the port on both sides together.
+
+    Full protocol and configuration reference: system/bin/rsx-lockd/README.md.
+
+THE RSX LOCKD CLI
+    Run it with node from the daemon directory:
+
+        node lockd.js dump [--json] [--host=<h>] [--port=<p>] [--config=<path>]
+
+    dump is the first thing to reach for when something is stuck. It prints
+    every connection with its host, pid and uptime, what each HOLDS and what
+    each is WAITING for, then every lock with its holder set and queue:
+
+        rsx-lockd state
+          connections: 3   locks: 2   semaphores: 0
+          granted: 19   released: 17   timed_out: 1   deadlocked: 2   dropped_connections: 16
+
+        c17  web-01:2346918  via 127.0.0.1:48398  up 1.4s
+            HELD     WRITE cluster:SITE_1   for 1.4s
+
+        c18  web-01:2346926  via 127.0.0.1:48406  up 0.7s
+            WAITING  WRITE cluster:SITE_1   for 0.7s   (no timeout)
+
+        locks
+          cluster:SITE_1
+            holders: c17/write
+            queue:   c18/write
+
+    A lock nobody seems to hold is answered here: dump names the owning
+    connection with its host and pid. If that process is gone the lock is
+    already released; if dump still shows it, the connection really is open - a
+    hung process holding a socket.
+
+        node lockd.js exec --name=<lock> [--mode=read|write] [--timeout=<secs>]
+                           [--quiet] -- <command...>
+
+    exec holds a lock for exactly as long as a command runs, then releases and
+    exits with the child's exit code. It is the way to serialize a shell task
+    (a cron entry, a deploy step, an ad-hoc import) against framework code
+    taking the same named lock - the daemon does not care whether a holder is
+    PHP or a shell:
+
+        node lockd.js exec --name=cluster:SITE_1 -- php artisan rsx:task:run My_Service repair
+
+    The command runs DIRECTLY, not through a shell; use `-- sh -c '...'` when
+    shell features are wanted. Exit codes: the child's own on success, 124 on
+    acquire timeout (the GNU timeout convention), 125 on deadlock refusal, 1 on
+    a connect, protocol or argument failure.
+
+    Note the wire name is domain-qualified - what PHP calls
+    named_write_lock('FOO') is `cluster:FOO` on the wire and in dump output.
+
+RSX VS LARAVEL
+    Laravel's Cache::lock() is a cache entry with an expiry: it takes a
+    seconds-to-hold argument, offers block()/release()/forceRelease(), and hands
+    out an owner token so a foreign release can be refused. It is a lease, with
+    every consequence described at the top of this page - a job that outruns its
+    seconds loses the lock silently.
+
+    RsxLocks takes no hold duration because there is nothing to bound, offers no
+    renewal because there is nothing to renew, and distinguishes cluster from
+    system scope explicitly rather than by which cache store happens to be
+    configured. It also has readers-writer semantics and FIFO ordering, neither
+    of which Laravel's atomic lock provides.
+
+    Laravel's own lock API still exists and is not blocked - but nothing in
+    RSpade uses it, and a critical section guarded by both is guarded by
+    neither.
+
+TROUBLESHOOTING
+    "Cannot reach rsx-lockd at 127.0.0.1:6210 after 3 attempts"
+        The daemon is not running, or PHP and the daemon disagree about the
+        port. Check `supervisorctl status rsx-lockd`, then rsx:health, then that
+        lockd.conf and config('rsx.locks') name the same port.
+
+    "rsx-lockd rejected the hello handshake"
+        APP_KEY differs between the daemon's environment and PHP's, or the
+        clocks are more than 60 seconds apart. Both sides sign host:pid:ts with
+        the RAW APP_KEY string.
+
+    A release logged "was no longer held by this connection"
+        The daemon restarted while a lock was held. Nothing is held now, but
+        exclusion was not in force for the whole critical section - treat the
+        work as suspect.
+
+    Everything hangs and nothing errors
+        That is wait-forever behaving as designed. `node lockd.js dump` shows
+        the queue and the holder. The deadlock detector refuses CYCLES only; a
+        long queue behind one slow holder is not a cycle.
+
+    "System locks are exclusive only"
+        Something asked for RsxLocks::READ_LOCK on the SYSTEM domain. Readers-
+        writer semantics are a cluster-lock feature; use named_read_lock().
+
+    A lock that must be broken
+        force_clear_lock($domain, $name) drops every holder and lets the queue
+        proceed (waiters are left alone - unsticking them is the point). Evicted
+        holders are told nothing; their next release reports false. Emergency
+        use only.
+
+NOTES
+    - Nothing in RsxLocks touches Redis any more. Redis remains the cache,
+      realtime and task-slot store; locks left it entirely.
+    - A lock name is arbitrary, but it is a cluster-wide namespace: prefix
+      application locks with something that identifies them.
+    - Do not build a "renew" or "extend" helper on top of this API. There is
+      nothing to renew, and adding one would reintroduce the exact defect the
+      design removes.
+
+SEE ALSO
+    rsx:man maintenance_mode  The no-op grant and why the daemon stops
+    rsx:man tasks             Task concurrency (#[Exclusive]/#[Debounce], Task_Lock)
+    rsx:man libreoffice       Document rendering (uses the semaphore)
+    rsx:man health            The Lock Server check
+    rsx:man config_rsx        The rsx.locks config block
+    system/bin/rsx-lockd/README.md   The daemon's own protocol and CLI reference
+
+LOCKS(1)                          RSpade Manual                          LOCKS(1)

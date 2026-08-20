@@ -1,0 +1,32 @@
+{
+  "recommendations": [
+    // REQUIRED - RSpade Framework Support
+    "rspade.rspade-framework",
+    
+    // REQUIRED - Run commands on save (for formatting)
+    // Commented out - using VS Code extension formatter instead
+    // "emeraldwalk.runonsave",
+    
+    // PHP Development
+    "bmewburn.vscode-intelephense-client",
+    
+    // Laravel Development
+    "amirmarmul.laravel-blade-vscode",
+    
+    // Formatting and Code Quality
+    "esbenp.prettier-vscode",
+    "editorconfig.editorconfig",
+    "dbaeumer.vscode-eslint",
+    
+    // Utilities
+    "mikestead.dotenv",
+    "formulahendry.auto-rename-tag",
+    "pranaygp.vscode-css-peek",
+    "streetsidesoftware.code-spell-checker",
+    "naumovs.color-highlight"
+  ],
+  "unwantedRecommendations": [
+    "zobo.php-intellisense",
+    "devsense.phptools-vscode"
+  ]
+}

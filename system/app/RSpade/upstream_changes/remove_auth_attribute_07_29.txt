@@ -1,0 +1,92 @@
+REMOVE #[Auth] ROUTE ATTRIBUTE
+Date: 2026-07-29
+
+SUMMARY
+    The #[Auth(...)] route/endpoint attribute is REMOVED framework-wide. It was
+    inert metadata: the dispatcher extracted its value into a route "require"
+    field, copied it through dispatch, and only DISPLAYED it in `rsx:routes`. It
+    was NEVER checked. Nothing was ever gated by it.
+
+    Because it enforced nothing, any endpoint that relied on #[Auth] to express
+    an access rule has in fact been UNPROTECTED the whole time. Removing the
+    attribute changes no runtime behavior, but it removes the false impression of
+    protection - so downstream must audit every #[Auth] usage and add a REAL
+    manual check where an access rule was intended.
+
+THE CHANGE
+    - The #[Auth] attribute is gone. All framework usages were of the form
+      #[Auth('Permission::anybody()')] (i.e. "no restriction") and were deleted.
+    - The dead extraction/display machinery is removed: the route "require"
+      metadata field (Route/SPA manifest support + Dispatcher), the
+      Manifest::get_pre_dispatch_requires() API (zero callers), and the
+      `rsx:routes` "auth=" column.
+    - The rsx/permission.php helper stubs that existed ONLY to feed #[Auth]
+      strings are removed: Permission::anybody(), Permission::authenticated(),
+      and Permission::_unconfigured(). (The real ACL facade primitives -
+      is_logged_in(), has_permission(), has_role(), can_admin_role(),
+      require_permission(), require_role(), plus your own can_*()/is_*() domain
+      helpers - are unaffected; they live on Permission_Abstract / your subclass.)
+
+    Auth was ALREADY manual in this framework (checks in pre_dispatch() or the
+    method body, enforced by rsx:check's PHP-AUTH-01). This change only deletes
+    the misleading no-op attribute and its plumbing.
+
+THE FIX
+    Core (/system/) changes arrive automatically via `rsx:framework:pull`. There
+    is nothing in /system/ to copy. The work below is entirely in YOUR OWN code.
+
+ACTION REQUIRED
+    1. Delete every #[Auth(...)] attribute from your controllers and endpoints.
+       Grep your app:
+
+           grep -rn "#\[Auth(" rsx/
+
+       (Do NOT confuse it with the unrelated #[AuthParentCall] attribute, or with
+       the @auth-exempt docblock marker - leave both alone.)
+
+    2. For each #[Auth('Permission::X()')] you delete, decide what it INTENDED:
+
+       a) #[Auth('Permission::anybody()')] expressed NO rule - just delete it.
+          (If the route is genuinely public, make sure the class docblock carries
+          an @auth-exempt marker so PHP-AUTH-01 knows it is intentional.)
+
+       b) Any other #[Auth('Permission::X()')] expressed an INTENDED access rule
+          that was never enforced. That endpoint has been silently unprotected -
+          you MUST now protect it for real. Add the equivalent MANUAL check, in
+          the controller's pre_dispatch() (covers every endpoint) or at the top
+          of the method body:
+
+              // was: #[Auth('Permission::authenticated()')]
+              public static function pre_dispatch(Request $request, array $params = [])
+              {
+                  if (!Session::is_logged_in()) {
+                      return response_unauthorized();
+                  }
+                  return null;
+              }
+
+              // was: #[Auth('Permission::has_role("admin")')]
+              if (!Permission::has_role(User_Model::ROLE_ADMIN)) {
+                  return response_unauthorized();
+              }
+
+              // or, fail-loud:
+              Permission::require_permission(User_Model::PERM_MANAGE_SITE_USERS);
+
+    3. Remove any calls to the deleted Permission::anybody() /
+       Permission::authenticated() / Permission::_unconfigured() helper stubs
+       (they only ever appeared inside #[Auth] strings, but check for stray
+       references):
+
+           grep -rn "Permission::\(anybody\|authenticated\|_unconfigured\)" rsx/
+
+VERIFICATION
+    - `grep -rn "#\[Auth(" rsx/` returns nothing.
+    - `php artisan rsx:check` passes. PHP-AUTH-01 already flags any #[Route] /
+      #[SPA] / #[Ajax_Endpoint] endpoint that lacks a real auth check or an
+      @auth-exempt marker - so any endpoint that had leaned on #[Auth] for
+      protection now surfaces as a violation until you add the manual check.
+    - `php artisan rsx:routes` runs without error (the "auth=" column is gone).
+    - Spot-check that the endpoints you re-protected actually reject
+      unauthenticated / unauthorized callers (e.g. `rsx:debug <path>` with and
+      without --user).

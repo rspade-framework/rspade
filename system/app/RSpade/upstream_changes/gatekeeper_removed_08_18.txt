@@ -1,0 +1,140 @@
+CATEGORY: 2 - ACTION REQUIRED (only if you had Gatekeeper ENABLED)
+TITLE: Gatekeeper (shared-password preview gate) has been removed from the
+       framework; an enabled gate stops gating on this pull, silently
+DATE: 2026-08-18
+
+--------------------------------------------------------------------------------
+SUMMARY
+--------------------------------------------------------------------------------
+
+Gatekeeper - the global "enter a shared password to view this preview site"
+middleware - is gone. Deleted from /system/, along with its login view, its
+Kernel registration, its config documentation and every doc reference to it.
+
+    system/app/Http/Middleware/Gatekeeper.php      DELETED
+    system/resources/views/gatekeeper/             DELETED
+    system/app/Http/Kernel.php                     registration line removed
+
+It was a curtain, not an authentication system: one shared password, one cookie,
+no identity, sitting in front of every route in the application (it also 403'd
+non-loopback external API calls, which is why the API man page used to warn about
+it). RSpade now has real auth gates on every dispatchable surface, and a preview
+box that must not be publicly readable is a WEB SERVER / proxy concern, not a
+framework one.
+
+There is NO replacement in the framework and no compatibility shim.
+
+--------------------------------------------------------------------------------
+WHO IS AFFECTED
+--------------------------------------------------------------------------------
+
+ONLY an app that actually turned Gatekeeper ON - i.e. one that UNCOMMENTED the
+'gatekeeper' block in rsx/resource/config/rsx.php (the template shipped it
+commented out) and set GATEKEEPER_ENABLED=true in .env.
+
+If that is you, then after this pull your site is served WITHOUT the password
+prompt. Nothing errors. Nothing warns. The gate is simply not there any more.
+
+If Gatekeeper was never enabled (the default), there is nothing to do beyond the
+optional cleanup at the bottom.
+
+--------------------------------------------------------------------------------
+DETECTION - AM I AFFECTED?
+--------------------------------------------------------------------------------
+
+Run both. You are affected only if BOTH show a live setting.
+
+    # 1. an UNCOMMENTED gatekeeper block in your app config
+    grep -n -A6 "'gatekeeper'" rsx/resource/config/rsx.php
+
+        Affected if you see live PHP lines, e.g.
+
+            'gatekeeper' => [
+                'enabled'  => env('GATEKEEPER_ENABLED', false),
+                'password' => env('GATEKEEPER_PASSWORD'),
+            ],
+
+        NOT affected if every inner line is commented out with //.
+
+    # 2. the env switch
+    grep -n '^GATEKEEPER_ENABLED' .env
+
+        Affected if it reads GATEKEEPER_ENABLED=true.
+
+--------------------------------------------------------------------------------
+ACTION REQUIRED (affected apps only)
+--------------------------------------------------------------------------------
+
+Restore the restriction OUTSIDE the application, before or at the same time as
+this pull reaches the host that needs it. Any one of these replaces what
+Gatekeeper did, and each does it better (it runs before PHP boots):
+
+  a) HTTP basic auth at the web server.
+
+     nginx:
+         location / {
+             auth_basic           "Development Preview";
+             auth_basic_user_file /etc/nginx/.htpasswd-preview;
+             ...existing proxy/fastcgi config...
+         }
+         # create the file:  htpasswd -c /etc/nginx/.htpasswd-preview preview
+
+     apache:
+         <Location "/">
+             AuthType Basic
+             AuthName "Development Preview"
+             AuthUserFile /etc/apache2/.htpasswd-preview
+             Require valid-user
+         </Location>
+
+  b) IP allowlisting at the web server (nginx: allow/deny; apache: Require ip).
+
+  c) An access policy on the upstream proxy / CDN / VPN that already fronts the
+     box (Cloudflare Access, an ALB auth rule, a tailnet-only listener, ...).
+
+Exempt whatever must stay reachable for that host: your health checks, and - if
+external clients call your API on that host - the API paths, since basic auth
+sits in front of them too. Loopback is unaffected by any of the above.
+
+Do NOT reimplement Gatekeeper as app middleware. If a route must be restricted
+per USER, that is #[Auth] on the surface (rsx:man auth_gates); if the whole HOST
+must be restricted, that is the web server.
+
+--------------------------------------------------------------------------------
+CLEANUP (every app, optional but recommended)
+--------------------------------------------------------------------------------
+
+These are now inert - nothing reads them. Delete them so nobody later believes
+the gate still exists.
+
+    1. rsx/resource/config/rsx.php - delete the whole 'gatekeeper' block,
+       commented or not, and its /* | Gatekeeper | */ banner comment.
+
+    2. .env (project root; system/.env is a symlink to it) - delete:
+
+           GATEKEEPER_ENABLED=...
+           GATEKEEPER_PASSWORD=...
+           GATEKEEPER_TITLE=...
+           GATEKEEPER_SUBTITLE=...
+
+       ...and the same keys from any .env.example / deploy template / secrets
+       store / CI variable set you keep.
+
+    3. Any view, layout, logo asset or documentation of your own that referenced
+       the gatekeeper login page.
+
+--------------------------------------------------------------------------------
+VERIFICATION
+--------------------------------------------------------------------------------
+
+1. grep -rni gatekeeper rsx/ .env
+       -> no live hits (this document is the only expected match under system/).
+
+2. Load the site from a NON-loopback client:
+       - if you were affected: your NEW gate (basic auth prompt / IP block /
+         proxy policy) answers first;
+       - if you were not: the site loads exactly as before.
+
+3. php artisan rsx:health          -> no new failures.
+4. Log in normally                 -> the application's own auth is untouched;
+                                      Gatekeeper was never part of it.

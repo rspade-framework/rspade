@@ -1,0 +1,197 @@
+DETAIL_TABLES(3)              RSX Framework Manual              DETAIL_TABLES(3)
+
+NAME
+    detail_tables - Class-Table Inheritance (CTI) for typed ORM records
+
+SYNOPSIS
+    A base model spans a base table PLUS one or more 1:1 "detail" tables, selected
+    by a discriminator column. Type-specific fields live on the detail; universal
+    fields stay on the base. The detail is reached as a generated, eager-embedded
+    accessor and throws on wrong-type access.
+
+        // base model
+        public static $detail_tables = [
+            'type_id' => [
+                self::TYPE_PERSON  => Party_Person_Detail_Model::class,
+                self::TYPE_COMPANY => Party_Company_Detail_Model::class,
+                // a value absent from the map => that type has no detail
+            ],
+        ];
+
+        $party->name                       // universal (base)
+        $party->party_person->first_name   // person-only (detail) - the path is the scope
+        $party->party_company              // THROWS if $party is not a Company
+
+    Worked reference: the Party entity (/rsx/models/party_model.php + the staff
+    module under /rsx/app/frontend/party/).
+
+DESCRIPTION
+    Class-Table Inheritance models a record that has a shared field set common to a
+    kind, plus a type-specific field set that differs by a discriminator, WITHOUT
+    cramming every type's columns into one wide nullable table. One base table holds
+    the universal fields and the discriminator; a small number of detail tables each
+    hold one type's fields, joined 1:1 to the base.
+
+    Scope becomes a SCHEMA FACT: the table a field lives in is the constraint, and
+    the access path (party.party_person.first_name) is the documentation. A column
+    can legally exist on both the base and a detail and mean different things, because
+    access is namespaced (party.image vs party.party_person.image) - though that is a
+    smell and emits a build warning.
+
+    PHYSICAL SHAPE (surrogate id + UNIQUE FK, NOT a literal shared PK)
+        The detail table keeps the framework-standard
+            id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+        plus a UNIQUE foreign key back to the base:
+            {parent}_id BIGINT NOT NULL UNIQUE,
+            FOREIGN KEY ({parent}_id) REFERENCES {parent}(id) ON DELETE CASCADE
+        The 1:1 is enforced by the UNIQUE constraint; lifecycle is tied by CASCADE.
+        The base carries ZERO detail-FK columns - the discriminator selects the table.
+        (Surrogate id, not a shared PK, so every table honors the universal id-PK rule.)
+
+DECLARATION
+    Base model: one $detail_tables map (the single source of truth for "what detail a
+    type has"). Exactly one discriminator column. A discriminator value absent from
+    the map means that type has no detail (all its fields are universal). Multiple
+    values MAY map to the same detail model (they share one detail table + accessor).
+
+    Detail model: extends Rsx_Detail_Model_Abstract, declares $parent_model. It is a
+    STANDARD model (default id PK) - no custom $primaryKey/$incrementing. The FK column
+    ($parent_key) is derived from the parent model basename (Party_Model -> party_id);
+    override $parent_key only for a non-conventional name.
+
+        class Party_Person_Detail_Model extends Rsx_Detail_Model_Abstract
+        {
+            protected $table = 'party_person_details';
+            public static $enums = [];
+            protected static $parent_model = Party_Model::class;
+        }
+
+    The accessor name is derived from the detail model basename:
+        Party_Person_Detail_Model -> party_person.
+
+MIGRATION
+    Detail tables are created with the Rsx_Detail_Table helper (raw DDL via
+    DB::statement - Schema::create/Blueprint are forbidden; the helper composes with
+    SqlQueryTransformer for type normalization + utf8mb4):
+
+        use App\RSpade\Core\Database\DetailTables\Rsx_Detail_Table;
+
+        Rsx_Detail_Table::create('party_person_details', 'parties', [
+            ['name' => 'first_name', 'type' => 'VARCHAR(255)'],
+            ['name' => 'last_name',  'type' => 'VARCHAR(255)'],
+            ['name' => 'date_of_birth', 'type' => 'DATE'],
+        ]);
+
+    Signature: create($detail_table, $parent_table, array $columns, $parent_key=null,
+    $soft_deletes=false). The helper emits the surrogate id, the UNIQUE FK, the cascade,
+    the audit columns (created_at/updated_at/created_by_id/created_by_type/
+    updated_by_id/updated_by_type, +deleted_* when
+    $soft_deletes), and your columns. Detail columns DEFAULT to NULL (declare
+    'nullable'=>false for NOT NULL). Classify these as template-app migrations
+    (rsx/resource/migrations/) - they belong to the app, not the framework.
+
+READ
+    PHP - the detail accessor is a magic property on the base:
+        $detail = $party->party_person;   // persisted row, or a vivified new instance
+        echo $party->party_person->first_name;
+        $party->party_company;            // THROWS: wrong type for a Person
+
+    The accessor for the record's ACTIVE type returns the persisted detail row, or - if
+    none exists yet - a NEW unsaved detail (plain construction) with the parent FK
+    pre-set, cached per request so you can fill and save it.
+    Accessing a detail accessor that does not match the record's discriminator throws a
+    clear, local wrong-type error (the discriminator is on the record; no query). It is
+    the caller's responsibility to check the type first.
+
+    EMBED - toArray() eager-embeds the active PERSISTED detail under a "__details" blob
+    (never the accessor key, so it cannot collide with the JS accessor method). A
+    vivified-but-unsaved detail is never serialized.
+
+    JS - the generated stub exposes the detail as an async accessor that resolves from
+    the embedded payload with NO network call, and throws wrong-type locally:
+        const p = await Party_Model.fetch(id);   // detail rides inside this one request
+        const person = await p.party_person();    // instant - from the embed
+        await p.party_company();                  // THROWS for a Person
+
+    SETS (avoid N+1) - serializing many base records lazy-loads each detail. Call
+    Model::preload_details($collection) first to batch-load all active details in one
+    query per detail table:
+        $parties = Party_Model::where(...)->get();
+        Party_Model::preload_details($parties);
+        // now $p->toArray() for each embeds its detail with no extra query
+
+WRITE
+    save() does NO detail magic. Because the FK lives on the detail, the detail can only
+    be created AFTER the base has an id - so the detail is the developer's to write, in
+    the same transaction. The uniform pattern (works for create and edit, every type):
+
+        DB::transaction(function () use ($party, $params) {
+            $party->type_id = Party_Model::TYPE_COMPANY;   // only set on create
+            $party->name    = $params['legal_name'];        // composed/derived base column
+            $party->save();
+
+            $detail = $party->party_company;   // existing row, or new with party_id set
+            $detail->legal_name = $params['legal_name'];
+            $detail->save();
+        });
+
+    COMPOSED BASE COLUMNS - deriving a base column from detail fields (e.g. a person's
+    `name` from first+last) is ordinary endpoint code: compute it and set it before
+    $party->save(). There is no framework save hook.
+
+    REQUIRED FIELDS - a detail with NOT-NULL columns must be supplied by the developer;
+    this is enforced at the endpoint/validation layer (and the DB NOT NULL), NOT by the
+    ORM. The accessor never inserts a row on its own.
+
+    DISCRIMINATOR IMMUTABILITY - the discriminator is immutable once a record exists;
+    changing it (which would orphan the detail) throws on save. Set the type only on
+    create.
+
+    DELETE - deleting the base cascade-deletes the detail (FK ON DELETE CASCADE).
+
+CODEGEN (spans base + detail as one logical model)
+    - field_length('col') resolves across base AND detail columns (the manifest merges
+      detail columns into the base model's column map). Forms bind
+      $max_length=Model.field_length('first_name') even though first_name is on a detail.
+    - rsx:constants:regenerate documents detail columns in the base model's @property
+      docblock, each annotated "(detail: <table>)".
+    - The JS stub bakes the discriminator + a value->accessor map and emits the embedded-
+      resolving detail accessors.
+    - $enums declared on detail columns work like any column (the detail model is a real
+      model and casts its own columns natively).
+
+SEMANTICS & EDGE CASES
+    1. Wrong-type access (fail loud) - throws BEFORE any await, in both PHP and JS,
+       using the local discriminator + map. Check the type first.
+    2. Absent-detail type - a discriminator value not in the map has no detail; its
+       accessor name does not exist, toArray embeds nothing, active_detail() is null.
+    3. Vivified-but-unsaved details are never serialized (embed is persisted-only).
+    4. Discriminator is immutable (changing it throws); no change_type() in v1.
+    5. Same-name base/detail column - legal but a smell; emits a build warning.
+    6. The detail inherits the base's authorization - it has NO independent fetch(), no
+       separate Ajax endpoint; it is reached only through the base accessor/embed.
+
+CODE QUALITY
+    DETAIL-01 validates each $detail_tables declaration: exactly one discriminator
+    column; each mapped class is a Rsx_Detail_Model_Abstract whose $parent_model points
+    back; no two distinct detail models derive the same accessor name.
+
+NON-GOALS (v1)
+    Query sugar / datagrid auto-join by a detail column (use whereHas); a central
+    "required-by-subtype" validation declaration (validate app-side); guarded
+    change_type(); multi-detail or nested CTI. Auto-generated indexes on relationship
+    FKs are backlogged (docs.dev/archived/docs_goals_originals/_todo.md).
+
+FILES
+    system/app/RSpade/Core/Database/DetailTables/Rsx_Detail_Table.php
+    system/app/RSpade/Core/Database/DetailTables/Rsx_Detail_Model_Abstract.php
+    system/app/RSpade/Core/Database/DetailTables/Detail_Tables_Resolver.php
+    system/app/RSpade/Core/Database/Models/Rsx_Model_Abstract.php   (accessor, embed, save)
+    system/app/RSpade/Core/Database/Database_BundleIntegration.php  (JS stub accessors)
+    system/app/RSpade/Core/Manifest/Modules/Model_ManifestSupport.php (column spanning)
+    system/app/RSpade/Commands/Rsx/Constants_Regenerate_Command.php (docblock spanning)
+
+SEE ALSO
+    model_fetch(3), enum(3), model_normalization(3), crud(3), template_app(3)
+
+RSX Framework              Last updated 2026-06-30              DETAIL_TABLES(3)

@@ -1,0 +1,122 @@
+# Form Input $name Migration
+
+**Date:** 2025-12-29
+**Affects:** All forms, all custom input components
+
+## Breaking Change
+
+The `$name` attribute now belongs on the **input component**, not on `Form_Field`.
+
+### Before (Old Pattern)
+```html
+<Form_Field $name="email" $label="Email Address" $required=true>
+    <Text_Input $placeholder="user@example.com" />
+</Form_Field>
+```
+
+### After (New Pattern)
+```html
+<Form_Field $label="Email Address" $required=true>
+    <Text_Input $name="email" $placeholder="user@example.com" />
+</Form_Field>
+```
+
+## Core Principle: Components Are Black Boxes
+
+The input component IS the input. The form system interacts with components through:
+- `data-name` attribute on the component's root element (set automatically by Form_Input_Abstract.on_create())
+- `val()` method for getting/setting values
+
+Internal elements are implementation details. The form system never looks inside components.
+
+## Migration Checklist
+
+### 1. Move $name from Form_Field to Input
+
+Find and update all forms:
+```bash
+grep -r '<Form_Field[^>]*\$name=' rsx/app --include="*.jqhtml" --include="*.blade.php"
+```
+
+### 2. Ensure extends="Form_Input_Abstract" on all input templates
+
+```html
+<Define:My_Custom_Input extends="Form_Input_Abstract">
+    ...
+</Define:My_Custom_Input>
+```
+
+Without this, `data-name` won't be set on the component root.
+
+### 3. Call super.on_create() in subclasses
+
+All input components overriding `on_create()` MUST call `super.on_create()`:
+
+```javascript
+class My_Input extends Form_Input_Abstract {
+    on_create() {
+        super.on_create();  // REQUIRED - sets data-name
+        // ... rest of initialization
+    }
+}
+```
+
+### 4. Remove name from internal elements
+
+Input components must NOT put `name` on internal elements:
+
+```html
+<!-- WRONG -->
+<input type="hidden" name="<%= this.args.name %>" />
+
+<!-- CORRECT - no name attribute, data-name is on component root -->
+<input type="hidden" $sid="hidden_input" />
+```
+
+### 5. Remove deprecated methods
+
+Remove any implementations of:
+- `_transform_value(value)` - no longer in base class
+- `seed()` - removed from Form_Input_Abstract contract
+
+### 6. Update _mark_ready() implementation
+
+If you've copied `Form_Input_Abstract` or have custom input classes, update `_mark_ready()`:
+
+```javascript
+_mark_ready() {
+    this._is_ready = true;
+    if (this._pending_value !== null) {
+        this._set_value(this._pending_value);
+        this.trigger('val', this._pending_value);
+        this._pending_value = null;
+    } else {
+        this.trigger('val', this._get_value());
+    }
+}
+```
+
+The fix: `_mark_ready()` now always triggers the 'val' event on initialization.
+This ensures listeners registered via `this.sid('input').on('val', ...)` receive
+the initial value even when no value was buffered.
+
+## How It Works Now
+
+1. Input component receives `$name="email"` as argument
+2. `Form_Input_Abstract.on_create()` sets `data-name="email"` on component root
+3. `Form_Field` finds child `.Form_Input_Abstract` and reads its `data-name`
+4. `Rsx_Form.vals()` finds all `[data-name]` elements and calls `val()` on each
+5. `_mark_ready()` triggers 'val' event with initial value on component ready
+
+## Validation
+
+After migration, verify:
+```bash
+# No $name on Form_Field
+grep -r '<Form_Field[^>]*\$name=' rsx/app --include="*.jqhtml"
+# Should return nothing
+
+# No name on internal elements
+grep -rn 'name="<%' rsx/theme/components/inputs --include="*.jqhtml"
+# Should return nothing
+```

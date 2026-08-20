@@ -1,0 +1,41 @@
+// Tab_Bar - neutral underline tab strip.
+.Tab_Bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-1; // 4px between tabs
+    align-items: stretch;
+
+    &--divided {
+        border-top: $border-width solid $border-color;
+        padding-top: $spacing-2;
+    }
+
+    &__tab {
+        display: inline-flex;
+        align-items: center;
+        gap: $spacing-2;
+        padding: $spacing-2 $spacing-3; // 8px 12px
+        border: none;
+        border-bottom: $border-width-thick solid transparent;
+        background: transparent;
+        color: $text-muted;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-medium;
+        cursor: pointer;
+
+        &:hover {
+            color: $text-color;
+        }
+
+        &--active {
+            color: $primary-color;
+            border-bottom-color: $primary-color;
+            font-weight: $font-weight-semibold;
+        }
+    }
+
+    &__icon {
+        font-size: $font-size-base;
+        line-height: 1;
+    }
+}

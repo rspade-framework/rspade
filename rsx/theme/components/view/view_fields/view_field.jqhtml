@@ -1,0 +1,21 @@
+<%--
+View_Field - one label/value fact (stacked label over value by default)
+
+$label - the field label, plain text [optional]
+$icon - a leading icon class on the label, e.g. "bi bi-facebook" [optional]
+$inline - compact label-left / value-right row instead of stacked [optional]
+default content - the value (authored: text, a link, <Empty_Value>, a chip)
+
+Usage:
+    <View_Field $label="Website"><External_Link $href=_client.website /></View_Field>
+    <View_Field $label="Facebook" $icon="bi bi-facebook"><a ...>...</a></View_Field>
+    <View_Field $label="Client ID" $inline=true><%= _client.client_id_formatted %></View_Field>
+--%>
+<Define:View_Field>
+    <% this.$.toggleClass('View_Field--inline', !!this.args.inline); %>
+    <div class="View_Field__label">
+        <% if (this.args.icon) { %><i class="View_Field__icon <%= this.args.icon %>"></i><% } %>
+        <%= this.args.label %>
+    </div>
+    <div class="View_Field__value"><%= content() %></div>
+</Define:View_Field>

@@ -1,0 +1,148 @@
+CATEGORY: 1 - ACTION REQUIRED (check your tree once; likely no action)
+TITLE: A lost framework file is no longer mistaken for a deliberate deletion
+DATE: 2026-08-11
+
+--------------------------------------------------------------------------------
+WHY YOU ARE READING THIS
+--------------------------------------------------------------------------------
+
+If files under system/ ever went missing on your box - a `git clean -fd system`, a
+partial restore, a bad rsync - your tree may be MISSING FRAMEWORK FILES RIGHT NOW
+while every command tells you it is up to date. Until this release the updater
+inferred that a file absent from disk had been deleted ON PURPOSE, and preserved
+that absence forever.
+
+This was found the hard way (2026-08-11). An app lost 13 framework migrations plus
+the framework .migration_whitelist. Consequences, all from one root cause and each
+looking like a separate incident:
+
+  - `php artisan rsx:git` suddenly undefined
+  - rsx-lockd in FATAL on a missing lockd-run.sh
+  - the audit-pair schema normalizer aborting the framework update outright
+  - `migrate` reporting "Nothing to migrate" against a schema a release behind
+  - an upstream change marked fulfilled whose migration had never run
+  - framework code (can_user_assign_this_file) running against a schema predating it
+
+Every pull reported "[OK] Framework rebuilt / === Update complete ===". So did
+`--force`. The damage was only found by manual archaeology.
+
+--------------------------------------------------------------------------------
+DO THIS ONCE
+--------------------------------------------------------------------------------
+
+    php artisan rsx:framework:pull
+
+That is the whole check. If your tree is complete you get the normal result. If it
+is NOT, the pull now REFUSES and names every missing file:
+
+    [ERROR] This tree is INCOMPLETE: 14 file(s) from the installed release are missing.
+    [ERROR] The installed-release marker says up to date; the files it promises are not here.
+        database/migrations/2026_08_09_075941_merge_portal_sessions_into_sessions.php
+        database/migrations/.migration_whitelist
+        ...
+    [ERROR] Repair:  php artisan rsx:framework:pull --force
+
+Then repair and migrate:
+
+    php artisan rsx:framework:pull --force
+    php artisan migrate
+
+`rsx:framework:verify` gives the same answer in more detail and has always been
+able to see this - it was simply never consulted, because nothing failed.
+
+**Check your schema afterwards.** If migrations were among the missing files they
+never ran, so your database is behind your framework code. `migrate` after the
+repair applies them. Watch that run: a migration that has been missing for several
+releases may hit data that changed underneath it.
+
+--------------------------------------------------------------------------------
+WHAT CHANGED IN THE UPDATER
+--------------------------------------------------------------------------------
+
+1. Four more directories are now framework-OWNED zones:
+
+       system/database   system/config   system/resources   system/supervisor
+
+   Owned zones are hard-synced with `rsync --delete`, so a deletion there
+   self-heals on the next pull - which is why bin/ and app/RSpade/ always
+   recovered and these never did. Each is framework property with an app-side
+   equivalent elsewhere:
+
+       database/    framework migrations + the framework .migration_whitelist,
+                    immutable once shipped. YOUR migrations live in
+                    rsx/resource/migrations/ with their own whitelist, and
+                    `make:migration:safe` routes there automatically.
+       config/      framework config. YOUR overrides live in
+                    rsx/resource/config/ and are merged OVER the framework's,
+                    so overriding still works exactly as before.
+       resources/   the Laravel view skeleton (error pages, gatekeeper login).
+                    YOUR views live in rsx/.
+       supervisor/  the framework's own service definitions.
+
+   system/public is deliberately NOT owned - it is the docroot, where your app
+   legitimately places static assets.
+
+   >>> THE ONE THING THAT COULD BITE <<<
+
+   If you hand-placed a file in any of those four directories, THE NEXT PULL WILL
+   DELETE IT. Check now:
+
+       php artisan rsx:framework:pull --check-foreign-changes
+
+   None of the four was ever a supported place for app content, so this should
+   find nothing. If it does:
+       - a migration          -> move to rsx/resource/migrations/ and add it to
+                                 that directory's .migration_whitelist
+       - a config override    -> move the overriding keys into
+                                 rsx/resource/config/rsx.php
+       - a view               -> move to rsx/
+       - a supervisor program -> keep it in your own supervisord conf.d, not in
+                                 system/supervisor/
+
+2. --force can now repair a missing file.
+
+   The re-add branch was unreachable for a file BYTE-IDENTICAL between the old and
+   new release - and an immutable file (a shipped migration) is identical across
+   every release by definition. So --force, documented as "repair a broken core",
+   could not repair the commonest breakage. It now re-adds any upstream file
+   missing from disk regardless of whether the release changed it.
+
+3. A missing file FAILS the run instead of being counted.
+
+   "N local deletion(s) preserved" used to be one clause in a summary line. In the
+   incident, 13 lost migrations sat behind 7,326 correctly-deleted test fixtures in
+   that count, invisible next to [OK]. An unexplained absence is now an error that
+   names every file and stops the run BEFORE anything is committed, rebuilt, or
+   marked installed.
+
+   The ONE innocent explanation is still honored silently: the class-override
+   rename that moves X.php aside to X.php.upstream. That is the same exemption
+   rsx:framework:verify applies.
+
+4. "Up to date" is now verified against the tree, not just the marker.
+
+   A plain pull on an already-current box used to exit 0 on the marker alone, so a
+   box missing files reported itself current forever. It now reconciles the release
+   inventory (.rspade-release.json) against disk first.
+
+5. rsx:framework:status reports the right SHA.
+
+   It printed .rspade-release.json's `release_id` - the MONOREPO commit the release
+   was built from - under the label "Installed release", a sha appearing nowhere in
+   the pull's own vocabulary. During the incident that cost a long detour chasing a
+   phantom version mismatch. The distribution commit now leads; the source commit
+   is shown as "Built from source commit".
+
+--------------------------------------------------------------------------------
+NOTE ON THE TRIGGER
+--------------------------------------------------------------------------------
+
+The incident was caused by an operator running `git clean -fd system` on a tree git
+does not fully track. Do not do that - `system/` is framework property and
+`php artisan rsx:git` exists partly to keep you away from raw git on it.
+
+But the framework's job is to survive a mistake, not to be blameless about it. A
+vendored tree that self-healed bin/ while permanently losing database/, whose
+documented repair flag could not repair it, and which reported success throughout,
+turned one operator error into a silent multi-hour schema-level failure. That is
+what these changes address.

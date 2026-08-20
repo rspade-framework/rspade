@@ -1,0 +1,370 @@
+================================
+
+OVERVIEW
+
+rsx:debug is a comprehensive debugging tool that uses a headless Chromium browser
+via Playwright to test routes, capture responses, monitor console output, inspect
+DOM state, track XHR requests, and analyze logs. It provides complete visibility
+into both server-side and client-side behavior.
+
+This is a development-only tool that is disabled in production environments.
+
+BASIC USAGE
+
+    php artisan rsx:debug <url> [options]
+
+Examples:
+    php artisan rsx:debug /dashboard
+    php artisan rsx:debug /api/users --no-body
+    php artisan rsx:debug /login --full
+
+CORE OPTIONS
+
+--user=<id|email>
+    Test as a specific user, bypassing authentication. Accepts either a
+    numeric user ID or an email address. Validates user exists before
+    running test. Uses backdoor authentication that only works in
+    development environments.
+
+--portal
+    Enable portal mode for testing client portal routes. When set, the URL
+    is automatically prefixed with /_portal/ (if not already present).
+    Use with --portal-user to authenticate as a portal user.
+
+--portal-user=<id|email>
+    Test as a specific portal user, bypassing portal authentication.
+    Accepts either a numeric portal user ID or email address. Requires
+    --portal flag. Validates portal user exists before running test.
+
+--no-body
+    Suppress HTTP response body output. Useful when you only want to see
+    headers, status code, console errors, or other diagnostic information.
+
+--full
+    Enable all display options except --no-body and --follow-redirects.
+    Provides maximum diagnostic information in a single command.
+
+--timeout=<ms>
+    Navigation timeout in milliseconds (minimum 30000ms, default 30000ms).
+    Use for slow-loading pages or complex SPAs.
+
+CONSOLE OUTPUT
+
+--console
+    Display all browser console output, not just errors. Shows console.log(),
+    console.warn(), console.info(), and console_debug() output.
+
+--console-log
+    Alias for --console.
+
+--console-debug-filter=<channel>
+    Filter console_debug() output to a specific channel (e.g., AUTH, DISPATCH,
+    BENCHMARK). Automatically enables console_debug and --console.
+
+--console-debug-all
+    Show all console_debug() channels without filtering.
+
+--console-debug-benchmark
+    Include benchmark timing prefixes in console_debug() output.
+
+--console-debug-disable
+    Disable console_debug() entirely for this test.
+
+LOGS
+
+--log
+    Display Laravel error log if not empty.
+
+--all-logs
+    Display all log files: Laravel log and nginx access/error logs.
+
+XHR/AJAX MONITORING
+
+--xhr-list
+    Show simple list of XHR/fetch requests with URLs and status codes only.
+
+--xhr-dump
+    Capture full details of XHR/fetch requests including headers, request
+    payload, and response body.
+
+DOM INSPECTION
+
+--expect-element=<selector>
+    Verify that an element exists by CSS selector. Command fails if element
+    is not found. Useful for testing that critical UI elements render.
+
+--dump-element=<selector>
+    Extract and display HTML of a specific element by CSS selector.
+
+--input-elements
+    List all form input elements on the page with their values, attributes,
+    and state.
+
+--wait-for=<selector>
+    Wait for a CSS selector to appear before capturing output. Useful for
+    pages with async content loading or SPAs.
+
+HTTP TESTING
+
+--post=<json>
+    Send POST request with JSON data instead of GET request.
+    Example: --post='{"username":"test","password":"pass"}'
+
+--follow-redirects
+    Follow HTTP redirects and show the full redirect chain.
+
+--headers
+    Display all HTTP response headers.
+
+--cookies
+    Display all browser cookies with domains and expiry times.
+
+BROWSER STATE
+
+--storage
+    Display localStorage and sessionStorage contents.
+
+SCREENSHOTS
+
+--screenshot-path=<path>
+    Path to save screenshot file. Triggers screenshot capture with default
+    width of 1920px and maximum height of 5000px.
+
+--screenshot-width=<width|preset>
+    Screenshot width in pixels or device preset name. Used with --screenshot-path.
+
+    Available presets:
+    - mobile          412px  (Pixel 7)
+    - iphone-mobile   390px  (iPhone 12/13/14)
+    - tablet          768px  (iPad Mini)
+    - desktop-small   1366px (Common laptop)
+    - desktop-medium  1920px (Full HD) - default
+    - desktop-large   2560px (2K/WQHD)
+
+    Examples:
+        --screenshot-path=/tmp/page.png
+            # Default 1920px width
+
+        --screenshot-width=mobile --screenshot-path=/tmp/mobile.png
+            # 412px mobile viewport
+
+        --screenshot-width=1024 --screenshot-path=/tmp/custom.png
+            # Custom 1024px width
+
+LAYOUT DEBUGGING
+
+--dump-dimensions=<selector>
+    Add data-dimensions attribute to all elements matching the CSS selector.
+    The attribute contains JSON with layout information (all values rounded
+    to nearest pixel):
+
+    - x, y: Absolute position on page
+    - w, h: Element width and height
+    - margin: Single value if uniform, or "top right bottom left" notation
+    - padding: Single value if uniform, or "top right bottom left" notation
+
+    Example output in DOM:
+        data-dimensions='{"x":0,"y":60,"w":250,"h":800,"margin":0,"padding":"20 15 20 15"}'
+
+    Examples:
+        --dump-dimensions=".card"
+            # Add dimensions to all .card elements
+
+        --dump-dimensions=".sidebar,.main-content"
+            # Multiple selectors
+
+    Use with --dump-element to see the annotated HTML, or without --no-body
+    to see the full page DOM with dimensions embedded.
+
+JAVASCRIPT EVALUATION
+
+--eval=<code>
+    Execute JavaScript code in the page context AFTER the page has fully
+    loaded but BEFORE the DOM is captured for output. The code runs with
+    full access to jQuery, component APIs, and all page state.
+
+    This is powerful for simulating user interactions and testing async
+    behavior. Use `await` for async operations and `await sleep(ms)` to
+    wait for side effects to complete before the DOM snapshot.
+
+    GETTING OUTPUT FROM EVAL:
+
+    To see output from your eval code, you must either:
+
+    1. Use `return` to return a value (shown in "JavaScript Eval Result:"):
+        --eval="return Rsx_Time.now_iso()"
+        --eval="return typeof Rsx_Time"
+        --eval="return JSON.stringify({a: 1, b: 2})"
+
+    2. Use `console.log()` with --console flag (shown in console output):
+        --console --eval="console.log('timezone:', Rsx_Time.get_user_timezone())"
+        --console --eval="console.log('today:', Rsx_Date.today())"
+
+    Without `return` or `console.log()`, the eval result will be undefined.
+
+    INSPECTING VALUES:
+        --eval="return Rsx_Time.now_iso()"
+        --eval="return Rsx_Time.get_user_timezone()"
+        --eval="return Rsx_Date.today()"
+        --eval="return JSON.stringify(window.rsxapp)"
+
+    SIMULATING USER INTERACTIONS:
+        # Click a pagination button and wait for results
+        --eval="$('.page-link[data-page=\"2\"]').click(); await sleep(2000)"
+
+        # Fill and submit a form
+        --eval="$('#search').val('test'); $('form').submit(); await sleep(1000)"
+
+        # Open a dropdown and click an option
+        --eval="$('.dropdown-toggle').click(); await sleep(100); $('.dropdown-item:first').click(); await sleep(500)"
+
+        # Toggle a checkbox and verify state change
+        --eval="$('#enable_feature').click(); await sleep(100); console.log('Checked:', $('#enable_feature').prop('checked'))"
+
+    The DOM output will reflect the state AFTER your eval code completes,
+    making this ideal for testing that UI updates correctly in response
+    to user actions.
+
+AUTHENTICATION & BACKDOOR
+
+The --user option accepts either a numeric user ID or email address. When
+an email is provided, it is resolved to the user ID before testing. The
+user must exist in the database or the command will fail with an error.
+
+SECURITY: Authentication is protected by a signed token (HMAC-SHA256) using
+the application's APP_KEY. The token is generated by rsx:debug and verified
+before any user override occurs. This prevents:
+
+- External requests from hijacking sessions by sending headers directly
+- Attackers from authenticating as arbitrary users even in development
+
+An authentication header without a valid token is silently ignored. Raw curl
+requests with X-Dev-Auth-User-Id will NOT authenticate.
+
+WHERE THE VERIFICATION LIVES (template vs core): the --portal-user backdoor is
+FRAMEWORK-CORE - its HMAC check is in Portal_Dispatcher and is always present.
+The main-site --user backdoor is verified in the TEMPLATE APP's /rsx/main.php
+(pre_dispatch), NOT in /system. A downstream app that does not carry that
+dev-auth block in its own main.php gets a --user flag that silently does
+NOTHING - the page renders UNAUTHENTICATED with no error. If --user seems
+ignored, confirm your main.php still verifies the dev-auth header.
+
+This feature is:
+- Only available in local/development/testing environments
+- Requires valid signed token (generated from APP_KEY)
+- Automatically disabled in production (APP_KEY is cleared in .env.dist)
+- Useful for testing protected routes
+- DOES establish a real session: the dev-auth path calls RsxAuth::login() ->
+  Session::set_login_user_id(), creating a persisted _sessions row + cookie for
+  the headless browser context, exactly like a normal login (it is not a
+  read-only override)
+
+ERROR HANDLING
+
+The tool sends an X-Playwright-Test header that triggers plain text error
+responses instead of HTML error pages. This provides cleaner error output
+with full stack traces that are easier to debug.
+
+Exit codes:
+- 0: Success (status < 400, no console errors, no network failures)
+- 1: Failure (status >= 400, console errors, or network failures)
+
+OUTPUT FORMAT
+
+The command outputs in a terse, parseable format:
+- Status line with URL and HTTP status code
+- Console errors (always shown if present)
+- Console logs (if --console used)
+- XHR/fetch requests (if --xhr-dump or --xhr-list used)
+- Response headers (if --headers used)
+- Response body (unless --no-body used)
+- Laravel/nginx logs (if --log or --all-logs used)
+
+PREREQUISITES
+
+The tool automatically installs required dependencies:
+- Node.js (must be pre-installed)
+- Playwright npm package (auto-installed if missing)
+- Chromium browser (auto-installed if missing)
+
+LOG ROTATION
+
+The tool automatically rotates development logs before and after each test
+to ensure a clean slate. This means each test starts with empty logs and
+only shows errors/output from that specific test run.
+
+COMMON PATTERNS
+
+Test a protected route as user ID 1:
+    php artisan rsx:debug /admin/users --user=1
+
+Test a protected route by email:
+    php artisan rsx:debug /admin/users --user=admin@example.com
+
+Test a portal route as portal user ID 1:
+    php artisan rsx:debug /dashboard --portal --portal-user=1
+
+Test a portal route by email:
+    php artisan rsx:debug /mail --portal --portal-user=client@example.com
+
+Test a portal route (URL with or without /_portal/ prefix):
+    php artisan rsx:debug /_portal/dashboard --portal --portal-user=1
+    php artisan rsx:debug /dashboard --portal --portal-user=1
+    # Both are equivalent - prefix is normalized
+
+Check if JavaScript errors occur:
+    php artisan rsx:debug /page
+    # Console errors are always shown
+
+Monitor all AJAX calls on a page:
+    php artisan rsx:debug /dashboard --xhr-list
+
+Debug a form submission:
+    php artisan rsx:debug /api/save --post='{"name":"test"}' --xhr-dump
+
+Verify critical elements loaded:
+    php artisan rsx:debug /page --expect-element="#submit-button"
+
+Check console_debug output for AUTH channel:
+    php artisan rsx:debug /login --console-debug-filter=AUTH
+
+Capture mobile and desktop screenshots:
+    php artisan rsx:debug /page --screenshot-width=mobile --screenshot-path=/tmp/mobile.png
+    php artisan rsx:debug /page --screenshot-width=desktop-large --screenshot-path=/tmp/desktop.png
+
+Debug layout issues by inspecting element dimensions:
+    php artisan rsx:debug /page --dump-dimensions=".card,.sidebar" --dump-element=".main"
+    # Shows .main HTML with data-dimensions on matching elements
+
+Test pagination or other interactive behavior:
+    php artisan rsx:debug /contacts --user=1 --eval="$('.page-link[data-page=\"2\"]').click(); await sleep(2000)" --console
+    # Clicks page 2, waits for Ajax, dumps DOM showing page 2 results
+
+Test form validation feedback:
+    php artisan rsx:debug /users/add --user=1 --eval="$('form').submit(); await sleep(500)" --dump-element=".invalid-feedback"
+    # Submits empty form, shows validation errors
+
+IMPORTANT NOTES
+
+* When using rsx:debug with grep and no output appears, re-run without grep
+  to see the full context and any errors that may have occurred.
+
+* Use rsx_dump_die() in your PHP code for temporary debugging output.
+
+* This command is development-only and automatically disabled in production.
+
+* The tool uses a real Chromium browser, so JavaScript executes exactly as
+  it would for end users.
+
+* For more details on console_debug: php artisan rsx:man console_debug
+  For config options: php artisan rsx:man config_rsx
+
+RELATED COMMANDS
+
+php artisan rsx:routes       List all registered routes
+php artisan rsx:ajax         Test Ajax endpoints directly
+php artisan rsx:check        Run code quality checks
+
+SEE ALSO
+
+console_debug, config_rsx, routing

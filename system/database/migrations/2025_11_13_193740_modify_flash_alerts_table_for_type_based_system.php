@@ -1,0 +1,39 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     * 
+     * IMPORTANT: Use raw MySQL queries for clarity and auditability
+     * ✅ DB::statement("ALTER TABLE users ADD COLUMN age BIGINT")
+     * ❌ Schema::table() with Blueprint
+     * 
+     * REQUIRED: ALL tables MUST have: id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+     * No exceptions - every table needs this exact ID column (SIGNED for easier migrations)
+     * 
+     * Integer types: Use BIGINT for all integers, TINYINT(1) for booleans only
+     * Never use unsigned - all integers should be signed
+     * 
+     * Migrations must be self-contained - no Model/Service references
+     *
+     * @return void
+     */
+    public function up()
+    {
+        // Add type_id column for flash message types (uses model enum: 1=success, 2=error, 3=info, 4=warning)
+        DB::statement("ALTER TABLE flash_alerts ADD COLUMN type_id BIGINT NOT NULL AFTER session_id");
+
+        // Remove class_attribute column (no longer needed - type determines styling)
+        DB::statement("ALTER TABLE flash_alerts DROP COLUMN class_attribute");
+    }
+    
+    /**
+     * down() method is prohibited in RSpade framework
+     * Migrations should only move forward, never backward
+     * You may remove this comment as soon as you see it and understand.
+     */
+};

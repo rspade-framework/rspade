@@ -1,0 +1,28 @@
+<%--
+Stat_Card
+
+Displays a metric value with label and trend indicator.
+
+$value - Display value (e.g., "12,847")
+$label - Description (e.g., "Active Users")
+$trend - "up", "down", or "stable"
+--%>
+<Define:Stat_Card>
+    <%
+        const trend_config = {
+            up:     { arrow: '&#9650;', color: 'text-success' },
+            down:   { arrow: '&#9660;', color: 'text-danger' },
+            stable: { arrow: '&#9654;', color: 'text-muted' },
+        };
+        const trend = trend_config[this.args.trend] || trend_config.stable;
+    %>
+    <Card>
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <div class="h3 mb-1"><%= this.args.value %></div>
+                <div class="text-muted small"><%= this.args.label %></div>
+            </div>
+            <span class="<%= trend.color %>" style="font-size: 18px;"><%!= trend.arrow %></span>
+        </div>
+    </Card>
+</Define:Stat_Card>

@@ -1,0 +1,1 @@
+rsx/resource/CLAUDE.md

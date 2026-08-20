@@ -1,0 +1,141 @@
+#!/usr/bin/env php
+<?php
+/**
+ * JSON Code Formatter
+ * 
+ * Formats JSON files with proper indentation and validation
+ */
+
+class JsonFormatter
+{
+    private $verbose = false;
+    
+    /**
+     * Main entry point
+     */
+    public function run($argv)
+    {
+        // Parse command line arguments
+        $files = [];
+        
+        for ($i = 1; $i < count($argv); $i++) {
+            $arg = $argv[$i];
+            
+            if ($arg === '--verbose' || $arg === '-v') {
+                $this->verbose = true;
+            } elseif ($arg === '--help' || $arg === '-h') {
+                $this->show_help();
+                exit(0);
+            } elseif (substr($arg, 0, 1) !== '-') {
+                $files[] = $arg;
+            }
+        }
+        
+        // If no files specified, show help
+        if (empty($files)) {
+            $this->show_help();
+            exit(1);
+        }
+        
+        $this->format_files($files);
+    }
+    
+    /**
+     * Format specified files
+     */
+    private function format_files($paths)
+    {
+        foreach ($paths as $path) {
+            // Make path absolute if relative
+            if (substr($path, 0, 1) !== '/') {
+                $path = getcwd() . '/' . $path;
+            }
+            
+            if (is_file($path)) {
+                $this->format_file($path);
+            } else {
+                $this->warning("Path not found: $path");
+            }
+        }
+    }
+    
+    /**
+     * Format a single JSON file
+     */
+    private function format_file($file_path)
+    {
+        // Skip non-JSON files
+        if (substr($file_path, -5) !== '.json') {
+            return;
+        }
+        
+        $content = file_get_contents($file_path);
+        $decoded = json_decode($content);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            $this->error("Invalid JSON in $file_path: " . json_last_error_msg());
+            return;
+        }
+        
+        $formatted = json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
+        
+        if ($content !== $formatted) {
+            file_put_contents($file_path, $formatted);
+            $this->success("✓ Formatted: $file_path");
+        } else {
+            if ($this->verbose) {
+                $this->info("Already formatted: $file_path");
+            }
+        }
+    }
+    
+    /**
+     * Show help message
+     */
+    private function show_help()
+    {
+        $this->output("JSON Formatter");
+        $this->output("");
+        $this->output("Usage: json-formatter [options] files...");
+        $this->output("");
+        $this->output("Options:");
+        $this->output("  -v, --verbose   Show detailed output");
+        $this->output("  -h, --help      Show this help message");
+        $this->output("");
+        $this->output("Examples:");
+        $this->output("  json-formatter package.json");
+        $this->output("  json-formatter composer.json tsconfig.json");
+    }
+    
+    /**
+     * Output helpers
+     */
+    private function output($message)
+    {
+        echo $message . PHP_EOL;
+    }
+    
+    private function success($message)
+    {
+        echo "\033[32m" . $message . "\033[0m" . PHP_EOL;
+    }
+    
+    private function info($message)
+    {
+        echo "\033[36m" . $message . "\033[0m" . PHP_EOL;
+    }
+    
+    private function warning($message)
+    {
+        echo "\033[33m" . $message . "\033[0m" . PHP_EOL;
+    }
+    
+    private function error($message)
+    {
+        echo "\033[31m" . $message . "\033[0m" . PHP_EOL;
+    }
+}
+
+// Run the formatter
+$formatter = new JsonFormatter();
+$formatter->run($argv);

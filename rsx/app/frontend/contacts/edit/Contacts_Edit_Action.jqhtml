@@ -1,0 +1,106 @@
+<Define:Contacts_Edit_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading contact details..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Contact"
+                $back_label="Go back to Contacts"
+                $back_url="<%= Rsx.Route('Contacts_Index_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Rsx_Form $data="<%= JSON.stringify(this.data.form_data) %>" $controller="Frontend_Contacts_Controller" $method="save">
+                <% if (this.data.is_edit) { %>
+                    <Hidden_Input $name="id" />
+                <% } %>
+
+                <Card_Widget>
+                    <Section $title="Basic Information">
+                        <Form_Field $label="First Name" $required=true>
+                            <Text_Input $name="first_name" $seeder="first_name" $max_length=Contact_Model.field_length('first_name') />
+                        </Form_Field>
+                        <Form_Field $label="Last Name" $required=true>
+                            <Text_Input $name="last_name" $seeder="last_name" $max_length=Contact_Model.field_length('last_name') />
+                        </Form_Field>
+                        <Form_Field $label="Job Title">
+                            <Text_Input $name="title" $placeholder="e.g., CEO, VP of Sales" $max_length=Contact_Model.field_length('title') />
+                        </Form_Field>
+
+                        <% if (this.data.is_edit || this.data.from_client) { %>
+                            <%-- Client is locked (editing or adding from client view) --%>
+                            <Hidden_Input $name="client_id" />
+                            <div class="mb-3">
+                                <label class="form-label">Client</label>
+                                <div><Entity_Link $model="Client_Model" $id="<%= this.data.form_data.client_id %>" /></div>
+                            </div>
+                        <% } else { %>
+                            <%-- Adding new contact - show dropdown selector --%>
+                            <Form_Field $label="Client" $required=true>
+                                <Client_Selector_Input $name="client_id" />
+                            </Form_Field>
+                        <% } %>
+                    </Section>
+
+                    <Section $title="Contact Information">
+                        <Form_Field $label="Email">
+                            <Text_Input $name="email" $type="email" $placeholder="email@example.com" $seeder="email" $max_length=Contact_Model.field_length('email') />
+                        </Form_Field>
+                        <Form_Field $label="Secondary Email">
+                            <Text_Input $name="email_secondary" $type="email" $placeholder="email@example.com" $max_length=Contact_Model.field_length('email_secondary') />
+                        </Form_Field>
+                        <Form_Field $label="Work Phone">
+                            <Phone_Text_Input $name="phone_work" $placeholder="(555) 123-4567" $seeder="phone" />
+                        </Form_Field>
+                        <Form_Field $label="Cell Phone">
+                            <Phone_Text_Input $name="phone_cell" $placeholder="(555) 123-4567" />
+                        </Form_Field>
+                        <Form_Field $label="Other Phone">
+                            <Phone_Text_Input $name="phone_other" $placeholder="(555) 123-4567" />
+                        </Form_Field>
+                    </Section>
+
+                    <Section $title="Address">
+                        <Form_Field $label="Street Address">
+                            <Text_Input $name="address" $placeholder="123 Main Street" $max_length=-1 />
+                        </Form_Field>
+                        <Form_Field $label="City">
+                            <Text_Input $name="city" $placeholder="New York" $max_length=Contact_Model.field_length('city') />
+                        </Form_Field>
+                        <Form_Field $label="State">
+                            <Text_Input $name="state" $placeholder="NY" $max_length=Contact_Model.field_length('state') />
+                        </Form_Field>
+                        <Form_Field $label="ZIP Code">
+                            <Text_Input $name="zip" $placeholder="10001" $max_length=Contact_Model.field_length('zip') />
+                        </Form_Field>
+                    </Section>
+
+                    <Section $title="Notes">
+                        <Form_Field $label="Internal Notes">
+                            <Text_Input $name="notes" $type="textarea" $rows=4 $placeholder="Internal notes about this contact..." $max_length=-1 />
+                        </Form_Field>
+                    </Section>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="<%= Rsx.Route('Contacts_Index_Action') %>" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Save Contact
+                        </button>
+                    </div>
+                </Card_Widget>
+            </Rsx_Form>
+        </Slot:main>
+    </Page_Scaffold>
+<% } %>
+</Define:Contacts_Edit_Action>

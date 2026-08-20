@@ -1,0 +1,31 @@
+<%--
+Request_Participant_Card_Modal_Body - static body for the staff participant contact card
+(the frontend twin of Portal_Participant_Card_Modal_Body). Renders a large avatar/initials
+circle + name, email and (when present) phone for the $participant row passed by
+Request_Participant_Card_Modal.
+--%>
+<Define:Request_Participant_Card_Modal_Body tag="div">
+  <% const p = this.args.participant; %>
+  <div class="Request_Participant_Card_Modal_Body__avatar">
+    <Person_Avatar
+      $name="<%= p.name %>"
+      $avatar_url="<%= str(p.avatar_url) %>"
+      $initials="<%= p.initials %>"
+      $size="lg"
+    />
+  </div>
+
+  <div class="Request_Participant_Card_Modal_Body__name"><%= p.name %></div>
+
+  <div class="Request_Participant_Card_Modal_Body__row">
+    <i class="bi bi-envelope text-muted"></i>
+    <a href="mailto:<%= p.email %>"><%= p.email %></a>
+  </div>
+
+  <% if (p.phone) { %>
+    <div class="Request_Participant_Card_Modal_Body__row">
+      <i class="bi bi-telephone text-muted"></i>
+      <a href="tel:<%= p.phone %>"><%= p.phone %></a>
+    </div>
+  <% } %>
+</Define:Request_Participant_Card_Modal_Body>

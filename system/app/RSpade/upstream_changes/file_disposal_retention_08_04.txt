@@ -1,0 +1,65 @@
+FILE ATTACHMENTS: delete() now enters a RETENTION WINDOW (soft delete), not immediate destruction
+Date: 2026-08-04
+
+SUMMARY
+    File_Attachment_Model now uses SoftDeletes and runs a time-delayed disposal
+    lifecycle: live -> deleted_at (recoverable) -> destroyed_at (permanent tombstone,
+    blob released). Deleting an attachment no longer destroys it or its bytes - it
+    enters a recoverable RETENTION WINDOW (config('rsx.files.deleted_retention_days'),
+    default 30). A new daily task permanently destroys past-retention attachments and
+    releases their deduplicated blobs (only when no live-or-retained attachment still
+    pins them); a monthly task sweeps orphans. New recovery API + destruction hooks.
+    The old inline "deleting the last attachment unlinks its blob" hook is REMOVED.
+
+THE CHANGE
+    - `$attachment->delete()` now SOFT-deletes (sets deleted_at, keeps the fileable
+      link, preserves the blob). It is hidden from ordinary queries (SoftDeletes
+      global scope) but recoverable. It is NOT gone and its blob is NOT freed until
+      the disposal task destroys it after the retention window.
+    - Blob release is now the EXCLUSIVE job of File_Disposal_Service (a daily
+      destroy+release task + a monthly orphan sweep). The retention-aware refcount:
+      a blob is pinned by any attachment that is LIVE or SOFT-DELETED-BUT-NOT-
+      DESTROYED, so it is released only when EVERY referrer is destroyed.
+    - New API on File_Attachment_Model / Rsx_Model_Abstract:
+        $model->get_deleted_attachments($category)
+        File_Attachment_Model::get_deleted_files($fileable, $category)
+        $attachment->undelete()        // restore; throws once destroyed
+        $attachment->force_destroy()   // immediate erasure, bypasses retention + gate
+    - New destruction hooks (daily destroy pass): a GATE
+      `file.attachment.destroy.hold` (framework convention: a listener returns TRUE to
+      PERMIT destruction; non-true HOLDS) and an ACTION `file.attachment.destroyed`
+      (a throwing listener defers that one attachment). See rsx:man file_disposal.
+    - New config group keys: rsx.files.deleted_retention_days (30),
+      disposal_lookback_days (60), disk_orphan_min_age_days (14).
+    - A migration adds _file_attachments.deleted_at + destroyed_at.
+
+ACTION REQUIRED
+    1. Audit every `->delete()` on a File_Attachment (or any code that deletes an
+       attachment expecting the row/bytes to be GONE immediately). It now soft-deletes
+       into retention. If you need immediate, irreversible erasure (GDPR, rollback of
+       a bad upload), call `$attachment->force_destroy()` instead.
+
+    2. Audit any code that queried File_Attachment_Model and relied on seeing ALL rows,
+       or that computed its OWN blob refcount as
+       `File_Attachment_Model::where('file_storage_id', $id)->count()`. That count now
+       EXCLUDES soft-deleted rows and will UNDER-count a blob still pinned by a
+       recoverable attachment. Use `withTrashed()->whereNull('destroyed_at')` for any
+       pin/refcount check, or better, let File_Disposal_Service own blob release.
+
+    3. If your app has its OWN orphaned-file / blob cleanup, remove it or make it defer
+       to the disposal tasks - a second cleaner that hard-deletes blobs will fight the
+       retention-aware release and can destroy bytes a retained attachment still needs.
+
+    4. If you have a MIGRATION that creates attachments through the model (e.g. a seed
+       that uploads sample files), ensure it runs AFTER the retention-column migration
+       (the framework migration is dated 2026_07_16_143236 so it precedes such seeds).
+       Adding SoftDeletes made deleted_at load-bearing at model boot; a model-using
+       migration that runs before the column exists will fail.
+
+    5. OPTIONAL (recommended): build a "Recently Deleted" recovery surface on
+       get_deleted_attachments()/undelete() (the RSpade template wires one on the staff
+       client screen as a reference), and register a
+       file.attachment.destroyed listener if a parent record must cascade its own
+       cleanup when an attachment is permanently destroyed.
+
+    Full contract: php artisan rsx:man file_disposal.

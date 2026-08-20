@@ -1,0 +1,145 @@
+// Portal_Request_Thread_Action - the client (portal) view of a request thread.
+//
+// The portal twin of Clients_Request_Thread_Action, converged onto the SAME shape:
+// page chrome (scaffold, card, header, sections, sidebar, KPIs) is owned by the
+// semantic vocabulary; the byline is Author_Meta_Row / Person_Avatar; the participant
+// lists are People_List. What survives here is thread DOMAIN styling only (guide 6.5:
+// converge the shared shapes, keep the domain wrapper): the timeline post/event rows,
+// the attachment chips, the composer's staged chips, and the sidebar's document media
+// rows. Matches the staff twin's SCSS line-for-line so both surfaces read identically.
+.Portal_Request_Thread_Action {
+
+    // --- Timeline: self-dividing entries inside a flush "Messages" section ---
+    &__entry {
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-2;
+        padding: $spacing-3 var(--card-pad-x);
+        border-bottom: $border-width solid $border-color;
+
+        &:last-child {
+            border-bottom: 0;
+        }
+    }
+
+    // A status-change event: a centered pill, distinct from an authored post.
+    &__event {
+        text-align: center;
+    }
+
+    &__event-text {
+        display: inline-block;
+        padding: $spacing-xs $spacing-md;
+        background-color: $background-light;
+        border: $border-width solid $border-color;
+        border-radius: $border-radius-full;
+        font-size: $font-size-sm;
+        color: $gray-900;
+    }
+
+    &__post-body {
+        color: $text-color;
+        word-break: break-word;
+    }
+
+    // --- Document chips inside a message ---
+    &__chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $spacing-xs;
+    }
+
+    &__chip {
+        display: inline-flex;
+        align-items: center;
+        gap: $spacing-xs;
+        padding: 2px $spacing-sm;
+        border: $border-width solid $border-color;
+        border-radius: $border-radius-sm;
+        background-color: $white;
+        cursor: pointer;
+        font-size: $font-size-sm;
+
+        &:hover {
+            background-color: $gray-100;
+        }
+    }
+
+    &__chip-name {
+        max-width: 180px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    // --- Composer staged-attachment chips (built in JS) ---
+    &__pending {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $spacing-xs;
+        margin-bottom: $spacing-sm;
+
+        &:empty {
+            display: none;
+        }
+    }
+
+    &__pending-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        border: $border-width solid $border-color;
+        font-weight: $font-weight-normal;
+    }
+
+    &__pending-remove {
+        cursor: pointer;
+        color: $text-muted;
+
+        &:hover {
+            color: $danger-color;
+        }
+    }
+
+    // --- Sidebar: labelled document groups (participants use People_List) ---
+    &__group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    &__people {
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-xs;
+    }
+
+    &__media-row {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        padding: $spacing-xs;
+        border: $border-width solid $border-color;
+        border-radius: $border-radius-sm;
+        cursor: pointer;
+
+        &:hover {
+            background-color: $gray-100;
+        }
+    }
+
+    &__media-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__thumb {
+        width: 36px;
+        height: 36px;
+        object-fit: contain;
+        border: $border-width solid $border-color;
+        border-radius: $border-radius-sm;
+        background-color: $gray-100;
+        flex-shrink: 0;
+    }
+}

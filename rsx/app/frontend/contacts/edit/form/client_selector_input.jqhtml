@@ -1,0 +1,32 @@
+<%--
+Client_Selector_Input
+
+Specialized select for client dropdowns with Ajax loading.
+Extends Select_Ajax_Input with client-specific behavior.
+
+$data - Ajax endpoint for client data (optional, defaults to Frontend_Contacts_Controller.get_clients())
+$placeholder - Placeholder text (default: "Select Client...")
+$disabled - Boolean to disable the select
+
+Features:
+- Loads client list via Ajax automatically
+- Inherits all Select_Ajax_Input behavior (Tom Select, search, loading states, etc.)
+--%>
+<Define:Client_Selector_Input extends="Select_Ajax_Input" class="Widget">
+    <select $sid="input" <% if (this.args.disabled) { %>disabled<% } %>>
+        <% if (!this.data.select_values || this.data.select_values.length === 0) { %>
+            <option value=""><%= this.args.placeholder || 'Please wait...' %></option>
+        <% } else { %>
+            <% if (this.args.placeholder) { %>
+                <option value=""><%= this.args.placeholder %></option>
+            <% } %>
+            <% for (let opt of this.data.select_values) { %>
+                <% if (typeof opt === 'object') { %>
+                    <option value="<%= opt.value %>" <% if (this.data.value == opt.value) { %>selected<% } %>><%= opt.label %></option>
+                <% } else { %>
+                    <option value="<%= opt %>" <% if (this.data.value == opt) { %>selected<% } %>><%= opt %></option>
+                <% } %>
+            <% } %>
+        <% } %>
+    </select>
+</Define:Client_Selector_Input>

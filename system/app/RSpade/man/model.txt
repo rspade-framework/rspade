@@ -1,0 +1,521 @@
+
+OVERVIEW
+
+All RSX models must extend Rsx_Model_Abstract, which provides:
+- Enum system with magic properties and methods
+- Mass assignment prevention (explicit field assignment only)
+- Eager loading prevention (explicit queries only)
+- Ajax ORM fetch() system
+- Automatic boolean casting for TINYINT(1) columns
+- Relationship management via #[Relationship] attribute
+
+ENUM SYSTEM
+
+Define enums using public static $enums property:
+
+    public static $enums = [
+        'status_id' => [
+            1 => ['constant' => 'STATUS_ACTIVE', 'label' => 'Active', 'order' => 1],
+            2 => ['constant' => 'STATUS_INACTIVE', 'label' => 'Inactive', 'order' => 2]
+        ],
+        'role_id' => [
+            1 => ['constant' => 'ROLE_ADMIN', 'label' => 'Administrator'],
+            2 => ['constant' => 'ROLE_USER', 'label' => 'User']
+        ]
+    ];
+
+Magic Properties (Instance):
+- $model->status_id__label - Get label for current enum value
+- $model->status_id__constant - Get constant name for current value
+- $model->status_id__order - Get sort order for current value
+
+Magic Methods (Static):
+- Model::status_id__enum() - Get all enum definitions (sorted by 'order')
+- Model::status_id__enum_select() - Get key/label pairs for dropdowns
+- Model::status_id__enum_ids() - Get all possible enum values
+
+Enum properties in $enums can include any custom keys (label, order, constant,
+color, icon, etc.). All properties are exported to JavaScript via toArray().
+
+Optional 'selectable' property (default true) controls dropdown visibility:
+    2 => ['constant' => 'STATUS_ARCHIVED', 'label' => 'Archived', 'selectable' => false]
+
+MASS ASSIGNMENT PREVENTION
+
+Mass assignment is explicitly prohibited. Use explicit field assignment:
+
+    // CORRECT
+    $model = new User_Model();
+    $model->name = $request->input('name');
+    $model->email = $request->input('email');
+    $model->save();
+
+    // WRONG - throws MassAssignmentException
+    $model = User_Model::create(['name' => 'John', 'email' => 'john@example.com']);
+    $model->fill(['name' => 'John']);
+    $model->update(['name' => 'John']);
+
+Blocked methods: fill(), forceFill(), create(), firstOrCreate(), firstOrNew(),
+updateOrCreate(), update()
+
+EAGER LOADING PREVENTION
+
+All forms of eager loading throw exceptions. Use explicit queries:
+
+    // WRONG - throws exception
+    $users = User_Model::with('posts')->get();
+    $user->load('posts');
+
+    // CORRECT - explicit queries
+    $users = User_Model::all();
+    foreach ($users as $user) {
+        $posts = Post_Model::where('user_id', $user->id)->get();
+    }
+
+Rationale: Prevents recursive loading chains that accidentally cascade across
+the entire database. Future optimization will use caching strategies instead.
+
+See: php artisan rsx:man rspade (DATABASE PHILOSOPHY section)
+
+AJAX ORM (Model Fetch System)
+
+Models can opt-in to client-side fetching by implementing fetch() with
+#[Ajax_Endpoint_Model_Fetch] attribute:
+
+    #[Ajax_Endpoint_Model_Fetch]
+    public static function fetch($id)
+    {
+        // Check authorization
+        if (!Session::is_logged_in()) {
+            return false;
+        }
+
+        // Fetch single record
+        $model = static::find($id);
+        return $model ?: false;
+    }
+
+JavaScript usage:
+    const product = await Product_Model.fetch(1);
+    console.log(product.status_label);  // Enum properties populated
+    console.log(Product_Model.STATUS_ACTIVE);  // Static enum constants
+
+Returns instantiated JS model class with enum properties and optional custom
+methods. See: php artisan rsx:man model_fetch
+
+RELATIONSHIPS
+
+Define relationships using #[Relationship] attribute to prevent Laravel from
+auto-detecting non-relationship methods:
+
+    #[Relationship]
+    public function posts()
+    {
+        return $this->hasMany(Post_Model::class);
+    }
+
+Only methods with #[Relationship] are considered relationships. This prevents
+methods like is_active() from being mistaken for relationships.
+
+Note: Eager loading is still blocked. Relationships are supported but must be
+loaded with explicit queries.
+
+AUTOMATIC BOOLEAN CASTING
+
+TINYINT(1) columns are automatically cast to boolean without manual $casts
+definition. Framework consults manifest database metadata to detect boolean
+columns at runtime.
+
+Manual $casts entries take precedence over automatic detection.
+
+NEVER EXPORT FIELDS
+
+Exclude sensitive fields from toArray() and Ajax responses:
+
+    protected $neverExport = ['password', 'api_token', 'remember_token'];
+
+Fields in $neverExport are automatically removed before JavaScript export.
+
+UTILITY METHODS
+
+Static Methods:
+- get_table_static() - Get table name without instantiating model
+- getColumns() - Get array of column names for model's table
+- hasColumn($column) - Check if column exists
+- get_relationships() - Get array of relationship method names, unioned across the
+  lineage: this class's #[Relationship] methods plus every manifest-visible ancestor's
+  (which is how the framework audit relations created_by / updated_by / deleted_by,
+  declared on Rsx_Model_Abstract, reach every model). An override of an ancestor's
+  relationship method must redeclare #[Relationship] - see RELATIONSHIP-OVERRIDE-01 in
+  `rsx:man code_quality`.
+
+Instance Methods:
+- make_new() - Create new model instance (recommended over new Model())
+- get_mass_assignment_example() - Get helpful example code for this model
+
+MODEL ORGANIZATION WITH TRAITS
+
+Large models can be split into domain-specific trait files. This organization
+strategy is primarily designed for models, though traits can be used elsewhere
+in RSX applications.
+
+Naming Convention:
+
+Trait files should be prefixed with the model name they elaborate on:
+    Users_Model -> Users_Model_Authentication (trait for auth methods)
+    Users_Model -> Users_Model_Relationships (trait for relationship methods)
+    Users_Model -> Users_Model_Permissions (trait for permission logic)
+
+This makes it immediately clear which model a trait belongs to.
+
+Organization Strategy:
+
+Group methods by problem domain within separate trait files:
+    - Authentication/authorization logic
+    - Query methods for specific use cases
+    - Relationship definitions
+    - Business logic for specific features
+    - Computed properties and accessors
+
+Example Implementation:
+
+    // rsx/models/traits/users_model_authentication.php
+    trait Users_Model_Authentication
+    {
+        public static function find_by_email(string $email)
+        {
+            return static::where('email', $email)->first();
+        }
+
+        public static function find_by_api_token(string $token)
+        {
+            return static::where('api_token', $token)->first();
+        }
+
+        public function verify_password(string $password): bool
+        {
+            return password_verify($password, $this->password);
+        }
+    }
+
+    // rsx/models/traits/users_model_relationships.php
+    trait Users_Model_Relationships
+    {
+        #[Relationship]
+        public function posts()
+        {
+            return $this->hasMany(Posts_Model::class);
+        }
+
+        #[Relationship]
+        public function profile()
+        {
+            return $this->hasOne(User_Profiles_Model::class);
+        }
+    }
+
+    // rsx/models/users_model.php
+    class Users_Model extends Rsx_Model_Abstract
+    {
+        use Users_Model_Authentication;
+        use Users_Model_Relationships;
+
+        protected $table = 'users';
+        public static $enums;
+        protected $neverExport = ['password', 'api_token'];
+    }
+
+Manifest Integration:
+
+The manifest system automatically discovers and indexes methods from traits:
+- Trait files are loaded before classes during manifest build
+- Methods from traits appear in the model's metadata
+- IDE helpers correctly locate trait method definitions
+- Code quality rules validate trait methods same as class methods
+
+Benefits:
+
+- Keep models focused and maintainable
+- Group related functionality by problem domain
+- Easier to navigate large models with hundreds of methods
+- Clear separation between different aspects of model behavior
+- Traits are discovered and validated automatically by manifest
+
+SITE-BASED MULTI-TENANCY
+
+RSpade provides automatic multi-tenant data isolation through model inheritance.
+
+Model Types:
+
+    Rsx_Model_Abstract
+        - Base model for global/system-wide data
+        - No automatic site scoping
+        - Examples: countries, regions, system settings
+
+    Rsx_Site_Model_Abstract
+        - Base model for tenant-specific data
+        - Automatic site_id scoping on all operations
+        - Examples: users, clients, projects, tasks
+
+How It Works:
+
+    Models extending Rsx_Site_Model_Abstract automatically:
+    - Filter all queries by current session site_id
+    - Set site_id on all new records from session
+    - Prevent changing site_id on existing records
+    - Prevent cross-site data access (throws fatal error)
+    - Require site_id column in database table
+
+    Database Schema:
+        CREATE TABLE projects (
+            id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            site_id BIGINT NOT NULL,       -- Added by migration normalization
+            name VARCHAR(255) NOT NULL,
+            description LONGTEXT,
+            INDEX idx_site_id (site_id)    -- Added automatically
+        )
+
+    The site_id column is added automatically during migration normalization
+    if the model extends Rsx_Site_Model_Abstract.
+
+Usage:
+
+    class Project_Model extends Rsx_Site_Model_Abstract
+    {
+        protected $table = 'projects';
+    }
+
+    // In controller with session site_id = 1
+    $projects = Project_Model::all();
+    // SELECT * FROM projects WHERE site_id = 1
+
+    $project = new Project_Model();
+    $project->name = 'New Project';
+    $project->save();
+    // INSERT INTO projects (site_id, name) VALUES (1, 'New Project')
+
+Security Enforcement:
+
+    // Attempt to change site_id - FATAL ERROR
+    $project = Project_Model::find(1);  // site_id = 1
+    $project->site_id = 2;
+    $project->save();
+    // FATAL: Attempted to change site_id from 1 to 2. Changing site_id is not allowed.
+
+    // Attempt to save wrong site record - FATAL ERROR
+    // (If somehow loaded a record from site 2 while session is site 1)
+    $project->save();
+    // FATAL: Cross-site saves are not allowed.
+
+Admin Operations (Bypass Site Scoping):
+
+    // Access all sites (admin operations only)
+    $all_projects = Project_Model::without_site_scope(function () {
+        return Project_Model::all();
+    });
+
+    // Query specific site
+    $site_2_projects = Project_Model::without_site_scope(function () {
+        return Project_Model::where('site_id', 2)->get();
+    });
+
+Registering Model Hooks (booted() + parent::booted()):
+
+    Rsx_Site_Model_Abstract::booted() installs the site isolation controls
+    (the read scope, the site_id force, the site_id validation). A site-scoped
+    model that needs its own model event hooks overrides booted() and MUST make
+    parent::booted() its first statement, so the protections are installed
+    before its own hooks run:
+
+        class Project_Model extends Rsx_Site_Model_Abstract
+        {
+            protected static function booted()
+            {
+                parent::booted();               // installs the site controls
+                static::creating(function ($model) {
+                    $model->slug = Str::slug($model->name);
+                });
+            }
+        }
+
+    Forgetting parent::booted() would SILENTLY drop the site scope - a
+    fail-open confidentiality defect (Model::find() returning foreign-site
+    rows) with no exception at runtime. That mistake is now caught at manifest
+    build time by the default parent-call chaining rule, PHP-PARENT-CHAIN-01:
+    booted() is a chain-mandatory override (it is NOT #[Replaceable]), so an
+    override that omits parent::booted() is a fatal manifest-time error until
+    the parent call is added. See: php artisan rsx:man code_quality
+    (PARENT-CALL CHAINING section).
+
+    A model that needs no hooks of its own defines no booted() at all and
+    inherits the base protections unchanged.
+
+Post-Write Lifecycle Hooks (after_create / after_update / after_delete):
+
+    Every model inherits three no-op template hooks that fire AFTER a write is
+    durable - once the save()/delete() has committed (or immediately, for a write
+    outside any transaction). Override the ones you need to run side effects off a
+    committed model change:
+
+        public function after_create(): void
+        public function after_update(array $changed_fields): void
+        public function after_delete(): void
+
+    - after_create - the row was INSERTed. $this holds the persisted row (id set).
+    - after_update - an existing row was UPDATEd. $changed_fields lists the column
+      names that actually changed (array_keys of the dirty set, so it includes
+      updated_at); an update that changed nothing does not fire.
+    - after_delete - the row was deleted. A SoftDeletes delete fires after_delete
+      ONCE (never after_update for the internal deleted_at write). $this still
+      holds the deleted row's attributes.
+
+    Commit-gated, rollback-discarded. The hooks are buffered and run on transaction
+    COMMIT; a rolled-back write fires NOTHING. That is why they are "after_*" and
+    not Eloquent's inline created/updated/deleted events - a hook never runs for a
+    change the database rejected.
+
+    These are #[Replaceable] template hooks (NOT chain-mandatory like booted()): an
+    overriding model REPLACES the hook and must NOT call parent::after_*() - the
+    base bodies are empty, so there is nothing to chain, and the default parent-call
+    rule is annotated off. See: php artisan rsx:man code_quality (PARENT-CALL
+    CHAINING - #[Replaceable] is the marker-only opt-out).
+
+    Bulk writes fire these per record. Model::where(...)->update()/->delete() on a
+    model that overrides any after_* hook (or has a realtime surface) loads the
+    affected rows and runs each through save()/delete(), so the hook fires once per
+    row - see: php artisan rsx:man realtime (BULK WRITES). Realtime model-change
+    emission is itself wired at this same committed-write layer: a $realtime model
+    publishes its change frame off the same path.
+
+Single-Site Applications:
+
+    Even single-site applications use site_id = 1 for all records.
+    The architecture is identical - just happens to use only one site.
+    Easy upgrade path if multi-tenancy needed later.
+
+How site_id is Determined:
+
+    site_id comes from Rsx_Site_Model_Abstract::get_current_site_id(), which asks
+    the EXPERIENCE of the request:
+
+    STAFF request / CLI - the staff session site (Session::get_site_id()):
+    - User logs in -> login_user_id set in session
+    - User has site memberships -> site_id set in session
+    - All queries for site models filtered by this site_id
+    - Changing session site_id changes which data is accessible
+
+    PORTAL request - the site the application DECLARED for the portal
+    (Portal_Session::set_site_id, normally in Portal_Main::init). It is a different
+    column (portal_site_id) from the staff site, on the same one session row, and an
+    undeclared portal site THROWS rather than scoping to 0. See: rsx:man portal.
+
+See: php artisan rsx:man auth (for complete authentication/site selection flow)
+
+RESULT SETS - Rsx_Result_Set
+
+A framework method whose job is "these records" returns ->result_set(), an
+Rsx_Result_Set: a handle over the WHOLE set that you foreach like a list, but
+which fetches the rows one keyset page at a time.
+
+    // framework side
+    public function get_attachments(string $category)
+    {
+        return File_Attachment_Model::where(...)->result_set();
+    }
+
+    // caller side - nothing to call first, nothing to unwrap
+    foreach ($record->get_attachments('documents') as $attachment) { ... }
+
+It exists because two rules pull against each other: a function must return EVERY
+record it promised (correctness), and the framework must not fall over when that
+turns out to be 500,000 rows (memory). Iterating satisfies both. Truncating with a
+LIMIT satisfies neither - it silently drops data the caller asked for.
+
+    Interface
+        foreach ($set as $record)   the whole set, a page at a time
+        $set->count()               SQL COUNT - never walks the set
+        $set->is_empty()            an EXISTS check, not a count
+        $set->first()               one row, one query
+        $set->all()                 materialize to an array (deliberate, explicit)
+        $set->map(...) / filter(...) / take(...)   forwarded, and STAY lazy
+        $set->query()               the underlying builder (escape hatch)
+
+    It is NOT an array
+        No [] indexing, no array_map()/count($x) on the raw value. It IS Countable
+        and Traversable, so count($set) and foreach both work.
+
+WHEN NOT TO USE IT
+
+Two cases, both about not over-engineering:
+
+    Known small ceiling. A finite catalog, or a per-record handful. Return the
+    Collection; paging machinery for 12 rows is noise.
+
+    Ordered display list. Iteration walks by PRIMARY KEY, so it OVERRIDES any
+    orderBy on the query. "The 20 most recent" is a different job - keep the
+    ordered query and return rows.
+
+Iteration costs one query per page, so it earns its keep only when the row count is
+genuinely unknown.
+
+$unbounded - DECLARING A TABLE THAT GROWS
+
+A model whose row count grows with CUSTOMER ACTIVITY rather than with the codebase
+declares it:
+
+    public static $unbounded = true;   // sessions, queues, uploads, request logs
+
+This is a declaration, not a runtime gate - a small, well-narrowed query on such a
+model is still perfectly fine. Two things consume it:
+
+    DB-UNBOUNDED-01 (rsx:check) flags a bare ->get()/->pluck() on an $unbounded
+    model in FRAMEWORK code. Escape hatches: ->limit(), ->result_set(),
+    ->lazyById(), ->chunkById(), ->raw_bulk(), or a file-level
+    @DB-UNBOUNDED-01-EXCEPTION - <rationale>.
+
+    rsx.database.result_set_warn_threshold (default 1000) logs ONE warning in
+    development when any get() actually returns more rows than that, naming the
+    count, the model and the call site. It never throws and never truncates; it
+    tells you while you are still writing the feature. Production never pays for
+    it. Set 0/null to disable.
+
+The two are complements: the declaration is a static claim about a table, the
+threshold is what really happened.
+
+WHY THIS EXISTS
+
+A settings page ran an unbounded ->get() and the caller sliced to 20. One login
+user had accumulated 62,617 session rows, because every automated browser run
+minted a session and nothing expired machine sessions. The page hydrated all
+62,617 models, parsed 62,617 user-agent strings, exhausted a 128MB process, and
+returned a blank 500 - while saturating the php-fpm pool and making unrelated
+endpoints flaky.
+
+Nothing about that code looked wrong. It even had a limit, in the wrong place. The
+table simply grew. See the "Do The Whole Job" section of CLAUDE.md.
+
+NAMING CONVENTIONS
+
+Tables:
+- Plural snake_case (users, user_logins, product_categories)
+- Always include 'id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY'
+
+Columns:
+- snake_case for all column names
+- Foreign keys must suffix with '_id' (user_id, site_id)
+- Booleans must prefix with 'is_' (is_active, is_published)
+- Timestamps must suffix with '_at' (created_at, updated_at, deleted_at)
+- Use BIGINT for all integers, TINYINT(1) for booleans only
+- All text columns use UTF-8 (utf8mb4_unicode_ci collation)
+
+TODO
+
+- Revision tracking: Auto-increment revision column via database trigger on update
+
+SEE ALSO
+
+php artisan rsx:man model_fetch - Ajax ORM fetch system
+php artisan rsx:man model_normalization - Database normalization process
+php artisan rsx:man enums - Complete enum system documentation
+php artisan rsx:man migrations - Migration system and safety
+php artisan rsx:man prelaunch_checklist - the unbounded-query audit (ENTRY 4)

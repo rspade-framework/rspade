@@ -1,0 +1,399 @@
+RESPONSIVE(1)                     RSpade Manual                     RESPONSIVE(1)
+
+NAME
+    responsive - the two-tier semantic breakpoint system (SCSS mixins, utility
+    classes, and the Responsive JS predicates)
+
+SYNOPSIS
+    SCSS:
+
+        .Invoice_Header {
+            display: flex;
+
+            @include mobile   { flex-direction: column; }
+            @include desktop  { gap: 2rem; }
+            @include tablet   { padding: 0.5rem; }   // 800-1023 ONLY
+            @include tablet-up { padding: 1rem; }    // 800+
+        }
+
+    Markup:
+
+        <div class="col-12 col-desktop-6">...</div>
+        <nav class="desktop-only">...</nav>
+
+    JavaScript:
+
+        if (Responsive.is_mobile()) { ... }
+        if (Responsive.is_desktop_xl()) { ... }
+
+DESCRIPTION
+    RSX replaces Bootstrap's breakpoint set (xs/sm/md/lg/xl/xxl) wholesale with
+    named device tiers. The names are semantic - "tablet", "desktop-md" - because
+    a rule that reads `@include tablet` says what it is FOR, while `@media
+    (max-width: 991.98px)` says only where it happens and has to be re-derived
+    every time someone touches it.
+
+    The replacement is total, not additive. `$grid-breakpoints` is overridden in
+    rsx/theme/variables.scss BEFORE Bootstrap is imported, so Bootstrap's own
+    generators emit the RSX names and the stock ones no longer exist: .col-md-6,
+    .d-lg-none and .col-xl-4 match nothing and silently do nothing. There is no
+    compatibility layer and no alias.
+
+    ONE source of truth. The breakpoint numbers live in SCSS variables. The
+    mixins derive their media queries from them, Bootstrap derives its utility
+    classes from them, and they are published to :root as --bp-* custom
+    properties from which JavaScript reads them at runtime. Nothing hardcodes a
+    pixel number a second time - which is why a JS predicate can never disagree
+    with a CSS mixin about where "desktop" starts.
+
+    Tier 1 answers the only question most layouts ask (is this a small screen or
+    a big one). Tier 2 exists for the cases where that is genuinely not enough.
+    Reach for tier 1 first; a page that needs four tier-2 breakpoints usually
+    needs a different layout rather than more media queries.
+
+BREAKPOINTS
+
+    Tier 1 - semantic:
+
+        mobile        0 - 1023px      phone and tablet combined
+        desktop       1024px+         every desktop size
+
+    Tier 2 - device classes:
+
+        phone-sm      0 - 399px       small/compact phones
+        phone-lg      400 - 799px     large phones, phablets
+        phone         0 - 799px       composite: all phones
+        tablet        800 - 1023px    tablets portrait, phones landscape
+        desktop-sm    1024 - 1199px   laptops, small monitors
+        desktop-md    1200 - 1639px   standard monitors (1080p)
+        desktop-lg    1640 - 2199px   large monitors (1440p)
+        desktop-xl    2200px+         ultra-wide, 4K
+
+    The 1024px tier-1 boundary is deliberate: a tablet in landscape (an iPad Pro
+    is 1366px wide) should get the desktop layout, not a phone layout stretched
+    across a large screen.
+
+    Variables (rsx/theme/variables.scss) define where a tier STARTS. There are no
+    -min/-max variables; a maximum is computed inline as the NEXT breakpoint
+    minus 0.02px:
+
+        $bp-phone-lg:   400px;
+        $bp-tablet:     800px;
+        $bp-desktop:    1024px;
+        $bp-desktop-md: 1200px;
+        $bp-desktop-lg: 1640px;
+        $bp-desktop-xl: 2200px;
+
+    The 0.02px convention. `max-width: 1023.98px` paired with `min-width: 1024px`
+    leaves no width uncovered, at any device pixel ratio or browser zoom, while
+    `max-width: 1023px` leaves the fractional widths between them matching
+    NEITHER rule. Write `#{$bp-desktop - 0.02px}` when you need a raw maximum;
+    never round it to a whole pixel, and never invent a `$bp-*-max` variable.
+
+BASIC USAGE
+
+    Style mobile-first, then override upward. The base rule applies everywhere;
+    a mixin narrows it:
+
+        .Kpi_Row {
+            display: grid;
+            grid-template-columns: 1fr;      // applies at every width
+
+            @include tablet-up  { grid-template-columns: repeat(2, 1fr); }
+            @include desktop    { grid-template-columns: repeat(4, 1fr); }
+        }
+
+    Responsive behavior belongs to the COMPONENT that has it, in that
+    component's own SCSS file - never as a media query sprinkled on the page or
+    action that happens to contain it. See rsx:man scss and
+    rsx:man semantic_composition.
+
+    Use a mixin, not a raw media query. A raw `@media (max-width: 768px)` is
+    wrong twice: 768 is not a breakpoint in this system, so it cuts across
+    tiers, and the rule stops being findable when a breakpoint moves.
+
+SCSS MIXINS
+
+    Range mixins ("only" - both bounds, except the open-ended ends):
+
+        @include mobile     { }    max-width: 1023.98px
+        @include desktop    { }    min-width: 1024px
+        @include phone      { }    max-width: 799.98px
+        @include phone-sm   { }    max-width: 399.98px
+        @include phone-lg   { }    400px - 799.98px
+        @include tablet     { }    800px - 1023.98px
+        @include desktop-sm { }    1024px - 1199.98px
+        @include desktop-md { }    1200px - 1639.98px
+        @include desktop-lg { }    1640px - 2199.98px
+        @include desktop-xl { }    min-width: 2200px
+
+    "And up" mixins (min-width only - the mobile-first form):
+
+        @include phone-lg-up   { }    min-width: 400px
+        @include tablet-up     { }    min-width: 800px
+        @include desktop-sm-up { }    min-width: 1024px
+        @include desktop-md-up { }    min-width: 1200px
+        @include desktop-lg-up { }    min-width: 1640px
+        @include desktop-xl-up { }    min-width: 2200px
+
+    And one downward mixin, because the -up pattern has no natural inverse:
+
+        @include tablet-down   { }    max-width: 1023.98px  (same as mobile)
+
+    Seventeen mixins in total. `desktop` and `desktop-sm-up` produce the same
+    query (both are 1024px+); prefer `desktop` - it is the tier-1 name and reads
+    as the intent.
+
+    Note the trap in the range mixins: `@include tablet` matches ONLY 800-1023,
+    so a rule written there is absent on desktop. If you meant "from tablet
+    upward", the mixin is `tablet-up`.
+
+UTILITY CLASSES
+
+    Because $grid-breakpoints is overridden before Bootstrap compiles, every
+    Bootstrap utility family that takes a breakpoint infix is regenerated with
+    the RSX names: grid columns, offsets, order, display, flex, spacing, text
+    alignment - all of them.
+
+        .col-tablet-6 .col-desktop-4 .col-desktop-md-3 .col-desktop-xl-2
+        .col-phone-lg-12 .col-desktop-sm-4 .col-desktop-lg-2
+        .d-tablet-flex .d-desktop-block .d-desktop-md-inline
+        .p-desktop-4 .m-tablet-3 .mt-desktop-5
+        .order-desktop-1 .offset-desktop-2 .text-desktop-center
+
+    Bootstrap infixes are MIN-WIDTH ("and up"), exactly as in stock Bootstrap.
+    `.col-tablet-6` is "half width from 800px upward", NOT "half width on
+    tablets only". There is no generated class that expresses an upper bound;
+    that is what the range mixins and the visibility utilities below are for.
+
+    Zero-width tiers generate NO infix. Bootstrap emits the unprefixed base
+    class for any breakpoint whose minimum is 0, so mobile, phone, phone-sm (and
+    xs) all collapse into the plain class:
+
+        DOES NOT EXIST            USE INSTEAD
+        .col-mobile-6             .col-6         (applies from 0 up)
+        .col-phone-12             .col-12
+        .col-phone-sm-12          .col-12
+        .d-mobile-none            .d-none        (plus .d-desktop-block to undo)
+        .p-mobile-2               .p-2
+
+    This is not a gap to work around - it is the mobile-first shape. The
+    unprefixed class IS the mobile rule; an infixed class overrides it upward.
+    A `.col-mobile-*` in existing markup is dead weight that styles nothing.
+
+    Custom visibility utilities (hand-written in rsx/theme/responsive.scss, and
+    the one place a `mobile` infix is real):
+
+        .mobile-only      visible 0-1023, hidden 1024+
+        .desktop-only     visible 1024+, hidden 0-1023
+        .hide-mobile      hidden 0-1023
+        .hide-desktop     hidden 1024+
+        .phone-only       visible 0-799, hidden 800+
+        .tablet-only      visible 800-1023 only
+        .hide-phone       hidden 0-799
+        .hide-tablet      hidden 800-1023 only
+
+    Fifth-width columns. Bootstrap's 12-column grid cannot express 20%, so the
+    .col-5ths family is generated separately:
+
+        .col-5ths                20% at every width
+        .col-mobile-5ths         20% at 0-1023 (the only max-width member)
+        .col-tablet-5ths         20% from 800px up
+        .col-desktop-5ths        20% from 1024px up
+        .col-desktop-sm-5ths     20% from 1024px up
+        .col-desktop-md-5ths     20% from 1200px up
+        .col-desktop-lg-5ths     20% from 1640px up
+        .col-desktop-xl-5ths     20% from 2200px up
+
+CSS CUSTOM PROPERTIES
+
+    The SCSS publishes the breakpoints to :root so runtime code can read the
+    same numbers the stylesheet used:
+
+        :root {
+            --bp-phone-lg:   400px;
+            --bp-tablet:     800px;
+            --bp-desktop:    1024px;
+            --bp-desktop-md: 1200px;
+            --bp-desktop-lg: 1640px;
+            --bp-desktop-xl: 2200px;
+        }
+
+    Six properties, not eight: the zero-width tiers (phone-sm, phone, mobile)
+    have no minimum to publish - they are the space below the next one up, and
+    desktop-sm shares --bp-desktop.
+
+    SCSS is the source of truth in one direction only. Read these values; never
+    set a --bp-* from JavaScript, and never hardcode 1024 in a script.
+
+API REFERENCE
+
+    Responsive (JS, framework core - always present, no import)
+
+    Eight predicates, all static, all returning bool. Each compares
+    window.innerWidth against the --bp-* value read from :root.
+
+    Tier 1:
+
+        Responsive.is_mobile()        width <  1024
+        Responsive.is_desktop()       width >= 1024
+
+    Tier 2:
+
+        Responsive.is_phone()         width <  800
+        Responsive.is_tablet()        800  <= width < 1024
+        Responsive.is_desktop_sm()    1024 <= width < 1200
+        Responsive.is_desktop_md()    1200 <= width < 1640
+        Responsive.is_desktop_lg()    1640 <= width < 2200
+        Responsive.is_desktop_xl()    width >= 2200
+
+    There is no is_phone_sm() or is_phone_lg(): the 400px split exists in CSS
+    only. If a JS branch needs it, that branch is probably a CSS rule.
+
+    Breakpoint values are read once per name and CACHED for the life of the
+    page (they cannot change - a stylesheet is not reloaded), so the predicates
+    are cheap enough to call inside a resize handler.
+
+    These predicates are the ONLY sanctioned runtime breakpoint check. The
+    global is_mobile() from browser.js is a different, older thing - a user-agent
+    sniff with a 992px fallback that belongs to no tier in this system. Do not
+    use it for layout decisions; use Responsive.is_mobile().
+
+EXAMPLES
+
+    Component SCSS - a card that reflows:
+
+        // rsx/theme/components/kpi/kpi_cell.scss
+        .Kpi_Cell {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+
+            @include phone {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            @include desktop-lg-up {
+                gap: 1.5rem;
+            }
+        }
+
+    Layout that stacks on mobile (note the unprefixed base class):
+
+        <div class="row">
+            <div class="col-12 col-desktop-3">
+                <nav class="desktop-only"><Primary_Nav /></nav>
+            </div>
+            <div class="col-12 col-desktop-9">
+                <%= content() %>
+            </div>
+        </div>
+
+    Different chrome per device class:
+
+        <div class="phone-only"><Menu_Button /></div>
+        <div class="tablet-only"><Compact_Nav /></div>
+        <div class="desktop-only"><Full_Nav /></div>
+
+    Five across on desktop, two across below it:
+
+        <div class="row">
+            <div class="col-6 col-desktop-5ths">Item 1</div>
+            <div class="col-6 col-desktop-5ths">Item 2</div>
+            <div class="col-6 col-desktop-5ths">Item 3</div>
+            <div class="col-6 col-desktop-5ths">Item 4</div>
+            <div class="col-6 col-desktop-5ths">Item 5</div>
+        </div>
+
+    A JS branch, taken when the component is ready (not at module load):
+
+        async on_ready() {
+            if (Responsive.is_mobile()) {
+                this.sid('chart').set_compact(true);
+            }
+        }
+
+RSX VS BOOTSTRAP
+    This page's counterpart is Bootstrap, not Laravel - the divergence being
+    documented is a CSS-framework one, so the mandated RSX VS LARAVEL section is
+    that comparison here.
+
+        Bootstrap (does nothing)     RSX
+        .col-sm-6                    .col-6 (mobile-first base)
+        .col-md-6                    .col-tablet-6
+        .col-lg-4                    .col-desktop-4
+        .col-xl-3                    .col-desktop-md-3
+        .col-xxl-2                   .col-desktop-xl-2
+        .d-md-none                   .d-tablet-none
+        .d-lg-block                  .d-desktop-block
+        @include media-breakpoint-up(lg)     @include desktop
+        @include media-breakpoint-down(md)   @include phone
+        @include media-breakpoint-only(md)   @include tablet
+
+    Bootstrap:  six size-named breakpoints (576/768/992/1200/1400), mixins keyed
+                to those names, and the expectation that you re-map them per
+                project in $grid-breakpoints.
+    RSX:        the re-map is done once, framework-wide, to DEVICE names; the
+                stock names are gone rather than aliased, so a stale .col-md-6
+                fails visibly instead of resolving to something plausible.
+
+TROUBLESHOOTING
+
+    "My .col-md-6 / .d-lg-none does nothing."
+        The stock Bootstrap breakpoint names do not exist. Translate to the RSX
+        name (table above). Nothing warns about this - an unmatched class is
+        just an unmatched class - so grep your markup for -sm-, -md-, -lg-,
+        -xl-, -xxl- infixes when a layout looks unstyled.
+
+    ".col-mobile-6 does nothing either."
+        It never existed. Zero-width tiers generate no infix; the unprefixed
+        .col-6 IS the mobile rule. Same for .d-mobile-*, .col-phone-*,
+        .col-phone-sm-* and .p-mobile-*.
+
+    "The rule I wrote in @include tablet vanishes on desktop."
+        Working as intended - the range mixins are "only" ranges. Use tablet-up.
+
+    "Responsive.is_desktop() is false on a 4K monitor."
+        The breakpoint cache was populated before the stylesheet applied.
+        getPropertyValue('--bp-desktop') returns '' at that moment, parseInt('')
+        is NaN, NaN is cached for the life of the page, and every comparison
+        against it is false forever (which also makes is_mobile() permanently
+        true). Never call a Responsive predicate at module top level, in a
+        decorator argument, or in on_create() before the page's CSS is live -
+        call it from on_render()/on_ready() or inside an event handler.
+
+    "JS says mobile, CSS says desktop, at exactly 1024px."
+        window.innerWidth and the media-query viewport account for the vertical
+        scrollbar differently across browsers, so within a scrollbar's width of a
+        boundary the two can disagree. This is not fixable by adjusting numbers.
+        Never make a JS branch and a CSS rule depend on agreeing exactly at a
+        boundary: let CSS own the layout, and let JS decide only things CSS
+        cannot (which component to instantiate, how many rows to request).
+
+    "I need a breakpoint between two tiers."
+        Almost always the sign of a layout that wants a different structure, not
+        a ninth tier. If it is genuinely needed, add it to $bp-* and
+        $grid-breakpoints in variables.scss and to the mixin set in
+        responsive.scss - both, in the same change, or the class families and
+        the mixins stop agreeing.
+
+FILES
+    rsx/theme/variables.scss                  $bp-* values, $grid-breakpoints
+    rsx/theme/responsive.scss                 mixins, visibility + 5ths classes,
+                                              :root --bp-* publication
+    rsx/theme/vendor/bootstrap_custom.scss    imports variables BEFORE Bootstrap
+    system/app/RSpade/Core/Js/Responsive.js   the JS predicates
+
+SEE ALSO
+    rsx:man scss                     component-scoped SCSS and where a rule
+                                     belongs
+    rsx:man semantic_composition     composing a page so its SCSS stays empty
+    rsx:man jqhtml                   components, the unit responsive rules
+                                     belong to
+    rsx:man framework_divergences    the full log of Laravel/Bootstrap
+                                     departures
+    rsx:man js_functions             the JS global utilities (including the
+                                     unrelated browser.js is_mobile())
+
+RESPONSIVE(1)                     RSpade Manual                     RESPONSIVE(1)

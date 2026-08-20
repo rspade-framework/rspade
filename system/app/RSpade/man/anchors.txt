@@ -1,0 +1,300 @@
+ANCHORS(1)                        RSpade Manual                       ANCHORS(1)
+
+NAME
+    anchors - In-page anchor scrolling and post-dispatch scroll position
+
+SYNOPSIS
+    Authoring a deep link
+
+        Rsx::Route('Docs_Chapter_Action', ['at' => 'installation'])   // PHP
+        Rsx.Route('Docs_Chapter_Action', {at: 'installation'})        // JS
+
+        Both produce:  /docs/chapter#at=installation
+
+    Marking a target
+
+        <h2 data-anchor="installation">Installation</h2>
+
+    Imperative scrolling
+
+        Spa.scroll_to_anchor('installation');
+
+DESCRIPTION
+    An SPA breaks the one thing every web page has always done: the browser
+    scrolls to #some-heading on load, but a client-side router replaces the
+    page contents afterward, so there is nothing to scroll to at the moment
+    the browser looks. RSpade therefore owns anchor scrolling explicitly.
+
+    One convention covers the whole question of "where does the page sit
+    after a dispatch". It handles three cases in a fixed precedence:
+
+        1. An explicit anchor in the URL      -> scroll to that element
+        2. A pending back/forward restoration -> restore the old position
+        3. Neither                            -> scroll to the top
+
+    Case 3 is the opinionated part. Every SPA layout used to hand-write a
+    scrollTop(0) somewhere; the framework now does it, so those lines are
+    redundant and should be deleted.
+
+    Key differences from a plain web page:
+    - The anchor rides a RESERVED HASH KEY (`at`), not a bare fragment.
+    - The target is found by `data-anchor`, not primarily by `id`.
+    - Scrolling runs at the action's ready(), not at dispatch time.
+
+THE RESERVED HASH KEY
+    The framework reserves the hash key `at`, the same way DataGrid reserves
+    `dg_*`. An application must not use it for its own state.
+
+        Rsx.HASH_ANCHOR_KEY     // JS
+        Rsx::HASH_ANCHOR_KEY    // PHP
+
+    Both are the literal string 'at'. They are contractually identical: PHP
+    and JS Route() are the same function and must produce the same URL.
+
+    A bare, web-standard fragment NORMALIZES to this key when parsed, so a
+    pasted URL keeps working:
+
+        /docs/chapter#installation   ->  {at: 'installation'}
+        /docs/chapter#at=installation ->  {at: 'installation'}
+
+    Why normalize rather than read the bare fragment directly
+        A bare fragment has no '=' in it, so the hash parser used to produce
+        {'installation': ''} - and the hash SERIALIZER drops empty values.
+        The anchor therefore survived only until the next component wrote
+        any hash state at all:
+
+            Landing on   /docs/chapter#installation
+            a DataGrid writes dg_page=2, and the URL becomes
+                         /docs/chapter#dg_page=2
+
+        The anchor is gone, with no error and no trace. Any application with
+        both an in-page anchor and a hash-writing component (DataGrid_Abstract,
+        Tab_Bar, Rsx_Tabs) hit this. Normalizing the bare fragment to `at`
+        gives it a real value, so it round-trips:
+
+            /docs/chapter#at=installation&dg_page=2
+
+TARGET RESOLUTION
+    The scroll target is resolved in two steps, in this order:
+
+        1. [data-anchor="<slug>"]   - the primary selector
+        2. document.getElementById  - a plain #id, the secondary one
+
+    Prefer data-anchor. An `id` is secondary because jqhtml MANGLES ids on
+    scoped elements: a template writing $sid="content" renders the element as
+    id="content:aa", where the suffix is the component instance. An authored
+    id is therefore not reliably addressable from outside the component, and
+    a slug that happens to collide with a mangled id is a coincidence, not a
+    contract.
+
+        <h2 data-anchor="lifecycle-overview">Lifecycle overview</h2>
+
+    The id path uses getElementById rather than a CSS selector, which
+    sidesteps selector escaping entirely - heading slugs are usually derived
+    from author-controlled text.
+
+AUTHORING A DEEP LINK
+    Pass the reserved key to Route() in either language. It rides the hash
+    instead of the query string, and is appended last, because a fragment
+    always terminates a URL.
+
+        PHP
+            Rsx::Route('Docs_Chapter_Action', ['at' => 'installation'])
+            // /docs/chapter#at=installation
+
+            Rsx::Route('Docs_Chapter_Action', ['at' => 'a b', 'q' => 'x'])
+            // /docs/chapter?q=x#at=a%20b
+
+        JS
+            Rsx.Route('Docs_Chapter_Action', {at: 'installation'})
+            Rsx.Route('Docs_Chapter_Action', {at: 'a b', q: 'x'})
+
+    Every other extra key still becomes a query parameter, unchanged. An
+    empty or null anchor value appends nothing.
+
+CLEARING A STICKY HEADER
+    Do NOT compute a vertical offset in JavaScript. Set scroll-margin-top on
+    the target in CSS and the browser handles it natively, including when the
+    user navigates with the keyboard or the browser restores a position:
+
+        .Docs_Chapter__heading {
+            scroll-margin-top: 5rem;   // height of the sticky header
+        }
+
+    This is the sanctioned mechanism. A JS offset fudge factor drifts out of
+    sync with the header it is compensating for and has to be maintained in
+    two places.
+
+ACCESSIBILITY
+    When a target is found, the framework sets tabindex="-1" on it (unless it
+    is already focusable) and focuses it with {preventScroll: true}. Keyboard
+    and screen-reader users therefore land on the section, not just sighted
+    users. preventScroll is used because the scroll has already been performed
+    correctly; letting focus scroll again would fight the scroll-margin.
+
+TIMING
+    Anchor scrolling runs in the action's ready() block, NOT at dispatch.
+
+    Spa.dispatch() deliberately does not await the action - it sets the
+    current action and moves on - so anything scrolling at dispatch time
+    races a page whose content has not rendered yet and finds nothing.
+
+    scroll_to_anchor() additionally retries on requestAnimationFrame for a
+    bounded window (500ms by default) to cover targets that appear slightly
+    later: a child component finishing its own on_load, or a cached stub
+    being reconciled. When the window expires it gives up quietly, reporting
+    through console_debug rather than throwing - a missing anchor is a bad
+    link, not a broken application.
+
+API REFERENCE
+    Spa.scroll_to_anchor(slug, options)
+        Scroll to the element matching `slug`, waiting briefly for it to
+        exist. Sets tabindex/focus as described under ACCESSIBILITY.
+
+        options.timeout_ms   How long to keep looking. Default 500.
+        options.behavior     'smooth' (default), 'instant', or 'auto' to
+                             defer to the CSS scroll-behavior of the
+                             scrolling box. Anchor navigation is the one
+                             scroll the framework intends to animate, so it
+                             declares that rather than inheriting it - the
+                             gesture is identical with or without a CSS
+                             framework that sets scroll-behavior.
+
+        Returns true when the target was found and scrolled on the FIRST
+        attempt. A later success inside the retry window still scrolls, but
+        the return value has already been given - do not use the return value
+        as "did it eventually work".
+
+    nearest_scrollable_ancestor($el)                 [Core/Js/browser.js]
+        The nearest ancestor that actually scrolls (overflow-y auto/scroll
+        AND taller than its client box), or the document scrolling element.
+
+    scroll_anchor_into_view(target, options)         [Core/Js/browser.js]
+        Scroll a target into view within whichever container actually
+        scrolls. Aligns the target to the TOP and always scrolls. Computes no
+        vertical offset - see CLEARING A STICKY HEADER.
+
+        options.behavior     'smooth', 'instant', or 'auto' (default) to
+                             defer to the CSS scroll-behavior of the
+                             scrolling box. Honored on both branches - the
+                             document scroller and an overflow container.
+
+    scroll_into_view_if_needed(target)               [Core/Js/browser.js]
+        The other scrolling helper, for a different job: it CENTERS the target
+        and only scrolls when the target is not already visible. Use it to
+        keep a moving selection in view - arrowing through a long list - where
+        scrolling an already-visible row would be a pointless jump. Anchor
+        deep links want scroll_anchor_into_view() instead, which aligns to the
+        top so the section heading lands where the reader expects it.
+
+    Rsx.HASH_ANCHOR_KEY / Rsx::HASH_ANCHOR_KEY
+        The reserved hash key, 'at'. Read it rather than hardcoding the
+        string, in both languages.
+
+OPTING OUT
+    A layout that manages its own scroll position entirely declares it on the
+    layout element:
+
+        <Define:My_Layout data-anchor-scroll="manual">
+
+    The framework then performs no scrolling at all for actions inside that
+    layout - no anchor, no restoration, no scroll to top. This is an all-or-
+    nothing escape hatch; there is no per-case opt-out, because "sometimes
+    the framework owns the scroll position" is exactly the ambiguity this
+    convention exists to remove.
+
+LAYOUTS SHOULD DROP THEIR OWN SCROLL RESET
+    The framework now owns post-dispatch scroll position. A layout or action
+    still calling scrollTop(0) in on_action, on_load or a dispatch handler is
+    doing redundant work, and a layout that scrolls to top unconditionally
+    will FIGHT an anchor deep link - the anchor scrolls, then the layout
+    yanks the page back to zero.
+
+    Remove those calls. If a layout genuinely needs to own the position,
+    declare data-anchor-scroll="manual" and own all three cases.
+
+RSX VS LARAVEL
+    Laravel has no equivalent. Anchor behavior in a Laravel application is
+    whatever the browser does with a server-rendered page: the browser scrolls
+    to #id on load and nothing more, because there is no client-side router
+    replacing the document afterward.
+
+    An SPA built on Laravel with an added router (Inertia, Livewire, a hand-
+    rolled one) must solve this itself, and normally does so per-page. RSpade
+    treats it as a framework-level convention with one contract, so pages do
+    not each invent their own.
+
+EXAMPLES
+    A documentation chapter with linkable sections
+
+        Template
+
+            <Define:Docs_Chapter>
+                <% for (const s of this.data.sections) { %>
+                    <h2 data-anchor="<%= s.slug %>"><%= s.title %></h2>
+                    <div><%!= s.html %></div>
+                <% } %>
+            </Define:Docs_Chapter>
+
+        SCSS - clear the sticky header natively
+
+            .Docs_Chapter {
+                h2 { scroll-margin-top: 5rem; }
+            }
+
+        Linking to a section from anywhere
+
+            <a href="<%= Rsx.Route('Docs_Chapter_Action',
+                                   {slug: 'lifecycle', at: 'on-load'}) %>">
+                on_load
+            </a>
+
+    Scrolling after the user picks a search result
+
+        async on_result_click(result) {
+            await Spa.dispatch(Rsx.Route(result.action, {at: result.anchor}));
+        }
+
+        No explicit scroll call is needed - the anchor in the URL is acted on
+        when the action becomes ready.
+
+    Scrolling within the current page, no navigation
+
+        Spa.scroll_to_anchor('installation');
+
+        The scroll is smooth by default. Pass {behavior: 'instant'} for a
+        jump cut - restoring a remembered position, say, where an animation
+        would read as motion the user did not ask for.
+
+PITFALLS
+    - Do not use `at` as an application hash key. It is reserved, and the
+      framework will act on whatever value it finds there.
+
+    - Do not rely on an authored id for a jqhtml-scoped element. $sid="x"
+      renders id="x:aa"; use data-anchor.
+
+    - Do not compute a scroll offset in JavaScript. Use scroll-margin-top.
+
+    - Do not scroll at dispatch time. The action has not rendered yet.
+
+    - Do not read scroll_to_anchor()'s return value as "eventually found".
+      It reports the first attempt only.
+
+    - A layout keeping its own scrollTop(0) will fight anchor deep links.
+
+    - Hash values are strings and plainly visible. Never put confidential
+      data in an anchor slug.
+
+FILE LOCATIONS
+    /system/app/RSpade/Core/SPA/Spa.js        scroll_to_anchor, precedence
+    /system/app/RSpade/Core/Js/browser.js     the two scrolling helpers
+    /system/app/RSpade/Core/Js/Rsx.js         HASH_ANCHOR_KEY, hash parsing
+    /system/app/RSpade/Core/Rsx.php           HASH_ANCHOR_KEY, PHP Route()
+
+SEE ALSO
+    php artisan rsx:man spa
+    php artisan rsx:man url_hash
+    php artisan rsx:man jqhtml
+    php artisan rsx:man routing
+
+RSPADE                           August 2026                        ANCHORS(1)

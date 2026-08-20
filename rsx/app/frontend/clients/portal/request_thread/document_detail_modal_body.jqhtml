@@ -1,0 +1,24 @@
+<%--
+Document_Detail_Modal_Body - static body for the staff document detail dialog. Renders a
+centered thumbnail + metadata (name, review-state badge, reject reason if any) from the
+$document row passed by Document_Detail_Modal. Actions live on the modal's buttons.
+--%>
+<Define:Document_Detail_Modal_Body tag="div">
+  <% const doc = this.args.document; %>
+  <a class="Document_Detail_Modal_Body__thumb-wrap" href="<%= doc.download_url %>" download title="Download <%= doc.name %>">
+    <img src="<%= doc.thumbnail_url %>" alt="<%= doc.name %>" class="Document_Detail_Modal_Body__thumb">
+  </a>
+
+  <div class="Document_Detail_Modal_Body__name"><%= doc.name %></div>
+
+  <div class="Document_Detail_Modal_Body__meta">
+    <span class="badge <%= doc.badge %>"><%= doc.review_label %></span>
+  </div>
+
+  <% if (doc.reject_reason) { %>
+    <div class="alert alert-danger Document_Detail_Modal_Body__reason mt-3 mb-0">
+      <span class="fw-semibold d-block">Rejection reason</span>
+      <%br= doc.reject_reason %>
+    </div>
+  <% } %>
+</Define:Document_Detail_Modal_Body>

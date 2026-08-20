@@ -1,0 +1,16 @@
+{
+  // Local settings override for Windows when python3 is not available
+  // To use: Copy this file to settings.local.json
+  
+  "emeraldwalk.runonsave": {
+    "commands": [
+      {
+        "match": "\\.php$",
+        "cmd": "python ${workspaceFolder}/.vscode/formatters/orchestrator.py ${file}",
+        "isAsync": true,
+        "notificationOnSuccess": false,
+        "notificationOnFailure": true
+      }
+    ]
+  }
+}

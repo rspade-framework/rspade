@@ -1,0 +1,89 @@
+FRAMEWORK PULL COMMIT MODEL: system/ is now committed by the updater + guarded by a pre-commit hook
+Date: 2026-08-04
+
+SUMMARY
+    rsx:framework:pull changes how framework updates land in your app's git repo.
+    It now commits its OWN system/ changes as one dedicated framework-update
+    commit (the WHOLE system/ tree, made AFTER the rebuild) and installs a
+    pre-commit hook that keeps system/ out of your ordinary app commits. The old
+    git skip-worktree + *.php.upstream hiding of override churn is RETIRED. This
+    SUPERSEDES the 2026-07-30 model (framework_pull_autocommit_07_30.txt), which
+    committed only the system/app/RSpade override zone and hid its runtime churn
+    with skip-worktree. On by default; --no-commit opts out. New read-only probe:
+    --check-foreign-changes.
+
+THE CHANGE
+    Old model (2026-07-30): the pull committed only system/app/RSpade (pristine,
+    BEFORE the rebuild) and then set `git skip-worktree` on that zone plus a
+    `*.php.upstream` .gitignore line, so the class-override file churn (a framework
+    Foo.php renamed aside to Foo.php.upstream and back) stayed out of git status /
+    git add -A. The rest of system/ was left as working-tree changes.
+
+    New model: system/ is OWNED by the updater and committed ONLY by it.
+    - After the sync + rebuild + history write, the pull commits EVERYTHING under
+      system/ (plus rsx/resource/framework_update_history.dat) as one commit,
+      path-scoped so your in-flight app work (staged or not) is never swept in.
+      Committing AFTER the rebuild means framework runtime churn - including the
+      .php <-> .php.upstream renames - rides along as ledger-recorded framework
+      churn, instead of being hidden.
+        Subject:  Framework update <old12> -> <new12> (N upstream commits)
+        Body:     the upstream `%h %ad %s` changelog for old..new (capped 100)
+        Trailers: Framework-Update-Range: <old>..<new>
+                  Committed-By: rsx:framework:pull
+    - A pre-commit hook (keyed RSPADE-PRECOMMIT-V1) runs rsx:clean - which
+      downstream resets system/ to its last commit - and then unstages any system/
+      path still staged, so a framework change can never ride an app commit. The
+      hook is installed by the post-update mechanism (system/bin/post-update.sh ->
+      system/bin/environment_updates/020_precommit_hook.sh) at the end of every
+      successful pull. Bypass channels: RSPADE_FRAMEWORK_COMMIT=1 (the updater), an
+      in-progress merge (MERGE_HEAD - so resolving a pull that carries another
+      environment's framework commit never strips it), and git --no-verify.
+    - It retires the old hiding: skip-worktree on the override zone is CLEARED and
+      never reapplied, and the *.php.upstream .gitignore line is removed. (A left
+      skip-worktree bit would silently drop the override zone from the commit,
+      because `git add -f` overrides gitignore but NOT skip-worktree.)
+    - system/ must never be gitignored: the pull strips a root-.gitignore line
+      that ignores system/ wholesale and warns if some other rule still hides it.
+    - `core.fileMode false` is set (silences mode-bit churn on the 100k-file
+      vendored tree) by system/bin/post-update.sh.
+
+    New flag --check-foreign-changes: a local-only drift probe - prints any
+    uncommitted changes under system/ and exits 1 if dirty, 0 if pristine. No
+    gates, no network, no changes.
+
+    Unchanged: dev-mode-only (RSX_MODE=development), the php-fpm/realtime quiesce
+    and 503 maintenance window during the sync, owned-zone hard sync, the
+    three-way reconcile, the tamper gate, and --force/--no-rebuild/--diff/
+    --diff-system-changes semantics.
+
+ACTION REQUIRED
+    Nothing to install - the updater self-distributes (it lives in the bin/ owned
+    zone), so the new behavior + the migration apply automatically on your next
+    pull (one-pull lag: the pull that SYNCS this release runs the new logic on the
+    pull after). Be aware of the following:
+
+    1. Expect ONE large framework commit on the first pull under the new model. It
+       sweeps previously-hidden override churn and newly TRACKS the .php.upstream
+       sidecar files. This is expected and one-time.
+
+    2. If you have your OWN pre-commit hook (not the RSPADE-PRECOMMIT-V1 one), it
+       will NOT be overwritten - the installer reports the skip. Merge the guard
+       logic into your hook manually: it must unstage staged system/ paths from
+       ordinary commits (git reset -q HEAD -- system) unless
+       RSPADE_FRAMEWORK_COMMIT=1 or a merge is in progress. Without it, a stray
+       `git add -A` can fold framework files into an app commit.
+
+    3. If your commit ritual manually excluded system/ (e.g. `git add -A &&
+       git reset -- system`), you can drop it - the hook owns that hygiene now.
+       Keeping it is harmless (belt-and-braces).
+
+    4. If you must commit framework changes by hand (e.g. after --no-commit or a
+       commit failure), they must NOT ride an app commit - the guard strips them:
+           RSPADE_FRAMEWORK_COMMIT=1 git commit --no-verify -- system \
+               rsx/resource/framework_update_history.dat
+
+    5. Never gitignore system/. If you added a `/system/` ignore line, the pull
+       removes it; an ignore rule over the vendored tree masks drift detection and
+       re-opens the tracked-but-ignored bootstrap failure class.
+
+    Full contract: php artisan rsx:man rsx_upstream (COMMIT MODEL section).

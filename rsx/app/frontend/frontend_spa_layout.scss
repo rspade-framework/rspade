@@ -1,0 +1,251 @@
+/**
+ * Frontend_Spa_Layout Styles
+ *
+ * BEM naming: Frontend_Spa_Layout__element
+ */
+
+// =============================================================================
+// LAYOUT VARIABLES
+// =============================================================================
+// Core layout dimensions that define the application structure
+
+// Sidebar dimensions
+$sidebar-width: 215px; // Fixed sidebar width (desktop)
+
+// Header dimensions
+$header-height: 57px; // Height of top navigation bar and sidebar brand area
+
+// Page content spacing
+$page-content-padding-top: 30px; // Top padding for main content area
+$page-content-padding-horizontal: $spacing-xl; // Left/right padding for main content area
+$page-content-padding-bottom: $spacing-xl; // Bottom padding for main content area
+
+// =============================================================================
+// UI COMPONENT VARIABLES
+// =============================================================================
+// Dimensions and styling for reusable UI elements
+
+// User profile
+$user-profile-icon-size: 32px; // Profile photo/avatar size in header
+
+// Dashboard activity
+$activity-icon-size: 36px; // Icon container size in activity feed
+
+// Progress indicators
+$progress-bar-height: 8px; // Height of progress bars
+
+// =============================================================================
+// LAYOUT STRUCTURE
+// =============================================================================
+// Note: Uses @include mobile from rsx/theme/responsive.scss for responsive styles
+
+.Frontend_Spa_Layout {
+    body {
+        margin: 0;
+        padding: 0;
+    }
+
+    // Sidebar Navigation
+    &__sidebar {
+        background: $background-light;
+        width: $sidebar-width;
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        display: flex;
+        flex-direction: column;
+        z-index: $z-index-dropdown;
+
+        // Mobile adjustments
+        @include mobile {
+            position: static;
+            width: 100%;
+            border-right: none;
+            border-bottom: $border-width solid var(--bs-border-color);
+        }
+    }
+
+    // Sidebar brand area (desktop only)
+    &__sidebar-brand {
+        padding: $spacing-sm $spacing-lg;
+        height: $header-height;
+        border-bottom: $border-width solid var(--bs-border-color);
+        background: $gray-900;
+        display: flex;
+        align-items: center;
+
+        a {
+            font-size: $font-size-xl;
+            font-weight: $font-weight-semibold;
+            color: $white;
+            text-decoration: none;
+
+            &:hover {
+                color: $gray-200;
+            }
+        }
+    }
+
+    // Sidebar navigation wrapper (Sidebar_Nav owns its own internal styles)
+    &__sidebar-nav {
+        flex: 1;
+        padding: $spacing-md;
+        overflow-y: auto;
+    }
+
+    // Sidebar bottom navigation
+    &__sidebar-bottom {
+        padding: $spacing-md;
+        border-top: $border-width solid var(--bs-border-color);
+        background: $white;
+    }
+
+    // Main Content Area
+    &__content {
+        margin-left: $sidebar-width;
+        background: rgb(248, 249, 250); // Gray background fills full width
+        min-height: calc(100vh - $header-height); // Account for header height
+
+        @include mobile {
+            margin-left: 0;
+        }
+    }
+
+    // Top Header Navbar
+    &__header {
+        background: $white;
+        border-bottom: $border-width solid var(--bs-border-color);
+        height: $header-height;
+        display: flex;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        z-index: 999;
+
+        .form-control {
+            min-width: 200px;
+        }
+    }
+
+    // User profile icon link
+    &__user-profile-link {
+        text-decoration: none;
+        display: block;
+    }
+
+    // User profile icon
+    &__user-profile-icon {
+        width: $user-profile-icon-size;
+        height: $user-profile-icon-size;
+        border-radius: 50%;
+        background: $gray-200;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        i {
+            font-size: $font-size-xl;
+            color: $text-muted;
+        }
+
+        &--image {
+            border: $border-width solid $black;
+            object-fit: cover;
+        }
+    }
+
+    // Page title header
+    &__title-header {
+        // Styled via Bootstrap utilities in template
+    }
+
+    // Page Content
+    &__page-content {
+        // Background is now on &__content so it fills full width
+        padding-top: $page-content-padding-top;
+        padding-left: $page-content-padding-horizontal;
+        padding-right: $page-content-padding-horizontal;
+        padding-bottom: $page-content-padding-bottom;
+
+        @include mobile {
+            padding: $spacing-md;
+        }
+
+        // Constrained width (default)
+        &--constrained {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        // Wider constrained width
+        &--constrained-wider {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        // Scaffolded pages (semantic refactor): Page_Scaffold owns max-width,
+        // centering, and page padding, so the layout yields all of it here.
+        // Without this, the scaffold's 2300px cap sits under the layout's
+        // 1200px --constrained cap and the scaffold's --page-pad doubles the
+        // layout's own 30/32px padding.
+        &--scaffolded {
+            max-width: none;
+            margin: 0;
+            padding: 0;
+        }
+    }
+
+    // Card styling
+    .card {
+        background-color: $white;
+    }
+
+    // Dashboard Content
+    &__dashboard-content {
+
+        // Activity list styling
+        .Frontend_Spa_Layout__activity-icon {
+            width: $activity-icon-size;
+            height: $activity-icon-size;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        // Colored cards text adjustments
+        .card.bg-primary,
+        .card.bg-success,
+        .card.bg-warning,
+        .card.bg-info,
+        .card.bg-danger {
+            .card-title {
+                font-size: $font-size-sm;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                opacity: 0.9;
+            }
+
+            h2 {
+                font-weight: $font-weight-semibold;
+            }
+        }
+
+        // Progress bars
+        .progress {
+            height: $progress-bar-height;
+            background-color: $gray-200;
+        }
+    }
+
+    // Activity icon (for dashboard)
+    &__activity-icon {
+        width: $activity-icon-size;
+        height: $activity-icon-size;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+}

@@ -1,0 +1,170 @@
+<Define:Dashboard_Index_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading dashboard..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else {
+    const _stats = this.data.stats;
+    const _activity = this.data.recent_activity;
+    const _projects = this.data.active_projects;
+    const _contacts = this.data.recent_contacts;
+    const _tasks = this.data.todays_tasks;
+    const _has_overdue = _stats.overdue_tasks > 0;
+%>
+    <Page_Scaffold>
+        <Slot:main>
+            <Stat_Group>
+                <Kpi_Cell $tooltip="Projects currently in the Active state">
+                    <Slot:label>Active Projects</Slot:label>
+                    <Slot:value><%= _stats.active_projects %></Slot:value>
+                </Kpi_Cell>
+                <Kpi_Cell $tooltip="All contacts on this site">
+                    <Slot:label>Total Contacts</Slot:label>
+                    <Slot:value><%= _stats.total_contacts %></Slot:value>
+                </Kpi_Cell>
+                <Kpi_Cell $tooltip="Tasks that are pending or in progress">
+                    <Slot:label>Open Tasks</Slot:label>
+                    <Slot:value><%= _stats.open_tasks %></Slot:value>
+                </Kpi_Cell>
+                <Kpi_Cell $alert=_has_overdue $tooltip="Open tasks past their due date">
+                    <Slot:label>Overdue Tasks</Slot:label>
+                    <Slot:value><%= _stats.overdue_tasks %></Slot:value>
+                </Kpi_Cell>
+            </Stat_Group>
+
+            <Widget_Grid>
+                <%-- Recent activity feed (from the action log) --%>
+                <Section $title="Recent Activity" $flush=true>
+                    <Slot:actions>
+                        <a href="<%= Rsx.Route('Action_Logs_Index_Action') %>">View all</a>
+                    </Slot:actions>
+                    <Slot:body>
+                        <% if (_activity.length === 0) { %>
+                            <Empty_State $icon="bi bi-activity">
+                                <Slot:title>No activity yet</Slot:title>
+                                <Slot:body>Actions across your workspace will appear here.</Slot:body>
+                            </Empty_State>
+                        <% } else { %>
+                            <% for (const entry of _activity) { %>
+                                <Feed_Row $icon=entry.icon $variant=entry.variant>
+                                    <Slot:body><%!= entry.html %></Slot:body>
+                                    <Slot:time><%= Rsx_Time.relative(entry.created_at) %></Slot:time>
+                                </Feed_Row>
+                            <% } %>
+                        <% } %>
+                    </Slot:body>
+                </Section>
+
+                <%-- Open tasks needing attention (due today or overdue) --%>
+                <Section $title="Today's Tasks" $flush=true>
+                    <Slot:actions>
+                        <a href="<%= Rsx.Route('Tasks_Index_Action') %>">View all</a>
+                    </Slot:actions>
+                    <Slot:body>
+                        <% if (_tasks.length === 0) { %>
+                            <Empty_State $icon="bi bi-check2-square">
+                                <Slot:title>Nothing due</Slot:title>
+                                <Slot:body>Open tasks due today or overdue will appear here.</Slot:body>
+                            </Empty_State>
+                        <% } else { %>
+                            <Record_Table>
+                                <thead>
+                                    <tr><th>Task</th><th>Project</th><th>Status</th><th class="text-end">Due</th></tr>
+                                </thead>
+                                <tbody>
+                                    <% for (const t of _tasks) { %>
+                                    <tr data-href="<%= Rsx.Route('Tasks_View_Action', t.id) %>">
+                                        <td><%= t.title %></td>
+                                        <td><% if (t.project_name) { %><%= t.project_name %><% } else { %><Empty_Value /><% } %></td>
+                                        <td><Status_Badge $label=t.status__label $badge=t.status__badge /></td>
+                                        <td class="text-end">
+                                            <% if (t.is_overdue) { %>
+                                                <span class="text-danger"><%= Rsx_Date.format(t.due_date) %></span>
+                                            <% } else { %>
+                                                <%= Rsx_Date.format(t.due_date) %>
+                                            <% } %>
+                                        </td>
+                                    </tr>
+                                    <% } %>
+                                </tbody>
+                            </Record_Table>
+                        <% } %>
+                    </Slot:body>
+                </Section>
+
+                <%-- Active projects --%>
+                <Section $title="Active Projects" $flush=true>
+                    <Slot:actions>
+                        <a href="<%= Rsx.Route('Projects_Index_Action') %>">View all</a>
+                    </Slot:actions>
+                    <Slot:body>
+                        <% if (_projects.length === 0) { %>
+                            <Empty_State $icon="bi bi-folder">
+                                <Slot:title>No active projects</Slot:title>
+                                <Slot:body>Projects in the Active state will appear here.</Slot:body>
+                            </Empty_State>
+                        <% } else { %>
+                            <Record_Table>
+                                <thead>
+                                    <tr><th>Project</th><th>Client</th><th>Status</th><th class="text-end">Due</th></tr>
+                                </thead>
+                                <tbody>
+                                    <% for (const p of _projects) { %>
+                                    <tr data-href="<%= Rsx.Route('Projects_View_Action', p.id) %>">
+                                        <td><%= p.name %></td>
+                                        <td>
+                                            <% if (p.client_id) { %>
+                                                <a href="<%= Rsx.Route('Clients_View_Action', p.client_id) %>"><%= p.client_name %></a>
+                                            <% } else { %><Empty_Value /><% } %>
+                                        </td>
+                                        <td><Status_Badge $label=p.status__label $badge=p.status__badge /></td>
+                                        <td class="text-end"><% if (p.due_date) { %><%= Rsx_Date.format(p.due_date) %><% } else { %><Empty_Value /><% } %></td>
+                                    </tr>
+                                    <% } %>
+                                </tbody>
+                            </Record_Table>
+                        <% } %>
+                    </Slot:body>
+                </Section>
+
+                <%-- Recent contacts --%>
+                <Section $title="Recent Contacts" $flush=true>
+                    <Slot:actions>
+                        <a href="<%= Rsx.Route('Contacts_Index_Action') %>">View all</a>
+                    </Slot:actions>
+                    <Slot:body>
+                        <% if (_contacts.length === 0) { %>
+                            <Empty_State $icon="bi bi-person-lines-fill">
+                                <Slot:title>No contacts yet</Slot:title>
+                                <Slot:body>Contacts you add will appear here.</Slot:body>
+                            </Empty_State>
+                        <% } else { %>
+                            <Record_Table>
+                                <thead>
+                                    <tr><th>Name</th><th>Company</th><th>Title</th><th class="text-end">Added</th></tr>
+                                </thead>
+                                <tbody>
+                                    <% for (const c of _contacts) { %>
+                                    <tr data-href="<%= Rsx.Route('Contacts_View_Action', c.id) %>">
+                                        <td><%= c.full_name %></td>
+                                        <td>
+                                            <% if (c.client_id) { %>
+                                                <a href="<%= Rsx.Route('Clients_View_Action', c.client_id) %>"><%= c.client_name %></a>
+                                            <% } else { %><Empty_Value /><% } %>
+                                        </td>
+                                        <td><% if (c.title) { %><%= c.title %><% } else { %><Empty_Value /><% } %></td>
+                                        <td class="text-end"><%= Rsx_Time.relative(c.created_at) %></td>
+                                    </tr>
+                                    <% } %>
+                                </tbody>
+                            </Record_Table>
+                        <% } %>
+                    </Slot:body>
+                </Section>
+            </Widget_Grid>
+        </Slot:main>
+    </Page_Scaffold>
+<% } %>
+</Define:Dashboard_Index_Action>

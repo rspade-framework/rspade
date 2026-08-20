@@ -1,0 +1,367 @@
+EXTERNAL_RESOURCES(1)            RSpade Manual            EXTERNAL_RESOURCES(1)
+
+NAME
+    external_resources - declaring external (CDN / vendor) scripts and
+    stylesheets, and loading them by identifier
+
+SYNOPSIS
+    # 1. DECLARE. Any *.externals.php file, beside the feature that needs it.
+    <?php
+
+    return [
+        'chartjs' => [
+            'js'  => ['https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'],
+            'css' => [],
+        ],
+    ];
+
+    // 2. LOAD, by identifier, when the feature actually needs it.
+    await Rsx.load_external('chartjs');
+
+    // Nothing else. The Content-Security-Policy whitelist derives from the
+    // declaration, the sealed build mirrors the asset, and the tags are
+    // appended exactly once per page.
+
+DESCRIPTION
+    Every external URL an RSX page loads is DECLARED. A declaration file sits
+    beside the feature that needs the resource, names it with an identifier,
+    and lists the absolute https:// URLs to fetch. The manifest consolidates
+    every such file into one table; the bundle compiler bakes the realm's
+    resolved map into the bundle; a runtime loader fetches by identifier; and
+    the Content-Security-Policy whitelist is COMPUTED from the same table.
+
+    That last point is the whole design. Policy and code cannot drift, because
+    there is only one statement of fact: an undeclared resource is a blocked
+    resource, and a declared one is permitted automatically with no header to
+    hand-edit anywhere. See: php artisan rsx:man csp
+
+    A declaration is INERT. It costs one CSP source and nothing else - no tag
+    is appended and no request is made until something calls
+    Rsx.load_external(). Declaring a resource a feature may need is therefore
+    free, and declaring it is never a reason to load it eagerly.
+
+    What this replaces: hand-injected <script> tags, document.write, an
+    appendChild of a vendor URL in a component's on_load(), and a copy-pasted
+    vendor snippet in a Blade head. None of them work under the policy, and
+    none of them survive a sealed build, which serves mirrored copies from the
+    application's own origin.
+
+    A resource loaded at page-load time by the BUNDLE (a CSS framework, a
+    global library present on every page) is a different thing: that is the
+    bundle's cdn_assets list, rendered into the head. The registry is for
+    ON-DEMAND runtime loads. See: php artisan rsx:man bundle_api
+
+DECLARATION FILES
+    Any file whose name ends in .externals.php is a declaration file. The name
+    prefix is free (turnstile.externals.php, analytics.externals.php,
+    charts.externals.php) and one file may declare any number of identifiers.
+
+    The file returns a bare array of identifier => spec. It is `require`d at
+    manifest build time, so it must be a plain data return - no side effects,
+    no class definition, no framework calls.
+
+    DISCOVERY. Declaration files are found by the manifest scanner exactly like
+    any other kind, which means they must live where the manifest LOOKS. A file
+    under any directory named resource/ or public/ is manifest-invisible and
+    will never be discovered - the declaration will simply not exist, and the
+    identifier will throw as unknown. Put the file next to the code that loads
+    the resource (rsx/lib/<feature>/, rsx/app/<module>/<feature>/, or a
+    framework Core/ directory), never under resource/ or public/.
+
+    IDENTIFIERS are a single FLAT namespace across the whole tree:
+    lowercase letters, digits and underscores, starting with a letter
+    (/^[a-z][a-z0-9_]*$/). Declaring one identifier twice is a manifest-build
+    FATAL naming BOTH files; rename one of them.
+
+SPEC KEYS
+    The seven allowed keys. An unknown key is a manifest-build error naming the
+    identifier and the file.
+
+    js          List of absolute https:// URLs, loaded as <script async>, in
+                declared order. Optional if css is non-empty.
+
+    css         List of absolute https:// URLs, loaded as
+                <link rel="stylesheet">. Optional if js is non-empty.
+
+                At least one of js/css must list a URL.
+
+    integrity   Map of DECLARED url => subresource-integrity hash string. A key
+                that is not one of this entry's own js/css URLs is an error.
+                The hash is applied (with crossorigin="anonymous") only while
+                the URL is still fetched from its external host - a mirrored
+                copy is served from our own origin and carries no external
+                hash, so integrity silently does not apply to it.
+
+    mirror      Bool, default TRUE. True means "a sealed build should serve a
+                local copy of these bytes from /_vendor/" (see PER-MODE URL
+                RESOLUTION). Set it FALSE for a resource whose bytes are
+                dynamic - a vendor endpoint that serves per-client or
+                per-challenge JavaScript (Turnstile's api.js, Google's
+                gtag.js). A mirrored copy of such a resource would be stale and
+                functionally wrong.
+
+    realm       'staff' | 'portal' | 'both', default 'both'. Which experience's
+                bundles and CSP policy the entry participates in. A resource
+                only the portal uses does not widen the staff policy, and vice
+                versa. 'both' is a DECLARATION value; it is never something
+                code queries for.
+
+    readiness   How the resource announces that it is USABLE. Exactly two
+                spellings:
+
+                    'onload'                        (default)
+                    ['callback_param' => '<name>']
+
+                See THE READINESS CONTRACT below.
+
+    csp         Map of directive => list of sources, merged into the policy in
+                EVERY mode. These describe what the script DOES once it runs -
+                frames it opens, hosts it calls, styles it injects - none of
+                which is implied by the script URL and none of which mirroring
+                changes. The ASSET origins themselves are derived from js/css
+                and are never listed here.
+
+                Origins the script loads TRANSITIVELY at its own discretion
+                (an analytics loader fetching further Google origins) cannot be
+                declared here honestly - nothing in the tree knows them. Those
+                belong in config rsx.csp.additional_sources.
+
+THE READINESS CONTRACT
+    A promise from load() must resolve when the resource is USABLE, and for
+    some vendors that is later than the script's load event.
+
+    'onload' (the default)
+        The elements' own load events. The promise resolves once every
+        declared stylesheet and every declared script has loaded. Correct for
+        an ordinary library that defines its global synchronously.
+
+    ['callback_param' => 'onload']
+        The named-global handshake. The declared script URL carries a query
+        parameter whose VALUE is the name of a global function the vendor calls
+        when it is ready - Turnstile's
+
+            https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=__rsx_turnstile_onload
+
+        declares callback_param 'onload', and the loader reads
+        __rsx_turnstile_onload out of that URL's query string.
+
+        THE LOADER OWNS THE GLOBAL. It parses the name from the URL, defines
+        window[name] BEFORE appending the script, and resolves the promise when
+        the vendor calls it. The declared URL is the single source of truth for
+        the name; consuming code never mints one, and no code anywhere else
+        defines that global.
+
+        If no declared js URL carries the named query parameter, load() throws
+        saying so. That is the callback_param mismatch: the parameter name in
+        the spec and the parameter name in the URL must be the same string.
+
+PER-MODE URL RESOLUTION
+    Development
+        The raw declared URL. The browser fetches from the vendor's own host,
+        and that host is in the CSP whitelist.
+
+    Sealed builds (debug and production)
+        A mirror:true entry resolves to /_vendor/{cached_filename} - a local
+        copy fetched during the build and served from the application's own
+        origin. The build is then SELF-CONTAINED: nothing a page needs depends
+        on a third-party host being reachable at request time. Because the copy
+        is same-origin, the vendor host DROPS OUT of the CSP whitelist.
+
+        A mirror:false entry resolves to its raw URL in every mode, and its
+        origin stays in the whitelist in sealed builds too.
+
+    THE MIRROR IS POPULATED BY THE BUILD, NEVER AT REQUEST TIME.
+    rsx:prod:enable / rsx:prod:refresh run an explicit step - "[2/5] Mirroring
+    external assets..." - that downloads every mirror:true URL into
+    rsx/resource/.cdn-cache/ (committed to git, so builds are reproducible and
+    the cache survives rsx:clean). A sealed build that finds a mirror file
+    missing THROWS, naming the file and the remedy; it never falls back to a
+    runtime download. Resolution itself is pure: it computes a filename and
+    never touches the network.
+
+    Filenames come from the same Cdn_Cache naming the bundle's cdn_assets use,
+    so both halves name the same file and a URL version bump simply produces a
+    new one - there is no cache to invalidate by hand.
+
+HOW THE CSP WHITELIST DERIVES
+    For a realm, Rsx_Externals::csp_hosts_for_realm() returns directive =>
+    origins built from the entries visible in that realm:
+
+        - Every js URL's origin joins script-src, and every css URL's origin
+          joins style-src - but ONLY while that URL is still fetched
+          externally: in a sealed build the mirrored ones are same-origin and
+          contribute nothing.
+        - An external stylesheet's origin ALSO joins font-src. A webfont
+          stylesheet @font-face's against its own origin as a matter of course,
+          and no declaration in the tree can name the font file.
+        - Each entry's declared csp extras merge in ALWAYS, in every mode.
+
+    The composer adds those to the framework's base directives. Nothing else
+    grants an external origin. See: php artisan rsx:man csp
+
+JAVASCRIPT API
+    Rsx.load_external(identifier) -> Promise
+        Load a declared resource, once per page. Resolves when the resource is
+        usable per its readiness contract. Facade over
+        Rsx_External_Resources.load().
+
+        MEMOIZED PER IDENTIFIER. However many components ask, the tags are
+        appended exactly once and every caller awaits the same settlement.
+        Calling it in a component's on_load() (or an on_app_ready()) is the
+        normal shape; there is no need to guard against a double load.
+
+        THROWS SYNCHRONOUSLY for an unknown identifier, naming every declared
+        identifier - a typo is a programming error, not a load failure. A
+        failed fetch REJECTS the promise naming the URL.
+
+        NO TIMEOUT, no polling, no retry. A resource that never arrives leaves
+        its promise pending, exactly as the browser leaves the request.
+
+    Rsx_External_Resources.get(identifier) -> spec
+        The baked spec (js, css, integrity, readiness) without loading it.
+        Throws on an unknown identifier.
+
+    Loaded elements carry the page's CSP nonce automatically, plus integrity +
+    crossorigin when a hash is declared and still applies.
+
+PHP API
+    App\RSpade\Core\Externals\Rsx_Externals
+
+    all(): array
+        Every declared entry, keyed by identifier, normalized (defaults
+        applied) with a 'file' annotation, ksorted.
+
+    get(string $identifier): array
+        One entry. Throws naming every declared identifier when unknown.
+
+    all_for_realm(string $realm): array
+        Entries declaring that realm plus every 'both'. $realm is 'staff' or
+        'portal'; passing 'both' throws (it is a declaration value).
+
+    resolved_map_for_realm(string $realm): array
+        The client-facing map the bundle compiler bakes: identifier =>
+        {js, css, integrity, readiness} with URLs already resolved for the
+        current mode.
+
+    resolve_url(string $url, bool $mirror): string
+        Raw URL or /_vendor/... per the mode. PURE - never downloads.
+
+    csp_hosts_for_realm(string $realm): array
+        directive => sources, as described above.
+
+    url_origin(string $url): string
+        scheme://host[:port]. Throws on a URL with no scheme or host.
+
+EXAMPLES
+    A charting library, mirrored into the sealed build
+
+        # rsx/app/frontend/reports/charts.externals.php
+        <?php
+
+        return [
+            'chartjs' => [
+                'js' => ['https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'],
+                'integrity' => [
+                    'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js' => 'sha384-...',
+                ],
+                'realm' => 'staff',
+            ],
+        ];
+
+        // The component that needs it - loaded when the widget is used, not
+        // on every page in the module.
+        class Revenue_Chart {
+            async on_load() {
+                await Rsx.load_external('chartjs');
+                this.state.chart = new Chart(this.$sid('canvas')[0], { ... });
+            }
+        }
+
+    Cloudflare Turnstile - the framework's worked example
+        system/app/RSpade/Core/Js/turnstile.externals.php declares mirror:false
+        (Cloudflare serves challenge-specific bytes), a callback_param readiness
+        handshake, and csp extras for the frame it opens, the host it calls and
+        the styles it injects. Turnstile.js does nothing but
+        `await Rsx.load_external('turnstile')` before rendering the widget.
+        See: php artisan rsx:man turnstile
+
+    Google Analytics - the template app's worked example
+        rsx/lib/analytics/analytics.externals.php + Analytics.js. It shows the
+        three things an app integration usually needs: a BARE, STATIC url (a
+        declared URL is a constant and can never carry per-install
+        configuration - the measurement id is supplied at runtime by the
+        vendor's own bootstrap, in BUNDLED code, never an inline snippet);
+        mirror:false; and the TRANSITIVE case - gtag.js goes on to fetch
+        further Google origins that no declaration can enumerate, so those live
+        in rsx.csp.additional_sources, ready to uncomment in
+        rsx/resource/config/rsx.php.
+
+RSX VS LARAVEL
+    Laravel has no equivalent concept. Front-end assets are Vite's problem
+    (bundled, versioned, referenced by @vite) and anything external is a
+    <script> tag somebody typed into a Blade layout. Nothing in Laravel knows
+    what hosts the application talks to, so a Content-Security-Policy - if the
+    app has one at all - is a hand-maintained middleware string that drifts
+    from the markup the day someone adds a widget.
+
+    RSX inverts it: the declaration is the source of truth, and both the markup
+    (what the loader appends) and the policy (what the browser permits) are
+    DERIVED from it. Discovery is the manifest's, exactly like every other kind
+    of RSX file - no registration, no service provider, no config array to keep
+    in sync. And because resolution is mode-aware, the same declaration yields
+    a CDN fetch in development and a self-contained local copy in a sealed
+    production build, with no second spelling anywhere.
+
+TROUBLESHOOTING
+    "Refused to load ... because it violates the following Content Security
+    Policy directive" (browser console)
+        Something injected a resource that is not declared. In development the
+        framework prints a follow-up [RSX CSP] warning naming the directive,
+        the blocked URI and the remedy. The fix is a DECLARATION, never a
+        hand-edited header: add a *.externals.php entry and load it by
+        identifier. If it is a TRANSITIVE load (a declared script fetching
+        further hosts of its own), add those origins to
+        rsx.csp.additional_sources instead.
+
+        While csp.report_only is true (the default) nothing is actually
+        blocked - the browser reports and loads it anyway, and the warning says
+        so. Do not go hunting a breakage that did not happen.
+
+    "Unknown external resource '<id>'"
+        Thrown synchronously by load(). Either a typo (the message lists every
+        declared identifier), or the declaration file is not discoverable:
+        confirm it is not under a resource/ or public/ directory, and that it
+        returns a bare array.
+
+    "External resource '<id>' declares readiness callback_param '<p>', but no
+    declared js URL carries that query parameter"
+        The callback_param name and the URL's query parameter disagree. The URL
+        must pass the global's name as ?<p>=<global_name>.
+
+    Sealed build throws about a missing mirror file
+        The build's mirror step did not run, or the .cdn-cache file was
+        deleted. Re-run rsx:prod:refresh (or rsx:prod:enable). A sealed build
+        never downloads at request time by design; the loud error is the
+        feature.
+
+    "Duplicate external resource identifier '<id>'" at manifest build
+        Two files declare the same identifier. Identifiers are one flat
+        namespace - rename one. The error names both files.
+
+    The resource loads in development and 404s in a sealed build
+        A mirror:true entry whose bytes are dynamic. Declare mirror:false.
+
+    The declaration is ignored entirely
+        The file is manifest-invisible (under resource/ or public/), or its
+        extension is not exactly `.externals.php`.
+
+SEE ALSO
+    csp - the policy the declarations feed
+    bundle_api - cdn_assets, the head-rendered alternative
+    turnstile - the framework's worked example
+    app_mode - sealed builds and the mirror step
+    config_rsx - the csp block
+
+VERSION
+    RSpade Framework 1.0
+    Last Updated: 2026-08-18

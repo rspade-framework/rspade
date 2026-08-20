@@ -1,0 +1,169 @@
+<Define:Dev_Orm_Action>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <h1>JavaScript ORM Testing</h1>
+            <p class="lead">Test Model.fetch() and relationship fetching</p>
+        </div>
+    </div>
+
+    <% if (this.data.loading) { %>
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="bi bi-hourglass-split"></i> Loading ORM data...
+                </div>
+            </div>
+        </div>
+    <% } else if (this.data.error) { %>
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="alert alert-danger">
+                    <strong>Error:</strong> <%= this.data.error %>
+                </div>
+            </div>
+        </div>
+    <% } else { %>
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Initial Fetch Results (ID=1)</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <h6>Client_Model.fetch(1) <small class="text-muted">(<%= this.data.fetch_times.client %>ms)</small></h6>
+                                <% if (this.data.results.client) { %>
+                                    <JS_Tree_Debug_Component $data=this.data.results.client $expand_depth=1 $show_class_names=true />
+                                <% } else { %>
+                                    <div class="alert alert-warning mb-0">
+                                        <small>Not found or false returned</small>
+                                    </div>
+                                <% } %>
+                            </div>
+                            <div class="col-md-4">
+                                <h6>Contact_Model.fetch(1) <small class="text-muted">(<%= this.data.fetch_times.contact %>ms)</small></h6>
+                                <% if (this.data.results.contact) { %>
+                                    <JS_Tree_Debug_Component $data=this.data.results.contact $expand_depth=1 $show_class_names=true />
+                                <% } else { %>
+                                    <div class="alert alert-warning mb-0">
+                                        <small>Not found or false returned</small>
+                                    </div>
+                                <% } %>
+                            </div>
+                            <div class="col-md-4">
+                                <h6>Project_Model.fetch(1) <small class="text-muted">(<%= this.data.fetch_times.project %>ms)</small></h6>
+                                <% if (this.data.results.project) { %>
+                                    <JS_Tree_Debug_Component $data=this.data.results.project $expand_depth=1 $show_class_names=true />
+                                <% } else { %>
+                                    <div class="alert alert-warning mb-0">
+                                        <small>Not found or false returned</small>
+                                    </div>
+                                <% } %>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <%-- Manual Fetch & Relationship Testing --%>
+        <div class="row">
+            <%-- Client Testing --%>
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0">Client_Model</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label small">Fetch by ID</label>
+                            <div class="input-group input-group-sm">
+                                <input $sid="client_id" type="number" class="form-control" value="15" min="1">
+                                <button $sid="fetch_client" class="btn btn-primary">Fetch</button>
+                            </div>
+                        </div>
+                        <div $sid="client_tree" style="max-height: 400px; overflow: auto;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <%-- Contact Testing --%>
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0">Contact_Model</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label small">Fetch by ID</label>
+                            <div class="input-group input-group-sm">
+                                <input $sid="contact_id" type="number" class="form-control" value="1" min="1">
+                                <button $sid="fetch_contact" class="btn btn-success">Fetch</button>
+                            </div>
+                        </div>
+                        <div $sid="contact_tree" style="max-height: 400px; overflow: auto;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <%-- Project Testing --%>
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0">Project_Model</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label small">Fetch by ID</label>
+                            <div class="input-group input-group-sm">
+                                <input $sid="project_id" type="number" class="form-control" value="1" min="1">
+                                <button $sid="fetch_project" class="btn btn-info">Fetch</button>
+                            </div>
+                        </div>
+                        <div $sid="project_tree" style="max-height: 400px; overflow: auto;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">ORM Feature Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <ul class="list-unstyled mb-0">
+                                    <li><i class="bi bi-check-circle text-success"></i> Basic fetch (single ID)</li>
+                                    <li><i class="bi bi-check-circle text-success"></i> Lazy relationships (belongsTo, hasMany, morphMany)</li>
+                                    <li><i class="bi bi-check-circle text-success"></i> Automatic hydration (__MODEL)</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-4">
+                                <ul class="list-unstyled mb-0">
+                                    <li><i class="bi bi-check-circle text-success"></i> Enum constants &amp; methods</li>
+                                    <li><i class="bi bi-check-circle text-success"></i> Static get_relationships()</li>
+                                    <li><i class="bi bi-clock text-muted"></i> Fetch batching (planned)</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-4">
+                                <ul class="list-unstyled mb-0">
+                                    <li><i class="bi bi-clock text-muted"></i> Attachments (planned)</li>
+                                    <li><i class="bi bi-clock text-muted"></i> Date handling (planned)</li>
+                                    <li><i class="bi bi-clock text-muted"></i> Real-time updates (planned)</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <% } %>
+</div>
+
+</Define:Dev_Orm_Action>

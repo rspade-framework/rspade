@@ -1,0 +1,62 @@
+.Portal_Workspace_Layout {
+
+    &__header {
+        margin-bottom: $spacing-lg;
+    }
+
+    &__back {
+        display: inline-block;
+        margin-bottom: $spacing-sm;
+        font-size: $font-size-sm;
+        color: $text-muted;
+        text-decoration: none;
+
+        &:hover {
+            color: $primary-color;
+        }
+    }
+
+    &__title {
+        margin: 0 0 $spacing-xs;
+        font-size: $font-size-2xl;
+        font-weight: $font-weight-semibold;
+    }
+
+    &__role {
+        margin: 0;
+        color: $text-muted;
+        font-size: $font-size-sm;
+    }
+
+    // The pane the per-tab sub-action renders into. Scaffolded reconciliation
+    // (semantic view-page refactor, Batch J): a tab action composing with
+    // Page_Scaffold declares `scaffolded = true`; Portal_Workspace_Layout.on_action
+    // stamps this modifier. Zeroing --page-pad here makes the nested scaffold fill the
+    // pane cleanly (the `.container`/`.row` chrome already frames it). NO cross-component
+    // styling - only a CSS custom property override that cascades to the child scaffold.
+    // Mirrors Settings_Layout .settings-content--scaffolded (Batch G).
+    &__content--scaffolded {
+        --page-pad: 0;
+    }
+
+    &__nav {
+        gap: $spacing-xs;
+    }
+
+    &__pill {
+        color: $text-muted;
+        border-radius: $border-radius-md;
+        text-align: left;
+
+        &:hover {
+            background-color: $gray-100;
+            color: $primary-color;
+        }
+
+        &.active {
+            background-color: $primary-color;
+            color: $white;
+            font-weight: $font-weight-semibold;
+        }
+    }
+}

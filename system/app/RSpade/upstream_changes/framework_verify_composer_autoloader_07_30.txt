@@ -1,0 +1,51 @@
+FRAMEWORK VERIFY NO LONGER FLAGS THE COMPOSER AUTOLOADER
+Date: 2026-07-30
+
+SUMMARY
+    rsx:framework:pull's tamper gate (rsx:framework:verify) previously hard-stopped
+    on the composer autoloader outputs under vendor/composer/ - flagging them as
+    "unauthorized changes under a framework-owned zone" and forcing --force on every
+    update. It no longer does: those files are now treated as REGENERABLE machine
+    output, not protected framework code.
+
+THE BUG / THE CHANGE
+    The class-override system re-aliases overrides into composer's classmap on every
+    rebuild (a framework Foo.php renamed aside to Foo.php.upstream leaves the classmap
+    pointing at the moved file until it is re-dumped). So on any downstream box that
+    overrides a framework class, vendor/composer/autoload_classmap.php and
+    autoload_static.php have DRIFTED from the release-inventory pristine hash. The
+    verifier classified that drift as an unauthorized owned-zone edit and aborted the
+    pull - a false positive on regenerable, machine-generated files.
+
+THE FIX
+    Framework_Verify now treats the composer autoloader / install-metadata outputs as
+    regenerable and never a finding:
+      vendor/composer/autoload_*.php, vendor/composer/installed.php,
+      vendor/composer/installed.json, vendor/composer/InstalledVersions.php,
+      vendor/autoload.php
+    (vendor/composer/ClassLoader.php and platform_check.php stay PROTECTED - they are
+    stable composer machinery, not regenerated per rebuild.) The pull's rebuild already
+    re-dumps the classmap against the new tree (_validate_composer_classmap runs during
+    rsx:manifest:build), so the sequence is: tamper gate ignores the drift -> owned-zone
+    sync restores the pristine classmap -> the rebuild re-heals it with the overrides.
+    This is a /system/ core change that arrives automatically via the pull; there is
+    nothing to copy into your own code.
+
+ACTION REQUIRED
+    ONE-TIME ONLY, and only if you are CURRENTLY blocked: the verifier that runs is your
+    installed copy, so an app already hard-stopping on this false positive is still on
+    the old verifier. Run the adopting pull ONCE with --force to get past the drifted
+    autoloader and install this fix:
+
+        php artisan rsx:framework:pull --force
+
+    Every pull after that is automatic - no --force needed for a drifted autoloader
+    ever again. Nothing in your own application code changes.
+
+VERIFICATION
+    After adopting the fix, on a box that overrides a framework class:
+    - `php artisan rsx:framework:pull` completes without --force even though
+      vendor/composer/autoload_classmap.php differs from the release inventory.
+    - `php artisan rsx:framework:verify` reports no unauthorized changes for the
+      composer autoloader outputs (a real edit to vendor/composer/ClassLoader.php is
+      still reported).

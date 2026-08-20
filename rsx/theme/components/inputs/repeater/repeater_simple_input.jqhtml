@@ -1,0 +1,59 @@
+<%--
+Repeater_Simple
+
+A form input for managing lists of simple values. Works with simple input
+components like dropdowns, text inputs, and pickers.
+
+IMPORTANT: For SIMPLE inputs only (Select_Input, Text_Input, pickers).
+NOT for complex inputs like WYSIWYG editors or file uploads.
+
+Args:
+- $edit_input: Component class name for adding items (required)
+- $display_input: Component for showing items (defaults to edit_input)
+- $edit_input_args: Additional args for edit component
+- $display_input_args: Additional args for display component
+- $add_label: Label for add button (default: "Add")
+- $empty_message: Message when empty (default: "No items added")
+- $confirm_remove: Confirm before remove (default: true)
+- $confirm_title: Remove confirmation title
+- $confirm_message: Remove confirmation message
+- $duplicate_message: Message for duplicate attempts
+
+Usage:
+<Repeater_Simple_Input
+    $edit_input="Select_Input"
+    $edit_input_args={options: myOptions}
+    $add_label="Add Item"
+/>
+
+val() returns array of values, val(array) sets items.
+--%>
+<Define:Repeater_Simple_Input extends="Form_Input_Abstract">
+    <%-- List of existing items (rendered dynamically by JS) --%>
+    <div class="Repeater_Simple_Input__list" $sid="list"></div>
+
+    <%-- Empty state --%>
+    <div class="Repeater_Simple_Input__empty" $sid="empty">
+        <%= this.args.empty_message || 'No items added' %>
+    </div>
+
+    <%-- Pending edit row (shown when adding) --%>
+    <div class="Repeater_Simple_Input__pending" $sid="pending" style="display: none;">
+        <div class="Repeater_Simple_Input__pending-content" $sid="pending_content"></div>
+        <button type="button" class="Repeater_Simple_Input__pending-cancel" $sid="cancel_btn" title="Cancel">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 6 6 18"></path>
+                <path d="m6 6 12 12"></path>
+            </svg>
+        </button>
+    </div>
+
+    <%-- Add button --%>
+    <button type="button" class="Repeater_Simple_Input__add-btn btn btn-outline-secondary btn-sm" $sid="add_btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1">
+            <path d="M12 5v14"></path>
+            <path d="M5 12h14"></path>
+        </svg>
+        <%= this.args.add_label || 'Add' %>
+    </button>
+</Define:Repeater_Simple_Input>

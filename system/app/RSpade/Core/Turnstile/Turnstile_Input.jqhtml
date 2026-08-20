@@ -1,0 +1,51 @@
+<%--
+Turnstile_Input
+
+The Cloudflare Turnstile widget, as a form field. Drop it into any form whose endpoint calls
+Rsx_Turnstile::validate() - above the submit button - and the transport is handled:
+
+    <Turnstile_Input />
+
+It renders a REAL hidden input named __turnstile, which is what makes one component work on
+both transports with no app dependency: Rsx_Form.vals() sweeps hidden inputs, and a native
+<form> POST serializes them. See Turnstile_Input.js for why this is not a Form_Input_Abstract.
+
+TWO STATES, decided by whether the server exported a site key (window.rsxapp.turnstile):
+  active   - Cloudflare renders its widget into the widget container; the hidden input starts
+             empty and carries the token once the challenge resolves.
+  inactive - an inert placeholder illustrates where the widget will sit, and the hidden input
+             carries the sentinel 'inactive' that the server requires when the feature is off.
+
+Args:
+  $theme       auto | light | dark                        (default auto)
+  $size        normal | flexible | compact                (default normal)
+  $appearance  always | execute | interaction-only        (default always)
+
+See: php artisan rsx:man turnstile
+--%>
+<Define:Turnstile_Input tag="div">
+    <%
+        // Both states are rendered; only one is shown. Deciding visibility HERE as well as in
+        // on_render() is what stops the placeholder from flashing on an active page - on_render
+        // then re-asserts it, idempotently, after every subsequent render.
+        const _active = Turnstile.is_active();
+        const _widget_style = _active ? '' : 'display:none;';
+        const _placeholder_style = _active ? 'display:none;' : '';
+    %>
+    <input type="hidden" name="<%= Turnstile_Input.FIELD %>" $sid="token" />
+
+    <div $sid="widget" class="Turnstile_Input__widget" style="<%= _widget_style %>"></div>
+
+    <div $sid="placeholder" class="Turnstile_Input__placeholder" style="<%= _placeholder_style %>">
+        <%-- Inline SVG, not an icon-font glyph: this is framework-core and the pages it is
+             wired into (the login/portal auth screens) do not load the app theme's
+             bootstrap-icons stylesheet, which would leave a blank square. --%>
+        <svg class="Turnstile_Input__placeholder-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+             stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 1.2 14 3.4V8c0 3.2-2.4 5.6-6 6.8C4.4 13.6 2 11.2 2 8V3.4Z"></path>
+            <path d="M5.4 8.1 7.2 9.9l3.5-3.6"></path>
+        </svg>
+        <span class="Turnstile_Input__placeholder-label">Human verification</span>
+        <span class="Turnstile_Input__placeholder-note">(disabled)</span>
+    </div>
+</Define:Turnstile_Input>

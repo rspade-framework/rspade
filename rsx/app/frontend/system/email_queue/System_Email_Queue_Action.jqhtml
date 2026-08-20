@@ -1,0 +1,86 @@
+<Define:System_Email_Queue_Action>
+<Page_Scaffold>
+    <Slot:main>
+        <% if (this.data.loading) { %>
+            <Loading_Spinner $message="Loading email queue..." />
+        <% } else { %>
+            <Section $title="Email Queue" $count=this.data.total $flush=true>
+                <Slot:actions>
+                    <div class="d-flex gap-2">
+                        <select class="form-select form-select-sm w-auto" data-status-filter>
+                            <option value="">All Statuses</option>
+                            <% for (const opt of Email_Queue_Model.status_id__enum_select()) { %>
+                                <option value="<%= opt.value %>"><%= opt.label %></option>
+                            <% } %>
+                        </select>
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" $sid="search-input" placeholder="Search recipient or subject...">
+                            <button class="btn btn-secondary" $sid="search-btn"><i class="bi bi-search"></i></button>
+                        </div>
+                    </div>
+                </Slot:actions>
+                <Slot:body>
+                    <% if (this.data.rows.length === 0) { %>
+                        <Empty_State $icon="bi bi-envelope">
+                            <Slot:title>No emails in queue</Slot:title>
+                            <Slot:body>Queued and sent emails appear here once the application sends mail.</Slot:body>
+                        </Empty_State>
+                    <% } else { %>
+                        <Record_Table>
+                            <thead>
+                                <tr>
+                                    <th>Recipient</th>
+                                    <th>Subject</th>
+                                    <th>Category</th>
+                                    <th>Status</th>
+                                    <th>Retries</th>
+                                    <th>Date</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% for (const row of this.data.rows) { %>
+                                <tr data-href="<%= Rsx.Route('System_Email_View_Action', row.id) %>">
+                                    <td>
+                                        <%= row.to_address %>
+                                        <% if (row.dev_original_to) { %>
+                                            <span class="d-block text-muted small">Original: <%= row.dev_original_to %></span>
+                                        <% } %>
+                                    </td>
+                                    <td><%= row.subject %></td>
+                                    <td>
+                                        <% const _cat = (row.category_id__badge || 'bg-secondary').replace('bg-', 'badge-outline-'); %>
+                                        <span class="badge <%= _cat %>"><%= row.category_id__label %></span>
+                                    </td>
+                                    <td>
+                                        <Status_Badge $label=row.status_id__label $badge=row.status_id__badge />
+                                        <% if (row.error) { %>
+                                            <span class="d-block text-danger small"><%= row.error.substring(0, 60) %><%= row.error.length > 60 ? '...' : '' %></span>
+                                        <% } %>
+                                    </td>
+                                    <td><%= row.retry_count %></td>
+                                    <td>
+                                        <% if (row.sent_at) { %>
+                                            <%= Rsx_Time.relative(row.sent_at) %>
+                                        <% } else { %>
+                                            <%= Rsx_Time.relative(row.created_at) %>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <% if (row.status_id === Email_Queue_Model.STATUS_FAILED || row.status_id === Email_Queue_Model.STATUS_BLOCKED) { %>
+                                            <button class="btn btn-sm btn-outline-secondary no-row-nav" data-resend="<%= row.id %>" title="Resend">
+                                                <i class="bi bi-arrow-clockwise"></i>
+                                            </button>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                                <% } %>
+                            </tbody>
+                        </Record_Table>
+                    <% } %>
+                </Slot:body>
+            </Section>
+        <% } %>
+    </Slot:main>
+</Page_Scaffold>
+</Define:System_Email_Queue_Action>

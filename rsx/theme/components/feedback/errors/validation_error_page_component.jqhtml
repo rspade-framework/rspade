@@ -1,0 +1,38 @@
+<%--
+Validation_Error_Page_Component
+
+Displays when form validation fails or invalid data is submitted. Typically used for
+full-page validation errors rather than inline field errors. Shows the main error
+message and optionally lists specific field errors.
+
+$message - Main validation error message
+$metadata - Object containing field-specific errors (optional)
+$back_url - URL to go back (optional)
+--%>
+<Define:Validation_Error_Page_Component class="text-center py-5">
+    <div class="mb-4">
+        <i class="bi bi-exclamation-circle-fill text-warning" style="font-size: 4rem;"></i>
+    </div>
+    <h3 class="mb-3">Validation Error</h3>
+    <p class="text-muted mb-4">
+        <%= this.args.message || 'Please correct the errors below' %>.
+    </p>
+
+    <% if (this.args.metadata && Object.keys(this.args.metadata).length > 0) { %>
+        <div class="alert alert-warning text-start d-inline-block">
+            <ul class="mb-0">
+                <% for (const [field, error] of Object.entries(this.args.metadata)) { %>
+                    <li><strong><%= field %>:</strong> <%= error %></li>
+                <% } %>
+            </ul>
+        </div>
+    <% } %>
+
+    <% if (this.args.back_url) { %>
+        <div class="mt-4">
+            <a href="<%= this.args.back_url %>" class="btn btn-primary">
+                Go Back
+            </a>
+        </div>
+    <% } %>
+</Define:Validation_Error_Page_Component>

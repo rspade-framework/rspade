@@ -1,0 +1,16 @@
+.{{ view_class }} {
+    // Component-specific styles
+
+    .card {
+        // Card styles
+    }
+
+    .btn-action {
+        // Button styles
+    }
+
+    // Responsive adjustments
+    @media (max-width: 768px) {
+        // Mobile styles
+    }
+}

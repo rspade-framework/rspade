@@ -1,0 +1,83 @@
+<Define:System_Email_View_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading email..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Email"
+                $back_label="Back to Email Queue"
+                $back_url="<%= Rsx.Route('System_Email_Queue_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <% const _e = this.data.email; %>
+    <% const _cat = _e.category_id__badge ? _e.category_id__badge.replace('bg-', 'badge-outline-') : null; %>
+    <% const _resendable = _e.status_id === Email_Queue_Model.STATUS_FAILED || _e.status_id === Email_Queue_Model.STATUS_BLOCKED; %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Card_Widget>
+                <Entity_Header>
+                    <Slot:title><%= _e.subject %></Slot:title>
+                    <Slot:chips>
+                        <Status_Badge $label=_e.status_id__label $badge=_e.status_id__badge />
+                        <% if (_cat) { %>
+                            <span class="badge <%= _cat %>"><%= _e.category_id__label %></span>
+                        <% } %>
+                    </Slot:chips>
+                    <Slot:meta>
+                        <span>Created <%= Rsx_Time.format_datetime(_e.created_at) %></span>
+                        <% if (_e.sent_at) { %><span>Sent <%= Rsx_Time.format_datetime(_e.sent_at) %></span><% } %>
+                    </Slot:meta>
+                </Entity_Header>
+
+                <% if (_e.error) { %>
+                    <Callout $variant="danger" $icon="bi bi-exclamation-triangle">
+                        <Slot:title>Delivery error</Slot:title>
+                        <Slot:body><%= _e.error %></Slot:body>
+                    </Callout>
+                <% } %>
+
+                <Section $title="Message Preview" $flush=true>
+                    <iframe $sid="preview-frame" class="System_Email_View_Action__preview-frame"></iframe>
+                </Section>
+            </Card_Widget>
+        </Slot:main>
+
+        <Slot:sidebar>
+            <Detail_Sidebar>
+                <View_Fields>
+                    <View_Field $label="To" $inline=true>
+                        <%= _e.to_address %>
+                        <% if (_e.dev_original_to) { %>
+                            <span class="d-block text-muted small">Original: <%= _e.dev_original_to %></span>
+                        <% } %>
+                    </View_Field>
+                    <View_Field $label="Template" $inline=true>
+                        <% if (_e.template) { %><%= _e.template %><% } else { %><Empty_Value /><% } %>
+                    </View_Field>
+                    <View_Field $label="Retries" $inline=true><%= _e.retry_count || 0 %></View_Field>
+                    <View_Field $label="Created" $inline=true><%= Rsx_Time.relative(_e.created_at) %></View_Field>
+                </View_Fields>
+
+                <div class="d-grid gap-2">
+                    <% if (_resendable) { %>
+                        <button $sid="resend-btn" class="btn btn-primary btn-sm">
+                            <i class="bi bi-arrow-clockwise"></i> Resend Email
+                        </button>
+                    <% } %>
+                    <a href="<%= Rsx.Route('System_Email_Queue_Action') %>" class="btn btn-secondary btn-sm">
+                        <i class="bi bi-arrow-left"></i> Back to Queue
+                    </a>
+                </div>
+            </Detail_Sidebar>
+        </Slot:sidebar>
+    </Page_Scaffold>
+<% } %>
+</Define:System_Email_View_Action>

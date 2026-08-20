@@ -1,0 +1,30 @@
+// Person_Avatar - a person's face: profile image or deterministic initials disc.
+// The initials-disc background colour is set inline (a per-person deterministic hue),
+// the one non-token value here by necessity.
+.Person_Avatar {
+    display: inline-flex;
+    flex-shrink: 0;
+
+    &__disc {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: $border-radius-full;
+        overflow: hidden;
+        flex-shrink: 0;
+        color: $white;
+        font-weight: $font-weight-semibold;
+        line-height: 1;
+        text-transform: uppercase;
+    }
+
+    &__img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    &--sm &__disc { width: 28px; height: 28px; font-size: $font-size-xs; }
+    &--md &__disc { width: 36px; height: 36px; font-size: $font-size-sm; }
+    &--lg &__disc { width: 72px; height: 72px; font-size: $font-size-lg; }
+}

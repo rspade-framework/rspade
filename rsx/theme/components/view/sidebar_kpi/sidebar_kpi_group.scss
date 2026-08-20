@@ -1,0 +1,6 @@
+// Sidebar_Kpi_Group - the compact "At a Glance" KPI grid at the sidebar top.
+.Sidebar_Kpi_Group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: $spacing-2;
+}

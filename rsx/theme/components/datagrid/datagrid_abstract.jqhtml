@@ -1,0 +1,157 @@
+<%--
+Contacts_DataGrid
+
+Custom datagrid for contacts with specialized row rendering.
+Wraps base DataGrid component.
+
+ARGUMENTS:
+    $api - API controller class
+--%>
+<Define:DataGrid_Abstract class="card DataGrid">
+
+    <Card_Header>
+        <%= content('DG_Card_Header'); %>
+    </Card_Header>
+
+    <%-- <div>
+        <%= JSON.stringify(this.state) %>
+    </div> --%>
+
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead $redrawable $sid="datagrid_table_header">
+                    <%= content('DG_Table_Header'); %>
+                </thead>
+                <DataGrid_Body $sid="datagrid_table_body"
+                    $data_source="<%= this.args.data_source %>"
+                    $page="<%= this.state.page %>"
+                    $per_page="<%= this.state.per_page %>"
+                    $sort="<%= this.state.sort %>"
+                    $order="<%= this.state.order %>"
+                    $filter="<%= this.state.filter %>">
+                    <Slot:row>
+                        <%= content('row', row); %>
+                    </Slot:row>
+                </DataGrid_Body>
+            </table>
+        </div>
+    </div>
+
+    <Card_Footer>
+        <div class="d-flex gap-2 align-items-center">
+            <div class="dropdown">
+                <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    Actions
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#">Export Selected</a></li>
+                    <li><a class="dropdown-item" href="#">Delete Selected</a></li>
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
+                    <li><a class="dropdown-item" href="#">Mark as Active</a></li>
+                </ul>
+            </div>
+            <Pagination_Info $sid="pagination_info">
+                <% if (this.state.total && this.state.page && this.state.per_page) { %>
+                    <%
+                        const start = ((this.state.page - 1) * this.state.per_page) + 1;
+                        const end = Math.min(this.state.page * this.state.per_page, this.state.total);
+                    %>
+                    Showing <%= start %> to <%= end %> of <%= this.state.total %> entries
+                <% } %>
+            </Pagination_Info>
+        </div>
+
+        <Pagination_Controls $sid="pagination_controls">
+            <% if (this.state.total_pages && this.state.total_pages > 1) { %>
+                <%
+                    const currentPage = this.state.page || 1;
+                    const totalPages = this.state.total_pages;
+                    const maxVisible = 7; // Maximum page numbers to show
+
+                    // Calculate page range to display
+                    let startPage, endPage;
+
+                    if (totalPages <= maxVisible) {
+                        // Show all pages if total is less than max
+                        startPage = 1;
+                        endPage = totalPages;
+                    } else {
+                        // Calculate range with current page near center
+                        const maxPagesBeforeCurrentPage = Math.floor(maxVisible / 2);
+                        const maxPagesAfterCurrentPage = Math.ceil(maxVisible / 2) - 1;
+
+                        if (currentPage <= maxPagesBeforeCurrentPage) {
+                            // Near the start
+                            startPage = 1;
+                            endPage = maxVisible;
+                        } else if (currentPage + maxPagesAfterCurrentPage >= totalPages) {
+                            // Near the end
+                            startPage = totalPages - maxVisible + 1;
+                            endPage = totalPages;
+                        } else {
+                            // In the middle
+                            startPage = currentPage - maxPagesBeforeCurrentPage;
+                            endPage = currentPage + maxPagesAfterCurrentPage;
+                        }
+                    }
+
+                    // Generate page numbers array
+                    const pages = [];
+                    for (let i = startPage; i <= endPage; i++) {
+                        pages.push(i);
+                    }
+
+                    const showStartEllipsis = startPage > 1;
+                    const showEndEllipsis = endPage < totalPages;
+                %>
+
+                <%-- Previous button --%>
+                <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
+                    <a class="page-link" href="#" data-page="<%= currentPage - 1 %>" tabindex="<%= currentPage === 1 ? '-1' : '0' %>">
+                        Previous
+                    </a>
+                </li>
+
+                <%-- First page + ellipsis --%>
+                <% if (showStartEllipsis) { %>
+                    <li class="page-item">
+                        <a class="page-link" href="#" data-page="1">1</a>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                <% } %>
+
+                <%-- Page numbers --%>
+                <% for (let pageNum of pages) { %>
+                    <li class="page-item <%= pageNum === currentPage ? 'active' : '' %>">
+                        <a class="page-link" href="#" data-page="<%= pageNum %>">
+                            <%= pageNum %>
+                        </a>
+                    </li>
+                <% } %>
+
+                <%-- Ellipsis + last page --%>
+                <% if (showEndEllipsis) { %>
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="#" data-page="<%= totalPages %>"><%= totalPages %></a>
+                    </li>
+                <% } %>
+
+                <%-- Next button --%>
+                <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
+                    <a class="page-link" href="#" data-page="<%= currentPage + 1 %>">
+                        Next
+                    </a>
+                </li>
+            <% } %>
+        </Pagination_Controls>
+    </Card_Footer>
+
+</Define:DataGrid_Abstract>

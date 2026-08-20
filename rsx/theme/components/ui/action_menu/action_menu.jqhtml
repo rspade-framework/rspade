@@ -1,0 +1,29 @@
+<%--
+Action_Menu - overflow "..." dropdown for secondary / destructive actions
+
+default content - the authored menu items (`.dropdown-item` buttons or links).
+    Destructive actions (Delete, Disable) belong HERE, inside the menu - never
+    as a peer red button next to the primary action.
+$label - accessible label for the toggle (default "Actions") [optional]
+$align="end" - dropdown alignment: "end" or "start" [optional]
+
+Uses the Bootstrap dropdown (data-bs-toggle). Give items a `$sid` and wire them
+in the owning action's on_ready().
+
+Usage:
+    <Action_Menu>
+        <button $sid="delete_client" class="dropdown-item text-danger" type="button">
+            <i class="bi bi-trash"></i> Delete Client
+        </button>
+    </Action_Menu>
+--%>
+<Define:Action_Menu tag="div">
+    <button type="button" class="Action_Menu__toggle btn btn-sm btn-outline-secondary"
+            data-bs-toggle="dropdown" aria-expanded="false"
+            aria-label="<%= this.args.label || 'Actions' %>">
+        <i class="bi bi-three-dots"></i>
+    </button>
+    <div class="Action_Menu__menu dropdown-menu dropdown-menu-<%= this.args.align || 'end' %>">
+        <%= content() %>
+    </div>
+</Define:Action_Menu>

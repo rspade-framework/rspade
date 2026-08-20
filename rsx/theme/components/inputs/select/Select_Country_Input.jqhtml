@@ -1,0 +1,35 @@
+<%--
+Select_Country_Input
+
+Specialized select for country dropdowns with default country support.
+Extends Select_Ajax_Input with country-specific behavior.
+
+$data - Ajax endpoint for country data (optional, defaults to Rsx_Reference_Data_Controller.countries())
+$placeholder - Placeholder text (default: "Select Country...")
+$default_country - Default country code (e.g. "US") to pre-select and move to top
+$disabled - Boolean to disable the select
+
+Features:
+- Loads country list via Ajax automatically
+- Pre-selects default country if no value set
+- Moves default country to top of list
+- Inherits all Select_Ajax_Input behavior (Tom Select, search, loading states, etc.)
+--%>
+<Define:Select_Country_Input extends="Select_Ajax_Input">
+    <select $sid="input" <% if (this.args.disabled) { %>disabled<% } %>>
+        <% if (!this.data.select_values || this.data.select_values.length === 0) { %>
+            <option value=""><%= this.args.placeholder || 'Please wait...' %></option>
+        <% } else { %>
+            <% if (this.args.placeholder) { %>
+                <option value=""><%= this.args.placeholder %></option>
+            <% } %>
+            <% for (let opt of this.data.select_values) { %>
+                <% if (typeof opt === 'object') { %>
+                    <option value="<%= opt.value %>" <% if (this.data.value == opt.value) { %>selected<% } %>><%= opt.label %></option>
+                <% } else { %>
+                    <option value="<%= opt %>" <% if (this.data.value == opt) { %>selected<% } %>><%= opt %></option>
+                <% } %>
+            <% } %>
+        <% } %>
+    </select>
+</Define:Select_Country_Input>

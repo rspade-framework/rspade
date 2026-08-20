@@ -1,0 +1,117 @@
+MANDATORY file.upload.authorize GATE ON /_upload
+Date: 2026-08-09
+
+SUMMARY
+    POST /_upload now REFUSES to accept a file unless your application has
+    registered at least one handler for the file.upload.authorize event. An app
+    with no handler previously had an anonymous, unauthenticated upload endpoint;
+    it now fails loud instead.
+
+    ACTION IS REQUIRED ONLY IF YOUR APP HAS NO file.upload.authorize HANDLER.
+    If it already has one, uploads keep working exactly as before and there is
+    nothing to do. The gate payload gained keys; it lost none, so existing
+    handlers are unaffected.
+
+THE CHANGE
+    Rsx::trigger_gate() returns true when NO handler is registered - an
+    unregistered gate defaults OPEN. That is correct for optional hooks (and is
+    UNCHANGED for every other gate), but for uploads it meant a forked template
+    whose handler was deleted, renamed, or never written accepted files from
+    anyone who could reach the endpoint.
+
+    Who may upload is an application decision the framework will not guess, so
+    "nobody is listening" is now treated as a MISCONFIGURED APPLICATION rather
+    than as permission.
+
+THE FIX
+    Informational - this arrives automatically with the framework update:
+
+    - File_Attachment_Controller::upload() asks
+      Event_Registry::has_handlers('file.upload.authorize') FIRST and throws a
+      RuntimeException when the answer is false. The result is a 5xx: the client
+      did nothing wrong, the application is misconfigured. The message names
+      `php artisan rsx:man file_upload`.
+    - Rsx::trigger_gate()'s general no-handler-default-true semantics are
+      untouched. Only this one endpoint asks the registry directly.
+    - File presence/validity are now checked BEFORE the gate fires, so the gate
+      payload can carry the uploaded file. New keys (all ADDITIVE):
+
+          file        Illuminate\Http\UploadedFile
+          filename    Client original name
+          size        Bytes (int)
+          mime_type   Sniffed mime, pre-persist
+          extension   Lowercased client extension
+          tmp_path    Absolute path to the received temp file - read it to
+                      reject on actual CONTENT before anything is stored
+
+      The existing request / user / params keys are unchanged in name and
+      position. 'user' is now realm-honest: on a portal request it is the
+      Portal_User_Model, not a staff-facade read that was always null for a
+      logged-in portal uploader.
+    - New helper: App\RSpade\Core\Events\Event_Registry::has_handlers($event).
+
+    One observable side effect of the reordering: a POST /_upload carrying NO
+    file now returns 400 ("No file uploaded") instead of whatever your gate
+    returned for it (typically 403). Only relevant if you have a test or client
+    asserting on that malformed-request case.
+
+ACTION REQUIRED
+
+    1. Check whether your app registers the gate:
+
+           grep -rn "file.upload.authorize" rsx/
+
+       If that returns a #[OnEvent('file.upload.authorize')] handler, YOU ARE
+       DONE - no change needed.
+
+    2. If it returns nothing, uploads will now throw. Create
+       rsx/handlers/File_Upload_Handlers.php (or add the method to an existing
+       handler class). #[OnEvent] handlers are manifest-discovered - there is
+       nothing to register:
+
+           <?php
+
+           namespace Rsx\Handlers;
+
+           use App\RSpade\Core\Portal\Portal_Session;
+           use App\RSpade\Core\Session\Session;
+
+           class File_Upload_Handlers
+           {
+               #[OnEvent('file.upload.authorize', priority: 10)]
+               public static function require_authentication($data)
+               {
+                   if (Session::is_logged_in() || Portal_Session::is_logged_in()) {
+                       return true;
+                   }
+
+                   return response()->json([
+                       'success' => false,
+                       'error'   => 'Authentication required to upload files',
+                   ], 403);
+               }
+           }
+
+       Drop the Portal_Session clause if your app has no client portal. Tighten
+       the check to whatever your app actually requires - this is the minimum,
+       not a recommendation to stop here.
+
+    3. OPTIONAL, but this is the moment to do it: any file validation you were
+       performing AFTER the upload (in file.upload.params, file.upload.complete,
+       or in the endpoint that attaches the key) can now move INTO the gate,
+       where nothing has been persisted yet. Size caps, mime allowlists, and
+       real byte inspection via $data['tmp_path'] all belong there. See the
+       worked example in `php artisan rsx:man file_upload` (THE MANDATORY UPLOAD
+       GATE).
+
+VERIFICATION
+
+    With no handler registered, an upload attempt produces a 5xx and a log entry
+    whose message contains "no file.upload.authorize gate handler is registered".
+
+    With a handler registered, upload a file through any existing upload UI and
+    confirm it still succeeds. Then sign out and confirm an unauthenticated
+    upload is denied by YOUR handler (a 403 from your own JSON), not by the
+    framework's exception.
+
+    Full contract: php artisan rsx:man file_upload

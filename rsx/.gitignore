@@ -1,0 +1,60 @@
+# Common files to ignore in all git repositories
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Editor/IDE Files
+*~
+*.swp
+*.swo
+*.swn
+.idea/
+.vscode/settings.json
+.vscode/launch.json
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Temporary Files
+*.tmp
+*.temp
+*-temp.*
+*-tmp.*
+temp-*
+tmp-*
+
+# Build Artifacts (project-specific, not dependency builds)
+/build/cache/
+/build/temp/
+
+# Local Environment Files
+.env.local
+.env.*.local
+
+# Test Coverage
+coverage/
+.nyc_output/
+
+# Misc
+.rsx-manifest-cache
+.php-cs-fixer.cache
+runonsave_debug.log

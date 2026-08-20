@@ -1,0 +1,7 @@
+<Define:Action_Logs_Index_Action>
+<Page_Scaffold>
+    <Slot:main>
+        <Action_Logs_DataGrid />
+    </Slot:main>
+</Page_Scaffold>
+</Define:Action_Logs_Index_Action>

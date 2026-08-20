@@ -1,0 +1,210 @@
+LIBPHONENUMBER-BACKED PHONE FORMATTING (PHP + JS PARITY)
+Date: 2026-07-11
+
+SUMMARY
+    The template app's phone formatting is now backed by Google's
+    libphonenumber on both platforms: Formatters::phone() (PHP) and a new
+    Formatters.phone() (JS) produce byte-identical output, including real
+    international formatting for '+'-prefixed numbers (previously passed
+    through raw with no formatting at all) and an optional region parameter
+    for non-US national formats. US formatting output is unchanged
+    ((XXX) XXX-XXXX, progressive partials included), so existing stored data
+    displays exactly as before. Phone_Text_Input now formats a completed
+    international number on blur instead of leaving it untouched.
+
+    The underlying libraries arrive automatically via the framework layer -
+    giggsey/libphonenumber-for-php (composer) and google-libphonenumber (npm)
+    both ship in system/ with your next `php artisan rsx:framework:pull`.
+    This document covers only the /rsx/ template changes you replicate by
+    hand. Both libraries are ports of the same Google library sharing the
+    same metadata, which is what makes identical PHP/JS output possible.
+
+AFFECTED FILES
+    /rsx/lib/formatters.php                                    (modified)
+    /rsx/lib/formatters.js                                     (NEW)
+    /rsx/theme/components/inputs/text/phone_libphonenumber_bundle.php (NEW)
+    /rsx/theme/components/inputs/text/phone_text_input.js      (modified)
+    /rsx/app/login/login_bundle.php                            (modified)
+    /rsx/tests/Formatters_Test.php                             (NEW)
+
+BEHAVIOR CONTRACT (both platforms, identical)
+    phone(input, region = 'US'):
+    1. null/undefined/'' -> '' (strict check: the string '0' proceeds to
+       formatting and yields "(0" on both platforms - this closes a previous
+       PHP/JS divergence where PHP's empty() short-circuited '0').
+    2. Input starting with '+' (trimmed): parsed with libphonenumber (region
+       irrelevant); if parseable AND isPossibleNumber -> INTERNATIONAL
+       format; otherwise returned unchanged. Uses isPossibleNumber(), NOT
+       isValidNumber(), so test/placeholder numbers survive.
+    3. No '+' and region 'US' (default): the digit-stripping + progressive
+       US formatting logic, unchanged output (11-with-leading-1 strips the
+       1; >10 digits truncate to first 10; partials format progressively
+       including the trailing-space quirk for 3-5 digit input).
+       Deliberately NOT routed through libphonenumber so invalid-plan
+       placeholder numbers (555 area codes etc.) and partial input survive.
+    4. No '+', explicit non-US region: parse(input, region); if possible ->
+       that region's NATIONAL format; else unchanged.
+
+    Canonical outputs (locked by tests):
+        phone('5551234567')            -> '(555) 123-4567'
+        phone('15551234567')           -> '(555) 123-4567'
+        phone('+442071234567')         -> '+44 20 7123 4567'
+        phone('+9999999')              -> '+9999999'   (not possible)
+        phone('123')                   -> '(123) '     (progressive partial)
+        phone('0')                     -> '(0'
+        phone('2071234567', 'GB')      -> '020 7123 4567'
+
+CHANGES REQUIRED
+
+    File: /rsx/lib/formatters.php
+    -------------------------------------------------------------------------
+    Add use statements at top of file:
+
+        use libphonenumber\PhoneNumberUtil;
+        use libphonenumber\PhoneNumberFormat;
+        use libphonenumber\NumberParseException;
+
+    Replace the phone() method body (keep _format_us_phone() unchanged):
+
+        public static function phone(?string $input, string $region = 'US'): string
+        {
+            // Strict null/'' check (not empty()) so the string '0' proceeds to
+            // formatting, matching Phone_Text_Input.
+            if ($input === null || $input === '') {
+                return '';
+            }
+
+            // International mode - input carries an explicit country code ('+').
+            if (str_starts_with(trim($input), '+')) {
+                try {
+                    $proto = PhoneNumberUtil::getInstance()->parse($input, null);
+                    if (PhoneNumberUtil::getInstance()->isPossibleNumber($proto)) {
+                        return PhoneNumberUtil::getInstance()->format($proto, PhoneNumberFormat::INTERNATIONAL);
+                    }
+                } catch (NumberParseException $e) {
+                    // Expected for arbitrary display input - fall through.
+                }
+                return $input;
+            }
+
+            // Non-US region - defer to libphonenumber's NATIONAL format.
+            if ($region !== 'US') {
+                try {
+                    $proto = PhoneNumberUtil::getInstance()->parse($input, $region);
+                    if (PhoneNumberUtil::getInstance()->isPossibleNumber($proto)) {
+                        return PhoneNumberUtil::getInstance()->format($proto, PhoneNumberFormat::NATIONAL);
+                    }
+                } catch (NumberParseException $e) {
+                    // Expected for arbitrary display input - fall through.
+                }
+                return $input;
+            }
+
+            // US mode - existing digit logic, unchanged from before.
+            $digits = preg_replace('/[^0-9]/', '', $input);
+            $digits_to_format = '';
+            if (strlen($digits) === 11 && $digits[0] === '1' && preg_match('/[2-9]/', $digits[1])) {
+                $digits_to_format = substr($digits, 1);
+            } elseif (strlen($digits) > 10) {
+                $digits_to_format = substr($digits, 0, 10);
+            } else {
+                $digits_to_format = $digits;
+            }
+            return self::_format_us_phone($digits_to_format);
+        }
+
+    File: /rsx/lib/formatters.js  (NEW)
+    -------------------------------------------------------------------------
+    Copy verbatim from the companion reference file in this directory:
+        phone_libphonenumber_07_11_reference_formatters.js
+
+    File: /rsx/theme/components/inputs/text/phone_libphonenumber_bundle.php  (NEW)
+    -------------------------------------------------------------------------
+    Asset Bundle exposing the npm library as the `libphonenumber` global.
+    Co-located with phone_text_input.js so every Module Bundle shipping the
+    component auto-discovers the dependency:
+
+        <?php
+        namespace Rsx\Theme\Components\Inputs\Text;
+
+        use App\RSpade\Core\Bundle\Rsx_Asset_Bundle_Abstract;
+
+        class Phone_Libphonenumber_Bundle extends Rsx_Asset_Bundle_Abstract
+        {
+            public static function define(): array
+            {
+                return [
+                    'npm' => [
+                        'libphonenumber' => "import libphonenumber from 'google-libphonenumber'",
+                    ],
+                ];
+            }
+        }
+
+    File: /rsx/theme/components/inputs/text/phone_text_input.js
+    -------------------------------------------------------------------------
+    Change 1 - _set_value() delegates full-string formatting (replace the
+    entire method body after the falsy-clear guard):
+
+        _set_value(value) {
+            if (!value) {
+                this.$sid('input').val('');
+                return;
+            }
+
+            this.$sid('input').val(Formatters.phone(str(value)));
+        }
+
+    Change 2 - blur handler: international numbers now format on blur.
+    Replace the combined skip guard at the top of the blur callback:
+
+        // BEFORE:
+        if (this._check_international_mode(raw) || !raw) {
+            return;
+        }
+
+        // AFTER:
+        if (!raw) {
+            return;
+        }
+
+        if (this._check_international_mode(raw)) {
+            $input.val(Formatters.phone(raw));
+            return;
+        }
+
+    Keep ALL live-typing/cursor/backspace logic and the component's local
+    _format_us_phone() untouched - the keystroke path stays self-contained
+    (zero Formatters dependency) so as-you-type formatting works in every
+    bundle shipping the component.
+
+    File: /rsx/app/login/login_bundle.php
+    -------------------------------------------------------------------------
+    Add 'rsx/lib' to the include list (makes Formatters available on the
+    signup page, which ships Phone_Text_Input):
+
+        'rsx/theme/components',         // Form widgets and UI components
+        'rsx/lib',                      // Global shared library (Formatters, etc.)
+
+    File: /rsx/tests/Formatters_Test.php  (NEW)
+    -------------------------------------------------------------------------
+    Application-suite test locking the contract. Copy from the template
+    app, or write test_* methods asserting the canonical outputs listed in
+    BEHAVIOR CONTRACT above (pure logic - set
+    $use_database_transactions = false).
+
+VERIFICATION
+    1. php artisan rsx:test --filter=Formatters   -> all pass
+    2. Browser parity: rsx:debug any SPA route with
+       --eval="return Formatters.phone('+442071234567')" -> "+44 20 7123 4567"
+    3. Component round-trip on an edit form with a Phone_Text_Input:
+       .val('+442071234567') reads back as '+44 20 7123 4567';
+       .val('5551234567') reads back as '(555) 123-4567'.
+    4. Your signup/login-bundle page renders with no console errors (proves
+       the bundle coverage change).
+
+NOTES
+    - Stored data is unaffected: US-formatted values render identically.
+      Previously-saved raw international strings reformat only when a user
+      re-saves through the input (no retroactive migration).
+    - Fax fields using Phone_Text_Input get the same behavior.

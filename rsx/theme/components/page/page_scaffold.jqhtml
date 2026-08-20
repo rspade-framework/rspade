@@ -1,0 +1,35 @@
+<%--
+Page_Scaffold - view-page shell: 2300px centered, main + optional sidebar
+
+$ratio="8/4" - desktop main:sidebar column split (8/4, 9/3, 7/5, 6/6)
+
+<Slot:main> - primary column content (required)
+<Slot:sidebar> - entity sidebar column (optional; main spans full width when absent)
+
+this.args.ratio - column split string, "main/side"
+
+Owns, app-wide and nowhere else: the page max-width (2300px) with centered,
+Etsy-style margins beyond it; the outer page padding (--page-pad); the
+inter-column gutter (--col-gutter); and mobile column stacking (sidebar under
+main). Pages author NO layout shell of their own.
+
+Usage:
+    <Page_Scaffold>
+        <Slot:main>
+            <Card_Widget> ...sections... </Card_Widget>
+        </Slot:main>
+        <Slot:sidebar>
+            <Detail_Sidebar> ...kpis, fields, actions... </Detail_Sidebar>
+        </Slot:sidebar>
+    </Page_Scaffold>
+--%>
+<Define:Page_Scaffold>
+    <div class="Page_Scaffold__columns" $sid="columns">
+        <div class="Page_Scaffold__main" $sid="main">
+            <%= content('main') %>
+        </div>
+        <div class="Page_Scaffold__sidebar" $sid="sidebar">
+            <%= content('sidebar') %>
+        </div>
+    </div>
+</Define:Page_Scaffold>

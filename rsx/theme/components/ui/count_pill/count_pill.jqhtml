@@ -1,0 +1,9 @@
+<%--
+Count_Pill - tiny neutral pill showing a count; replaces "(N)" text suffixes
+
+$count - the number to display (data the component formats)
+
+Usage:
+    <Count_Pill $count=_project_count />
+--%>
+<Define:Count_Pill tag="span"><%= int(this.args.count) %></Define:Count_Pill>

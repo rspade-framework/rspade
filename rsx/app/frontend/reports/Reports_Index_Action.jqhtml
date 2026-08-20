@@ -1,0 +1,34 @@
+<Define:Reports_Index_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading reports..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <% const _s = this.data.stats; %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Stat_Group>
+                <Kpi_Cell $tooltip="Clients currently in the Active state">
+                    <Slot:label>Active Clients</Slot:label>
+                    <Slot:value><%= _s.active_clients %></Slot:value>
+                </Kpi_Cell>
+                <Kpi_Cell $tooltip="Projects currently in the Active state">
+                    <Slot:label>Active Projects</Slot:label>
+                    <Slot:value><%= _s.active_projects %></Slot:value>
+                </Kpi_Cell>
+                <Kpi_Cell $tooltip="All contacts on this site">
+                    <Slot:label>Total Contacts</Slot:label>
+                    <Slot:value><%= _s.total_contacts %></Slot:value>
+                </Kpi_Cell>
+            </Stat_Group>
+
+            <Placeholder_Card $icon="bi bi-file-earmark-bar-graph">
+                <Slot:title>Report generation coming soon</Slot:title>
+                <Slot:body>Configurable reports, charts, and exports will appear here. The strip above shows live counts from your current data.</Slot:body>
+            </Placeholder_Card>
+        </Slot:main>
+    </Page_Scaffold>
+<% } %>
+</Define:Reports_Index_Action>

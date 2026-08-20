@@ -1,0 +1,16 @@
+<%--
+Tab_Panel - one semantic panel bound to a tab key
+
+$key - the tab key this panel belongs to (matches a Tab_Bar tab.key)
+
+default content - the panel body
+
+Self-registers with its enclosing Tab_Panels and starts hidden; Tab_Panels
+shows exactly the panel whose $key matches the active tab.
+
+Usage:
+    <Tab_Panel $key="overview"> ...sections... </Tab_Panel>
+--%>
+<Define:Tab_Panel role="tabpanel">
+    <%= content() %>
+</Define:Tab_Panel>

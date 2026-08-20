@@ -1,0 +1,1319 @@
+FILE_UPLOAD(1)                   RSpade Manual                   FILE_UPLOAD(1)
+
+NAME
+    file_upload - Content-addressed file storage and polymorphic attachments
+
+SYNOPSIS
+    Two-model file subsystem: a deduplicated, content-addressed blob store
+    (_file_storage) plus per-upload metadata rows (_file_attachments) that
+    attach polymorphically to any model. Upload UNATTACHED, validate, then
+    assign with attach_to()/add_to().
+
+        // Backend: assign an already-uploaded file to a model
+        $file = File_Attachment_Model::find_by_key($params['photo_key']);
+        if ($file && $file->can_user_assign_this_file()) {
+            $file->attach_to($user, 'profile_photo');
+        }
+
+        // Read it back on any model
+        $photo = $user->get_attachment('profile_photo');
+        echo $photo->get_thumbnail_url('cover', 128, 128);
+
+DESCRIPTION
+    The RSpade file subsystem separates PHYSICAL bytes from LOGICAL uploads.
+    A blob is stored once, addressed by its content hash; any number of
+    attachment rows (each with its own filename, category, and metadata) may
+    reference the same blob. Uploading the same bytes twice costs one row, not
+    two copies on disk.
+
+    The whole subsystem is framework-core. Both models live under
+    App\RSpade\Core\Files - there is nothing to install, register, or wire.
+
+    Unlike Laravel's Storage facade (where you manage disks, paths, and
+    filenames by hand and dedup is your problem), RSX gives you:
+
+    - Laravel: Storage::put($path, $bytes); you track the path.
+    - RSX: File_Attachment_Model::create_from_*(...); the framework hashes,
+      deduplicates, assigns a random access key, sniffs the mime, extracts
+      dimensions, and returns a row you attach to a model.
+
+    - Laravel: public disk + guessable URLs, or signed URLs you build.
+    - RSX: every file is reached by a 64-char random hex key at /_inline/:key
+      or /_download/:key, gated by authorization event hooks - enumeration is
+      infeasible and access control is centralized.
+
+    Key ideas:
+    - Content-addressed dedup (identical bytes stored once)
+    - Key-scoped upload claims (an unguessable key, claimable once, briefly)
+    - Polymorphic attachment to any model, grouped by category
+    - On-demand thumbnails, text extraction, and preview - all keyed on the
+      deduplicated blob, so identical bytes are processed once
+
+MODELS
+
+    File_Storage_Model  (framework-core)
+        Class:  App\RSpade\Core\Files\File_Storage_Model
+        File:   system/app/RSpade/Core/Files/File_Storage_Model.php
+        Table:  _file_storage
+        Purpose: one row per unique physical blob on disk.
+
+        Columns of interest:
+            id          Primary key
+            hash        Content hash (or incremented variant on collision)
+            size        Byte size of the blob
+            is_indexed  Text-extraction queue flag (0 = queued, 1 = attempted)
+            created_at / updated_at / created_by_id / created_by_type /
+            updated_by_id / updated_by_type
+
+        Many File_Attachment_Model rows may point at one File_Storage_Model
+        (deduplication). When the last one is deleted, the blob is deleted too.
+
+    File_Attachment_Model  (framework-core)
+        Class:  App\RSpade\Core\Files\File_Attachment_Model
+        File:   system/app/RSpade/Core/Files/File_Attachment_Model.php
+        Table:  _file_attachments
+        Base:   Rsx_Site_Model_Abstract (site-scoped, multi-tenant)
+        Purpose: one row per logical upload, with metadata + attachment.
+
+        To OVERRIDE this model in an app, use the class-override pattern
+        (copy-replace, per rsx:man manifest) - it is NOT an app model and does
+        NOT live in /rsx/models.
+
+        Columns:
+            id                 Primary key
+            key                64-char cryptographically random hex (access key)
+            file_storage_id    FK to _file_storage. NULLABLE - null is legal
+                               ONLY when handler_class is set (external bytes).
+            handler_class      Simple class name of an external byte handler,
+                               or null for a plain local blob (see EXTERNAL
+                               BYTE RESIDENCY). Manifest-resolved.
+            handler_ref        Opaque JSON owned by the handler; the framework
+                               never reads its contents.
+            file_name          Original filename
+            file_extension     Lowercased extension (jpeg normalized to jpg)
+            mime_type          Authoritative raw byte-sniff mime. Persisted at
+                               ingest; the value used when serving.
+            file_size          Authoritative byte size. Works WITHOUT a resident
+                               blob; get_size() reads this column directly.
+            file_type_id       Coarse enum bucket (see FILE TYPE DETECTION)
+            width / height     Pixel dimensions (images/video), else null
+            duration           Media duration in seconds, else null
+            is_animated        True for animated GIF/WebP, etc.
+            frame_count        Frame count for multi-frame formats
+            fileable_type      Polymorphic parent: simple class name (type-ref)
+            fileable_id        Polymorphic parent id
+            fileable_category  Grouping key (e.g. 'avatar', 'documents')
+            fileable_type_meta Indexed VARCHAR for a searchable sub-type
+            fileable_order     Optional sort order within a category
+            fileable_meta      JSON blob for unstructured metadata
+            site_id            Tenant scope
+            created_by_ip_address
+                               Client IP recorded at creation (audit only;
+                               NULL outside a request context). Gates nothing.
+            blob_accessed_at   Touched (<=1/day) when bytes are served/read
+            created_at / updated_at / created_by_id / created_by_type /
+            updated_by_id / updated_by_type
+
+        Note fileable_type is stored as an integer type-ref, but reads/writes
+        use the simple class name ('User_Model'). See rsx:man polymorphic.
+
+STORAGE STRUCTURE
+
+    Every on-disk path in the file subsystem resolves through the
+    App\RSpade\Core\Files\Rsx_File_Paths choke point (blob_root(),
+    thumbnails_root(), renditions_root()) - never storage_path() directly.
+    That single indirection lets a test relocate the whole subsystem off the
+    shared store.
+
+    Blobs are sharded by the first four hex characters of the hash:
+
+        blob_root()/{hash[0:2]}/{hash[2:4]}/{hash}
+
+        Hash abc123def...  ->  <blob_root>/ab/c1/abc123def...
+
+    Two-level sharding keeps any one directory small and spreads I/O.
+
+DEDUPLICATION AND HASH COLLISION HANDLING
+
+    On ingest, File_Storage_Model::find_or_create($temp_path) hashes the file
+    and looks for an existing blob at that hash:
+
+        1. Compute the content hash.
+        2. If a blob exists at that hash path:
+           - Byte-compare the two files (__files_match(), protected).
+           - Identical      -> reuse the existing File_Storage_Model row.
+           - Different bytes -> real collision: increment the hash as a base-16
+             number and retry from step 2.
+        3. No blob at that hash -> write it and create a new row.
+
+    Hash increment (increment_base16_value) treats the whole hash as one large
+    base-16 integer and adds 1, giving effectively unlimited collision slots
+    with hash-like distribution:
+
+        abc1ff   ->   abc200
+        ffffff   ->   1000000
+
+    Deduplication in practice:
+
+        User A uploads logo.png       -> blob #1 (hash abc...), attachment #1
+        User B uploads company.png    -> reuses blob #1,        attachment #2
+                (byte-identical)
+
+    One blob on disk, two attachment rows, each with its own filename and
+    metadata.
+
+    Implementation:
+        File_Storage_Model::find_or_create($temp_file_path)
+        File_Storage_Model::store_blob($temp_file_path)   (pinned name)
+        File_Storage_Model::increment_base16_value($hash)
+
+    Concurrency note: the web /_upload path does NOT take an application-level
+    lock around ingest. find_or_create()/store_blob() do not serialize
+    concurrent writers - dedup and the collision retry rely on filesystem
+    behavior and the byte-compare, not on a mutex. The CLI upload command
+    (rsx:file:upload) does take a named write lock. Do not assume web uploads
+    are serialized against each other.
+
+FILE LIFECYCLE
+
+    Creation
+        Every file MUST be created as a File_Attachment_Model, via one of the
+        create_from_* factories or create_external(). That is the only
+        supported way to introduce a file.
+
+    Orphaned attachments
+        A file uploaded but never attached (fileable_type/id NULL) is an
+        orphan. There is currently NO scheduled task that auto-deletes idle
+        orphan attachments - reclaim them with the manual rsx:storage:cleanup
+        command (see CLI COMMANDS). Design your flow to attach promptly.
+
+    Storage cleanup on delete
+        Deleting an attachment via the model ($attachment->delete()) fires the
+        File_Attachment_Model::boot() deleted handler: if no other attachment
+        references the same blob, the physical file and its File_Storage_Model
+        row are removed immediately.
+
+        CAUTION: this is a MODEL EVENT. A bulk query delete
+        (File_Attachment_Model::where(...)->delete()) issues raw SQL and does
+        NOT fire the deleted handler - the blobs it orphans are left on disk
+        until a manual rsx:storage:cleanup. Delete attachments one at a time
+        (loop + ->delete()) when you want storage reclaimed.
+
+ATTACHMENT API
+
+    Files upload UNATTACHED and are CLAIMED later. This is the standard flow
+    and the security boundary: an attachment is reachable only by its
+    unguessable key, may be claimed exactly ONCE, only into its own site, and
+    only inside the claim window.
+
+    On File_Attachment_Model:
+
+        find_by_key($key): ?File_Attachment_Model
+            Load an attachment by its access key. Null if not found.
+
+        can_user_assign_this_file(): bool
+            True only when BOTH hold:
+              - not already assigned (fileable_type and fileable_id are null)
+              - site_id equals Session::get_site_id()
+            Always gate attach_to()/add_to() on this for user-driven uploads.
+
+            This is deliberately NOT a per-user test. There is no "did the same
+            person upload this" check - the framework cannot know your app's
+            answer, and the check it used to make (session_id equality, read
+            through the STAFF facade) matched a portal upload only by accident.
+            WHO may upload is the file.upload.authorize gate's decision; WHO may
+            claim is your endpoint's. What the framework guarantees is that the
+            key is unguessable, spent on first claim, tenant-scoped, and
+            short-lived (see THE CLAIM WINDOW).
+
+        attach_to($model, string $category): void
+            Assign to $model under $category, REPLACING any existing attachment
+            in that category (the prior one is detached, not deleted). Use for
+            single-slot fields (profile photo, logo). Throws
+            Rsx_Caller_Exception if not assignable (unless handler-backed).
+
+        add_to($model, string $category): void
+            Assign to $model under $category ALONGSIDE existing ones. Use for
+            multi-file collections (documents, gallery). Same authorization.
+
+        detach(): void
+            Clear the polymorphic fields without deleting the file. The file
+            becomes an unassigned orphan (reclaimable by rsx:storage:cleanup).
+
+    External (handler-backed) attachments skip the claim guard entirely: they
+    are created and attached by trusted app code (create_external) - see
+    EXTERNAL BYTE RESIDENCY.
+
+THE CLAIM WINDOW
+
+    An upload sits UNATTACHED until app code claims it. That window is bounded:
+
+        config('rsx.attachments.unattached_claim_window_hours')   default 24
+
+    File_Disposal_Service::sweep_unclaimed_uploads (#[Exclusive], every 6 hours)
+    SOFT-deletes anything still unattached past the window - it enters the normal
+    retention window (recoverable via undelete(), blob still pinned), it is not
+    destroyed. Attached rows, handler-backed rows, and rows already soft-deleted
+    are never touched. Set the config to 0 to disable the sweep.
+
+    Practical consequence: a multi-step wizard that uploads on step 1 and saves
+    on step 9 must finish inside the window, or re-upload. Raise the config if
+    your workflow genuinely needs longer; do not work around it by attaching at
+    upload time.
+
+    AUDIT METADATA
+
+    created_by_ip_address (VARCHAR(45), nullable) records the client IP at
+    creation - resolved by Session::get_client_ip(), which reads the proxy header
+    chain and returns null outside a request context (CLI, tasks, imports). For
+    an anonymous upload it is the only datum the framework can honestly record;
+    anything richer (which user, which tenant workflow) is the app's job. It is
+    NEVER consulted for authorization.
+
+    Model helper methods (on every model via Rsx_Model_Abstract):
+
+        get_attachment(string $category): ?File_Attachment_Model
+            The single attachment in a category (single-slot fields).
+
+        get_attachments(string $category): Collection
+            All attachments in a category (multi-file fields).
+
+    These two are the recommended read path. (There is no has_attachment(),
+    count_attachments(), or is_attached() helper - use get_attachment()/
+    get_attachments() and check the result.)
+
+    Complete round trip:
+
+        // 1. Browser uploads to /_upload, receives response.attachment.key,
+        //    and stores it in a hidden form field.
+
+        // 2. Backend save endpoint assigns the file:
+        #[Ajax_Endpoint]
+        public static function save_profile(Request $request, array $params = [])
+        {
+            if (!Session::is_logged_in()) return response_unauthorized();
+
+            $user = Session::get_user();
+
+            if (!empty($params['photo_key'])) {
+                $file = File_Attachment_Model::find_by_key($params['photo_key']);
+                if (!$file || !$file->can_user_assign_this_file()) {
+                    return response_form_error('Invalid file', [
+                        'photo' => 'File not found or access denied',
+                    ]);
+                }
+                $file->attach_to($user, 'profile_photo');
+            }
+
+            return ['user_id' => $user->id];
+        }
+
+        // 3. Display:
+        $photo = $user->get_attachment('profile_photo');
+        if ($photo) {
+            echo '<img src="' . $photo->get_thumbnail_url('cover', 128, 128) . '">';
+        }
+
+ATTACHMENT METADATA
+
+    Three metadata levels layer on top of category:
+
+    fileable_category (VARCHAR, nullable)
+        Broad grouping. Examples: 'avatar', 'documents', 'gallery'.
+
+    fileable_type_meta (VARCHAR, indexed, nullable)
+        A searchable sub-type within a category. Examples: 'profile', 'cover',
+        'original'. Indexed for efficient filtering.
+
+    fileable_meta (JSON, nullable)
+        Free-form structured metadata. Read/write with get_meta()/set_meta():
+
+            $file->set_meta(['variant' => 'winter', 'processed' => true]);
+            $file->save();
+            $meta = $file->get_meta();   // ['variant' => 'winter', ...]
+
+    Query scopes (magic callable names on the model):
+
+        File_Attachment_Model::forModel('Project_Model', $id)->get();
+        File_Attachment_Model::inCategory('documents')->get();
+        File_Attachment_Model::byTypeMeta('profile')->first();
+
+    Prefer get_attachment()/get_attachments() for ordinary reads; reach for the
+    scopes only when you need custom filtering or ordering.
+
+UPLOAD METHODS
+
+    File_Attachment_Model factory methods. All of them create-or-reuse a blob
+    (dedup), sniff the mime, derive file_type_id, extract media metadata,
+    generate the access key, and clean up any temp file. All require site_id in
+    $params and throw on failure.
+
+    IMPORTANT: passing fileable_type/fileable_id to a factory attaches the file
+    at creation time and BYPASSES the claim guard. That is only
+    appropriate for trusted server-side code (imports, generated files). For
+    anything driven by a user upload, create the attachment UNATTACHED and
+    assign it with attach_to()/add_to() after can_user_assign_this_file().
+
+    create_from_upload($file, array $params): static
+        Ingest an Illuminate\Http\UploadedFile (an HTTP upload).
+            $params: site_id (required), plus optional fileable_*,
+                     filename_override.
+
+        $file = File_Attachment_Model::create_from_upload(
+            $request->file('upload'),
+            ['site_id' => Session::get_site_id()]
+        );
+
+    create_from_disk($path, array $params): static
+        Ingest a file already on disk (server-side imports).
+            $params: site_id (required), plus optional filename, fileable_*.
+
+    create_from_string($content, $filename, array $params): static
+        Ingest generated content (exports, rendered files). $filename must
+        include an extension.
+
+        $csv = "Name,Email\nJohn,john@example.com\n";
+        $file = File_Attachment_Model::create_from_string(
+            $csv,
+            'export-' . Rsx_Date::today() . '.csv',
+            ['site_id' => Session::get_site_id()]
+        );
+
+    create_from_url($url, array $params): static
+        Download a URL and ingest it.
+            $params: site_id (required), plus optional filename, timeout
+                     (default 30s), fileable_*.
+
+    create_external($handler_class, array $handler_ref, array $attributes)
+        Register an externally-sourced attachment (no upload, no local blob
+        yet). See EXTERNAL BYTE RESIDENCY.
+
+FILE ACCESS
+
+    Each attachment has a unique 64-char random hex key. Reach the bytes by
+    key, never by path:
+
+        $file->get_url()           // "/_inline/{key}"   - view in browser
+        $file->get_download_url()  // "/_download/{key}" - force download
+
+    Both URLs are relative and both run the authorization event hooks (see
+    SECURITY HOOKS). The key is minted by File_Attachment_Model::generate_key()
+    from cryptographically secure random bytes, so URLs are not enumerable.
+
+FILE SIZE
+
+    Byte size is an authoritative column on the attachment (file_size),
+    populated at every ingest. It works even for external attachments with no
+    resident blob:
+
+        $file->get_size()               // int bytes (reads file_size column)
+        $file->get_human_size()         // "2.5 MB"
+        bytes_to_human($file->get_size())
+
+THE UPLOAD SIZE CEILING
+
+    ONE number, in ONE place, readable from both languages:
+
+        config('rsx.files.max_file_size')        // PHP, bytes
+        window.rsxapp.files.max_file_size        // JS, bytes, ALWAYS present
+
+    Enforced by /_upload BEFORE the file.upload.authorize gate runs (there is no
+    reason to run application code over a file already refused), answering 413
+    with the offending size and the limit. Ajax.upload() checks the same number
+    client-side and throws before sending - the server is the enforcement
+    boundary, but a user should not spend three minutes pushing a doomed file up
+    a slow connection to find out.
+
+    THE DEFAULT IS DERIVED FROM PHP, NOT INVENTED. It resolves to the SMALLER of
+    upload_max_filesize and post_max_size, read from the RUNNING SAPI - both bind
+    (one caps the file, the other the request body carrying it), and a framework
+    ceiling above the ini cannot be enforced at all: PHP discards an oversized
+    body before userland sees it. If neither is set, or either reads as
+    unlimited, it falls back to 100 MB. Note php-fpm and CLI read different
+    php.ini files, so the web value is the one that governs uploads.
+
+    0 means NO framework ceiling, leaving only PHP's. Client code must read that
+    as unlimited, never as "reject everything".
+
+    A request over post_max_size never reaches the endpoint intact. That used to
+    surface as a bare "No file uploaded", indistinguishable from a form bug; it
+    now reports which limit discarded it and names the fpm ini specifically.
+
+    Set a deliberate app ceiling in rsx/resource/config/rsx.php. An app that
+    wants a TIGHTER cap in one place should min() against this value rather than
+    restate a constant that will drift out of step with it.
+
+    SHOWING THE LIMIT TO A USER
+
+    Never write the number into a template. A hardcoded "Max size 25MB" is wrong
+    the day the limit changes and nothing breaks to tell you - the label just
+    quietly lies. Both languages format it the same way:
+
+        Ajax.max_file_size_human()          // JS      -> "100 MB"
+        Ajax::max_file_size_human()         // PHP/Blade -> "100 MB"
+
+        <div class="form-text">Max size {{ Ajax::max_file_size_human() }}.</div>
+
+        <%-- jqhtml --%>
+        Max size <%= Ajax.max_file_size_human() %>.
+
+    Rounding is chosen for a LABEL, not for accuracy - whole MB up to 1 GB, one
+    decimal from 1 GB to 10 GB (so 1.2 GB does not read as "1 GB"), whole GB
+    above that, and whole KB below 1 MB rather than a meaningless "0 MB". An
+    uncapped limit (0) renders as "Unlimited". PHP and JS produce byte-identical
+    output, so a server-rendered notice and a component-rendered one cannot
+    disagree.
+
+    Distinct from bytes_to_human(), deliberately: that one is a faithful
+    2-decimal rendering of an ACTUAL size ("1.22 GB"), which is what you want
+    when reporting the file someone just uploaded. This is a round number for a
+    limit.
+
+    An app with a TIGHTER cap of its own renders it the same way:
+
+        Ajax.bytes_to_size_label(my_max_bytes)      // JS
+        Ajax::bytes_to_size_label($my_max_bytes)    // PHP
+
+    The template app's Profile_Photo_Input is the worked example: its optional
+    $max_size arg (MB) narrows the framework ceiling, and the notice it prints
+    renders whichever actually binds.
+
+FILE TYPE DETECTION
+
+    file_type_id is a coarse bucket enum (integer storage, BEM-style label):
+
+        FILE_TYPE_IMAGE          (1)
+        FILE_TYPE_ANIMATED_IMAGE (2)
+        FILE_TYPE_VIDEO          (3)
+        FILE_TYPE_ARCHIVE        (4)
+        FILE_TYPE_TEXT           (5)
+        FILE_TYPE_DOCUMENT       (6)
+        FILE_TYPE_OTHER          (7)
+
+        $file->is_image();   $file->is_video();   $file->is_document();
+        echo $file->file_type_id__label;   // "Document"
+
+    Pipeline mime (extension-first for documents)
+        file_type_id and thumbnail/extraction routing are decided on the
+        PIPELINE mime, not the raw sniff. resolve_pipeline_mime() applies:
+        a document extension wins unconditionally, then an image sniff wins,
+        else the raw sniff stands (backed by
+        config('rsx.files.document_mime_by_extension')). This is why a .docx
+        that byte-sniffs as application/zip still buckets as a DOCUMENT (and
+        resolves the LibreOffice renderer), not an ARCHIVE.
+
+    Serving mime is the RAW sniff (security)
+        Download, inline, and zip all set Content-Type from
+        $attachment->mime_type - the raw sniff, deliberately NOT the pipeline
+        mime. Serving HTML-bytes-in-a-.pdf as its sniffed type (not as a
+        document) is a stored-XSS defense.
+
+UNPARSEABLE IMAGE DEGRADE
+
+    An uploaded image whose BYTES cannot be parsed by ImageMagick (a content-
+    parse failure - the file sniffs as image/* but Imagick chokes on the data)
+    is, by DEFAULT, accepted and DEGRADED to a generic, non-previewable file
+    rather than being stored as a broken image. This is distinct from a MISSING
+    ImageMagick binary, which still fatals loudly (process_file() throws before
+    the parse attempt) - only a content-parse failure degrades.
+
+    On degrade (in process_file()) the attachment gets:
+
+        - preview_unavailable = true (stored TINYINT flag),
+          file_type_id = FILE_TYPE_OTHER; width/height stay null.
+        - pipeline_mime() returns application/octet-stream, so is_image() is
+          false and the viewer / thumbnail / text pipelines all treat it as a
+          plain download (Icon viewer, no wasted Imagick retry).
+        - The RAW mime_type column is LEFT UNTOUCHED - it is the serve-time
+          Content-Type security boundary.
+        - is_preview_available() returns false; the <Document_Preview>
+          component renders a "Preview unavailable" state.
+        - The upload payload and File_Preview_Controller::get_preview_info
+          both carry the preview_unavailable flag.
+
+    Strict reject mode
+        Set config('rsx.attachments.reject_unparseable_images') to true and a
+        parse failure instead throws
+        App\RSpade\Core\Files\Unparseable_Upload_Exception. create_from_upload()
+        is NOT transactional (the row + blob persist before process_file()), so
+        it catches the exception, delete()s its own orphan row (cascading blob
+        cleanup), and re-throws; the /_upload endpoint returns HTTP 422.
+
+EXTENSION ALLOWLIST
+
+    File_Attachment_Model::is_allowed_extension(string $ext): bool is a
+    developer-callable helper (PROVIDE ONLY - the framework does NOT auto-
+    enforce it at /_upload). It reads
+    config('rsx.attachments.allowed_extensions', []): an EMPTY list means allow
+    ALL extensions. Comparison is case-insensitive and tolerates a leading dot
+    on either the argument or a configured entry.
+
+        // config: 'allowed_extensions' => ['png', 'pdf', 'docx']
+        File_Attachment_Model::is_allowed_extension('PNG');   // true
+        File_Attachment_Model::is_allowed_extension('.pdf');  // true
+        File_Attachment_Model::is_allowed_extension('exe');   // false
+
+        $attachment->has_allowed_extension();  // over its stored extension
+
+HTTP ENDPOINTS
+
+    All handled by App\RSpade\Core\Files\File_Attachment_Controller:
+
+        POST /_upload                                        Upload a file
+        GET  /_download/:key                                 Force download
+        GET  /_inline/:key                                   View inline
+        GET  /_download_zip/:key                             Stream a ZIP set
+        GET  /_thumbnail/dynamic/:key/:type/:width/:height?  Dynamic thumbnail
+        GET  /_thumbnail/preset/:key/:preset_name            Preset thumbnail
+        GET  /_icon_by_extension/:extension                  File-type icon
+
+UPLOAD ENDPOINT
+
+    POST /_upload
+
+    Uploads a file UNATTACHED with automatic dedup and metadata extraction.
+    Claim it afterward via attach_to()/add_to(), inside the claim window.
+
+    Request parameters:
+        file               (required) The uploaded file
+        filename_override  (optional) Override the stored filename
+
+    site_id is derived ENTIRELY server-side, from the REALM OF THE REQUEST: a
+    portal request uses the portal session's site (declared by the app in
+    Portal_Main::init(); it throws rather than guess), any other request uses the
+    staff session's site. The gate payload's 'user' key forks the same way. Note
+    it is the REALM, not who is signed in - an anonymous portal upload is still a
+    portal upload, and a staff upload from a browser that also holds a portal
+    cookie is still a staff upload. Any client-posted site_id is IGNORED -
+    trusting it would be a cross-tenant write primitive.
+
+    Any client-posted fileable_* parameters are IGNORED. Files cannot be
+    pre-assigned at upload time; that is what prevents attaching to records the
+    user does not own.
+
+    Authorization is the file.upload.authorize gate, and it is MANDATORY: with
+    NO handler registered the endpoint throws instead of accepting the file
+    (see THE MANDATORY UPLOAD GATE below).
+
+    Response (JSON):
+        {
+          "success": true,
+          "attachment": {
+            "key": "<64-hex>",
+            "file_name": "document.pdf",
+            "file_type": "Document",
+            "file_extension": "pdf",
+            "url": "/_inline/<64-hex>",
+            "download_url": "/_download/<64-hex>",
+            "size": 1048576,
+            "mime_type": "application/pdf",
+            "has_thumbnail": true,
+            "width": null,
+            "height": null,
+            "is_animated": false,
+            "duration": null
+          }
+        }
+
+    Upload event hooks (customization points):
+
+        file.upload.authorize (gate) - MANDATORY, see the next section
+            Data:   {request, user, params, file, filename, size, mime_type,
+                     extension, tmp_path}
+            Return: true to allow, or a Response to deny.
+
+        file.upload.params (filter)
+            Data:   the upload params array
+            Return: modified params (e.g. force a fileable_type_meta).
+
+        file.upload.complete (action)
+            Data:   {attachment, request, params}
+            Post-upload side effects (logging, notifications).
+
+        file.upload.response (filter)
+            Data:   the response array
+            Return: modified response (e.g. add a CDN url).
+
+    See rsx:man event_hooks.
+
+THE MANDATORY UPLOAD GATE
+
+    POST /_upload REFUSES to accept a file unless the application has registered
+    at least one handler for file.upload.authorize. With none registered the
+    endpoint throws a RuntimeException before it looks at the request:
+
+        File uploads are disabled: no file.upload.authorize gate handler is
+        registered. ... See: php artisan rsx:man file_upload
+
+    That is a 5xx, deliberately - the CLIENT did nothing wrong; the APPLICATION
+    is misconfigured. Every other gate in the framework defaults OPEN when
+    nothing is listening (Rsx::trigger_gate() returns true), which is correct for
+    an optional hook and catastrophic here: an unhandled upload gate is an
+    anonymous, unauthenticated write endpoint. Who may upload is an application
+    decision the framework will not guess, so it fails loud instead.
+
+    Registering ONE handler satisfies it. The general trigger_gate() semantics
+    are unchanged; only this endpoint asks the registry whether anyone is
+    listening (App\RSpade\Core\Events\Event_Registry::has_handlers()).
+
+    Minimal handler - require a logged-in user (staff OR portal). Put it in
+    /rsx/handlers/; #[OnEvent] handlers are manifest-discovered, nothing to
+    register:
+
+        namespace Rsx\Handlers;
+
+        use App\RSpade\Core\Portal\Portal_Session;
+        use App\RSpade\Core\Session\Session;
+
+        class File_Upload_Handlers
+        {
+            #[OnEvent('file.upload.authorize', priority: 10)]
+            public static function require_authentication($data)
+            {
+                if (Session::is_logged_in() || Portal_Session::is_logged_in()) {
+                    return true;
+                }
+
+                return response()->json([
+                    'success' => false,
+                    'error'   => 'Authentication required to upload files',
+                ], 403);
+            }
+        }
+
+    Gate payload
+
+        The file is present and validated BEFORE the gate fires, so the payload
+        carries the upload itself:
+
+            request     Illuminate\Http\Request
+            user        The uploading user, REALM-HONEST: the Portal_User_Model
+                        on a portal request, else the staff User_Model (null
+                        when nobody is signed in). /_upload serves both
+                        universes.
+            params      Route/query params
+            file        Illuminate\Http\UploadedFile
+            filename    Client original name ("invoice.pdf")
+            size        Bytes (int)
+            mime_type   Sniffed mime, pre-persist ("application/pdf")
+            extension   Lowercased client extension ("pdf")
+            tmp_path    Absolute path to the received temp file - READ IT to
+                        reject on actual CONTENT, before a byte is stored
+
+        Nothing has been persisted when a handler runs: returning a denial
+        leaves no attachment row and no blob.
+
+    Rejecting by inspected file property
+
+        A second handler can enforce a size cap and a mime allowlist. Return a
+        Response (the same JSON shape the client already understands: success
+        false + error) to deny; return true to pass:
+
+            #[OnEvent('file.upload.authorize', priority: 20)]
+            public static function restrict_uploads($data)
+            {
+                // The framework already enforces rsx.files.max_file_size before
+                // this gate runs, so a handler only needs a cap when it wants a
+                // TIGHTER one - and it should say so against the real number
+                // rather than restating a constant that will drift.
+                $max_bytes = min(
+                    (int) config('rsx.files.max_file_size') ?: PHP_INT_MAX,
+                    10 * 1024 * 1024
+                );
+                if ($data['size'] > $max_bytes) {
+                    return response()->json([
+                        'success' => false,
+                        'error'   => 'Files must be ' . bytes_to_human($max_bytes) . ' or smaller',
+                    ], 422);
+                }
+
+                $allowed = ['application/pdf', 'image/png', 'image/jpeg'];
+                if (!in_array($data['mime_type'], $allowed, true)) {
+                    return response()->json([
+                        'success' => false,
+                        'error'   => 'That file type is not accepted',
+                    ], 422);
+                }
+
+                // Content check: the bytes are on disk, so read them.
+                $head = file_get_contents($data['tmp_path'], false, null, 0, 5);
+                if ($data['mime_type'] === 'application/pdf' && $head !== '%PDF-') {
+                    return response()->json([
+                        'success' => false,
+                        'error'   => 'That file is not a valid PDF',
+                    ], 422);
+                }
+
+                return true;
+            }
+
+        Handlers run in priority order (lower first) and the FIRST non-true
+        return wins, so the login check above (priority 10) still runs first.
+
+DOWNLOAD AND INLINE VIEWING
+
+    GET /_download/:key   (Content-Disposition: attachment)
+    GET /_inline/:key     (Content-Disposition: inline)
+
+    Serve the bytes for download or in-browser display. Content-Type is the raw
+    sniffed mime (a security choice, see FILE TYPE DETECTION). Cache-Control:
+    public, max-age=31536000.
+
+        <img src="/_inline/<?= $file->key ?>">
+        <a href="/_download/<?= $file->key ?>">Download</a>
+
+    Both run the cascading authorization hooks (see SECURITY HOOKS).
+
+MULTI-FILE ZIP DOWNLOAD
+
+    GET /_download_zip/:key
+
+    Stream a single ZIP assembled from an arbitrary set of attachments, ONE
+    MEMBER AT A TIME with a constant memory footprint (each source is chunk-read
+    in 512KB, its CRC-32 accumulated and its bytes deflated incrementally). The
+    writer is a hand-rolled streaming container (App\RSpade\Core\Files\
+    Zip_Stream) - pure PHP zlib + crc32b, no composer or apt dependency.
+
+    Two-step flow (a database-backed request, then a plain GET):
+
+        1. Server-side app code records the file set and receives an opaque
+           download key, via
+           Zip_Download_Request_Model::create_request($files, $zip_name).
+           Hand the browser $request->get_download_url().
+        2. The browser navigates to that URL (window.location = url). Because
+           it is a GET, the response streams natively as a file download.
+
+    The file set is a JSON array of {key, name?} objects:
+        key   the attachment key (as from an upload response)
+        name  optional path INSIDE the archive; may contain a directory prefix
+              ("invoices/2025/march.pdf"). Omitted/invalid names fall back to
+              the attachment's own file_name.
+    An optional $zip_name sets the download filename (separators, control chars
+    and double-quotes stripped, ".zip" ensured; defaults to "download.zip").
+
+    create_request() validates the STRUCTURE of the set fail-loud (empty set,
+    a non-array entry, a missing/non-string key, a non-string name, or any
+    unexpected entry key all throw) - it is server-side code, so a malformed
+    set is a bug. It authorizes NOTHING; authorization runs per file at download
+    time.
+
+    Example app endpoint (mint the request):
+        #[Ajax_Endpoint]
+        public static function zip_url(Request $request, array $params = [])
+        {
+            if (!Session::is_logged_in()) return response_unauthorized();
+
+            $files = [
+                ['key' => $pdf_key, 'name' => 'reports/q1.pdf'],
+                ['key' => $img_key],
+            ];
+            $req = Zip_Download_Request_Model::create_request($files, 'docs.zip');
+            return ['url' => $req->get_download_url()];
+        }
+
+    Browser (navigate to the minted URL):
+        const {url} = await My_Controller.zip_url();
+        window.location = url;
+
+    Security (validated UP FRONT, before a single byte streams):
+        Every entry is resolved and passed through BOTH the
+        file.thumbnail.authorize AND file.download.authorize gates - the exact
+        cascade GET /_download/:key uses - against the DOWNLOADING session. If
+        ANY key is unknown or ANY gate denies, the whole request fails with one
+        opaque message and NO archive bytes are emitted (the message never says
+        which file failed or whether it exists).
+
+    Per-file bytes ALWAYS materialize through resolve_storage(), so external
+    residency works. Handler serve-takeover (a 302 or proxied response) is
+    deliberately NOT consulted for zip members - a redirect cannot be a zip
+    entry.
+
+    Error markers: a member whose bytes cannot be resolved, or whose stream
+    truncates, is replaced by a zero-byte "~ERROR~<basename>.inf" marker
+    (directory prefix preserved) and logged, so the archive stays well-formed:
+        reports/q2.pdf   ->   reports/~ERROR~q2.pdf.inf
+
+    Name collisions are de-duplicated with a numbered suffix before the
+    extension (prefix preserved):
+        report.pdf, report.pdf   ->   report.pdf, report (2).pdf
+
+    Compression: already-compressed mimes (zip/gzip/7z/rar, jpeg/png/gif/webp,
+    common audio/video) are STORED (method 0); everything else is DEFLATED.
+
+    Streaming: Content-Type application/zip; Content-Disposition attachment;
+    X-Accel-Buffering: no; Cache-Control: no-store; no Content-Length.
+
+    Validity: a request stays valid for
+    config('rsx.attachments.zip_request_retention_hours') (default 24); it is
+    NOT consumed on use (a browser may retry) and dies only by expiry, enforced
+    at serve time (Zip_Download_Request_Model::is_expired()) and by the
+    Zip_Download_Cleanup_Service task (every 6 hours). An unknown/expired key
+    throws one opaque message before any bytes stream.
+
+    Limits (NO ZIP64 in v1 - rejected up front): total <= 4,000,000,000 bytes;
+    no single file at/above 0xFFFFFFFF bytes; at most 65,000 entries. Exceeding
+    any of these throws before streaming. (ZIP64 is backlogged.)
+
+THUMBNAILS
+
+    Dynamic thumbnails
+        GET /_thumbnail/dynamic/:key/:type/:width/:height?
+
+        type    'cover' (fill + center-crop) or 'fit' (letterbox, transparent)
+        width   10 .. config('rsx.thumbnails.max_dynamic_size') (default 800)
+        height  optional, same range
+
+        Requested dimensions are the CSS DISPLAY size: the pipeline renders at
+        2x for retina (a 300x200 request produces a 600x400 image), never
+        upscaling past the source and never past the configured max. Output is
+        WebP; results are cached in the filesystem thumbnail cache (there is no
+        database thumbnail model). Cache-Control: public, max-age=31536000.
+
+            <img src="<?= $file->get_thumbnail_url('cover', 96, 96) ?>">
+            <img src="<?= $file->get_thumbnail_url('fit', 240, 180) ?>">
+
+    Preset thumbnails (recommended for fixed sizes)
+        GET /_thumbnail/preset/:key/:preset_name
+
+        Define named presets once in config, then reference them by name.
+        get_thumbnail_url_preset($name) throws if the preset is undefined.
+
+            // rsx/resource/config/rsx.php
+            'thumbnails' => ['presets' => [
+                'profile'    => ['type' => 'cover', 'width' => 200, 'height' => 200],
+                'card_image' => ['type' => 'cover', 'width' => 400, 'height' => 250],
+                'doc_preview'=> ['type' => 'fit',   'width' => 800, 'height' => 600],
+            ]],
+
+            echo $file->get_thumbnail_url_preset('profile');
+            // -> /_thumbnail/preset/{key}/profile
+
+        Default presets ship as profile / gallery / icon_small / icon_large.
+        Best practice: create a preset for every fixed-size thumbnail; reserve
+        dynamic thumbnails for runtime-variable sizes. Preset thumbnails have no
+        enforced max dimension.
+
+    Non-image files
+        For any type with no registered renderer, the pipeline serves a
+        file-type icon instead of erroring (small requests scale the icon;
+        larger requests center a 64x64 icon). has_thumbnail() reports whether a
+        real raster can be produced.
+
+    Thumbnail renderer registry
+        The "produce a raster from bytes" step is pluggable by mime via
+        config('rsx.thumbnails.renderers') - an ordered fnmatch map of mime
+        pattern -> renderer class (first match wins). Renderers extend
+        App\RSpade\Core\Files\Rsx_Thumbnail_Renderer_Abstract::render(
+        source_path, max_w, max_h): \Imagick.
+
+        Shipped renderers:
+            Imagick_Thumbnail_Renderer      image/* and application/pdf
+                                            (PDF needs Ghostscript)
+            Libreoffice_Thumbnail_Renderer  Office docs via headless soffice
+                                            (rsx:man libreoffice)
+
+        A renderer throw (or a source above renderer_max_bytes for non-image
+        types) makes the PIPELINE log and serve the extension icon - the
+        substitution lives in the pipeline, never in a renderer.
+
+        The document.thumbnail_render resolve chain runs FIRST, ahead of the
+        registry: an app #[OnEvent] may return WebP bytes (takeover),
+        ['unsupported' => true] (force icon), or null (decline to the registry).
+
+FILE TYPE ICONS
+
+    GET /_icon_by_extension/:extension
+
+    A PNG file-type icon for displaying types visually.
+        extension  alphanumeric, no dot ('pdf', 'jpg', 'stl')
+        width      query param, 10..256, default 64
+        height     query param, 10..256, default 64
+
+        <img src="/_icon_by_extension/pdf?width=64&height=64">
+        <img src="/_icon_by_extension/<?= $file->file_extension ?>">
+
+    Icons are cached by extension + dimensions. Cache-Control: public,
+    max-age=86400.
+
+SECURITY HOOKS
+
+    File access is centralized in a small set of authorization gates. Register
+    app handlers with #[OnEvent]; return true to allow, or a Response (e.g. a
+    403 JSON) to deny.
+
+    Gates:
+        file.upload.authorize    Who may upload           (POST /_upload)
+                                 MANDATORY - no handler registered means uploads
+                                 throw, not that they are allowed. See THE
+                                 MANDATORY UPLOAD GATE.
+        file.thumbnail.authorize Base file-access gate     (thumbnails, and
+                                 the first check on downloads/inline/zip)
+        file.download.authorize  Extra download restriction (downloads, inline,
+                                 and every zip member)
+
+    Cascading model
+        Thumbnails check file.thumbnail.authorize only.
+        Downloads, inline, and ZIP members check file.thumbnail.authorize THEN
+        file.download.authorize. So securing thumbnail access automatically
+        secures downloads too, and you can add a stricter download-only rule
+        without touching thumbnail visibility.
+
+    Hook data (view/download gates):
+        {attachment: File_Attachment_Model, user: User|null, request: Request}
+
+    Public thumbnails, authenticated downloads:
+
+        #[OnEvent('file.thumbnail.authorize', priority: 10)]
+        public static function allow_thumbnails($data) { return true; }
+
+        #[OnEvent('file.download.authorize', priority: 10)]
+        public static function require_login($data) {
+            if (!Session::is_logged_in()) {
+                return response()->json(['error' => 'Login required'], 403);
+            }
+            return true;
+        }
+
+    Owner-only (thumbnails and downloads):
+
+        #[OnEvent('file.thumbnail.authorize', priority: 10)]
+        public static function owner_only($data) {
+            if ($data['attachment']->created_by_id !== $data['user']?->id) {
+                return response()->json(['error' => 'Access denied'], 403);
+            }
+            return true;   // no download hook needed - cascade covers it
+        }
+
+    Without an authorization hook, files are reachable by anyone holding the
+    key. The key is unguessable, but treat these gates as the real access
+    control for anything non-public. See rsx:man event_hooks.
+
+EXTERNAL BYTE RESIDENCY (HANDLERS)
+
+    An attachment's bytes may originate from an EXTERNAL system (S3, OneDrive, a
+    future integration) instead of a resident local blob. This is a RESIDENCY
+    abstraction, not a storage one: _file_storage is untouched (same
+    content-addressing, dedup, immutability). The local blob store stays a
+    pure, always-resident cache; external bytes MATERIALIZE into it on demand.
+
+    Relevant attachment columns:
+        file_storage_id  Nullable; NULL is legal ONLY when handler_class is set.
+        handler_class    Simple handler class name (manifest-resolved).
+        handler_ref      Opaque JSON owned by the handler.
+        mime_type        Authoritative mime (populated at ingest).
+        file_size        Authoritative byte size (works without a blob).
+        blob_accessed_at Touched (<=1/day) when bytes are served/read, for
+                         app-side idle-eviction policies.
+
+    The abstract handler
+        App\RSpade\Core\Files\Rsx_Attachment_Handler_Abstract (static-first):
+
+            const CHECK_FRESHNESS_ON_SERVE = false;
+
+            abstract static function fetch(File_Attachment_Model): string
+                REQUIRED. Download/copy bytes to a private temp file, return its
+                path. MUST throw on failure. The framework then does store_blob()
+                + relink + metadata extraction; the handler only fetches.
+
+            static function is_stale(File_Attachment_Model): bool
+                Optional. Consulted before serving ONLY when
+                CHECK_FRESHNESS_ON_SERVE is true; if stale, the framework evicts
+                and re-materializes. Keep it cheap.
+
+            static function serve_download(File_Attachment_Model, Request): ?Response
+            static function serve_inline(File_Attachment_Model, Request): ?Response
+                Optional. Return a Response to fully take over serving (proxy or
+                302 to a pre-authorized URL), or null to let the framework
+                materialize-and-serve. Called AFTER the auth gates; handlers do
+                no auth of their own.
+
+        A handler implementing only fetch() gets download, inline, thumbnails,
+        and metadata extraction working automatically.
+
+    Security allowlist (mandatory)
+        The framework NEVER instantiates a class name read from the database
+        unless its simple name appears in config('rsx.attachments.handlers').
+        A non-null but unregistered handler_class is a hard error on every byte
+        path (fail loud; nothing served). Register app handlers there.
+
+    Pinned public APIs (stable contract)
+        File_Storage_Model::store_blob(string $temp_path): File_Storage_Model
+            The frozen name for the blob-ingest path.
+
+        On File_Attachment_Model:
+          resolve_storage(): File_Storage_Model
+              THE byte-access choke point. Returns the storage row,
+              materializing first (handler fetch()) if file_storage_id is null;
+              touches blob_accessed_at; throws if there is neither a blob nor a
+              handler. Every operation needing bytes routes through this.
+          materialize(): void
+              Force materialization (no-op if already resident).
+          relink_storage(File_Storage_Model): void
+              Repoint at a new blob (sets file_storage_id + file_size,
+              re-derives mime_type/file_type + dimensions, saves). Does NOT
+              touch handler columns. The hash-keyed thumbnail cache
+              self-invalidates (new content -> new hash).
+          evict_blob(): void
+              Null file_storage_id so the manual orphan sweep can reclaim the
+              blob. THROWS unless handler_class is set (bytes must remain
+              recoverable).
+          create_external($handler_class, $handler_ref, $attributes): static
+              Factory for externally-sourced attachments (no upload). Required
+              $attributes: site_id, file_name, file_extension, mime_type,
+              file_size (optional notes). Sets handler_class/handler_ref,
+              generates the key, derives file_type_id, leaves file_storage_id
+              null. Returns UNATTACHED; assign with attach_to()/add_to(). The
+              claim guard does not apply (created by trusted app code).
+          has_blob(): bool     Is a local blob currently resident?
+          has_handler(): bool  Is this attachment handler-backed?
+
+    Eviction POLICY (which idle blobs, when) is the APP's job - the framework
+    provides only evict_blob() + blob_accessed_at. Bytes re-materialize on next
+    demand via resolve_storage().
+
+    Serving order (normative):
+        auth gates (first) ->
+          handler CHECK_FRESHNESS_ON_SERVE && is_stale()? -> evict_blob() ->
+          handler serve override returns Response? -> return it ->
+          resolve_storage() (materialize on miss; touch blob_accessed_at) ->
+          serve with Content-Type from $attachment->mime_type.
+
+DOCUMENT TEXT EXTRACTION AND PREVIEW
+
+    Both are framework-internal with no app wiring, and both key their work on
+    the DEDUPLICATED blob, so identical bytes are processed once. Full
+    reference: rsx:man document_search.
+
+    Text extraction
+        Every new blob is queued via the File_Storage_Model.is_indexed flag
+        (0 = queued, 1 = attempted); the ABSENCE of a _search_indexes row IS the
+        queue (no stored PENDING). Search_Index_Service::index_pending
+        (#[Exclusive], */5 cron, plus a prompt kick on blob creation/
+        materialization) drains one blob at a time. Rows are terminal:
+        STATUS_EXTRACTED / STATUS_FAILED / STATUS_UNSUPPORTED (an image/zip is
+        UNSUPPORTED, not FAILED - no OCR). Formats: PDF text layer (pdftotext),
+        Office (headless LibreOffice), plain text.
+
+        App-facing API:
+            // Eloquent Builder - the index has no site_id, so scope yourself:
+            File_Attachment_Model::search_text('+contract -draft')
+                ->where('site_id', Session::get_site_id())
+                ->get();
+
+            $file->get_extracted_text();     // ?string (null = pending)
+            $file->get_extraction_status();  // ?int STATUS_* (null = pending)
+
+    Preview
+        <Document_Preview $attachment_id=this.args.id /> resolves a viewer
+        server-side (PDF / image / icon). Office docs render via a cached
+        soffice->PDF rendition. See rsx:man document_search.
+
+CLI COMMANDS
+
+    File commands (rsx:file:*) - always visible.
+
+    rsx:file:upload {path} --site=ID [--name=] [--category=] [--type-meta=]
+                    [--meta='{...}'] [--model=Model:ID]
+        Ingest a file from disk and create an attachment. --site is required.
+        --model attaches it (e.g. User_Model:42). Prints the access key.
+        Takes a named write lock.
+
+            rsx:file:upload /tmp/avatar.jpg --site=1 \
+                --model=User_Model:42 --category=avatar --type-meta=profile
+
+    rsx:file:info {key}
+        Show name, type, size, storage hash, metadata, attachment, site/user,
+        timestamps for one attachment.
+
+    rsx:file:list [--site=ID | --user=ID | --model=Model:ID]
+                  [--category=] [--type-meta=] [--type=image]
+                  [--format=table|json|csv] [--limit=50]
+        List attachments (at least one scope option required).
+
+    rsx:file:attach {key} --model=Model:ID [--category=] [--type-meta=]
+                    [--meta='{...}'] [--order=N]
+        Attach an existing file to a model or update its attachment metadata.
+
+    rsx:file:detach {key}
+        Clear the attachment (sets fileable_type/id to null). The file becomes
+        an unassigned orphan.
+
+    rsx:file:delete {key} [--force]
+        Delete the attachment; if no other attachment references the same blob,
+        delete the physical file and its storage row too.
+
+    Storage commands (rsx:storage:*) - hidden unless IS_FRAMEWORK_DEVELOPER=true
+    in .env. Low-level access to the physical blob store.
+
+    rsx:storage:info {hash}
+        Blob details: size, on-disk path, existence, reference count,
+        timestamps, creator/updater.
+
+    rsx:storage:stats [--site=ID]
+        Storage stats: blob count, attachment count, dedup ratio, disk usage,
+        by-type breakdown, orphan counts.
+
+    rsx:storage:cleanup [--dry-run] [--force] [--orphan-age=24]
+        The manual reclaimer. Deletes orphaned attachments older than
+        --orphan-age hours, then blobs with no remaining attachment (and their
+        files). This is the ONLY orphan sweep - it is not scheduled; run it (or
+        --dry-run it) when you need to reclaim space.
+
+EXAMPLES
+
+    Avatar upload (single-slot; replaces the old one)
+
+        #[Ajax_Endpoint]
+        public static function save_avatar(Request $request, array $params = [])
+        {
+            if (!Session::is_logged_in()) return response_unauthorized();
+
+            $user = Session::get_user();
+            $file = File_Attachment_Model::find_by_key($params['avatar_key'] ?? '');
+
+            if (!$file || !$file->can_user_assign_this_file()) {
+                return response_form_error('Invalid file', [
+                    'avatar' => 'File not found or access denied',
+                ]);
+            }
+
+            // attach_to REPLACES any existing 'avatar' - no manual delete needed
+            $file->attach_to($user, 'avatar');
+
+            return ['url' => $file->get_thumbnail_url('cover', 128, 128)];
+        }
+
+    Multiple project documents (multi-file; ownership checked)
+
+        #[Ajax_Endpoint]
+        public static function attach_documents(Request $request, array $params = [])
+        {
+            if (!Session::is_logged_in()) return response_unauthorized();
+
+            $project = Project_Model::find($params['project_id'] ?? 0);
+            if (!$project || !Permission::can_edit_project($project)) {
+                return response_unauthorized();
+            }
+
+            $keys = $params['document_keys'] ?? [];
+            foreach ($keys as $key) {
+                $file = File_Attachment_Model::find_by_key($key);
+                if ($file && $file->can_user_assign_this_file()) {
+                    $file->add_to($project, 'documents');
+                }
+            }
+
+            return ['count' => count($project->get_attachments('documents'))];
+        }
+
+    Generated CSV export (server-side, create_from_string)
+
+        #[Ajax_Endpoint]
+        public static function export(Request $request, array $params = [])
+        {
+            if (!Session::is_logged_in()) return response_unauthorized();
+
+            $csv = "Name,Value\n";
+            foreach (Report_Model::find($params['id'])->rows() as $r) {
+                $csv .= "{$r->name},{$r->value}\n";
+            }
+
+            // Trusted server-side code: attaching at creation is fine here.
+            $file = File_Attachment_Model::create_from_string(
+                $csv,
+                'report-' . Rsx_Date::today() . '.csv',
+                [
+                    'site_id'           => Session::get_site_id(),
+                    'fileable_type'     => 'Report_Model',
+                    'fileable_id'       => $params['id'],
+                    'fileable_category' => 'export',
+                ]
+            );
+
+            return ['download_url' => $file->get_download_url()];
+        }
+
+    Delete every file for a model (loop, so storage is reclaimed)
+
+        // Do NOT use ->where(...)->delete() here: a bulk query delete skips the
+        // model event that reclaims orphaned blobs. Loop and ->delete() each.
+        foreach ($project->get_attachments('documents') as $file) {
+            $file->delete();   // last reference -> blob deleted too
+        }
+
+    Drag-and-drop upload widget
+        Use the Droppable system (rsx:man droppable) for browser drag-and-drop.
+        A component fires a file-drop event; upload each File via the /_upload
+        endpoint, then send the returned key to your save endpoint to attach it.
+
+RSX VS LARAVEL
+
+    - Laravel: Storage::disk()->put()/get(); you own paths, filenames, dedup,
+      and URL signing.
+      RSX: create_from_*() returns a row; the framework hashes, deduplicates,
+      keys, sniffs, and extracts. Reach bytes by key through gated endpoints.
+
+    - Laravel: model relations you define per parent for attachments.
+      RSX: one polymorphic attachment model; get_attachment()/get_attachments()
+      on ANY model by category. No per-model relation boilerplate.
+
+    - Laravel: middleware/policy classes for file authorization.
+      RSX: three #[OnEvent] gates (upload / thumbnail / download) centralize
+      access control for every file endpoint at once.
+
+    - Laravel: date casts return Carbon; now()->toIso8601String().
+      RSX: model datetimes are already ISO strings; use Rsx_Time / Rsx_Date
+      helpers (Rsx_Date::today()), never Carbon on model attributes.
+
+COMMON PITFALLS
+
+    - Attaching in create_from_upload() for a user upload. Passing fileable_*
+      to a factory BYPASSES the claim guard. For user uploads, create UNATTACHED
+      and attach_to()/add_to() after can_user_assign_this_file().
+
+    - Bulk ->delete() leaks blobs. A query-builder delete does not fire the
+      model event that reclaims storage. Loop and ->delete() each row, or run
+      rsx:storage:cleanup afterward.
+
+    - Expecting an unattached upload to wait forever. It does not: the claim
+      window (unattached_claim_window_hours, 24) bounds it, and the 6-hourly
+      sweep soft-deletes what is left. Long wizards must finish inside it.
+
+    - Hardcoding /_thumbnail sizes. Prefer a named preset (get_thumbnail_url_
+      preset) for fixed sizes; reserve dynamic thumbnails for runtime sizes.
+
+    - Assuming web /_upload serializes concurrent writers. It does not take an
+      application lock; only the CLI upload command does.
+
+    - Forgetting the authorization hooks. Without file.thumbnail.authorize /
+      file.download.authorize handlers, any holder of a key can fetch the file.
+      file.upload.authorize is the exception: it is MANDATORY and fails loud
+      rather than defaulting open.
+
+    - Reading uploaded bytes in file.upload.params or file.upload.complete to
+      decide whether to accept them. Too late - the blob is already stored by
+      then. Inspect $data['tmp_path'] in the file.upload.authorize gate, which
+      now runs after validation and before anything is persisted.
+
+    - Trusting a client-posted site_id or fileable_*. Both are ignored by
+      /_upload; site_id is derived from the session.
+
+    - Treating can_user_assign_this_file() as a per-user permission check. It is
+      not, and never was reliably: it proves the file is unclaimed and in your
+      tenant. Per-user policy lives in the file.upload.authorize gate and in your
+      own endpoint authorization.
+
+SEE ALSO
+    rsx:man droppable          Global drag-and-drop file interception
+    rsx:man document_search    Text extraction, full-text search, preview
+    rsx:man libreoffice        Office document thumbnails/renditions
+    rsx:man event_hooks        #[OnEvent] and the Rsx::trigger_* families
+    rsx:man polymorphic        Integer type-ref columns (fileable_type)
+    rsx:man locks              Cluster/system locks and the concurrency semaphore
+    rsx:man model              Model system, enums, fetch()
+
+VERSION
+    RSpade Framework 1.0
+    Last Updated: 2026-08-09
+
+FILE_UPLOAD(1)                   RSpade Manual                   FILE_UPLOAD(1)

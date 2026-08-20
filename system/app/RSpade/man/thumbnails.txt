@@ -1,0 +1,503 @@
+==========
+
+NAME
+    Thumbnails - Two-tier cached thumbnail system with named presets and dynamic sizes
+
+SYNOPSIS
+    Named Preset Thumbnails (Recommended)
+    -------------------------------------
+    // Define presets in config/rsx.php
+    'thumbnails' => [
+        'presets' => [
+            'profile' => ['type' => 'cover', 'width' => 200, 'height' => 200],
+            'gallery' => ['type' => 'fit', 'width' => 400, 'height' => 300],
+        ],
+    ],
+
+    // Use in templates
+    <img src="<?= $attachment->get_thumbnail_url_preset('profile') ?>" />
+
+    Dynamic Thumbnails (Ad-hoc Sizes)
+    ----------------------------------
+    <img src="<?= $attachment->get_thumbnail_url('cover', 200, 200) ?>" />
+    <img src="<?= $attachment->get_thumbnail_url('fit', 400) ?>" />
+
+    Artisan Commands
+    ----------------
+    php artisan rsx:thumbnails:stats
+    php artisan rsx:thumbnails:clean [--preset] [--dynamic]
+    php artisan rsx:thumbnails:generate [--preset=profile]
+
+DESCRIPTION
+    RSX provides a two-tier thumbnail caching system designed to prevent cache
+    pollution from arbitrary thumbnail sizes while maintaining flexibility for
+    developers.
+
+    IMPORTANT: Thumbnails automatically scale to 2x requested dimensions for
+    HiDPI/Retina displays, but cap at 66% of source image dimensions to avoid
+    excessive upscaling. The output aspect ratio always matches requested
+    dimensions, but actual resolution may be lower than requested.
+
+    Unlike traditional approaches that generate thumbnails on-demand without
+    limits, RSX distinguishes between:
+
+    1. Preset Thumbnails - Developer-defined named sizes for application use
+       - Managed via scheduled cleanup tasks
+       - Protected from spam/abuse
+       - Optimized for cache warming
+
+    2. Dynamic Thumbnails - Ad-hoc sizes requested via URL parameters
+       - Synchronous quota enforcement after each generation
+       - LRU eviction (oldest files deleted first)
+       - For edge cases and development
+
+    Philosophy: Define thumbnail sizes once in config, reference by name
+    throughout your application. This prevents users from generating thousands
+    of arbitrary-sized thumbnails and polluting your cache.
+
+    Storage Location: storage/rsx-thumbnails/preset/ and .../dynamic/
+    These directories survive rsx:clean and are managed separately via
+    rsx:thumbnails:clean command (schedule this for periodic cleanup).
+
+PRESET THUMBNAILS
+
+    Configuration
+    -------------
+    Define named presets in /system/config/rsx.php:
+
+    'thumbnails' => [
+        'presets' => [
+            'profile' => ['type' => 'cover', 'width' => 200, 'height' => 200],
+            'gallery' => ['type' => 'fit', 'width' => 400, 'height' => 300],
+            'icon_small' => ['type' => 'cover', 'width' => 32, 'height' => 32],
+            'icon_large' => ['type' => 'cover', 'width' => 64, 'height' => 64],
+        ],
+        'quotas' => [
+            'preset_max_bytes' => 100 * 1024 * 1024,  // 100MB
+            'dynamic_max_bytes' => 50 * 1024 * 1024,  // 50MB
+        ],
+        'touch_on_read' => true,
+        'touch_interval' => 600,  // 10 minutes
+    ],
+
+    Thumbnail Types
+    ---------------
+    cover - Fills dimensions completely, cropping excess (like background-size: cover)
+    fit   - Maintains aspect ratio within dimensions, transparent background
+
+    Usage in Code
+    -------------
+    // Get preset thumbnail URL
+    $url = $attachment->get_thumbnail_url_preset('profile');
+
+    // Use in Blade templates
+    <img src="<?= $user->get_attachment('profile_photo')->get_thumbnail_url_preset('profile') ?>" />
+
+    // Use in jqhtml templates
+    <img src="<%= attachment.get_thumbnail_url_preset('gallery') %>" />
+
+    Quota Management
+    ----------------
+    Preset thumbnails are enforced via scheduled task (not synchronous):
+
+    Schedule this command to run periodically (e.g., daily):
+    php artisan rsx:thumbnails:clean --preset
+
+    This deletes oldest preset thumbnails until under quota limit.
+
+    Cache Warming
+    -------------
+    Pre-generate preset thumbnails for all attachments:
+
+    php artisan rsx:thumbnails:generate
+    php artisan rsx:thumbnails:generate --preset=profile
+    php artisan rsx:thumbnails:generate --key=abc123def456
+
+    Useful after deployment or when adding new presets.
+
+DYNAMIC THUMBNAILS
+
+    Usage
+    -----
+    For edge cases where preset sizes don't fit:
+
+    $url = $attachment->get_thumbnail_url('cover', 200, 200);
+    $url = $attachment->get_thumbnail_url('fit', 400);  // Height optional
+
+    <img src="<?= $attachment->get_thumbnail_url('cover', 150, 150) ?>" />
+
+    Quota Enforcement
+    -----------------
+    Dynamic thumbnails are enforced SYNCHRONOUSLY after each new thumbnail:
+    - Check total directory size
+    - If over quota, delete oldest files (by mtime) until under limit
+    - This happens automatically, no scheduled task needed
+
+    When to Use
+    -----------
+    - Development/testing with non-standard sizes
+    - Edge cases where preset sizes don't fit
+    - One-off thumbnail requirements
+
+    When NOT to Use
+    ---------------
+    - Regular application thumbnails (use presets instead)
+    - User-facing features (prevents cache pollution)
+
+CACHING BEHAVIOR
+
+    Cache Storage
+    -------------
+    Preset:  storage/rsx-thumbnails/preset/{preset_name}_{hash}_{ext}.webp
+    Dynamic: storage/rsx-thumbnails/dynamic/{type}_{w}x{h}_{hash}_{ext}.webp
+
+    All thumbnails are WebP format for optimal size/quality balance.
+
+    Cache Hits
+    ----------
+    When thumbnail exists:
+    1. Attempt to open file (handles race condition if deleted)
+    2. Touch mtime if enabled and >10 minutes old (LRU tracking)
+    3. Serve from disk with 1-year cache headers
+
+    Cache Misses
+    ------------
+    When thumbnail doesn't exist:
+    1. Generate via Imagick (images) or icon-based (non-images)
+    2. Save to cache directory
+    3. Enforce quota (dynamic only)
+    4. Serve from memory (don't re-read from disk)
+
+    LRU Eviction
+    ------------
+    Both preset and dynamic thumbnails use LRU (Least Recently Used):
+    - mtime touched on cache hit (configurable interval)
+    - Oldest files (by mtime) deleted first when over quota
+    - Prevents deleting frequently-accessed thumbnails
+
+    Race Condition Handling
+    -----------------------
+    Between file existence check and open, file might be deleted by quota
+    enforcement. The system handles this gracefully:
+    - fopen() failure triggers regeneration
+    - No error shown to user
+    - Thumbnail generated and served immediately
+
+ARTISAN COMMANDS
+
+    rsx:thumbnails:stats
+    --------------------
+    Display usage statistics for both preset and dynamic caches.
+
+    Output includes:
+    - File count and total size
+    - Quota usage percentage
+    - Oldest and newest thumbnail ages
+    - Breakdown by preset name (for preset thumbnails)
+
+    Example:
+        $ php artisan rsx:thumbnails:stats
+
+        Preset Thumbnails:
+          Files: 1,234
+          Total Size: 45.2 MB / 100 MB (45.2%)
+          Oldest: 30 days ago
+          Newest: 2 minutes ago
+
+        Dynamic Thumbnails:
+          Files: 567
+          Total Size: 38.7 MB / 50 MB (77.4%)
+          Oldest: 7 days ago
+          Newest: 5 seconds ago
+
+        Breakdown by preset:
+          profile: 234 files, 12.3 MB
+          gallery: 567 files, 28.9 MB
+
+    rsx:thumbnails:clean
+    --------------------
+    Enforce quotas by deleting oldest files until under limit.
+
+    Options:
+        --preset   Clean only preset thumbnails
+        --dynamic  Clean only dynamic thumbnails
+        --all      Clean both (default if no options specified)
+
+    Examples:
+        php artisan rsx:thumbnails:clean
+        php artisan rsx:thumbnails:clean --preset
+        php artisan rsx:thumbnails:clean --dynamic
+
+    Schedule this for preset thumbnails:
+        // In your scheduler (future feature)
+        $schedule->command('rsx:thumbnails:clean --preset')->daily();
+
+    rsx:thumbnails:generate
+    -----------------------
+    Pre-generate preset thumbnails for attachments.
+
+    Options:
+        --preset=name   Generate specific preset for all attachments
+        --key=xyz       Generate thumbnails for specific attachment
+        --all           Generate all presets for all attachments (default)
+
+    Examples:
+        php artisan rsx:thumbnails:generate
+        php artisan rsx:thumbnails:generate --preset=profile
+        php artisan rsx:thumbnails:generate --key=abc123def456
+
+    Use cases:
+    - Cache warming after deployment
+    - Regenerating after changing preset dimensions
+    - Background generation for new uploads
+
+CONFIGURATION OPTIONS
+
+    thumbnails.presets
+    ------------------
+    Array of named presets with type, width, and height.
+
+    Format: ['name' => ['type' => 'cover'|'fit', 'width' => int, 'height' => int]]
+
+    Example:
+        'presets' => [
+            'profile' => ['type' => 'cover', 'width' => 200, 'height' => 200],
+            'gallery' => ['type' => 'fit', 'width' => 400, 'height' => 300],
+        ],
+
+    thumbnails.quotas.preset_max_bytes
+    ----------------------------------
+    Maximum bytes for preset thumbnail directory.
+    Enforced via scheduled rsx:thumbnails:clean --preset.
+
+    Default: 100 * 1024 * 1024 (100MB)
+
+    thumbnails.quotas.dynamic_max_bytes
+    -----------------------------------
+    Maximum bytes for dynamic thumbnail directory.
+    Enforced synchronously after each new dynamic thumbnail.
+
+    Default: 50 * 1024 * 1024 (50MB)
+
+    thumbnails.max_dynamic_size
+    ---------------------------
+    Maximum dimension limit for dynamic thumbnails (base resolution).
+    This value represents the pre-2x-scaling dimension limit. The actual
+    generated thumbnail will be double this value.
+
+    Example: 800 allows requests up to 800x800, generates 1600x1600
+
+    Preset thumbnails have no enforced maximum (developer-controlled).
+
+    Default: 800
+    NOTE: Application configuration - set in config/rsx.php, not .env
+
+    thumbnails.touch_on_read
+    ------------------------
+    Whether to touch file mtime on cache hit (for LRU tracking).
+
+    Default: true
+    Environment: THUMBNAILS_TOUCH_ON_READ
+
+    thumbnails.touch_interval
+    -------------------------
+    Only touch mtime if file is older than this many seconds.
+    Prevents excessive filesystem writes while maintaining LRU accuracy.
+
+    Default: 600 (10 minutes)
+    Environment: THUMBNAILS_TOUCH_INTERVAL
+
+DIMENSION LIMITS AND RESOLUTION SCALING
+
+    HiDPI/Retina Display Support
+    ----------------------------
+    All thumbnails automatically scale to 2x requested dimensions for sharp
+    display on high-DPI screens. However, to prevent excessive upscaling:
+
+    - Requested dimensions are multiplied by 2x
+    - If 2x dimensions exceed 66% of source image size on either axis,
+      the source image dimensions are used instead
+    - Aspect ratio is preserved by cropping to requested proportions
+
+    Examples:
+        Request: 100x100 from 500x500 source
+        Generated: 200x200 (2x scaling applied)
+
+        Request: 200x200 from 500x500 source
+        66% threshold: 330x330 (500 * 0.66)
+        2x target: 400x400 (exceeds 330)
+        Generated: 500x500 (uses source, crops to 1:1 aspect ratio)
+
+        Request: 100x100 from 150x150 source
+        66% threshold: 99x99
+        2x target: 200x200 (exceeds 99)
+        Generated: 150x150 (uses source dimensions)
+
+    This ensures thumbnails are always sharp on HiDPI displays while avoiding
+    quality loss from excessive upscaling of small source images.
+
+    Dynamic Thumbnail Constraints
+    ------------------------------
+    Dynamic thumbnails enforce additional dimension limits to prevent abuse:
+    - Minimum: 10x10 pixels (before 2x scaling)
+    - Maximum: Configurable via max_dynamic_size (default 800x800)
+    - After 2x scaling: becomes 1600x1600 with default setting
+
+    Preset thumbnails have no enforced limits (developer-controlled).
+
+    To change the dynamic maximum:
+        // In config/rsx.php
+        'thumbnails' => [
+            'max_dynamic_size' => 1200,  // 1200 base -> 2400 after 2x
+        ]
+
+    Output Resolution Not Guaranteed
+    ---------------------------------
+    The actual output resolution may differ from requested dimensions due to:
+    - 2x scaling for HiDPI displays
+    - 66% source dimension threshold
+    - Maximum dimension constraints (default 1600x1600 for dynamic)
+
+    However, the aspect ratio ALWAYS matches requested dimensions. Plan your
+    layouts accordingly - use CSS to constrain display size if needed.
+
+NON-IMAGE FILES
+
+    Thumbnails for non-image files (PDFs, documents, etc.) use icon-based
+    rendering. The system generates a WebP thumbnail containing the
+    appropriate file type icon.
+
+    Icons are provided by File_Attachment_Icons class and include:
+    - Brand-specific icons (PDF, Photoshop, Illustrator)
+    - Generic category icons (document, video, audio, archive)
+
+FILESYSTEM STRUCTURE
+
+    storage/rsx-thumbnails/
+    +-- preset/
+    |   +-- profile_abc123_jpg.webp
+    |   +-- profile_def456_png.webp
+    |   +-- gallery_abc123_jpg.webp
+    +-- dynamic/
+        +-- cover_200x200_abc123_jpg.webp
+        +-- fit_400x300_def456_png.webp
+
+    Filename Format:
+    - Preset: {preset_name}_{storage_hash}_{extension}.webp
+    - Dynamic: {type}_{width}x{height}_{storage_hash}_{extension}.webp
+
+    Why include extension in filename?
+    Handles edge case where identical file content uploaded with different
+    extensions (e.g., zip vs docx) should render different icons.
+
+BEST PRACTICES
+
+    1. Use Preset Thumbnails Everywhere
+       Define all thumbnail sizes your application needs as presets.
+       This prevents cache pollution and enables quota management.
+
+    2. Name Presets Semantically
+       Use names like 'profile', 'gallery', 'thumbnail' instead of dimensions.
+       This makes code more maintainable when you change sizes.
+
+    3. Schedule Preset Cleanup
+       Add rsx:thumbnails:clean --preset to your scheduler (daily/weekly).
+       This prevents preset cache from growing unbounded.
+
+    4. Monitor Cache Usage
+       Run rsx:thumbnails:stats periodically to monitor quota usage.
+       Adjust quotas if needed.
+
+    5. Warm Cache After Deployment
+       Run rsx:thumbnails:generate after deploying to pre-generate thumbnails.
+       This prevents first-visitor slowness.
+
+    6. Use Dynamic Sparingly
+       Reserve dynamic thumbnails for edge cases and development.
+       Production features should use presets.
+
+TROUBLESHOOTING
+
+    Preset Not Found Error
+    ----------------------
+    Error: "Thumbnail preset 'xyz' not defined"
+
+    Solution: Add preset to config/rsx.php:
+
+        'thumbnails' => [
+            'presets' => [
+                'xyz' => ['type' => 'cover', 'width' => 200, 'height' => 200],
+            ],
+        ],
+
+    Cache Growing Too Large
+    -----------------------
+    Problem: Thumbnail cache exceeds quota
+
+    Solutions:
+    - Lower quota in config/rsx.php
+    - Run rsx:thumbnails:clean manually
+    - Schedule rsx:thumbnails:clean for automatic cleanup
+    - Reduce number of presets
+    - Decrease touch_interval to improve LRU accuracy
+
+    Thumbnails Not Generating
+    --------------------------
+    Problem: Blank images or 404 errors
+
+    Checks:
+    - ImageMagick installed? (php -m | grep imagick)
+    - File exists on disk? (check attachment->file_storage->get_full_path())
+    - Directory writable? (storage/rsx-thumbnails/ permissions)
+    - Check Laravel logs for exceptions
+
+    Slow Initial Load
+    -----------------
+    Problem: First thumbnail request is slow
+
+    Solution: Pre-generate thumbnails
+        php artisan rsx:thumbnails:generate
+
+    Thumbnails Deleted Unexpectedly
+    --------------------------------
+    Problem: Dynamic thumbnails disappear
+
+    Explanation: Dynamic quota enforcement deletes oldest files when over limit.
+    This is intentional to prevent abuse.
+
+    Solutions:
+    - Convert to preset thumbnail if regularly needed
+    - Increase dynamic_max_bytes quota
+    - Reduce dynamic thumbnail usage
+
+FUTURE ENHANCEMENTS
+
+    Client-Side DPR Detection
+    -------------------------
+    Current limitation: Server always generates at 2x resolution regardless of
+    actual client display capabilities.
+
+    Planned enhancement: JavaScript helpers that detect window.devicePixelRatio
+    and automatically calculate display-appropriate dimensions.
+
+    Proposed API:
+        // JavaScript - automatically adjusts for devicePixelRatio
+        const url = attachment.get_thumbnail_url_for_display('cover', 200, 200);
+
+        // On 1x display: requests 200x200 (server generates 400x400)
+        // On 2x display: requests 200x200 (server generates 400x400)
+        // On 3x display: requests 300x300 (server generates 600x600)
+
+    Benefits:
+    - Optimized bandwidth usage per device
+    - Better cache utilization
+    - Sharper images on 3x displays
+    - Smaller images for 1x displays
+
+    This would require client-side JavaScript helpers integrated with the
+    File_Attachment_Model fetch system.
+
+SEE ALSO
+    file_upload.txt - File attachment and upload system
+    storage_directories.txt - Storage directory organization
+    config_rsx.txt - RSX configuration reference

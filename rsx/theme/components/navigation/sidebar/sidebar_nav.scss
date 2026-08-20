@@ -1,0 +1,144 @@
+/**
+ * Sidebar_Nav Component Styles
+ *
+ * BEM naming: Sidebar_Nav__element
+ */
+
+.Sidebar_Nav {
+    // Navigation sections
+    &__section {
+        margin-bottom: $nav-section-margin;
+
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+
+    &__section-title {
+        font-size: $font-size-xs;
+        font-weight: $font-weight-semibold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: $text-muted;
+        padding: $spacing-sm $spacing-md;
+        margin-bottom: $spacing-xs;
+    }
+
+    // Regular nav links
+    &__link {
+        display: flex;
+        align-items: center;
+        padding: $nav-link-padding;
+        margin-bottom: $spacing-xs;
+        color: $text-color;
+        text-decoration: none;
+        border-radius: $nav-link-border-radius;
+        transition: background-color $transition-duration-base ease,
+                    color $transition-duration-base ease;
+
+        i {
+            font-size: $nav-icon-size;
+            width: $nav-icon-width;
+            margin-right: $spacing-sm;
+            text-align: center;
+        }
+
+        &:hover {
+            @include primary-hover-bg(0.1);
+            color: $primary-color;
+        }
+
+        &.active {
+            background: $primary-color;
+            color: $white;
+            font-weight: $font-weight-medium;
+
+            i {
+                color: $white;
+            }
+        }
+    }
+
+    // Expandable items container
+    &__item-expandable {
+        &.expanded {
+            .Sidebar_Nav__expand-icon {
+                transform: rotate(180deg);
+            }
+        }
+    }
+
+    // Expandable item link
+    &__link-expandable {
+        display: flex;
+        align-items: center;
+        padding: $nav-link-padding;
+        margin-bottom: $spacing-xs;
+        color: $text-color;
+        text-decoration: none;
+        border-radius: $nav-link-border-radius;
+        transition: background-color $transition-duration-base ease,
+                    color $transition-duration-base ease;
+
+        i {
+            font-size: $nav-icon-size;
+            width: $nav-icon-width;
+            margin-right: $spacing-sm;
+            text-align: center;
+        }
+
+        &:hover {
+            @include primary-hover-bg(0.1);
+            color: $primary-color;
+        }
+
+        &.active {
+            background: $primary-color;
+            color: $white;
+            font-weight: $font-weight-medium;
+
+            i {
+                color: $white;
+            }
+        }
+    }
+
+    // Expand/collapse icon
+    &__expand-icon {
+        font-size: $font-size-xs;
+        transition: transform $transition-duration-base ease; // @SCSS-ANIM-01-EXCEPTION
+        margin-left: auto;
+        margin-right: 0;
+    }
+
+    // Submenu container
+    &__submenu {
+        display: none;
+        padding-left: $nav-submenu-indent;
+        margin-bottom: $spacing-sm;
+    }
+
+    // Submenu items
+    &__subitem {
+        display: block;
+        padding: $spacing-sm $spacing-md;
+        margin-bottom: 2px;
+        color: $text-muted;
+        text-decoration: none;
+        border-radius: $border-radius-sm;
+        font-size: $font-size-sm;
+        transition: background-color $transition-duration-base ease,
+                    color $transition-duration-base ease;
+
+        &:hover {
+            @include primary-hover-bg(0.05);
+            color: $primary-color;
+        }
+
+        &.active {
+            @include primary-hover-bg(0.1);
+            color: $primary-color;
+            font-weight: $font-weight-medium;
+        }
+    }
+}

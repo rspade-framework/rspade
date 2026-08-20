@@ -1,0 +1,2 @@
+<Define:Search_Input tag="input" type="search" class="form-control" placeholder="Search..." style="width: 250px;">
+</Define:Search_Input>

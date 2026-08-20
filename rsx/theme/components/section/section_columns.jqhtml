@@ -1,0 +1,21 @@
+<%--
+Section_Columns - nested 2:1 column split inside a section (own collapse + gutter)
+
+<Slot:primary> - the wider (2) column
+<Slot:secondary> - the narrower (1) column
+
+Splits content INSIDE a Section body into two columns; collapses to a single
+stacked column on mobile. Not a card itself - it carries no chrome.
+
+Usage:
+    <Section $title="Overview">
+        <Section_Columns>
+            <Slot:primary> ...main facts... </Slot:primary>
+            <Slot:secondary> ...aside... </Slot:secondary>
+        </Section_Columns>
+    </Section>
+--%>
+<Define:Section_Columns>
+    <div class="Section_Columns__primary"><%= content('primary') %></div>
+    <div class="Section_Columns__secondary"><%= content('secondary') %></div>
+</Define:Section_Columns>

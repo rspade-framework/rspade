@@ -1,0 +1,28 @@
+// Backend Module Styles
+.Backend_Index {
+    // Styles specific to the backend/admin view
+
+    .sidebar {
+        min-height: calc(100vh - 56px);
+        border-right: $border-width solid $border-color;
+
+        .nav-link {
+            color: $gray-800;
+            padding: $spacing-sm $spacing-md;
+
+            &:hover {
+                background-color: $background-light;
+            }
+        }
+
+        .sidebar-heading {
+            text-transform: uppercase;
+            font-size: $font-size-xs;
+            font-weight: $font-weight-bold;
+        }
+    }
+
+    .card {
+        // No animations allowed - elements must stay still
+    }
+}

@@ -1,0 +1,206 @@
+<Define:Settings_User_Settings_Action>
+<Page_Scaffold>
+    <Slot:main>
+        <%-- REAL section: the timezone preference round-trips through the framework's
+             own Rsx_Timezone_Controller (no pass-through app controller). Every other
+             control on this page is still decorative scaffolding. --%>
+        <Section $title="Timezone">
+            <% if (this.data.loading) { %>
+                <Loading_Spinner $message="Loading timezone settings..." />
+            <% } else { %>
+                <Rsx_Form $sid="timezone_form"
+                          $data="<%= JSON.stringify(this.data.timezone_form_data) %>"
+                          $controller="Rsx_Timezone_Controller"
+                          $method="set_timezone">
+                    <div class="mb-3">
+                        <Checkbox_Input $sid="timezone_auto_input" $name="timezone_auto"
+                            $label="Automatically set timezone" />
+                        <div class="form-text">
+                            Keeps your timezone matched to the one your browser reports, once per
+                            browser session. Choosing a timezone below turns this off.
+                        </div>
+                    </div>
+
+                    <Form_Field $label="Timezone"
+                        $help="Dates and times throughout the app are shown in this timezone.">
+                        <Select_Input $sid="timezone_input" $name="timezone"
+                            $options="<%= JSON.stringify(this.data.timezone_options) %>"
+                            $placeholder="Select Timezone..." />
+                    </Form_Field>
+
+                    <div class="d-flex">
+                        <button type="submit" class="btn btn-primary">Save Timezone</button>
+                    </div>
+                </Rsx_Form>
+            <% } %>
+        </Section>
+
+        <Section $title="General Preferences">
+            <div class="mb-3">
+                <label for="language" class="form-label">Language</label>
+                <select class="form-select" id="language">
+                    <option value="en" selected>English</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                    <option value="de">German</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="theme" class="form-label">Theme</label>
+                <select class="form-select" id="theme">
+                    <option value="light" selected>Light</option>
+                    <option value="dark">Dark</option>
+                    <option value="auto">Auto (System)</option>
+                </select>
+            </div>
+            <div class="mb-0">
+                <label for="date_format" class="form-label">Date Format</label>
+                <select class="form-select" id="date_format">
+                    <option value="MM/DD/YYYY" selected>MM/DD/YYYY</option>
+                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                    <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                </select>
+            </div>
+        </Section>
+
+        <Section $title="Notification Preferences">
+            <h6 class="mb-3">Email Notifications</h6>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="email_updates" checked>
+                <label class="form-check-label" for="email_updates">
+                    Product Updates
+                    <span class="form-text d-block">Receive emails about new features and product updates</span>
+                </label>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="email_activity" checked>
+                <label class="form-check-label" for="email_activity">
+                    Account Activity
+                    <span class="form-text d-block">Get notified about important account changes</span>
+                </label>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="email_security" checked disabled>
+                <label class="form-check-label" for="email_security">
+                    Security Alerts
+                    <span class="form-text d-block">Notifications about security-related events (always enabled)</span>
+                </label>
+            </div>
+            <div class="form-check mb-4">
+                <input class="form-check-input" type="checkbox" id="email_marketing">
+                <label class="form-check-label" for="email_marketing">
+                    Marketing &amp; Promotions
+                    <span class="form-text d-block">Promotional emails and special offers</span>
+                </label>
+            </div>
+
+            <h6 class="mb-3">SMS Notifications</h6>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="sms_alerts">
+                <label class="form-check-label" for="sms_alerts">
+                    Critical Alerts
+                    <span class="form-text d-block">Urgent notifications via SMS</span>
+                </label>
+            </div>
+            <div class="form-check mb-4">
+                <input class="form-check-input" type="checkbox" id="sms_2fa" checked disabled>
+                <label class="form-check-label" for="sms_2fa">
+                    Two-Factor Authentication
+                    <span class="form-text d-block">Required when 2FA is enabled</span>
+                </label>
+            </div>
+
+            <h6 class="mb-3">In-App Notifications</h6>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="inapp_mentions" checked>
+                <label class="form-check-label" for="inapp_mentions">
+                    Mentions &amp; Replies
+                    <span class="form-text d-block">When someone mentions you or replies to your comment</span>
+                </label>
+            </div>
+            <div class="form-check mb-0">
+                <input class="form-check-input" type="checkbox" id="inapp_tasks" checked>
+                <label class="form-check-label" for="inapp_tasks">
+                    Task Updates
+                    <span class="form-text d-block">Changes to tasks you're assigned to</span>
+                </label>
+            </div>
+        </Section>
+
+        <Section $title="Privacy Settings">
+            <h6 class="mb-3">Profile Visibility</h6>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="profile_visibility" id="profile_public" checked>
+                <label class="form-check-label" for="profile_public">
+                    Team Members
+                    <span class="form-text d-block">Your profile is visible to all team members</span>
+                </label>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="profile_visibility" id="profile_limited">
+                <label class="form-check-label" for="profile_limited">
+                    Organization Only
+                    <span class="form-text d-block">Only members of your organization can see your profile</span>
+                </label>
+            </div>
+            <div class="form-check mb-4">
+                <input class="form-check-input" type="radio" name="profile_visibility" id="profile_private">
+                <label class="form-check-label" for="profile_private">
+                    Private
+                    <span class="form-text d-block">Your profile is hidden from other users</span>
+                </label>
+            </div>
+
+            <h6 class="mb-3">Activity Tracking</h6>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="track_activity" checked>
+                <label class="form-check-label" for="track_activity">
+                    Enable Activity Tracking
+                    <span class="form-text d-block">Allow the system to track your activity for analytics</span>
+                </label>
+            </div>
+            <div class="form-check mb-4">
+                <input class="form-check-input" type="checkbox" id="show_online">
+                <label class="form-check-label" for="show_online">
+                    Show Online Status
+                    <span class="form-text d-block">Display when you're online to other team members</span>
+                </label>
+            </div>
+
+            <h6 class="mb-3">Data Privacy</h6>
+            <div class="form-check mb-0">
+                <input class="form-check-input" type="checkbox" id="data_collection">
+                <label class="form-check-label" for="data_collection">
+                    Improve User Experience
+                    <span class="form-text d-block">Allow anonymous usage data collection to improve the product</span>
+                </label>
+            </div>
+        </Section>
+
+        <%-- Decorative: these two drive the scaffolded sections above (notifications,
+             privacy, language/theme/date format), which have no persistence layer.
+             The timezone section saves itself with its own button. --%>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-primary">Save All Settings</button>
+            <button type="button" class="btn btn-secondary">Reset to Defaults</button>
+        </div>
+    </Slot:main>
+
+    <Slot:sidebar>
+        <Section $title="About Settings">
+            <p class="small text-muted mb-2">
+                These settings control how you receive notifications and how your data is used within the platform.
+            </p>
+            <p class="small text-muted mb-0">
+                Changes are saved automatically and take effect immediately.
+            </p>
+        </Section>
+
+        <Section $title="Need Help?">
+            <p class="small text-muted mb-0">
+                Have questions about your settings? Reach out to your administrator for guidance.
+            </p>
+        </Section>
+    </Slot:sidebar>
+</Page_Scaffold>
+</Define:Settings_User_Settings_Action>

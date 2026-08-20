@@ -1,0 +1,44 @@
+<%--
+Test_Modal_Form
+
+Simple test form for demonstrating modal form functionality.
+Demonstrates text inputs, dropdown, and validation error handling.
+--%>
+<Define:Test_Modal_Form tag="div">
+    <div class="mb-4">
+        <h5 class="text-muted mb-3">User Information</h5>
+
+        <div $sid="error_container"></div>
+
+        <div class="form-group mb-3">
+            <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>
+            <input type="text"
+                   class="form-control"
+                   $sid="name_input"
+                   name="name"
+                   placeholder="Enter your full name">
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="email" class="form-label">Email Address <span class="text-danger">*</span></label>
+            <input type="email"
+                   class="form-control"
+                   $sid="email_input"
+                   name="email"
+                   placeholder="user@example.com">
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="role" class="form-label">Role <span class="text-danger">*</span></label>
+            <select class="form-select"
+                    $sid="role_select"
+                    name="role">
+                <option value="">-- Select a role --</option>
+                <option value="admin">Administrator</option>
+                <option value="manager">Manager</option>
+                <option value="user">User</option>
+                <option value="guest">Guest</option>
+            </select>
+        </div>
+    </div>
+</Define:Test_Modal_Form>

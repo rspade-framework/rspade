@@ -1,0 +1,54 @@
+// Clients_Portal_Panel - the portal-management surface folded into the Clients_View
+// "Portal" tab. Chrome (sections, tables, empty states, badges) is owned by the
+// vocabulary; what survives here is the panel's own block rhythm plus a few domain
+// bits (de-emphasised pending-invite rows, the document thumbnail, the announcement
+// list) with no vocabulary home.
+.Clients_Portal_Panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--block-gap);
+
+    // Pending-invite rows in the members table read as provisional.
+    &__pending-row {
+        background-color: rgba($info-color, 0.04);
+    }
+
+    &__doc-thumb {
+        width: 32px;
+        height: 32px;
+        object-fit: contain;
+        border: $border-width solid $border-color;
+        border-radius: $border-radius-sm;
+        background-color: $gray-100;
+        flex-shrink: 0;
+    }
+
+    &__announcement-list {
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-md;
+        margin-top: $spacing-md;
+    }
+
+    &__announcement {
+        padding: $spacing-sm $spacing-md;
+        border-left: 3px solid $primary-color;
+        background-color: $gray-100;
+        border-radius: $border-radius-sm;
+    }
+
+    &__announcement-title {
+        font-weight: $font-weight-semibold;
+        color: $gray-900;
+    }
+
+    &__announcement-body {
+        margin-top: 2px;
+        color: $text-color;
+        font-size: $font-size-sm;
+    }
+
+    &__announcement-meta {
+        margin-top: $spacing-xs;
+    }
+}

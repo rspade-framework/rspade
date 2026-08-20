@@ -1,0 +1,1450 @@
+    realtime - WebSocket realtime notification system
+
+SYNOPSIS
+    // PHP: Publish a notification
+    Realtime::publish('Contact_Updated_Topic', ['id' => $contact->id]);
+
+    // JavaScript: Subscribe in a component (on_create so the first load is
+    // gated on the subscription; auto-unsubscribes on stop)
+    on_create() {
+        this.subscribe('Contact_Updated_Topic', {id: this.args.id}, () => this.refresh());
+    }
+
+    // PHP: Define a topic with permission check (auth required is the default)
+    class Contact_Updated_Topic extends Realtime_Topic_Abstract {
+        public static function can_subscribe(array $filter = []): bool {
+            return Permission::has_permission(User_Model::PERM_VIEW_DATA);
+        }
+    }
+
+    // PHP: Define a PUBLIC topic (no login of any kind required)
+    class Weather_Updated_Topic extends Realtime_Topic_Abstract {
+        public static bool $requires_auth = false;
+        public static function can_subscribe(array $filter = []): bool {
+            return true;
+        }
+    }
+
+    // PHP: Opt a model into automatic change emission (see MODEL CHANGE EMISSION)
+    class Client_Model extends Rsx_Site_Model_Abstract {
+        public static $realtime = true;
+    }
+
+    // JavaScript: Subscribe to an opt-in model's changes (no topic string).
+    // Canonical placement is on_create() - the first load is then GATED on the
+    // subscription, so exactly ONE race-free fetch happens (see SUBSCRIBING).
+    on_create() {
+        this.subscribe(Client_Model, this.args.id, () => this.refresh());
+    }
+    // ... or from an already-loaded record instance (post-load placement):
+    this.subscribe(client_record, () => this.refresh());
+    // ... or outside a component (returns a {stop()} handle):
+    const watcher = await Client_Model.watch_changes(id, () => refresh());
+
+DESCRIPTION
+    The RSX realtime system provides WebSocket-based notifications so
+    the browser can react to server-side events without polling.
+
+    Messages are NOTIFICATIONS ONLY. They indicate that something happened
+    (e.g., "contact 5 was updated by user 3") and the client reacts by
+    fetching fresh data through normal Ajax. Messages must NEVER contain
+    confidential data -- any caller who can subscribe to a topic receives
+    every notification on it.
+
+    Architecture:
+
+        PHP (authority)         Node.js (dumb relay)        Browser
+        ---------------         --------------------        -------
+        publish()           --> Redis pub/sub --> Node  --> WebSocket
+        connection_token()  --> signed token  -----------> WS auth
+        subscribe_token()   --> signed token  -----------> WS subscribe
+        can_subscribe()     <-- called before issuing token
+
+    PHP is the authority -- issues HMAC-signed tokens and checks permissions.
+    The Node.js process is a stateless relay that validates token signatures
+    and routes messages. It has zero business logic and zero database access.
+
+    can_subscribe() is the ONLY enforcement boundary in the system. There is
+    no separate "must be logged in" gate anywhere else -- a connection token
+    is minted for staff, portal, or fully anonymous callers alike, and grants
+    nothing beyond "you may attempt to subscribe." Each topic decides who may
+    actually receive its messages.
+
+    Site ID scoping: every WebSocket connection is tagged with a site_id from
+    its connection token (from the staff session, the portal session, or --
+    for an anonymous caller -- the site already resolved for that request
+    independent of login). Messages published with a site_id only route to
+    connections on that site.
+
+SETUP
+    1. Add to .env:
+
+        REALTIME_ENABLED=true
+        REALTIME_WS_PORT=6200
+
+       No connect URL is configured: the client always connects to
+       {scheme}://{Rsx::get_hostname()}/ws - in web mode that is the host the
+       page was browsed under, so the browser connects back to the same host.
+       The SCHEME follows the page protocol: https pages use wss:// (every
+       production page - APP_URL must be https), while a plain-http page (which
+       only exists on loopback/dev, e.g. the rsx:debug harness browsing
+       http://localhost) uses ws:// so the connection succeeds through the web
+       server's port-80 /ws proxy. This is what makes realtime fully functional
+       under rsx:debug - client subscription behavior is testable headlessly.
+
+    2. Start the Node.js server:
+
+        node system/bin/realtime-server.js
+
+       In production, run it under a process supervisor (see DEPLOYMENT
+       CONSIDERATIONS for the systemd unit) and proxy wss:// through the web
+       server. This development container already does both: a
+       [program:realtime] supervisor entry keeps the relay running, and nginx
+       proxies /ws to the relay, so the client's derived wss://<host>/ws
+       reaches the relay rather than the raw port.
+
+    3. The client connects LAZILY -- only when something actually calls
+       watch()/subscribe() -- not on every page load, and regardless of
+       whether the caller is authenticated (an anonymous visitor can watch a
+       public topic just as well as a logged-in user can watch a private
+       one). No client-side configuration needed.
+
+    Environment Variables:
+        REALTIME_ENABLED      Enable/disable the system (default: false)
+        REALTIME_WS_PORT      WebSocket server port (default: 6200)
+        REALTIME_PHP_ORIGIN   Where the relay reaches PHP for the new-subscription
+                              notify POST (default: http://127.0.0.1). A
+                              DEPLOYMENT fact about the box, like the FPC proxy's
+                              backend host -- set it only when PHP is not on
+                              loopback relative to the relay. The Host header
+                              comes from APP_URL either way. If the relay cannot
+                              reach PHP, baseline seeding simply does not happen
+                              and the emitter engine's key-missing publish covers
+                              those identities on their first write (see
+                              EMITTERS); no change is ever lost.
+
+    The client connect URL is NOT an env var - it is derived as
+    {scheme}://{Rsx::get_hostname()}/ws (wss on https pages, ws on plain-http
+    loopback/dev pages - see step 1 above). These vars are exposed via
+    config('rsx.realtime.*') on the PHP side. realtime-server.js reads
+    REALTIME_WS_PORT from .env directly (it has no access to Laravel's config
+    cache) -- keep ws_port in sync if you change it.
+
+    Config-only (not env vars) - application behavior, not deployment-specific
+    values, so they live in config/rsx.php. Both are surfaced to JS under
+    window.rsxapp.realtime:
+
+        rsx.realtime.load_gate_timeout_ms   (default 1500)
+            Max time a component's FIRST load waits for its realtime
+            subscription to establish before proceeding anyway (see SUBSCRIBING).
+
+        rsx.realtime.stale_reload_after_ms  (default 3600000, 0 disables)
+            How long a tab may be disconnected or suspended before a successful
+            reconnect forces a full page reload instead of relying on resync
+            (see AUTO-RECONNECT / STALE-RECONNECT RELOAD).
+
+    Dev-mode hostname guard: in development mode (RSX_MODE=development), every
+    web request verifies that the browsed request host matches the APP_URL host
+    declared in .env, and fatals loudly on a mismatch, naming both hosts. This
+    catches a pasted .env pointing at another instance (silent dead realtime
+    otherwise, since the relay URL is derived from the host). Loopback REQUESTS
+    (localhost / 127.* / ::1) are exempt; a loopback-VALUED APP_URL is NOT
+    exempt (an APP_URL=https://localhost browsed under a real host is exactly
+    the misconfiguration this catches). The check is skipped entirely on CLI and
+    in prod modes. (Rsx_Env_Hostname_Guard.)
+
+    The server reads APP_KEY from .env for HMAC token validation and
+    REDIS_HOST/REDIS_PORT/REDIS_PASSWORD for pub/sub.
+
+TOPICS
+    Topics are PHP classes that define who can subscribe to a channel
+    of notifications. Place them in /rsx/lib/topics/.
+
+    Every topic has a $requires_auth static property (default true). It is
+    NOT itself a runtime gate -- can_subscribe() always runs and is the real
+    enforcement -- but it documents intent and drives the REALTIME-AUTH-01
+    code-quality rule (below).
+
+    Auth-required topic (the default):
+
+        // /rsx/lib/topics/Contact_Updated_Topic.php
+        class Contact_Updated_Topic extends Realtime_Topic_Abstract {
+            public static function can_subscribe(array $filter = []): bool {
+                // Any authenticated user on the site can subscribe
+                return Session::is_logged_in();
+            }
+        }
+
+    Permission-restricted topic:
+
+        class Admin_Alert_Topic extends Realtime_Topic_Abstract {
+            public static function can_subscribe(array $filter = []): bool {
+                return Permission::has_role(User_Model::ROLE_ADMIN);
+            }
+        }
+
+    Public topic -- no session of any kind required (e.g. a public weather
+    widget on a marketing page):
+
+        class Weather_Updated_Topic extends Realtime_Topic_Abstract {
+            public static bool $requires_auth = false;
+            public static function can_subscribe(array $filter = []): bool {
+                return true; // payload must contain nothing sensitive
+            }
+        }
+
+    can_subscribe() runs in the context of the current caller's actual
+    session state. Use Session::is_logged_in()/get_user_id(),
+    Portal_Session::is_logged_in()/get_portal_user_id(), Permission::,
+    Portal_Permission::, etc. -- whichever fits the topic's domain. The
+    controller that mints tokens does not know or care which.
+
+    REALTIME-AUTH-01 (rsx:check): every Realtime_Topic_Abstract subclass is
+    checked. If $requires_auth is true (default), can_subscribe() must
+    contain a recognizable auth-check pattern or the rule flags it high
+    severity. If $requires_auth = false is declared, the rule flags it for
+    mandatory manual review (medium severity) until suppressed with
+    // @REALTIME-AUTH-01-EXCEPTION - <rationale> -- a public topic can never
+    ship silently.
+
+    Topic naming convention: {Model_or_Feature}_{Event}_Topic
+    Examples: Contact_Updated_Topic, Invoice_Created_Topic, Chat_Message_Topic
+
+PUBLISHING
+    Publish from PHP controllers or services after an event occurs:
+
+        #[Ajax_Endpoint]
+        public static function save(Request $request, array $params = []) {
+            $contact = Contact_Model::find($params['id']);
+            $contact->name = $params['name'];
+            $contact->save();
+
+            // Notify subscribers
+            Realtime::publish('Contact_Updated_Topic', [
+                'id' => $contact->id,
+                'updated_by' => Session::get_user_id(),
+            ]);
+
+            return ['success' => true];
+        }
+
+    Publishing from scheduled tasks:
+
+        #[Task('Process daily report')]
+        public static function generate_report(Task_Instance $task, array $params = []) {
+            // ... generate report ...
+            Realtime::publish('Report_Ready_Topic', ['report_id' => $report->id]);
+        }
+
+    Publish is a no-op when REALTIME_ENABLED=false. Safe to leave publish
+    calls in code regardless of whether realtime is enabled.
+
+    Payload guidelines:
+    - Include record IDs so clients can filter: ['id' => 5]
+    - Include actor ID for "someone else changed this": ['updated_by' => 3]
+    - NEVER include record data, field values, or PII
+    - Keep payloads small -- they are routing hints, not data
+    - Extra care for a $requires_auth = false topic: the payload is visible
+      to literally anyone who can reach the WebSocket endpoint
+
+SUBSCRIBING (JavaScript)
+    In components -- auto-unsubscribes when component is destroyed. Multiple
+    components watching the SAME topic+filter automatically share ONE
+    underlying subscription (ref-counted) -- no extra network traffic or
+    server-side subscriptions for the second, third, ... watcher.
+
+    Canonical pattern (recommended). Subscribe in on_create(), refetch with
+    refresh():
+
+        class Contacts_View_Action extends Spa_Action {
+            on_create() {
+                this.subscribe('Contact_Updated_Topic', {id: this.args.id}, () => this.refresh());
+            }
+
+            async on_load() {
+                this.data.contact = await Contact_Model.fetch(this.args.id);
+            }
+        }
+
+    Why on_create(). A subscription registered BEFORE the component's first
+    load GATES that load on subscription establishment: the one on_load()
+    fetch runs strictly AFTER the subscription is live. That is a single,
+    race-free fetch - no update can slip through a fetch-then-subscribe gap,
+    and there is no duplicate fetch. The initial resync (RESYNC ON
+    (RE)SUBSCRIBE below) is SWALLOWED for a gated subscription, because the
+    gated load already IS that revalidation; re-running it would just refetch
+    a second time.
+
+    The establishment wait is timeboxed by config
+    rsx.realtime.load_gate_timeout_ms (default 1500ms). If the relay is slow
+    or down, the load proceeds anyway at the timeout - the page never hangs on
+    realtime. When establishment then arrives late (after the timeout won),
+    its resync is NOT swallowed: it fires and heals whatever the timeout
+    window missed.
+
+    Why refresh() (not reload()). refresh() refetches via on_load() but
+    re-renders ONLY if this.data actually changed - a notification for a
+    change with no visible effect on this component repaints nothing. reload()
+    always repaints. For a realtime callback, refresh() is what you want: no
+    visual churn on no-op notifications. (See rsx:man jqhtml, LIFECYCLE
+    MANIPULATION METHODS.)
+
+    Without filter -- receive all messages for a topic:
+
+        on_create() {
+            this.subscribe('Contact_Updated_Topic', (data, meta) => {
+                // data.id tells us which contact was updated
+                this.refresh();
+            });
+        }
+
+    Secondary pattern: subscribing AFTER load (on_ready). Placing subscribe()
+    in on_ready() - after the first load - is also valid but is
+    fetch-then-revalidate: on_load() fetches once, then the subscription's
+    initial resync fires and the callback refetches again. It costs one extra
+    fetch per component versus the gated on_create() pattern; use on_create()
+    unless a subscription's filter genuinely is not known until after load.
+
+    The callback signature is (data, meta). meta.resync is true for the
+    synthetic call that fires on (re)subscribe (see RESYNC ON (RE)SUBSCRIBE
+    below -- data is null for that call) and false for a live message (data is
+    the published payload). Most callbacks ignore both arguments and just
+    refetch, e.g. () => this.refresh().
+
+    Idempotent + auto-cleanup. this.subscribe() registers ONE live
+    subscription per (topic, filter) per component instance - a repeat call
+    with the identical topic+filter returns the existing handle and adds
+    nothing - and every subscription a component starts is stopped
+    automatically when the component is destroyed. (A component that genuinely
+    wants a second callback on the same topic+filter uses Rsx_Realtime.watch()
+    directly.)
+
+    Callbacks stay idempotent refetches regardless of pattern. Reconnect
+    resyncs ALWAYS fire (on both patterns, and are never swallowed), and a
+    live-message burst is trailing-debounced, so a callback may be invoked
+    unprompted and repeatedly. () => this.refresh() satisfies this.
+
+    Outside components:
+
+        const watcher = await Rsx_Realtime.watch('Notification_Topic', (data, meta) => {
+            show_notification(data);
+        });
+
+        // Manual stop when no longer needed
+        watcher.stop();
+
+    Filter parameters:
+    Filters do shallow key matching. A subscription with filter {id: 5}
+    only receives messages where data.id === 5. Multiple filter keys are
+    AND-ed: {id: 5, type: 'invoice'} matches only when both match.
+
+MODEL CHANGE EMISSION
+    Instead of hand-writing a topic and a publish() call for every model, a
+    model can opt into AUTOMATIC change notifications. This is the ordinary way
+    an RSX page stays live: opt the model in, subscribe in the component, done.
+
+    Opt in with a single static on the model:
+
+        class Client_Model extends Rsx_Site_Model_Abstract {
+            public static $realtime = true;   // default: false
+        }
+
+    From then on, every successful save() or delete() on that model (the single
+    Rsx_Model_Abstract write choke point) queues a notification-only
+    Model_Changed_Topic message {model, id} and flushes it on TRANSACTION
+    COMMIT. A rollback discards the queued emission (Laravel transaction-manager
+    semantics) - nothing is published for a write that never committed. Writes
+    outside a transaction flush immediately. Emissions are deduped per
+    model|id|site_id within a flush, so a record saved three times in one
+    request publishes once.
+
+    site_id is the row's own site_id column when present, else the current staff
+    session site, else 0 - matching Realtime::publish()'s default.
+
+    Bulk model-builder writes are covered too (see BULK WRITES below):
+    Model::where(...)->update() / ->delete() on a model with a realtime surface
+    pre-select the affected rows and emit for them - so removing or updating rows
+    in bulk notifies subscribers just like a per-row save(). Only writes that
+    never reach the model builder still emit nothing - DB::table(...)->update(),
+    an explicit ->getQuery()/->toBase() drop, and raw SQL. realtime_emit() is the
+    manual tool for those (MANUAL EMISSION).
+
+    Subscribing (JavaScript). Inside a component, subscribe with the MODEL, not
+    a topic string. Canonical placement is on_create() with a refresh()
+    callback (see SUBSCRIBING for why: gated first load = one race-free fetch):
+
+        on_create() {
+            // by class + id (the id is available in on_create):
+            this.subscribe(Client_Model, this.args.id, () => this.refresh());
+        }
+
+    The record-instance form needs a loaded record, so it is a post-load
+    (on_ready) subscription - the secondary, fetch-then-revalidate pattern:
+
+        on_ready() {
+            this.subscribe(this.data.client, () => this.refresh());
+        }
+
+    Both forms expand internally to
+    this.subscribe('Model_Changed_Topic', {model, id}, cb). Outside a component
+    (no auto-cleanup - you own the returned {stop()} handle):
+
+        const watcher = await Client_Model.watch_changes(id, () => refresh());
+
+    FAIL LOUD: subscribing to a model that has NOT set $realtime = true throws
+    immediately (a subscribe that can never receive a message is a bug). The
+    check runs in every environment, before the realtime-disabled no-op - so it
+    surfaces even with REALTIME_ENABLED=false. The PHP $realtime flag is baked
+    into the model's JS stub as a __REALTIME static; the throw fires when it is
+    absent.
+
+    IDEMPOTENT per (topic, filter) per component. this.subscribe() registers
+    ONE live subscription per (topic, filter) per component instance: a second
+    identical call returns the existing handle and adds nothing. The canonical
+    on_create() placement runs once per component lifetime anyway (refresh() /
+    reload() do NOT re-run on_create), so it subscribes exactly once. The
+    guarantee matters for the secondary on_ready() placement -
+
+        on_ready() { this.subscribe(Client_Model, id, () => this.refresh()); }
+
+    - which re-runs after every render: without idempotence each render would
+    stack another callback on the shared ref-counted subscription, so the Nth
+    message would trigger N refetches (an exponential snowball). (A component
+    that genuinely wants a second callback on the same topic+filter uses
+    Rsx_Realtime.watch() directly.) Live message dispatch is additionally
+    trailing-debounced ~250ms per subscription, so a burst of commits collapses
+    to one refetch; the resync call (see RESYNC ON (RE)SUBSCRIBE) fires
+    immediately and cancels any pending debounce.
+
+    Deletes emit identically. A subscriber to a deleted record refetches, hits
+    not-found, and lands in its normal not-found/error state - the notification
+    does not distinguish "changed" from "deleted"; the refetch does.
+
+    Collection-level watch (free, via shallow filter matching):
+
+        {model: 'Client_Model', id: 5}   -> exactly that record
+        {model: 'Client_Model'}          -> every change to that model on the site
+
+    The string form gives the collection watch:
+    this.subscribe('Model_Changed_Topic', {model: 'Client_Model'}, cb).
+
+    Touch cascade - dependent result sets. A change to a child record often
+    needs to refresh a PARENT's result set (e.g. editing a Contact should refresh
+    the Client view's contacts tab). Declare that dependency on the CHILD. There
+    are two ways, a ladder - reach for the first rung; drop to the second only
+    when the parent is not a plain belongsTo:
+
+    Rung 1 (the way): #[Realtime_Touch] on the child's belongsTo relationship
+    method. This is the ordinary declaration - a bare marker attribute (no
+    arguments) on the relationship that points at the parent:
+
+        // Contact_Model
+        public static $realtime = true;   // (optional here - see below)
+
+        #[Relationship]
+        #[Realtime_Touch]
+        public function client()
+        {
+            return $this->belongsTo(Client_Model::class, 'client_id');
+        }
+
+    Any write to the Contact - a model save()/delete() OR a covered bulk builder
+    write (BULK WRITES below) - queues a change emission for the related Client.
+    The framework resolves the parent class and FK column once per class by
+    reflecting the annotated relationship (no FK duplicated in the attribute).
+    Two properties worth stating:
+
+    - It fires INDEPENDENTLY of the child's own $realtime flag. A contact that
+      only touches its client (and has no page watching contacts directly) can
+      leave $realtime off entirely and the client still refreshes. (Setting
+      $realtime as well - as Contact_Model does - just additionally emits the
+      contact's own {model, id} for anyone watching a contact record.)
+    - The attribute is belongsTo-ONLY. Placing it on a hasMany/morphTo/hasOne
+      method, or on anything that does not return a belongsTo, fails loud at
+      resolution time - use rung 2 for those.
+
+    Rung 2 (the escape hatch): override realtime_touch(): array when the parent
+    is polymorphic or conditional - a plain belongsTo (and therefore the
+    attribute) cannot express it. Return the parent model INSTANCES to notify:
+
+        // Task_Model - taskable is a polymorphic parent (Task/Project/Client/User)
+        public function realtime_touch(): array
+        {
+            if (!$this->taskable_type || !$this->taskable_id) {
+                return [];
+            }
+            $parent = $this->taskable()->withTrashed()->first();
+            return $parent ? [$parent] : [];   // instances, never nulls
+        }
+
+    Use rung 2 only when rung 1 cannot apply. Do not hand-write a realtime_touch()
+    that merely re-fetches a belongsTo parent - that is exactly what the attribute
+    does for free.
+
+    Like the attribute rung, the realtime_touch() METHOD rung fires independent of
+    the child's OWN $realtime flag - a touch-only child still notifies its parents;
+    the child's own change frame is published only when it sets $realtime = true.
+
+    Both rungs feed the SAME cascade. On the child's save/delete (or covered bulk
+    write) it walks outward (BFS), queuing a change emission for each reached
+    parent - so a page watching the Client reloads when a Contact under it
+    changes. Rules and guarantees (identical for both rungs):
+
+    - The parent is notified as an identity (model + id + site) - a plain
+      belongsTo touch does NOT hydrate the parent row at all. rung 2 necessarily
+      hydrates (it returns instances); rung 1 hydrates only when the parent
+      itself has onward touches to walk.
+    - realtime_touch() returns INSTANCES only (fetch the parent directly; eager
+      loading is blocked). Never return null - null parents are illegal in the
+      cascade and throw.
+    - A touch does NOT write the parent row - it only publishes the parent's
+      change notification. No timestamps are bumped, no UPDATE is issued.
+    - A touched parent is notified regardless of its OWN $realtime flag - the
+      CHILD declares the dependency, so the parent need not opt in to be a touch
+      target.
+    - Cycle-guarded (a visited model|id set) and depth-capped (25 levels), so a
+      self-referential or cyclic touch graph terminates instead of looping. A
+      multi-level chain works: Message -> Thread -> Client is two hops.
+
+    BULK WRITES
+    A bulk model-builder write - Model::where(...)->update([...]) or
+    Model::where(...)->delete() - on a model with a SIDE-EFFECT SURFACE is
+    processed by FETCH-THEN-ITERATE: the builder loads the affected rows and runs
+    each through its own save()/delete(), so the realtime frame (for a $realtime
+    model) AND the after_create/after_update/after_delete lifecycle hooks fire PER
+    RECORD via the ordinary single-write path. A bulk edit refreshes subscribers
+    exactly like a hand-written per-row save loop, with no such loop written:
+
+        // Emits one Contact change per affected row (coalesced into one WS frame,
+        // see below) and fires after_update on each - no per-row loop written.
+        Contact_Model::where('client_id', 5)->update(['is_active' => false]);
+
+    Side-effect surface = a realtime surface ($realtime = true, OR a
+    #[Realtime_Touch]-attributed relation, OR an overridden realtime_touch()) OR an
+    overridden after_* lifecycle hook (see: php artisan rsx:man model). A model with
+    NEITHER has nothing to fire, so its bulk write stays a single raw SQL statement
+    (no per-row cost).
+
+    How it works - the re-entrancy guard. A model's OWN single-row save()/delete()
+    already routes through this same builder (Eloquent's performUpdate /
+    performDeleteOnModel), so "load the rows and call save() on each" would recurse.
+    Rsx_Model_Abstract bumps a write-depth counter around parent::save()/
+    parent::delete(); the builder runs the RAW statement while depth > 0 (a model's
+    own single-row write) and only fetch-then-iterates when depth == 0 (a genuine
+    user bulk). A single save() therefore stays exactly one statement + one emit; a
+    bulk op becomes N guarded single writes inside one DB::transaction (a
+    mid-iterate failure rolls the whole bulk back, and the commit-gated buffer then
+    fires nothing). ->delete() under SoftDeletes is an UPDATE of deleted_at that
+    re-enters at depth 1 -> raw -> after_delete fires once, never after_update.
+
+    No cap. Every affected row is processed - there is NO row limit. A bulk op on a
+    surfaced model is O(N) inline; that is the accepted tradeoff (the async
+    successor - a DB-trigger change-queue draining ORM-record tasks - is backlogged
+    as B-65). For a genuinely huge sweep where the per-row cost or notification is
+    unwanted, use the escape hatch.
+
+    ->raw_bulk() - the escape hatch. Chain it to run ONE raw SQL statement and fire
+    NOTHING (no realtime, no hooks) for a deliberate mass-maintenance write:
+
+        // Portal activity stamp - runs on EVERY portal request; firing a Client
+        // change (and any hook) for a low-value timestamp bump would churn every
+        // open staff client view on every portal click. Deliberate suppression.
+        Client_Model::whereIn('id', $client_ids)
+            ->raw_bulk()
+            ->update(['portal_last_activity_at' => now()]);
+
+    A raw Expression value in the update set (DB::raw('n + 1')) cannot be applied
+    per-record safely, so such a statement is ALSO run raw automatically.
+
+    What is NOT covered. DB::table(...)->update()/->delete(), an explicit
+    ->getQuery()/->toBase() drop, and raw SQL never pass through the model builder
+    - they fire nothing, permanently, by design. After such a write call
+    $record->realtime_emit() (MANUAL EMISSION) for the affected records.
+
+    REALTIME-BULK-01 (rsx:check) watches these paths (medium severity - advisory,
+    because model-builder writes are auto-covered). It flags a bulk
+    ->update()/->delete() reached through a Model::where()/query() chain on a
+    surfaced model, and a DB::table('<table>')->update()/->delete() whose table
+    maps to such a model. Three suppressions clear it: (a) the same chain calls
+    ->raw_bulk(), (b) the enclosing method body calls realtime_emit(), or (c) a
+    // @REALTIME-BULK-01-EXCEPTION - <rationale> comment is present. The remediation
+    text on a flagged line spells out which applies.
+
+    Bulk WS frames. When one request coalesces several changes to the same model
+    on the same site, they transmit as ONE Model_Changed_Topic frame carrying
+    {model, ids:[...]} (chunked ~100 ids per frame) instead of N singleton
+    {model, id} frames; a single-record group keeps the {model, id} shape. This is
+    wire-compatible: an id-filtered watcher ({id: 5}) matches a frame whose ids
+    array CONTAINS its id, and a collection watcher ({model} only) matches either
+    shape. Payloads remain notification-only hints - the ids are which records to
+    consider refetching, never data.
+
+    Silent models. A model whose writes should NEVER schedule an emitter
+    recompute (see EMITTERS) sets:
+
+        public static $realtime_silent = true;   // default: false
+
+    This is for per-request / high-volume infrastructure models (session
+    persistence, mail/SMS queues) - background plumbing no UI subscriber cares
+    about. A silent model still may set $realtime (it is a separate axis), but
+    normally silent models set neither. $realtime_silent only suppresses the
+    emitter dirty-kick; it does not affect a model's own Model_Changed_Topic
+    emission.
+
+MANUAL EMISSION
+    The automatic hook (above) fires on a model save()/delete() AND on a covered
+    bulk model-builder write (BULK WRITES). Some writes still never reach the
+    model layer at all - a DB::table(...)->update(), an explicit
+    ->getQuery()/->toBase() drop, raw SQL, or a bulk import - and a change to a
+    value DERIVED from other rows maps to no single record write. Those bypass the
+    hook, so a subscriber watching the record would never be notified. The
+    explicit companion covers exactly that gap:
+
+        // After a write that bypassed the model layer:
+        DB::table('clients')->where('id', $id)->update(['notes' => $notes]);
+        Client_Model::find($id)->realtime_emit();   // notify subscribers now
+
+    realtime_emit() queues the SAME change emission the auto hook would - the
+    touch cascade runs identically - for THIS record. It is the manual half of the
+    same one system; there is no second mechanism.
+
+    Semantics:
+
+    - Works regardless of the model's $realtime flag. Calling it IS the intent, so
+      a model that never opted into automatic emission still emits when you ask it
+      to. (It is still a no-op when realtime is globally disabled, so it is safe to
+      leave in code unconditionally.)
+    - Requires a persisted record. A manual emit on an unsaved row (empty id) is a
+      programming error and fails loud.
+    - Never emits uncommitted state. Inside a transaction the emission still
+      flushes on COMMIT and is discarded on ROLLBACK, exactly like the auto hook.
+    - ONCE PER (model, id) PER REQUEST. A second realtime_emit() of the same record
+      in the same request is a silent no-op - the record's notification has already
+      been queued or sent. The dedup is buffer/outbox-based, never a call-time
+      latch: a manual emit inside a transaction that then rolls back leaves no
+      trace, so a later legitimate emit of the same record still succeeds.
+
+    Transmission timing (web vs CLI). This is transparent - you never choose - but
+    worth knowing:
+
+    - In a WEB request, all emissions (automatic and manual) are collected and the
+      actual publish happens ONCE, after the response is sent (a request-level
+      outbox transmitted at request termination). A record changed several times in
+      one request therefore notifies its subscribers exactly once - the browser
+      refetches once and sees final state. The response is never blocked on the
+      publish round-trip.
+    - In CLI (a task, tinker, tests), emissions transmit at flush (transaction
+      commit), as they happen - a long-running task must notify as it works, not at
+      process exit.
+
+    Both paths run the same flush, dedup, touch cascade, and rollback-discard; only
+    WHEN the publish leaves the process differs.
+
+DERIVED VALUES
+    A "derived value" is anything the page shows that is not one record's own
+    column: a count, a sum, a rolled-up status, a balance computed across several
+    tables. Making one go live is a decision with three rungs. Reach for the
+    lowest rung the value's INPUTS allow.
+
+    Rung 1 - touch cascade, when the inputs are model writes on child records.
+    If the derived thing is "a parent's result set" (the contacts under a client,
+    the subtasks under a task), you do not need an emitter at all - declare
+    #[Realtime_Touch] on the child (or realtime_touch() for a polymorphic parent)
+    and every child write refreshes the parent. The parent's fetch() recomputes
+    the rolled-up value on refetch. This is the common case; prefer it.
+
+    Rung 2 - realtime_emit(), when the writing code KNOWS an aggregate moved but
+    the change did not come through the aggregate's own model. After a
+    DB::table()/raw/bulk-import write, or after recomputing a stored derived
+    column, call $record->realtime_emit() on the record whose subscribers should
+    refetch (MANUAL EMISSION). One explicit line, no engine.
+
+    Rung 3 - #[Emitter], when the value is COMPUTED across records or depends on
+    NON-model inputs, so no single write maps to it cleanly (a live queue depth, a
+    balance across Retainer + Billing + Payments, an unread-count badge). The
+    engine recomputes and hash-diffs it and publishes only on change (EMITTERS
+    below).
+
+    Composition - one subscription idiom via Model_Changed_Topic. An emitter
+    normally publishes its OWN topic, so a page carrying both a scalar model-watch
+    and a derived value would juggle two subscription idioms. To keep the page on
+    the single this.subscribe(Model, id, ...) idiom, an emitter may publish onto
+    the shared Model_Changed_Topic - but ONLY with the model-constraint second
+    argument, which is REQUIRED here (it preserves the no-churn dispatch gate; see
+    EMITTERS):
+
+        #[Emitter('Model_Changed_Topic', 'Client_Model')]
+        public static function client_balance(int $site_id, array $filter): mixed
+        {
+            // filter is the subscriber's own {model:'Client_Model', id:N}
+            return Billing_Service::balance_for_client($site_id, (int) $filter['id']);
+        }
+
+    The page still just watches the client:
+    this.subscribe(Client_Model, id, () => this.refresh()) - and a balance change
+    (from a payment recorded anywhere) publishes a Client_Model {model, id} the
+    page already listens for. The constraint scopes the emitter to Client_Model
+    watchers only, so an unrelated model's write never dispatches it.
+
+EMITTERS
+    An EMITTER is a computed value that publishes its topic when the value
+    CHANGES - for derived data that no single model write cleanly maps to (an
+    unread-count badge, a rolled-up dashboard KPI, a queue depth). You write the
+    computation; the engine recomputes it, hash-diffs it, and publishes only on
+    change.
+
+    Declare one with #[Emitter] on a public static method (on a service, or any
+    scanned class), signature (int $site_id, array $filter): mixed:
+
+        class Notification_Service extends Rsx_Service_Abstract {
+            #[Emitter('Unread_Count_Topic')]
+            public static function unread_count(int $site_id, array $filter): mixed
+            {
+                return Notification_Model::where('site_id', $site_id)
+                    ->where('portal_user_id', $filter['portal_user_id'])
+                    ->where('is_read', false)
+                    ->count();
+            }
+        }
+
+    #[Emitter] is reflection metadata only - never define an attribute class,
+    and the linter correctly strips any `use` for it. Discovery is an attribute
+    scan of the manifest (the same mechanism as #[Task]/#[Schedule]); an
+    #[Emitter] anywhere in the scanned tree is found with no registration.
+
+    Emitter topics are ordinary Realtime_Topic_Abstract classes (with the usual
+    can_subscribe() gate) - the emitter just decides WHEN the topic fires.
+
+    Optional model constraint (second argument). #[Emitter('Topic', 'Model_Name')]
+    scopes the emitter to registry entries whose filter.model equals 'Model_Name'.
+    Absent, the emitter runs for every watched work item on its topic (custom
+    topics stay exactly as before). Present, it is the mechanism that makes
+    Model_Changed_Topic composition (DERIVED VALUES above) safe: without it, an
+    emitter on the shared Model_Changed_Topic would make EVERY model write dispatch
+    the recompute task and fan out to every watched record of every model - the
+    no-churn property lost. The constraint narrows all three of: the dispatch gate
+    (has_watched_emitter_topic() counts only matching entries, so a page watching
+    only Contact_Model does NOT open the gate for a Client_Model-constrained
+    emitter), the emitter_topics() intersection, and the engine loop (it skips
+    non-matching filters). The constraint is per-emitter, so multiple emitters may
+    share one topic with different constraints.
+
+    Headless execution. An emitter runs in a background task with NO session -
+    derive everything from its $site_id and $filter arguments (the $filter is
+    the subscriber's own subscription filter). Never read Session:: /
+    Portal_Session:: inside an emitter.
+
+    NO TIMER - write-kicked. Nothing polls. A destructive model-layer write (any
+    non-$realtime_silent save/delete) marks emitters dirty; the commit flush then
+    dispatches the emitter task IFF all three gates hold:
+
+        1. realtime is enabled, AND
+        2. at least one #[Emitter] is registered (cached manifest check), AND
+        3. the Node subscriber registry holds a subscription to a topic that
+           actually HAS an emitter.
+
+    The third gate is stricter than "someone is connected": with emitters
+    present but only Model_Changed_Topic watchers connected, the topic
+    intersection is empty and NO task is dispatched - no churn. Nothing ticks
+    while nothing is happening, and emitters run only for topics someone is
+    actually watching.
+
+    The task (Realtime_Emitter_Service::run_emitters) is #[Debounce(2)]: at most
+    one running + one pending per identity, the coalesced follow-up waiting 2s
+    after the prior run completed - a write burst collapses into one trailing
+    recompute.
+
+    Hash-diff semantics. For each registry work item (site_id, topic, filter)
+    whose topic has an emitter, the engine calls the emitter, computes
+    sha1(json_encode(value)), and compares it to the last stored hash (Redis key
+    rsx_rt:em:{identity}, TTL 86400s):
+
+    - hash same -> nothing.
+    - hash changed -> store the new hash and publish(topic, filter, site_id).
+    - key MISSING -> store the hash and PUBLISH. An absent baseline is treated as
+      a change, deliberately.
+
+    Why key-missing publishes. A work item exists only because the subscriber
+    registry holds a live subscription for it, and the task is dispatched only
+    when a live watcher exists - so at that point a subscriber EXISTS by
+    construction, and an absent baseline can only mean one of three things:
+
+      (a) the subscribe -> seed race (a write landed before the baseline was
+          stored - a window of about a second),
+      (b) redis was wiped: every maintenance window and framework update restarts
+          redis EMPTY, so all rsx_rt:em:* hashes vanish while the pages stay open,
+      (c) the 86400s TTL expired under a long-lived, quiet subscription - which
+          produces no new-member event ever (the member never left the registry),
+          so nothing else would re-seed it.
+
+    All three need the frame. Suppressing here is what used to silently swallow
+    the first change after any hash gap, and case (c) alone reintroduced the bug
+    for every page left open longer than a day. Over-emitting is the harmless
+    direction: frames are content-free doorbells and every callback is an
+    idempotent refetch that repaints only when the data actually differs.
+
+    Baselines are seeded at SUBSCRIBE time, not at write time - the one moment
+    "the subscriber already has current state" is actually true, because the
+    subscribe ack IS the resync signal (see RESYNC ON (RE)SUBSCRIBE). The relay
+    reports newly-live subscriptions over the notify channel described in
+    SUBSCRIBER REGISTRY below, and Realtime_Emitter_Service::seed_subscriptions
+    computes each emitter once and stores its baseline WITHOUT publishing.
+
+    The stored-hash identity includes the emitter's class::method, so two
+    emitters on the same topic keep separate hashes and cannot clobber each other
+    into ping-ponging publishes. An emitter that throws bubbles (fail loud - the
+    task records the failure).
+
+    SUBSCRIBER REGISTRY
+    The write-kick gate and the emitter engine both need to know what is
+    currently being watched. The Node relay maintains that as a Redis SET at
+    rsx_rt:subs:
+
+    - On every subscribe / unsubscribe / close (and on the periodic stats tick),
+      Node recomputes the FULL active set from its in-memory connections and
+      atomically rewrites the key (MULTI: DEL + SADD members + EXPIRE 90),
+      refreshing the EXPIRE every 60s.
+    - Each member is canonical JSON {site_id, topic, filter} with filter keys
+      SORTED, so identical subscriptions across connections collapse to one set
+      member (the PHP side sorts filter keys the same way when deriving an
+      emitter's hash identity).
+    - Node DELs the key on boot (clearing any set a crashed prior instance left).
+    - Self-healing: if the Node relay dies, the key simply EXPIREs and emitters
+      stop running - no stale registry keeps recomputing against phantom
+      subscribers.
+
+    PHP gates emitter dispatch on
+    Realtime_Emitter_Service::has_watched_emitter_topic() (does any live
+    subscription match a registered emitter's model) and reads the decoded
+    tuples via Realtime::subscribed_registry_entries() (what the engine
+    iterates).
+
+    NEW-SUBSCRIPTION NOTIFY (relay -> PHP). Registry writes alone cannot tell PHP
+    that a subscription just became live: they are full-state DEL + SADD-all
+    rewrites, so redis reports every member as new on every rewrite. Instead the
+    relay keeps an in-memory baseline of the members it last wrote SUCCESSFULLY,
+    diffs the new set against it, and reports the additions:
+
+    - Additions accumulate in a pending set behind a ONE-SHOT 200ms timer (armed
+      by the event, never a polling schedule - the NO TIMER rule binds the PHP
+      emitter engine and this does not violate it), so a burst of subscribes
+      rides one POST.
+    - The POST goes to {REALTIME_PHP_ORIGIN}/_realtime/subs_changed (default
+      origin http://127.0.0.1), with the Host header taken from APP_URL, a 2s
+      timeout, body {"ts": <unix>, "members": [<canonical member json>, ...]} and
+      header X-Realtime-Signature: hex(hmac_sha256(raw_body, APP_KEY)) - the same
+      shared secret both sides already use for websocket tokens.
+    - PHP verifies the signature with hash_equals and requires the timestamp
+      within 60s (a signature alone would make a captured body valid forever).
+      A rejection is logged and answered 403; it never throws. This is an
+      untrusted-input boundary, exactly like the relay's token validator.
+    - The relay stays DUMB: it reports ALL new members and knows nothing about
+      emitters. PHP filters to entries a registered emitter actually serves
+      (topic + model constraint) and dispatches
+      Realtime_Emitter_Service::seed_subscriptions with them. That task is
+      deliberately UNMANAGED (no #[Exclusive]/#[Debounce]) because coalescing
+      enqueue drops a coalesced dispatch's params, which would silently lose seed
+      targets.
+    - Failure posture: fire-and-forget, log-only, every error handler attached (a
+      single unhandled error event would kill the shared relay for every
+      connected user). A dropped notify costs a baseline seed, and the
+      key-missing publish above covers that identity on its next write. A relay
+      host with no co-located HTTP simply never seeds - it never loses a change.
+    - Recurrences are DESIRABLE. A relay restart starts with an empty baseline, so
+      every member reads as new and everything reseeds; unsubscribe followed by
+      resubscribe re-seeds and refreshes the baseline TTL.
+
+    No template-app emitter ships today. The engine is proven by framework tests
+    and a fixture emitter; the first real consumer is the planned
+    notification-badge count (see rsx:man - the notification system backlog).
+
+SERVER-SIDE FILTERING
+    Filtering happens on the Node.js server, not in the browser. When you
+    subscribe with a filter, only messages matching that filter are sent
+    over the WebSocket. This is efficient -- a page watching contact #5
+    does not receive traffic for contacts #1-#4 and #6-#10000.
+
+RESYNC ON (RE)SUBSCRIBE
+    Every successful subscribe -- the first time, or after a reconnect --
+    fires its callback once immediately, with data: null and meta.resync:
+    true. The callback's job is always "go check current state," so this
+    one signal covers both "give me the current state now" and "catch me up
+    on whatever I missed while disconnected" -- there is no server-side
+    message log to replay.
+
+    This is deliberate, not a limitation: RSX messages never carry the
+    actual changed data (see PUBLISHING), so there is nothing meaningful to
+    replay -- a delta log would only ever tell you "something changed,"
+    which the resync signal already tells you, for free, on every
+    (re)subscribe. (This mirrors how other realtime systems handle the same
+    problem -- e.g. Phoenix Channels pushes current state on every join, and
+    ActionCable's connected() callback conventionally triggers a refetch --
+    rather than trying to reconstruct a backlog.)
+
+    Practical effect: write subscribe callbacks to be safe to call
+    unprompted and repeatedly (idempotent refetches, not "apply this delta").
+    A callback like () => this.refresh() already satisfies this.
+
+DELIVERY GUARANTEE
+    The promise, stated exactly: IF the browser is online and the surface is
+    wired for realtime, its values are current with respect to every change made
+    THROUGH THE MODEL LAYER.
+
+    What upholds it:
+
+    - Every non-silent model write emits (single writes and bulk builder writes
+      alike - see MODEL CHANGE EMISSION), on commit, through a transactional
+      outbox that discards on rollback.
+    - Emitter values publish on every observed change, and an absent baseline
+      counts as a change (see EMITTERS / hash-diff). No path decides "this one is
+      not worth publishing."
+    - Every (re)subscribe resyncs, so any frame missed while disconnected is
+      healed by a refetch rather than a replay.
+
+    NO REPLAY BUFFER - BY DESIGN. A relay-side message buffer (hold every frame,
+    replay on connect/reconnect, dedupe, expire) was designed in full and
+    REJECTED. Resync-on-(re)subscribe is the replacement, and it is strictly
+    better here: frames are content-free doorbells, so replaying 40 buffered
+    frames says "go look 40 times" where the resync says "here is the answer
+    now." Every disconnect scenario - relay restart, PHP publishing while the
+    relay is down, laptop asleep, network drop - ends in reconnect ->
+    resubscribe -> resync -> refetch.
+
+    A buffer would also add authoritative state to a process that can die
+    (needing a PHP repopulation protocol on relay boot), inconsistency across
+    multiple relay instances, unbounded memory under load, PHP/Node clock skew in
+    the retention window, a per-tenant filtering requirement so replay cannot
+    cross sites, and a client-asserted "am I a reconnect?" claim that is
+    untrusted by nature - all to deliver doorbells the resync already covers.
+
+    REOPEN THIS DECISION ONLY IF FRAMES EVER CARRY PAYLOADS. The security rule
+    that a frame never carries the changed data is exactly what makes the
+    stateless design sufficient. If that rule is ever relaxed (deltas that cannot
+    be reconstructed by refetching), a buffer becomes necessary.
+
+RESIDUAL GAPS
+    Named honestly so nobody assumes a stronger promise than the one above.
+
+    1. UNSUBSCRIBED SURFACES ARE STALE BY DESIGN. Edit forms, modals and any
+       screen where fields must not shift under the user's hands deliberately do
+       not subscribe; they refresh by navigation. This is an application
+       convention, chosen per surface - the framework records no directive about
+       which screens must abstain.
+
+    2. ONLY MODEL-LAYER WRITES EMIT. Raw SQL, DB::table() and any external
+       process touching the database emit nothing. The remedy is explicit:
+       $record->realtime_emit() (see MANUAL EMISSION). rsx:check's
+       REALTIME-BULK-01 flags uncovered bulk writes; it cannot see another
+       program's writes at all.
+
+    3. TIME-DERIVED VALUES NEVER EMIT - the sneakiest hole. A value that changes
+       through the passage of time alone (a task crossing its due date into
+       "overdue", an invoice aging past due, an SLA timer expiring) involves NO
+       write, so no emitter is kicked and no frame is published. A subscribed
+       component displays stale-but-unchanged data indefinitely and nothing
+       anywhere reports a problem.
+
+       The sanctioned remedy is CLIENT-SIDE RECOMPUTATION: carry the deciding
+       timestamp in the payload the component already fetches and derive the
+       state in the browser (Rsx_Time::is_past(), a countdown, a class toggle on
+       a timer local to that component). There is deliberately NO framework
+       helper that schedules a server-side kick for time-derived values - that
+       would be a poll, which the NO TIMER rule exists to prevent.
+
+    4. RELAY REDIS-SUBSCRIBER BLIP. If the relay's redis SUBSCRIBER connection
+       drops and reconnects while the browser websockets stay up, frames
+       published during that gap are gone and NO client resyncs (no browser
+       disconnect occurred, so nothing resubscribes). The window is small
+       (node-redis re-subscribes itself) but the consequence is a client left
+       stale until the value changes again, or until a hash wipe makes the
+       key-missing publish fire. Note that the relay PROCESS dying is NOT this
+       case - that closes every socket, so every client reconnects and resyncs.
+       Not fixed speculatively; the cheap remedy if it is ever observed is a
+       low-frequency safety refetch on long-lived subscriptions.
+
+    Deliberate designs that are NOT gaps (audited, recorded here so they are not
+    re-litigated): the request-wide $sent_keys dedup (one hint per record per
+    request - the client refetches once at request end and sees final state);
+    savepoint-coarse rollback handling (a nested rollback may over-emit, never
+    under-emit); the 250ms client live-dispatch debounce (collapses a burst into
+    one refetch, resync exempt); the gated-first-resync swallow (that load IS the
+    revalidation, and only when establishment beat the timeout); and the dispatch
+    gates (they only decide whether a RECOMPUTE runs, never whether an observed
+    change publishes).
+
+    Gated subscriptions swallow their FIRST resync. When a subscription is
+    registered before the component's first load (the canonical on_create()
+    pattern in SUBSCRIBING), that first load is gated on establishment and IS
+    the revalidation - so the initial resync callback is suppressed, avoiding
+    a duplicate refetch. This swallow applies ONLY to that first resync, and
+    ONLY when establishment beat the load-gate timeout. A late establishment
+    (timeout won first), every reconnect resync, and every live message all
+    pass through as normal.
+
+CONNECTION STATE
+    Rsx_Realtime.on_state_change(callback) reports the WebSocket connection
+    state -- useful for a "backend offline" indicator in a header/status bar:
+
+        Rsx_Realtime.on_state_change((state) => {
+            // state: 'connecting' | 'connected' | 'disconnected' | 'reconnecting'
+        });
+
+    The callback fires immediately with the current state when registered,
+    then again on every transition. Call the returned function to stop
+    listening.
+
+    There is no connection at all until something calls watch()/subscribe()
+    (see SETUP) -- before that, the state is 'disconnected' by definition,
+    which is correct: nothing is being watched, so there is nothing to be
+    connected for.
+
+    STATE SEMANTICS (critical -- get this wrong and the indicator lies):
+    - 'disconnected' means idle / lazy / realtime-disabled -- the socket is
+      not open because nothing needs it (lazy connect) or the last watch
+      stopped (intentional idle close, no reconnect). It does NOT mean
+      "unreachable" and must NEVER be treated as an error.
+    - An UNINTENTIONAL drop always passes through 'reconnecting'
+      (onclose -> schedule reconnect); a fresh attempt is 'connecting'.
+    - A "backend unreachable" warning must therefore ARM A GRACE TIMER only
+      on 'connecting'/'reconnecting', SHOW the warning if 'connected' has not
+      arrived by the time the timer fires, and HIDE on 'connected' or a
+      TERMINAL 'disconnected'. Warning on a bare 'disconnected' is a bug -- it
+      would fire on every ordinary lazy/idle page.
+
+    During a reconnect loop the socket briefly reports 'disconnected' and then
+    SYNCHRONOUSLY 'reconnecting' in the same onclose frame. Because
+    on_state_change delivers those two transitions synchronously, a deferred
+    (setTimeout 0) check reads the LATEST state as 'reconnecting' for a
+    transient drop and 'disconnected' for a terminal one -- that is how to hide
+    on a real idle disconnect without killing the grace timer mid-reconnect.
+
+    REFERENCE IMPLEMENTATION: the shipped Realtime_Status_Badge theme component
+    (rsx/theme/components/realtime/) is the living example of this pattern -- a
+    header pill, hidden by default, that fades in only during a genuine outage.
+    It observes state only (subscribes to no topic):
+
+        class Realtime_Status_Badge extends Component {
+            static GRACE_MS = 5000;  // continuous not-connected time before warning
+
+            on_create() {
+                this.state = { visible: false };
+                this._grace_timer = null;
+                this._last_state = null;
+                // Store the unsubscribe fn; call it in on_stop().
+                this._state_unsub = Rsx_Realtime.on_state_change(
+                    (state) => this._on_state_change(state)
+                );
+            }
+
+            on_stop() {
+                if (this._state_unsub) this._state_unsub();
+                this._clear_grace_timer();
+            }
+
+            _on_state_change(state) {
+                this._last_state = state;
+                if (state === 'connecting' || state === 'reconnecting') {
+                    this._arm_grace_timer();      // arm ONLY here
+                } else if (state === 'connected') {
+                    this._hide();                 // clear + hide
+                } else if (state === 'disconnected') {
+                    // Defer: a transient drop advances _last_state to
+                    // 'reconnecting' synchronously; only a terminal disconnect
+                    // is still 'disconnected' on the next tick.
+                    setTimeout(() => {
+                        if (this._last_state === 'disconnected') this._hide();
+                    }, 0);
+                }
+            }
+
+            _arm_grace_timer() {
+                if (this.state.visible || this._grace_timer) return;  // never reset
+                this._grace_timer = setTimeout(() => {
+                    this._grace_timer = null;
+                    this._show();  // fade in via a CSS opacity-transition class
+                }, Realtime_Status_Badge.GRACE_MS);
+            }
+        }
+
+    The grace timer is NEVER reset by a subsequent trying-state, so it measures
+    continuous outage time across the whole reconnect backoff loop rather than
+    restarting each attempt -- the warning appears a fixed ~5s after the outage
+    begins, not after backoff has stretched out.
+
+AUTO-RECONNECT
+    The client automatically reconnects with exponential backoff:
+    1s, 2s, 4s, 8s, 16s, up to 30s max. On reconnect, every active watch is
+    re-established with a fresh token (the old one may have expired) and
+    fires its resync callback, exactly as on first subscribe.
+
+    Component subscriptions survive reconnection -- no special handling
+    needed. The framework manages the full lifecycle.
+
+    Idle disconnect: when the last active watch stops, the socket itself
+    closes after a short grace period (a few seconds) if nothing new starts
+    watching in that window -- the connection exists only while something is
+    actually being watched, and closing intentionally does NOT trigger the
+    reconnect logic above. EXCEPTION: when realtime is enabled the client also
+    holds a system ANCHOR connection for the whole page lifetime (see SESSION
+    REFRESH PUSH) -- the anchor suppresses idle disconnect, so an enabled page
+    stays connected even with zero app subscriptions.
+
+    STALE-RECONNECT RELOAD. Resync brings the DATA current; it cannot fix stale
+    CODE. An open tab keeps whatever bundle it loaded forever, so a deploy during
+    a long gap leaves it running old JavaScript with old components and old
+    subscriptions -- a state no amount of resync repairs. So on a successful
+    (re)authentication, if the tab has been out of touch longer than
+    rsx.realtime.stale_reload_after_ms (default 3600000 = 60 minutes; 0 disables),
+    the client schedules ONE full page reload.
+
+    Out-of-touch time is max(socket downtime, observed suspend gap). Both are
+    needed: for a slept laptop the socket reports almost nothing (onclose fires
+    on RESUME, and browser JS cannot observe the websocket pings -- the browser
+    auto-pongs below JS), so the real evidence is a WALL-CLOCK DRIFT DETECTOR --
+    a 60s interval that observes an elapsed jump much larger than its own cadence
+    did witness a suspend. A genuine network outage on a machine that stayed
+    awake reports the reverse. The gap is consumed (and cleared) at the check.
+
+    The reload goes through the EXISTING refresh-push machinery (see SESSION
+    REFRESH PUSH / RELOAD TIMING) -- same dedupe, same 500ms floor, same 5s
+    user-idle gate, same navigating-away suppression, same watchdog. There is no
+    second reload path. One addition: the stale-reconnect caller adds up to 10s
+    of random JITTER, because a relay restart reconnects the whole fleet at once
+    and the idle/floor gates do NOT de-synchronize a herd on their own.
+
+    Activity for the idle gate counts mousemove, keydown, touchstart, scroll and
+    click -- touch and scroll are required, not extras: without them a touch
+    device never marks activity at all and reads as permanently idle, so a reload
+    could yank a phone user mid-scroll.
+
+SESSION REFRESH PUSH
+    A second delivery path over the same relay: a targeted CONTROL FRAME that
+    tells specific live browser connections to do a full document reload. It is
+    NOT a topic notification -- no subscription is involved. The relay routes a
+    control frame by the connection STAMPS it already holds (realm + session_id,
+    or realm + site_id + user_id), because a browser cannot be trusted to
+    subscribe to its own "you must reload" signal, and the relay already knows
+    each connection's identity from its auth token.
+
+    Two triggers, both server-driven and automatic:
+
+    1. SESSION MUTATION. When a session row is mutated to a confirmed-different
+       state -- logged-in -> logged-out, login_user_id/portal_user_id changed to
+       a different value, or site_id (tenant) changed -- every live connection
+       holding THAT session id is pushed to reload. Re-saving the same value
+       emits NOTHING (the mutation sites compare the prior persisted value and
+       only push on an actual change). Wired at the explicit mutation points:
+       Session::set_login_user_id() / set_site_id() / logout() and
+       Portal_Session::set_portal_user_id() / logout(). Web impersonation
+       begin/stop inherit it (they delegate to set_login_user_id). Portal
+       claim_impersonation() deliberately does NOT push (the claiming browser is
+       already navigating to the new session).
+
+    2. USER RECORD. When a staff user's record changes an identity-affecting
+       field (first_name, last_name, role_id, is_enabled) or is soft-deleted, or
+       when the user's ACL rows change (User_Permission_Model grant/deny/remove),
+       every live STAFF connection of that (site_id, user_id) is pushed to
+       reload -- so a running session reflects an admin's edit or a disablement
+       at once. Only confirmed-different field changes qualify (a phone-only edit
+       is silent).
+
+    REALM. The connection token carries realm: 'staff' | 'portal'. Staff and
+    portal session ids come from different tables with overlapping integer
+    ranges, so a session-targeted frame matches realm AND session_id -- a staff
+    logout never reloads a portal tab that happens to share the integer id.
+
+    PHP API (framework-internal; the wiring above calls these for you -- no-ops
+    when realtime is disabled, and they ride the SAME transactional outbox as
+    publish(): buffered, flushed on commit, discarded on rollback, transmitted
+    once after the web response):
+
+        Realtime::push_session_refresh(string $realm, int $session_id);
+        Realtime::push_user_refresh(int $site_id, int $user_id);
+
+    CLIENT BEHAVIOR. On a refresh frame the browser schedules ONE full reload
+    (window.location.reload()), deduped -- a burst of frames yields a single
+    reload. Handled globally in Rsx_Realtime, so it works on any bundle page
+    (staff SPA, portal, or a blade page). This is why the connection is anchored
+    at boot: a page with no subscriptions must still be reachable.
+
+    RELOAD TIMING (so a refresh never yanks the initiating tab mid-interaction):
+    the reload fires at max(now + 500ms floor, last_user_action + 5s idle) -- i.e.
+    at least 500ms out, and only after a full 5-second window with no mousemove or
+    keydown (further activity re-defers it; the one pending reload keeps sliding).
+    It is additionally SUPPRESSED while the tab is navigating away: a `navigating`
+    flag is set on `beforeunload` (link click / form submit / location assignment),
+    and a due reload is SKIPPED (not cancelled) while it holds. The flag clears on
+    `pageshow` (bfcache / aborted navigation) and via a 10-second watchdog (a flag
+    that never unloads is stale -- the reload-check timer still firing proves the
+    page is alive), after which the still-pending reload proceeds under the idle
+    gate. (Timing constants live in Rsx_Realtime: REFRESH_RELOAD_FLOOR_MS /
+    REFRESH_IDLE_WINDOW_MS / REFRESH_NAV_WATCHDOG_MS.)
+
+    ANCHOR GATE. The boot anchor engages ONLY when window.rsxapp.session_hash is
+    a non-empty string -- i.e. a session cookie already existed when the page
+    rendered. A first-visit anonymous page (no session cookie, session_hash null)
+    does NOT auto-connect; it keeps the ordinary lazy connect-on-first-watch()
+    behavior, so no connection or session is created for a visitor who has none.
+    A session that has anything worth refreshing has a cookie, so this loses no
+    coverage.
+
+DEPLOYMENT CONSIDERATIONS
+    Starting the server:
+
+        # Development
+        node system/bin/realtime-server.js
+
+        # Production with systemd
+        [Unit]
+        Description=RSpade Realtime Server
+        After=redis.service
+
+        [Service]
+        ExecStart=/usr/bin/node /var/www/html/system/bin/realtime-server.js
+        Restart=always
+        RestartSec=5
+        User=www-data
+
+        [Install]
+        WantedBy=multi-user.target
+
+    Server restart: clients auto-reconnect (AUTO-RECONNECT above) and every
+    active watch resyncs on reconnect -- no manual refresh needed, and no
+    message queue to worry about losing (Redis pub/sub is fire-and-forget by
+    design; the resync signal, not a backlog, is what makes that safe).
+
+    Multiple app servers: all PHP servers publish to the same Redis
+    instance. A single Node.js process handles all WebSocket connections.
+
+    Maintenance mode: rsx:maintenance:enable (and the framework-update window)
+    stops the relay AND redis, so for the duration publish(), the control-plane
+    refresh pushes and the emitter hash store DROP their frames (one warning
+    line in the Laravel log per process) and the subscriber registry reads as
+    EMPTY. The subscribe-notify endpoint is likewise inert: web requests are
+    already 503ing, and a straggler POST that does reach the handler answers
+    {"ok":true,"dropped":true} without seeding. On the way out, redis comes back
+    empty and the relay restarts with an empty member baseline, so every
+    reconnecting client's subscription reads as new and every baseline is
+    re-seeded; a write that beats the reseed publishes through the key-missing
+    branch instead (see EMITTERS). The frames are semantically void - nobody is connected and the
+    registry is flushed - and a throw here would abort `migrate` inside an
+    update window, since model writes emit at commit through an uncaught chain.
+    Outside maintenance a refused redis connection stays as loud as ever.
+    Clients reconnect and resync by themselves once disable restarts the relay.
+    See `rsx:man maintenance_mode`.
+
+    Nginx reverse proxy for wss:// in production:
+
+        location /ws {
+            proxy_pass http://127.0.0.1:6200;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_read_timeout 86400;
+        }
+
+    With this proxy in place, the client's derived wss://yourdomain.com/ws
+    (from the browsed host) reaches the relay - no URL to configure.
+
+    Scaling: a single Node.js process comfortably handles thousands of
+    concurrent WebSocket connections. The server logs connection and
+    subscription counts every 60 seconds when connections are active.
+
+    Monitoring: the server logs to stdout:
+        [realtime] WebSocket server listening on port 6200
+        [realtime] Connected to Redis at 127.0.0.1:6379
+        [realtime] Connections: 42, Subscriptions: 156
+
+SECURITY
+    can_subscribe() is the SOLE enforcement boundary. Nothing upstream of it
+    -- not the connection token, not the controller -- checks who is logged
+    in. This is intentional: a connection token proves only "a real client
+    asked for it," so that both authenticated and fully anonymous callers
+    can reach the point where a topic gets to decide.
+
+    Realtime_Controller consequently declares #[Auth('public')] and
+    #[Auth_Realm('any')] (rsx:man auth_gates): it deliberately serves staff,
+    portal and anonymous callers alike, and 'public' is how that intent is
+    STATED rather than left to inference. It is not an exemption - the gate
+    is declared, it simply admits everyone, and the topic decides.
+
+    How the relay knows WHO a client is and WHICH site it is on: it does not ask
+    the database and holds no session -- the PHP side mints an HMAC-signed
+    connection token FROM the caller's live session (user_id, site_id, session_id
+    baked in), the browser presents it on connect, and the relay validates the
+    signature with APP_KEY and TAGS the connection with the token's site_id. From
+    then on every published message carries a site_id and routes only to
+    connections tagged with that site, and a subscribe token's site_id must match
+    the connection's -- so identity and site are established once, server-side,
+    from a token the client cannot forge.
+
+    Connection tokens:
+    - HMAC-SHA256 signed with APP_KEY
+    - 60-second expiry (only for initial handshake)
+    - Contains user_id (nullable -- null for an anonymous caller), site_id,
+      session_id
+    - Minted for staff session, portal session, or anonymous alike
+
+    Subscribe tokens:
+    - Per-topic permission check via can_subscribe() -- this is where "may
+      this caller actually receive these messages" is decided
+    - HMAC-SHA256 signed with APP_KEY
+    - 60-second expiry
+    - Contains topic, filter, site_id
+
+    $requires_auth (Realtime_Topic_Abstract, default true):
+    - Documents intent, is NOT itself checked at runtime
+    - Drives REALTIME-AUTH-01 (rsx:check): true without a real auth check in
+      can_subscribe() is flagged high severity; false is flagged for
+      mandatory manual review, suppressed only with an explicit exception
+      comment carrying a rationale
+
+    Site ID scoping:
+    - Connection tagged with site_id from its token (staff/portal session
+      site, or -- for an anonymous caller -- the site already resolved for
+      that request independent of login)
+    - Subscribe token site_id must match connection site_id
+    - Messages only route to matching site_id connections
+    - Site ID scoping is NOT a permission check by itself -- it narrows
+      WHICH connections a message can reach, it does not decide WHO may
+      subscribe. A public topic on a multi-tenant deployment must not
+      assume site scoping alone keeps its data appropriately scoped.
+
+    No confidential data:
+    - Messages are notification hints, not data payloads
+    - Client fetches fresh data through normal Ajax with normal auth
+    - Topic payloads should contain only: IDs, action types, actor IDs
+
+API REFERENCE
+    PHP:
+        Realtime::is_enabled()                              Check if realtime is on
+        Realtime::connection_token()                        Generate WS auth token
+                                                              (staff/portal/anonymous)
+        Realtime::subscribe_token($topic, $filter)           Generate subscribe token
+                                                              (calls can_subscribe())
+        Realtime::publish($topic, $data, $site_id = null)   Publish to subscribers
+                                                            ($site_id defaults to the
+                                                            current staff session's
+                                                            site; pass it explicitly
+                                                            when publishing outside a
+                                                            staff session, e.g. the
+                                                            portal stack)
+        Realtime::subscribed_registry_entries()             Decoded active
+                                                              subscriptions
+                                                              [{site_id, topic, filter}]
+        Realtime::push_session_refresh($realm, $session_id) Targeted reload push to
+                                                              every connection on a
+                                                              session (see SESSION
+                                                              REFRESH PUSH). Wired at the
+                                                              session-mutation sites
+        Realtime::push_user_refresh($site_id, $user_id)     Targeted reload push to
+                                                              every staff connection of a
+                                                              site user (name/role/enabled
+                                                              or ACL change)
+
+    Model change emission (Rsx_Model_Abstract):
+        public static $realtime = true                       Opt this model into
+                                                              automatic change emission
+        public static $realtime_silent = true                Writes do NOT kick the
+                                                              emitter engine (infra
+                                                              models)
+        #[Realtime_Touch]                                    Bare marker on a child's
+                                                              belongsTo method: writes
+                                                              (incl. covered bulk) touch
+                                                              the related parent,
+                                                              independent of the child's
+                                                              own $realtime. belongsTo
+                                                              -only (fails loud
+                                                              otherwise). THE way to
+                                                              declare a touch
+        public function realtime_touch(): array              Escape hatch: parent
+                                                              INSTANCES to notify, for a
+                                                              polymorphic/conditional
+                                                              parent the attribute cannot
+                                                              express (touch cascade)
+        Model::where(...)->raw_bulk()                        Builder escape hatch: run
+            ->update([...]) / ->delete()                      ONE raw statement, fire
+                                                              nothing (realtime + hooks)
+                                                              for THIS statement (huge
+                                                              maintenance sweeps). Bulk
+                                                              writes on a surfaced model
+                                                              fetch-then-iterate otherwise
+                                                              (per record, no row cap)
+        $record->realtime_emit(): void                       Manually queue a change
+                                                              emission for a write the model
+                                                              builder never saw (DB::table/
+                                                              raw SQL, ->getQuery() drop,
+                                                              import, derived value).
+                                                              Ignores $realtime; needs a
+                                                              persisted id; once per
+                                                              (model,id) per request;
+                                                              same touch cascade; no-op
+                                                              when disabled
+        Realtime_Emissions::queue_model_change($model)       Internal - called by the
+                                                              save()/delete() hook; not
+                                                              app-facing
+        Realtime_Emissions::request_emit($model)             Internal - the engine behind
+                                                              realtime_emit(); not
+                                                              app-facing
+
+    Emitters:
+        #[Emitter('Topic')]                                  Attribute on a public
+                                                              static (int $site_id,
+                                                              array $filter): mixed
+        #[Emitter('Topic', 'Model_Name')]                    Optional 2nd arg = model
+                                                              constraint: run only for
+                                                              registry entries whose
+                                                              filter.model matches
+                                                              (REQUIRED to compose onto
+                                                              Model_Changed_Topic without
+                                                              losing the no-churn gate)
+        Realtime_Emitter_Service::run_emitters               #[Task] #[Debounce(2)]
+                                                              write-kicked recompute
+                                                              engine
+
+    JavaScript:
+        Rsx_Realtime.watch(topic, [filter], callback)       Watch (ref-counted,
+                                                              string topic only);
+                                                              returns {stop(),
+                                                              established} - established
+                                                              is a promise that resolves
+                                                              when the subscription's
+                                                              first ack arrives
+        Rsx_Realtime.on_state_change(callback)               Connection state changes;
+                                                              returns an unsubscribe fn
+        this.subscribe(topic, [filter], callback)            Component shorthand --
+                                                              auto-stops on destroy;
+                                                              idempotent per
+                                                              (topic, filter). Registered
+                                                              in on_create(), it GATES the
+                                                              first load on establishment
+                                                              (one race-free fetch) and
+                                                              SWALLOWS that first resync;
+                                                              the wait is timeboxed by
+                                                              rsx.realtime.load_gate_timeout_ms
+        this.subscribe(Model_Class, id, callback)            Model-change overload ->
+                                                              Model_Changed_Topic
+        this.subscribe(record_instance, callback)            Same, from a loaded record
+        Model.watch_changes(id, callback)                    Non-component model watch;
+                                                              returns {stop()}
+
+    Topic class:
+        Realtime_Topic_Abstract::$requires_auth              Declared intent (default
+                                                              true); NOT a runtime gate
+        Realtime_Topic_Abstract::can_subscribe($filter)      Permission check (abstract;
+                                                              the sole runtime gate)
+        Model_Changed_Topic                                  Core topic for opt-in model
+                                                              changes; signed-in gate
+                                                              (staff OR portal). Frame is
+                                                              {model, id} for a single
+                                                              record, {model, ids:[...]}
+                                                              (chunked ~100) when a
+                                                              request coalesces several
+                                                              changes to one model+site;
+                                                              an {id} watcher matches a
+                                                              frame whose ids contains it
+
+SEE ALSO
+    rsx:man model_fetch
+    rsx:man spa
+    rsx:man session

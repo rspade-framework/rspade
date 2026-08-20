@@ -1,0 +1,25 @@
+/**
+ * Generic_Error_Page_Component Styles
+ *
+ * BEM naming: Generic_Error_Page_Component__element
+ */
+
+.Generic_Error_Page_Component {
+    padding-top: $spacing-md !important;  // Override py-5's 48px top padding
+    padding-bottom: $spacing-2xl;
+
+    &__icon {
+        margin-bottom: $spacing-sm;
+    }
+
+    &__title {
+        margin-top: 0;
+        margin-bottom: $spacing-xl;
+    }
+
+    &__message {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        margin-bottom: $spacing-lg;
+    }
+}

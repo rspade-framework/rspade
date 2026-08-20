@@ -1,0 +1,1 @@
+{"version":3,"file":"getFrameGroups.d.ts","sourceRoot":"","sources":["../../../../src/components/stackTrace/selectors/getFrameGroups.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,KAAK,EAAE,MAAM,UAAU,CAAC;AACjC,OAAO,EAAc,mBAAmB,EAAE,MAAM,gBAAgB,CAAC;AAmBjE,MAAM,CAAC,OAAO,UAAU,cAAc,CAAC,EAAE,MAAM,EAAE,QAAQ,EAAE,QAAQ,EAAE,EAAE,KAAK,GAAG,KAAK,CAAC,mBAAmB,CAAC,CAiBxG"}

@@ -1,0 +1,39 @@
+<%--
+Callout - inline alert banner: icon + title / body / actions
+
+$variant - "danger" | "warning" (required; the component throws otherwise)
+$icon - leading icon class string, e.g. "bi bi-exclamation-triangle" [optional]
+
+<Slot:title> - the bold headline (required)
+<Slot:body> - the explanation line [optional]
+<Slot:actions> - trailing action buttons [optional]
+
+The one inline-alert shape (an overdue-invoice warning, a soft-deleted-record
+banner). A colored left accent + colored icon/title carry the variant; the
+body reads on a calm neutral surface (serious-tool restraint, not a loud
+Bootstrap alert). Variant is validated loudly - a typo fails, never renders
+unstyled.
+
+Usage:
+    <Callout $variant="warning" $icon="bi bi-exclamation-triangle">
+        <Slot:title>This invoice is overdue</Slot:title>
+        <Slot:body>The balance was due on Jun 30, 2026.</Slot:body>
+    </Callout>
+--%>
+<Define:Callout tag="div">
+    <% if (this.args.variant !== 'danger' && this.args.variant !== 'warning') { %>
+        <% throw new Error('Callout requires $variant "danger" or "warning"'); %>
+    <% } %>
+    <% if (this.args.icon) { %>
+        <i class="Callout__icon <%= this.args.icon %>"></i>
+    <% } %>
+    <div class="Callout__content">
+        <div class="Callout__title"><%= content('title') %></div>
+        <% if (this.args._slots && this.args._slots.body) { %>
+            <div class="Callout__body"><%= content('body') %></div>
+        <% } %>
+    </div>
+    <% if (this.args._slots && this.args._slots.actions) { %>
+        <div class="Callout__actions"><%= content('actions') %></div>
+    <% } %>
+</Define:Callout>

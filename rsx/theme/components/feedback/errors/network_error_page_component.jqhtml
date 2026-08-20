@@ -1,0 +1,22 @@
+<%--
+Network_Error_Page_Component
+
+Displays when the client cannot connect to the server. This occurs when there's no network
+connection, the server is unreachable, or the request times out. This is a client-side
+generated error, not a server response.
+
+$message - Custom error message (optional, auto-generated if not provided)
+--%>
+<Define:Network_Error_Page_Component class="text-center py-5">
+    <div class="mb-4">
+        <i class="bi bi-wifi-off text-warning" style="font-size: 4rem;"></i>
+    </div>
+    <h3 class="mb-3">Connection Error</h3>
+    <p class="text-muted mb-4">
+        <%= this.args.message || 'Could not connect to server. Please check your connection.' %>
+    </p>
+    <% this.handle_retry = () => window.location.reload(); %>
+    <button class="btn btn-primary" @click=this.handle_retry>
+        Retry
+    </button>
+</Define:Network_Error_Page_Component>

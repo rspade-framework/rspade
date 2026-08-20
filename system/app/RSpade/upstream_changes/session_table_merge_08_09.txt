@@ -1,0 +1,258 @@
+ONE SESSION PER BROWSER - portal_sessions IS GONE, AND SO IS THE SECOND COOKIE
+Date: 2026-08-09 (corrected 2026-08-10)
+Category: 2 (framework-core behavior change - audit your own code)
+
+SUMMARY
+    The portal_sessions table is GONE, and so is the idea that the client portal
+    has a session of its own.
+
+    A session identifies a BROWSER. One `rsx` cookie, one `_sessions` row, one
+    `csrf_token` - shared by the staff app and the client portal alike. The row
+    is a PROPERTY BAG; the EXPERIENCE is a property of the REQUEST
+    (Rsx_Portal::is_portal_request() - portal domain, or the /_portal prefix) and
+    all it decides is which of the row's properties get consulted:
+
+        staff properties    login_user_id, site_id, impersonator_login_user_id
+        portal properties   portal_user_id, portal_site_id, impersonator_user_id,
+                            impersonation_started_at, handoff_token,
+                            handoff_expires_at
+
+    BOTH IDENTITIES SET AT ONCE IS NORMAL - the same human, in the same browser,
+    signed into both. site_id is STAFF-only, which is why portal_site_id exists:
+    one browser can legitimately be on a different tenant in each experience.
+
+    Portal_Session keeps its ENTIRE public API and is still the only thing portal
+    code should call. What changed is what it IS: it is a static FACADE over the
+    portal-property subset of the one session row. There is no Portal_Session
+    table, no Portal_Session::where(), no Portal_Session::find(), no
+    new Portal_Session(), and no Portal_Session instances.
+
+    YOUR PORTAL USERS ARE SIGNED OUT BY THIS UPDATE. The migration DELETES the
+    existing portal session rows rather than guessing which browser they belonged
+    to. Everyone logs in again once; nothing else is lost (their flash alerts
+    cascade away with the rows, which is correct).
+
+    A dedicated portal DOMAIN needs no machinery at all: per-origin cookie jars
+    mean that browser simply holds its own row on that origin, with the staff
+    properties null.
+
+    ACTION IS REQUIRED IF your app (a) queries or writes the portal_sessions
+    TABLE directly - raw SQL, DB::table(), a report, a seeder, a migration;
+    (b) uses Portal_Session as an Eloquent model (::where / ::find / ::count /
+    new / a Portal_Session type hint / a relationship pointing at it);
+    (c) reads or writes `rsx.sessions.portal_timeout_minutes`, which is gone; or
+    (d) hand-rolls anything that assumes two cookies or two rows per browser.
+
+    If your portal code only ever calls Portal_Session's named accessors, you
+    have nothing to do.
+
+WHY
+    portal_sessions was ~85% a rename of _sessions: the same token, csrf, ip,
+    user_agent, last_active and type_id columns, the same lifecycle, the same
+    retention and concurrent-session rules - a parallel implementation of one
+    idea, with every rule written twice and kept in step by hand.
+
+    Merging the two tables removed the duplication but left the deeper mistake in
+    place: two rows and two cookies per browser, told apart by a realm
+    discriminator. That is what produced the whole class of "wrong facade" bugs -
+    a framework surface serving both experiences would ask one realm a question
+    that belonged to the other, and in the worst cases MINT a session and set a
+    cookie as a side effect.
+
+    A session is not a realm. It is a browser. Once the row is a property bag,
+    the cross-realm question stops existing: there is nothing to route, only
+    properties to read. One cookie, one token, one activation path, one retention
+    sweep.
+
+WHAT CHANGED (informational - arrives with the framework update)
+
+    Schema (migrations 2026_08_09_075941 then 2026_08_10_052037):
+        _sessions  ADD COLUMN portal_user_id       BIGINT NULL
+        _sessions  ADD COLUMN portal_site_id       BIGINT NULL
+        _sessions  ADD COLUMN impersonator_user_id BIGINT NULL
+        _sessions  ADD COLUMN handoff_token        VARCHAR(64) NULL
+        _sessions  ADD COLUMN handoff_expires_at   TIMESTAMP(3) NULL
+        _sessions  ADD INDEX  idx_sessions_portal_user_recent (portal_user_id, last_active)
+        _sessions  ADD INDEX  idx_sessions_handoff (handoff_token)
+        _sessions  ADD FK     portal_user_id -> portal_users(id) ON DELETE CASCADE
+        _sessions  DELETE every migrated portal row (see ACTION REQUIRED #1)
+        _sessions  DROP COLUMN experience_id  (+ its indexes)
+        DROP TABLE portal_sessions
+
+        There is no realm/experience column. If you were told about one in a
+        pre-release note, that design was corrected before shipping.
+
+        impersonator_user_id is deliberately NOT merged into the staff realm's
+        impersonator_login_user_id: they are different id spaces (a portal
+        session's impersonator is a staff users.id; a staff session's is a
+        login_users.id).
+
+    Session (the row's owner):
+        - THE ONE ACTIVATION PATH. A portal login on a fresh browser mints the
+          row exactly as a staff page view would - same cookie, same token
+          machinery. No site is needed to CREATE a row.
+        - Framework-internal seams for the portal facade: _get/_set_portal_*,
+          _clear_portal_properties(_on), _portal_query(), _portal_activate(),
+          _portal_new_handoff_row(). Application code never names these.
+        - No EXPERIENCE_* constants, no set_experience_id()/get_experience_id().
+          Calls to those are now fatal.
+        - Session::reset() retires the WHOLE browser session (row deactivated,
+          cookie cleared), so any portal identity on it goes too. A staff
+          sign-out that must leave the portal identity alone is logout().
+
+    Portal_Session (the portal-property facade):
+        - Same public methods, same signatures. get_session_id(),
+          get_csrf_token() and verify_csrf_token() now report/verify the SHARED
+          values - one browser, one session, one token.
+        - COOKIE_NAME and the rsx_portal cookie are GONE. Old `rsx_portal`
+          cookies in the wild are harmless and expire naturally.
+        - Portal logout, terminate_session(), terminate_all_*(), the sign-in cap
+          and stop_impersonation() all CLEAR THE PORTAL PROPERTIES. None deletes
+          or deactivates a row - the row is that browser's session and may carry
+          a staff login.
+        - find_by_token() resolves only rows that CARRY a portal identity.
+        - cleanup_expired() is REMOVED (it had no callers, and "delete idle rows"
+          is not a portal-shaped operation any more). The operational sweep is
+          Session_Cleanup_Service; the manual helper is Session::cleanup_expired().
+        - "View as Client": create_impersonation_session() writes a single-use
+          HANDOFF row (pure transport, excluded from the device-session list);
+          claim_impersonation() burns it and stamps the impersonated identity onto
+          THE CLAIMING BROWSER'S OWN session. That is what keeps the flow
+          cross-domain-safe.
+
+    CSRF: ONE token. Rsx_Csrf::enforce($request) no longer takes a realm
+        argument, and the @csrf blade directive no longer branches - it emits the
+        browser session's token, which both dispatchers verify. If you wrote code
+        against the two-token model, it is now wrong in a way that will reject
+        real POSTs.
+
+    RETENTION (windows changed - see ACTION REQUIRED #3):
+        A TYPE_WEB row is judged on whether it carries an IDENTITY in EITHER
+        column; the machine types keep their own short backstops whatever they
+        carry.
+
+            web_timeout_minutes        131400  (3 months)  TYPE_WEB with
+                                                           login_user_id OR
+                                                           portal_user_id
+            anonymous_timeout_minutes   43200  (30 days)   TYPE_WEB with neither
+                                                           (was 20160 / 14 days)
+            api_timeout_minutes         10080  (7 days)
+            playwright_timeout_minutes   1440  (1 day)
+            cli_timeout_minutes          1440  (1 day)
+
+        rsx.sessions.portal_timeout_minutes is DELETED. A key left in your own
+        config override is inert, not an error - remove it.
+
+ACTION REQUIRED
+
+    0. IF THE PULL DIED AT ITS REBUILD STEP (this release carries manifest-build-
+       FATAL rules, and the app must be fixed before a build can pass): system/ is
+       synced but UNCOMMITTED. Do NOT run rsx:clean and do NOT make an app commit -
+       either reverts the update. Recover with
+       `php artisan rsx:framework:pull --no-rebuild`, then work through the items
+       below. Detail: upstream_changes/polymorphic_morph_transparency_08_09.txt
+       (IF THE PULL ITSELF DIES AT THE REBUILD).
+
+    1. Find any direct use of the dropped table:
+
+           grep -rn "portal_sessions" rsx/
+
+       Any raw SQL, DB::table('portal_sessions'), report, seeder or migration
+       must be repointed at _sessions and narrowed on the PROPERTY, not a realm:
+
+           DB::table('_sessions')->whereNotNull('portal_user_id')
+
+       A query naming the dropped table fails loud, so anything you miss will
+       announce itself. A query you repoint without the property predicate will
+       silently include sessions that have no portal identity at all.
+
+       If your app stored a portal session id in one of its own columns, those
+       stored ids are meaningless now (the rows are deleted). Portal sessions are
+       short-lived and resume by token; if you were persisting an id, that is the
+       thing to reconsider.
+
+    2. Find any use of Portal_Session as a model:
+
+           grep -rn "Portal_Session::where\|Portal_Session::find\|Portal_Session::count\|new Portal_Session\|: Portal_Session\|Portal_Session \$" rsx/
+
+       Each is now a fatal. Replace with the facade's own API, which is almost
+       always what the code wanted:
+
+           // BEFORE
+           $sessions = Portal_Session::where('portal_user_id', $user_id)
+               ->orderBy('last_active', 'desc')->get();
+
+           // AFTER - display-ready arrays, newest first, with is_current
+           $sessions = Portal_Session::get_sessions_for_user($user_id);
+
+           // BEFORE
+           $session = Portal_Session::where('id', $id)
+               ->where('portal_user_id', $user_id)->first();
+           $session->delete();
+
+           // AFTER - fail-closed, the owning-user predicate is in the statement.
+           // NOTE the semantics: this CLEARS the portal properties; the row
+           // survives, because it is that browser's session.
+           Portal_Session::terminate_session((int) $id);   // bool
+
+       The full facade surface: php artisan rsx:man portal (SESSION & AUTH).
+
+    3. Remove rsx.sessions.portal_timeout_minutes from your config override, and
+       re-check anonymous_timeout_minutes if you tuned it (the default doubled,
+       14 -> 30 days, because it now means "a browser that never signed in to
+       ANYTHING"). If you deliberately kept anonymous sessions short to bound
+       table growth, note that a portal-only browser is no longer swept by that
+       rule - it is an identified session and gets the 3-month window.
+
+    4. Audit anything that assumed TWO cookies or TWO sessions per browser:
+
+           grep -rn "rsx_portal" rsx/
+           grep -rn "COOKIE_NAME" rsx/
+           grep -rn "experience_id\|EXPERIENCE_STAFF\|EXPERIENCE_PORTAL" rsx/
+
+       Typical hits: a JS or nginx rule that keyed on the portal cookie; a
+       "clear both cookies" logout helper; a test asserting a portal response
+       sets rsx_portal; a hand-rolled portal CSRF input. All of them are now
+       describing something that does not exist. The constants and
+       set_experience_id()/get_experience_id() are fatal on call.
+
+    5. Re-check any code that treated "the portal user is logged in" as "this is
+       a portal request". It was always wrong; it is now wrong in a new way,
+       because one browser routinely carries BOTH identities. Fork on
+       Rsx_Portal::is_portal_request(). See upstream_changes/
+       portal_realm_forks_08_09.txt.
+
+    6. Re-test your "sign out this device" and admin "revoke portal access"
+       screens. They no longer delete rows - they clear portal properties - so a
+       UI or test that asserted a row disappeared needs updating. The user-visible
+       behavior (that device is signed out of the portal) is unchanged.
+
+VERIFICATION
+
+    - php artisan migrate:status shows 2026_08_09_075941 and 2026_08_10_052037
+      applied, and SHOW TABLES LIKE 'portal_sessions' returns nothing.
+    - SHOW COLUMNS FROM _sessions LIKE 'experience_id';   -> empty
+      SHOW COLUMNS FROM _sessions LIKE 'portal_site_id';  -> one row
+    - Log in to your portal and inspect the response headers of the POST. There
+      must be exactly ONE Set-Cookie, and it must be `rsx`:
+
+          curl -s -D - -o /dev/null -X POST http://localhost/_portal/login \
+               --data-urlencode "email=you@example.com" \
+               --data-urlencode "password=..." | grep -i set-cookie
+
+      An `rsx_portal=` line means something in YOUR code is still setting it.
+    - On the SAME cookie jar, load a staff page. The browser must not receive a
+      second session, and the row must still carry the portal identity:
+
+          SELECT id, login_user_id, site_id, portal_user_id, portal_site_id
+            FROM _sessions WHERE session_token = '<the rsx cookie value>';
+
+      Exactly one row.
+    - Portal login, logout, the device-session screen, and staff "View as Client"
+      impersonation all still work end to end. After a portal logout the row is
+      STILL THERE with portal_user_id NULL - that is correct.
+    - php artisan rsx:check reports no new findings.
+
+    Full contract: php artisan rsx:man session (DESCRIPTION - one session per browser)
+                   php artisan rsx:man portal  (SESSION & AUTH, PORTAL SESSIONS)
+                   php artisan rsx:man csrf    (one token)

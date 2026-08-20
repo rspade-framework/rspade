@@ -1,0 +1,35 @@
+<%--
+Kpi_Cell - one compact bordered KPI cell (in a Sidebar_Kpi_Group or a Stat_Group)
+
+<Slot:label> - the metric label (required)
+<Slot:value> - the metric value (required)
+<Slot:sub> - a small sub-line under the value [optional]
+$alert - red accent when the number needs action (overdue, negative balance) [optional]
+$clickable - the cell becomes a button; clicking activates the $tab tab [optional]
+$tab - the Tab_Bar tab key to activate when $clickable and clicked [optional]
+$tooltip - a hover title explaining the metric (use when meaning isn't obvious) [optional]
+
+The generic KPI-cell shape: a compact bordered cell with an uppercase label and a
+big value. Used both as sidebar telemetry (inside Sidebar_Kpi_Group at the top of a
+Detail_Sidebar) and as a dashboard headline stat (inside Stat_Group) - hence the
+domain-neutral name (formerly Sidebar_Kpi_Row, which under-described the dashboard reuse).
+
+$provisional (amber/italic estimate styling) is deferred - no page renders an
+estimated KPI yet. Add it as an additive arg in the batch that first needs it.
+
+A clickable cell exposes `data-kpi-tab`; the owning action delegates a click on
+`.Kpi_Cell--clickable` to `this.sid('<tab-bar>').activate(tab)`.
+
+Usage:
+    <Kpi_Cell $clickable=true $tab="projects" $tooltip="Projects for this client">
+        <Slot:label>Projects</Slot:label>
+        <Slot:value><%= _projects.length %></Slot:value>
+    </Kpi_Cell>
+--%>
+<Define:Kpi_Cell tag="div">
+    <div class="Kpi_Cell__label"><%= content('label') %></div>
+    <div class="Kpi_Cell__value"><%= content('value') %></div>
+    <% if (this.args._slots && this.args._slots.sub) { %>
+        <div class="Kpi_Cell__sub"><%= content('sub') %></div>
+    <% } %>
+</Define:Kpi_Cell>

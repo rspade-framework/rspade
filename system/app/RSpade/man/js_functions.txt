@@ -1,0 +1,401 @@
+JS_FUNCTIONS(3)                   RSpade Manual                   JS_FUNCTIONS(3)
+
+NAME
+    js_functions - the JavaScript global utility functions (functions.js,
+    async.js, hash.js, error.js, browser.js)
+
+SYNOPSIS
+    Globals - no import, available in every bundle:
+
+        if (empty(this.data.rows)) { ... }
+        this.$sid('note').html(htmlbr(record.notes));
+
+        await sleep(250);
+
+        /** @decorator */
+        @debounce(250)
+        async on_search_input() { this.args.q = ...; this.reload(); }
+
+        if (!deep_equal(this.data, next)) { this.render(); }
+
+        shouldnt_happen('component rendered with no id');
+
+DESCRIPTION
+    RSpade's JavaScript standard library is a set of GLOBAL functions, compiled
+    into every bundle by the framework's core JS. There is nothing to import.
+    Names and semantics deliberately mirror the PHP helpers where a twin makes
+    sense, so a value formatted in a controller and the same value formatted in
+    a component read identically.
+
+    ALWAYS use these instead of hand-rolling. This is not a style preference:
+    debounce() has behavioural guarantees a hand-rolled setTimeout does not,
+    hash() ignores the jqhtml `$` reference that would otherwise hash the DOM,
+    and safe_html() is the ONE sanitizer. A local reimplementation diverges
+    silently.
+
+    Several of these names SHADOW a JavaScript builtin or reserved-looking word
+    on purpose - isset, empty, count, clone, foreach - because the PHP twin is
+    the vocabulary this codebase thinks in. They are ordinary functions, not
+    language features, and they behave like their PHP counterparts, not like
+    anything native. See TROUBLESHOOTING; that shadowing is the single most
+    common source of surprise on this page.
+
+    PHP/JS parity list - same name, same semantics in both languages:
+
+        safe_html()  htmlbr()  nl2br()  bytes_to_human()  linkify_text()
+        linkify_html()  snake_to_camel()  camel_to_snake()  safe_string()
+        ucwords()  console_debug()  shouldnt_happen()  urlencode()/urldecode()
+        json_encode()/json_decode()  full_url_to_short_url()
+        short_url_to_full_url()  is_numeric()  is_string()  is_array()
+        is_object()  isset()  empty()  count()
+
+    See rsx:man helpers for the PHP side.
+
+    What is NOT here: browser storage (Rsx_Storage - rsx:man storage), URL hash
+    state (Rsx.url_hash_* - rsx:man url_hash), breakpoint predicates (Responsive
+    - rsx:man responsive), jQuery extensions (rsx:man jquery), and time (Rsx_Time
+    / Rsx_Date - rsx:man time). Those are their own subsystems with their own
+    rules.
+
+API REFERENCE
+
+  Type tests (functions.js) - all return bool
+
+    is_numeric(n)       a number, or a string that is entirely numeric
+    is_string(s)
+    is_integer(n)       numeric AND a whole value
+    is_array(obj)       a true Array
+    is_object(obj)      a plain object (not an array)
+    is_function(fn)
+    is_promise(obj)     thenable
+    is_email(str)
+
+    isset(value)        NOT undefined. null IS set - same as PHP's distinction
+                        between "declared" and "null"... except that here null
+                        counts as set, so isset(null) is true.
+    empty(object)       null, undefined, 0, '', an empty array, or an object
+                        with no own properties. The everyday "is there anything
+                        here" test.
+
+  Type conversion
+
+    int(val)            integer, 0 for anything non-numeric
+    float(val)          float, 0 for anything non-numeric
+    str(val)            string, '' for null/undefined
+    value_unless_numeric_string_then_numeric_value(val)
+                        a numeric STRING becomes a number; everything else is
+                        returned untouched. For normalizing form/JSON input
+                        without turning 'abc' into 0.
+
+  Strings and HTML
+
+    html(str)                        escape HTML entities. The default for any
+                                     user-supplied string going into markup.
+    safe_html(html_string)           DOMPurify sanitization for content that is
+                                     MEANT to carry markup (WYSIWYG output).
+    nl2br(str)                       newlines to <br>
+    htmlbr(str)                      escape + nl2br - the common pairing for
+                                     plain text with line breaks
+    urlencode(str) / urldecode(str)
+    json_encode(val) / json_decode(str)
+    replace_all(string, search, replace)
+    ucwords(input)                   capitalize each word
+    safe_string(string, max_length = 64)
+                                     reduce to an identifier-safe string
+    snake_to_camel(string, capitalize_first = false)
+    camel_to_snake(string)
+    linkify_text(content, new_window = true)
+                                     escape plain text, then link bare URLs,
+                                     hostnames and email addresses
+    linkify_html(content, new_window = true)
+                                     the same for content that already contains
+                                     markup - existing anchors are left alone
+    bytes_to_human(bytes, precision = 2)
+                                     "1.5 MB"; "---" for a non-number. The exact
+                                     mirror of the PHP function, unit table and
+                                     all, so a size never reads differently on
+                                     the two sides.
+    full_url_to_short_url(url) / short_url_to_full_url(url)
+    csv_to_array_trim(str_csv)       split on commas, trimming each element.
+                                     Does NOT handle quoted or escaped fields.
+
+    html() vs safe_html() is a SECURITY decision, not a style one: escape by
+    default; sanitize only content that is supposed to be markup.
+
+  Collections
+
+    foreach(obj, callback)      iterate an array OR an object, calling
+                                callback(value, key). Async-aware: if the
+                                callback returns promises they run in PARALLEL
+                                and foreach() returns a promise resolving when
+                                all of them settle. Await it when the callback
+                                is async.
+    count(o)                    own properties of an object, or elements of an
+                                array
+    clone(obj)                  SHALLOW copy of an object, array or function.
+                                Nested objects are shared - for an editor buffer
+                                cloned off this.data, that matters.
+    coalesce(...values)         the first value that is neither null nor
+                                undefined, else null
+
+  Async (async.js)
+
+    sleep(milliseconds = 0)
+        Returns a promise resolving after the delay. 0 waits for the next
+        animation frame - the correct "let the browser paint first" pause.
+
+    debounce(callback_or_delay, delay, immediate = false)
+        ALWAYS use this rather than a hand-rolled timer. Returns a debounced
+        function that returns a promise. Also a decorator: @debounce(250) above
+        a method (with the /** @decorator */ comment the transform requires).
+
+        Guarantees:
+        1. IMMEDIATE START - the first call, or any call when idle and the delay
+           has elapsed, runs immediately.
+        2. AWAITS COMPLETION - an async callback is awaited; the execution is
+           not "finished" until it settles.
+        3. POST-EXECUTION DELAY - the delay timer starts AFTER the callback
+           settles, not when it was invoked. A slow callback therefore cannot
+           stack up behind itself.
+        4. COALESCED QUEUING - calls arriving during an execution or during the
+           delay collapse into ONE pending execution using the LAST arguments.
+        5. GUARANTEED EXECUTION - a call made during an execution always
+           produces a subsequent execution.
+        6. PROMISE FAN-IN - every caller waiting on the same execution receives
+           the same result or error.
+
+        delay = 0 still enforces exclusivity (no parallel execution); the queued
+        call simply runs as soon as the current one finishes. The `immediate`
+        parameter is vestigial - the first call always runs immediately.
+
+    rwlock(name, cb)          exclusive write lock by name; one writer at a
+                              time, readers blocked until it finishes
+    rwlock_read(name, cb)     shared read lock; readers run in parallel but are
+                              blocked by queued or active writers
+    rwlock_force_unlock(name) clear all locks and queues for a name (debugging)
+    rwlock_pending(name)      {readers, writer_active, reader_q, writer_q} -
+                              inspection only
+
+        These are IN-PAGE locks coordinating concurrent work in one browser tab.
+        They have nothing to do with RsxLocks, which is a cluster lock service
+        (rsx:man locks).
+
+  Hashing and comparison (hash.js)
+
+    hash(the_var, calc_sha1 = true, ignored_keys = null)
+        Deep hash of any value - objects, arrays, circular references. Returns
+        a SHA1 string, or the flattened JSON when calc_sha1 is false.
+
+        ignored_keys DEFAULTS TO ['$']. That default is load-bearing: a jqhtml
+        component carries a `$` jQuery reference, so hashing component data
+        would otherwise walk the DOM. Passing your own array REPLACES the
+        default - include '$' yourself if the value may contain a component.
+
+    deep_equal(a, b)
+        Deep comparison ignoring property order and functions. The right test
+        for "did this data actually change" before re-rendering.
+
+  Error (error.js)
+
+    shouldnt_happen(message = null)
+        A sanity check failed. Logs the caller location and a stack trace, then
+        THROWS. Use it instead of returning early or continuing with a guessed
+        value - same intent and same name as the PHP function.
+
+    error(str, error_code)
+        Normalize a string (or an existing error object) into {error, status}.
+        Low-level; application code rarely calls it directly.
+
+  Browser and DOM (browser.js)
+
+    scroll_into_view_if_needed(target)
+        Scroll the target's PARENT CONTAINER just enough to reveal it.
+    scroll_page_into_view_if_needed(target)
+        Scroll the PAGE to reveal it, animated.
+        Both accept a selector, an element or a jQuery object.
+
+    wait_for_images(callback)
+        Call back once every image on the page has loaded.
+
+    escape_jq_selector(id)
+        Escape special characters in an id so it can be used in a jQuery
+        selector. Not a security function.
+
+    $nbsp()
+        A non-breaking space, for building markup in JS.
+
+    is_crawler()
+        User-agent looks like a bot.
+
+    get_os()
+        'Mac OS' | 'iPhone' | 'iPad' | 'Windows' | 'Android-Phone' |
+        'Android-Tablet' | 'Linux' | 'Unknown'.
+
+    is_mobile() / is_desktop()
+        A user-agent sniff with a 992px viewport fallback. These predate the
+        breakpoint system, belong to NO tier in it, and are not layout
+        decisions. For anything responsive use Responsive.is_mobile() and
+        friends (rsx:man responsive), which read the actual breakpoints from
+        CSS.
+
+  Debug
+
+    console_debug(channel, ...values)
+        Channel-filtered debug output; stripped from production builds by the
+        Terser pure_funcs pass and neutered at runtime. Same name and semantics
+        in PHP. Details: rsx:man console_debug.
+
+EXAMPLES
+
+    Guarding on emptiness the way the codebase reads:
+
+        if (empty(this.data.rows)) {
+            this.$sid('list').html('<Empty_State />');
+            return;
+        }
+
+    Escaping vs sanitizing:
+
+        // The value is TEXT the user typed - escape it, keep the line breaks.
+        this.$sid('notes').html(htmlbr(record.notes));
+
+        // The value came from the WYSIWYG editor and is SUPPOSED to be markup.
+        this.$sid('body').html(safe_html(record.body_html));
+
+    Debouncing a search box (decorator form):
+
+        /** @decorator */
+        @debounce(250)
+        async on_query_changed() {
+            this.args.q = this.$sid('q').val();
+            await this.reload();
+        }
+
+    Debouncing a plain function:
+
+        const save_draft = debounce(async (text) => {
+            await Notes_Controller.save_draft({ text });
+        }, 1000);
+
+    Skipping a repaint when nothing actually changed:
+
+        const next = await Dashboard_Controller.summary();
+
+        if (!deep_equal(this.data.summary, next)) {
+            this.data.summary = next;
+            this.render();
+        }
+
+    Parallel async iteration:
+
+        await foreach(this.data.ids, async (id) => {
+            await Thumbnail_Controller.warm({ id });
+        });
+
+    Serializing concurrent work in one tab:
+
+        await rwlock('upload_queue', async () => {
+            await Upload_Service.flush();
+        });
+
+    A sanity check that fails loudly instead of half-working:
+
+        if (!this.args.id) {
+            shouldnt_happen('View action rendered with no id');
+        }
+
+RSX VS LARAVEL
+    Laravel ships no JavaScript standard library at all - a Laravel app reaches
+    for lodash, dayjs, a debounce package and whatever the component framework
+    provides, imports each per file, and re-decides per project which escaping
+    helper is authoritative.
+
+    RSX provides one set of globals with the SAME NAMES AS THE PHP HELPERS, so a
+    developer moving between a controller and a component keeps one vocabulary:
+    htmlbr() escapes and breaks lines in both languages; bytes_to_human()
+    produces the same string on both sides; shouldnt_happen() throws in both.
+
+    Two consequences to keep in mind:
+
+        - There is no build-time import graph for these. They exist because the
+          framework's core JS is in every bundle; do not import, re-declare or
+          shadow them.
+        - $.ajax() is BLOCKED (it throws). Server calls go through a generated
+          controller stub - Controller.method({...}) - not a hand-built request.
+          See rsx:man jquery.
+
+TROUBLESHOOTING
+
+    "empty() / isset() / count() / clone() do not behave like I expect."
+        They are RSX globals that shadow the JS names you have in mind, and they
+        follow the PHP semantics, not JavaScript ones:
+
+            empty(0)          true     (0 is empty, as in PHP)
+            empty('0')        false    (differs from PHP, where '0' is empty)
+            empty({})         true     (an object with no own properties)
+            empty([])         true
+            isset(null)       true     (only undefined is unset)
+            count({a:1,b:2})  2        (own properties, not a length)
+            clone(obj)        SHALLOW  (nested objects stay shared)
+
+        In particular: `if (empty(x))` where x is the number 0 takes the branch.
+        If you mean "no value supplied", test isset() or `=== null`.
+
+    "Declaring a local named clone/count/empty broke something else."
+        You shadowed the global for that whole scope, including code called
+        from it that expected the framework function. Rename the local.
+
+    "clone() did not isolate my edits."
+        It is a SHALLOW copy - nested objects and arrays are shared with the
+        original. For an editor buffer over nested data, copy the nested level
+        you are editing too (or round-trip through
+        json_decode(json_encode(x))).
+
+    "My debounced function ran later than the delay I set."
+        By design: guarantee 3 - the delay timer starts AFTER the callback
+        settles. A 400ms callback with a 250ms delay yields a 650ms cycle. That
+        is what stops a slow handler from stacking up behind itself.
+
+    "@debounce did nothing."
+        The decorator needs the /** @decorator */ comment above it (the JS
+        transform requires it), and @debounce(250) - the decorator form - takes
+        the DELAY as its first argument, while debounce(fn, 250) - the function
+        form - takes the callback. Passing a function to the decorator form, or
+        a delay to the function form, silently produces the wrong thing.
+
+    "hash() of two different components returns the same value."
+        The `$` key is ignored by default, and that is usually what you want. If
+        you passed your own ignored_keys you REPLACED the default rather than
+        adding to it.
+
+    "deep_equal() says two objects differ and I cannot see how."
+        It ignores functions and property order but not types: 1 and '1' differ,
+        as do null and undefined. Log json_encode() of both.
+
+    "is_mobile() disagrees with my CSS."
+        The global is_mobile() from browser.js is a user-agent sniff with a
+        992px fallback and is unrelated to the breakpoint system. Use
+        Responsive.is_mobile() (1024px, read from the stylesheet).
+
+    "console_debug() prints nothing."
+        Its channel is not in CONSOLE_DEBUG_FILTER - or this is a production
+        build, where the calls are stripped entirely. See rsx:man console_debug.
+
+    "await foreach(...) resolved immediately."
+        foreach() only returns a promise when the callback returns promises. A
+        synchronous callback returns undefined, and awaiting undefined resolves
+        at once - which is correct, since the work was already done.
+
+SEE ALSO
+    rsx:man helpers          the PHP twins of these functions
+    rsx:man jquery           the jQuery extensions (.exists(), .click_async(),
+                             and the $.ajax() block)
+    rsx:man storage          Rsx_Storage - scoped browser storage
+    rsx:man url_hash         Rsx.url_hash_* - UI state in the URL
+    rsx:man responsive       Responsive.is_*() - the breakpoint predicates
+    rsx:man time             Rsx_Time / Rsx_Date in JavaScript
+    rsx:man js_decorators    the decorator system @debounce plugs into
+    rsx:man console_debug    channels and filtering
+    rsx:man error_handling   the fail-loud contract shouldnt_happen() serves
+
+JS_FUNCTIONS(3)                   RSpade Manual                   JS_FUNCTIONS(3)

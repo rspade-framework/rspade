@@ -1,0 +1,67 @@
+<%-- API Keys DataGrid Component --%>
+
+<Define:Api_Keys_DataGrid
+    extends="DataGrid_Abstract"
+    $data_source=Frontend_Settings_Api_Keys_Controller.datagrid_fetch
+    $sort="created_at"
+    $order="desc"
+    $per_page=15
+    class="card DataGrid">
+
+    <Slot:DG_Card_Header>
+        <Card_Title>Your API Keys</Card_Title>
+        <Card_Header_Right>
+            <Search_Input $sid="filter_input" $placeholder="Search by name..." />
+        </Card_Header_Right>
+    </Slot:DG_Card_Header>
+
+    <Slot:DG_Table_Header>
+        <tr>
+            <th $sortby="id" style="width: 80px;">ID</th>
+            <th $sortby="name">Name</th>
+            <th>Key</th>
+            <th>Status</th>
+            <th $sortby="created_at">Created</th>
+            <th $sortby="last_used_at">Last Used</th>
+            <th style="width: 100px;">Actions</th>
+        </tr>
+    </Slot:DG_Table_Header>
+
+    <Slot:row>
+        <tr>
+            <td>#<%= row.id %></td>
+            <td><%= row.name %></td>
+            <td>
+                <code class="bg-light p-1 rounded"><%= row.key_prefix %></code>
+            </td>
+            <td>
+                <% if (row.status === 'active') { %>
+                    <span class="badge bg-success">Active</span>
+                <% } else if (row.status === 'revoked') { %>
+                    <span class="badge bg-danger">Revoked</span>
+                <% } else if (row.status === 'expired') { %>
+                    <span class="badge bg-warning">Expired</span>
+                <% } %>
+            </td>
+            <td><%= Rsx_Time.format_date(row.created_at) %></td>
+            <td><%= row.last_used_at ? Rsx_Time.relative(row.last_used_at) : 'Never' %></td>
+            <td>
+                <% if (row.status === 'active') { %>
+                    <button class="btn btn-outline-danger btn-sm" data-action="revoke" data-id="<%= row.id %>" title="Revoke Key">
+                        <i class="bi bi-x-circle"></i>
+                    </button>
+                <% } else { %>
+                    <span class="text-muted">-</span>
+                <% } %>
+            </td>
+        </tr>
+    </Slot:row>
+
+    <Slot:DG_Empty_State>
+        <div class="text-center py-5">
+            <i class="bi bi-key fs-1 text-muted"></i>
+            <p class="text-muted mt-3">No API keys yet. Generate your first key to get started.</p>
+        </div>
+    </Slot:DG_Empty_State>
+
+</Define:Api_Keys_DataGrid>
