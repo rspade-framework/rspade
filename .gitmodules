@@ -1,0 +1,5 @@
+[submodule "system"]
+	path = system
+	url = https://github.com/rspade-framework/rspade_system.git
+	branch = master
+	ignore = dirty

@@ -22,7 +22,7 @@ You need [Docker](https://docs.docker.com/get-docker/) and git. Nothing else —
 no PHP, no Node, no MySQL on your machine.
 
 ```bash
-git clone --depth 1 https://github.com/rspade-framework/rspade my-app
+git clone --depth 1 --recurse-submodules https://github.com/rspade-framework/rspade my-app
 cd my-app
 bash system/app/RSpade/resource/docker/build.sh
 docker compose up
@@ -49,6 +49,14 @@ up, `docker compose up -d` is fine.
 The clone is a few hundred megabytes because dependencies are committed. That is
 deliberate: it is why there is no install step and no network round-trip when you
 start. `--depth 1` skips the history and is the recommended way in.
+
+**`--recurse-submodules` is not optional.** The framework lives in `system/`, which
+is a git submodule; without it you get an empty `system/` and nothing runs. If you
+already cloned without it:
+
+```bash
+git submodule update --init --recursive
+```
 
 </details>
 
