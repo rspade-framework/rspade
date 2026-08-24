@@ -292,7 +292,7 @@ project — it is gitignored, and it is the whole of the state:
 | | |
 |---|---|
 | `storage/mysql_data` | the database |
-| `storage/storage/files` | uploaded file attachments |
+| `storage/uploads` | uploaded file attachments |
 | `storage/logs` | application logs |
 | `storage/.claude` | Claude Code's settings and history |
 
