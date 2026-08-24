@@ -49,36 +49,6 @@
       }
     },
     {
-      "label": "RSX: Check Setup on Open",
-      "type": "shell",
-      "windows": {
-        "command": "powershell",
-        "args": [
-          "-ExecutionPolicy", "Bypass",
-          "-File", "${workspaceFolder}/.vscode/ide_setup/check_setup.ps1"
-        ]
-      },
-      "linux": {
-        "command": "${workspaceFolder}/.vscode/ide_setup/check_setup.sh"
-      },
-      "osx": {
-        "command": "${workspaceFolder}/.vscode/ide_setup/check_setup.sh"
-      },
-      "problemMatcher": [],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": true,
-        "panel": "new",
-        "showReuseMessage": false,
-        "clear": true,
-        "close": true
-      },
-      "runOptions": {
-        "runOn": "folderOpen"
-      }
-    },
-    {
       "label": "RSX: Install Laravel Pint",
       "type": "shell",
       "command": "composer",
