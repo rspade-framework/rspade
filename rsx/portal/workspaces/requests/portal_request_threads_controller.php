@@ -384,7 +384,7 @@ class Portal_Request_Threads_Controller extends Rsx_Controller_Abstract
             'id' => $document->id,
             'message_id' => $document->message_id,
             'name' => $attachment->file_name,
-            'thumbnail_url' => $attachment->get_thumbnail_url('fit', 120, 120),
+            'attachment_id' => (int) $attachment->id,
             'download_url' => $attachment->get_download_url(),
             'requires_review' => (int) $document->requires_review,
             'review_status' => $document->review_status,

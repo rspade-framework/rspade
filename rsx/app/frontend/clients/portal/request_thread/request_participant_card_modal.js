@@ -7,7 +7,7 @@
  */
 class Request_Participant_Card_Modal extends Modal_Abstract {
     /**
-     * @param {Object} participant {type, id, name, email, phone, avatar_url, initials}.
+     * @param {Object} participant {type, id, name, email, phone, avatar_attachment_id, initials}.
      * @returns {Promise<void>}
      */
     static async show(participant) {

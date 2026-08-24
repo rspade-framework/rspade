@@ -18,10 +18,19 @@
         text-transform: uppercase;
     }
 
-    &__img {
+    // The photo is an <Attachment_Thumbnail>: a host element wrapping the picture. Both
+    // fill the disc, so a placeholder icon and a real photo occupy the same circle.
+    &__photo {
+        display: block;
         width: 100%;
         height: 100%;
-        object-fit: cover;
+
+        .Attachment_Thumbnail__img,
+        .Attachment_Thumbnail__placeholder {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
     }
 
     &--sm &__disc { width: 28px; height: 28px; font-size: $font-size-xs; }

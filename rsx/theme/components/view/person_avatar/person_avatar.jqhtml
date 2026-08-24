@@ -2,7 +2,8 @@
 Person_Avatar - a person's face: a profile image or a deterministic initials disc
 
 $name (string)          - the person's name; alt text, initials fallback, colour seed [required]
-$avatar_url (nullable)  - profile image URL; shown instead of initials when set [optional]
+$attachment_id (nullable) - the person's profile-photo File_Attachment id; the photo is shown
+                          instead of the initials disc when set [optional]
 $initials (string)      - explicit initials override; derived from $name when absent [optional]
 $size ("sm"|"md"|"lg")  - 28 / 36 / 72px disc; default "md" [optional]
 
@@ -12,7 +13,11 @@ Author_Meta_Row and directly wherever a person needs a face (thread participants
 contact-card modal). Promoted from the per-page Request/Portal_Participant_Avatar.
 
 Usage:
-    <Person_Avatar $name="Lisa Brown" $avatar_url=_p.avatar_url $size="sm" />
+    <Person_Avatar $name="Lisa Brown" $attachment_id=_p.avatar_attachment_id $size="sm" />
+
+A person's face is never an image URL in a payload. The producer ships the profile photo's
+attachment id and <Attachment_Thumbnail> renders it - so a re-cropped or newly uploaded photo
+replaces itself everywhere it is on screen, with no page reload.
 --%>
 <Define:Person_Avatar tag="span">
   <% const _size = this.args.size === 'sm' ? 'sm' : (this.args.size === 'lg' ? 'lg' : 'md');
@@ -29,9 +34,10 @@ Usage:
      for (let i = 0; i < _initials.length; i++) { _hue = (_hue + _initials.charCodeAt(i) * 37) % 360; }
      const _bg = 'hsl(' + _hue + ', 45%, 45%)';
      this.$.addClass('Person_Avatar--' + _size); %>
-  <% if (this.args.avatar_url) { %>
+  <% const _px = _size === 'sm' ? 28 : (_size === 'lg' ? 72 : 36); %>
+  <% if (this.args.attachment_id) { %>
     <span class="Person_Avatar__disc">
-      <img src="<%= this.args.avatar_url %>" alt="<%= _name %>" class="Person_Avatar__img">
+      <Attachment_Thumbnail class="Person_Avatar__photo" $attachment_id=int(this.args.attachment_id) $type="cover" $width=_px $height=_px $alt=_name />
     </span>
   <% } else { %>
     <%-- background-color is inline: a per-person deterministic hue is data, not a token. --%>

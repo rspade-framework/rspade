@@ -66,4 +66,12 @@ services:
       - ./storage/.claude:/root/.claude
 
     # Lets the container stop cleanly rather than being killed mid-write.
-    stop_grace_period: 30s
+    #
+    # This is the REAL ceiling on shutdown: docker SIGKILLs the whole container when it
+    # expires, whatever supervisor promised its programs. It was 30s while supervisor
+    # gave mysqld 60s to flush, so mysqld could never actually use the window it was
+    # given - docker killed it at half time, mid-flush, which is how an InnoDB datadir
+    # gets corrupted. mysqld exits when it has finished flushing; it is not on a clock,
+    # so neither is this. `docker compose down` therefore waits for a clean stop. If a
+    # process is genuinely wedged, kill it deliberately (docker kill) - having looked.
+    stop_grace_period: 24h

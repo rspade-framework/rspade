@@ -136,10 +136,18 @@
     &__thumb {
         width: 36px;
         height: 36px;
-        object-fit: contain;
         border: $border-width solid $border-color;
         border-radius: $border-radius-sm;
         background-color: $gray-100;
         flex-shrink: 0;
+
+        // The picture is an <Attachment_Thumbnail>: this class now sizes the component's
+        // host box and the image inside it fills it.
+        .Attachment_Thumbnail__img,
+        .Attachment_Thumbnail__placeholder {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
     }
 }

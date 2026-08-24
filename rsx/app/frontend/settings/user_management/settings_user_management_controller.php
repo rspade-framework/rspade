@@ -372,9 +372,10 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             }
         }
 
-        // Get profile photo URL
+        // The profile photo travels as an ATTACHMENT ID, never a URL: <Attachment_Thumbnail>
+        // is what renders it, and it builds its own URL from the record it fetches.
         $profile_photo = $user->get_attachment('profile_photo');
-        $profile_photo_url = $profile_photo ? $profile_photo->get_thumbnail_url('cover', 96, 96) : null;
+        $profile_photo_attachment_id = $profile_photo ? (int) $profile_photo->id : null;
 
         return [
             'id' => $user->id,
@@ -387,7 +388,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             'role_id__label' => $user->role_id__label ?? 'Member',
             'invitation_status' => $user->get_invitation_status(),
             'created_at' => $user->created_at,
-            'profile_photo_url' => $profile_photo_url,
+            'profile_photo_attachment_id' => $profile_photo_attachment_id,
             'user_profile' => $user->user_profile ? [
                 'title' => $user->user_profile->title,
                 'department' => $user->user_profile->department,

@@ -9,7 +9,7 @@ Request_Participant_Card_Modal.
   <div class="Request_Participant_Card_Modal_Body__avatar">
     <Person_Avatar
       $name="<%= p.name %>"
-      $avatar_url="<%= str(p.avatar_url) %>"
+      $attachment_id=p.avatar_attachment_id
       $initials="<%= p.initials %>"
       $size="lg"
     />

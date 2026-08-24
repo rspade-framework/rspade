@@ -35,7 +35,7 @@
                                 <tr>
                                     <td>
                                         <div class="Portal_Workspace_Documents_Action__doc">
-                                            <img src="<%= doc.thumbnail_url %>" alt="<%= doc.name %>" class="Portal_Workspace_Documents_Action__thumb">
+                                            <Attachment_Thumbnail class="Portal_Workspace_Documents_Action__thumb" $attachment_id=doc.attachment_id $width=36 $height=36 $alt=doc.name />
                                             <div class="Portal_Workspace_Documents_Action__doc-main">
                                                 <span class="Portal_Workspace_Documents_Action__name" title="<%= doc.name %>"><%= doc.name %></span>
                                                 <% if (doc.message) { %>

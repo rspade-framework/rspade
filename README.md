@@ -446,6 +446,18 @@ Do not assume a Laravel pattern works here without checking.
 
 ---
 
+## Project status
+
+RSpade is at **release candidate**. It is ready for production use, but expect some
+glitches and some changes going forward. If something misbehaves, confuses or blocks
+legitimate work, please report it:
+
+- email **brian@hanson.xyz**
+- **[rspade.org](https://rspade.org/)**
+- the [issue tracker](https://github.com/rspade-framework/rspade/issues)
+
+---
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

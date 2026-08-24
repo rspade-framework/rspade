@@ -1,0 +1,48 @@
+<Define:Dev_Attachment_Thumbnail_Action>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <h1>Attachment Thumbnail</h1>
+            <p class="lead">Watch a document's placeholder swap to its real thumbnail over realtime, with no page reload.</p>
+        </div>
+    </div>
+
+    <% if (this.data.loading) { %>
+        <div class="alert alert-info mt-3">Loading attachments...</div>
+    <% } else if (this.data.error) { %>
+        <div class="alert alert-danger mt-3"><strong>Error:</strong> <%= this.data.error %></div>
+    <% } else { %>
+        <div class="row mt-3">
+            <div class="col-12 col-desktop-8">
+                <div class="mb-3">
+                    <label class="form-label small">Attachment</label>
+                    <select $sid="select" class="form-select">
+                        <option value="">-- Select an attachment --</option>
+                        <% for (const a of this.data.attachments) { %>
+                            <option value="<%= a.id %>"><%= a.file_name %> (<%= a.mime_type || 'unknown' %>) [#<%= a.id %>]</option>
+                        <% } %>
+                    </select>
+                </div>
+
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <button $sid="reset" class="btn btn-sm btn-primary" disabled>Reset to Pending</button>
+                    <button $sid="render" class="btn btn-sm btn-primary" disabled>Render Now</button>
+                    <span $sid="status" class="text-muted small">No attachment selected</span>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label small mb-1">&lt;Attachment_Thumbnail $width=160&gt;</label>
+                    <div $sid="host" class="border rounded bg-light p-3"></div>
+                </div>
+
+                <div>
+                    <label class="form-label small mb-1">&lt;Document_Preview&gt;</label>
+                    <div $sid="preview_host" class="border rounded bg-light" style="width: 800px; max-width: 100%; height: 60vh; overflow: auto;"></div>
+                </div>
+            </div>
+        </div>
+    <% } %>
+</div>
+
+</Define:Dev_Attachment_Thumbnail_Action>

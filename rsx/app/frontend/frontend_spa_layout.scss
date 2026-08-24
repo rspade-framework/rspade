@@ -149,9 +149,17 @@ $progress-bar-height: 8px; // Height of progress bars
             color: $text-muted;
         }
 
+        // The photo is an <Attachment_Thumbnail>: the host is the disc, the picture fills it.
         &--image {
             border: $border-width solid $black;
-            object-fit: cover;
+            overflow: hidden;
+
+            .Attachment_Thumbnail__img,
+            .Attachment_Thumbnail__placeholder {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
         }
     }
 

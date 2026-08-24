@@ -6,7 +6,7 @@ $document row passed by Document_Detail_Modal. Actions live on the modal's butto
 <Define:Document_Detail_Modal_Body tag="div">
   <% const doc = this.args.document; %>
   <a class="Document_Detail_Modal_Body__thumb-wrap" href="<%= doc.download_url %>" download title="Download <%= doc.name %>">
-    <img src="<%= doc.thumbnail_url %>" alt="<%= doc.name %>" class="Document_Detail_Modal_Body__thumb">
+    <Attachment_Thumbnail class="Document_Detail_Modal_Body__thumb" $attachment_id=doc.attachment_id $width=220 $height=220 $alt=doc.name />
   </a>
 
   <div class="Document_Detail_Modal_Body__name"><%= doc.name %></div>

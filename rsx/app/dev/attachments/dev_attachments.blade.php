@@ -45,7 +45,7 @@
                                 <div class="text-center">
                                     <div class="mb-2 fw-semibold">96x96 Profile Image Cover</div>
                                     <div class="position-relative d-inline-block">
-                                        <img id="thumb-profile" src="" class="rounded-circle border" width="96" height="96" alt="Profile">
+                                        <div id="thumb-profile" class="rounded-circle border overflow-hidden" style="width: 96px; height: 96px;"></div>
                                         <div id="spinner-profile" class="position-absolute top-50 start-50 translate-middle d-none">
                                             <div class="spinner-border spinner-border-sm text-primary" role="status">
                                                 <span class="visually-hidden">Loading...</span>
@@ -59,7 +59,7 @@
                             <div class="col-md-6 col-lg-4">
                                 <div class="text-center">
                                     <div class="mb-2 fw-semibold">200x200 Thumbnail Cover</div>
-                                    <img id="thumb-200" src="" class="border" width="200" height="200" alt="200x200">
+                                    <div id="thumb-200" class="border d-inline-block" style="width: 200px; height: 200px;"></div>
                                 </div>
                             </div>
 
@@ -67,7 +67,7 @@
                             <div class="col-md-6 col-lg-4">
                                 <div class="text-center">
                                     <div class="mb-2 fw-semibold">240x180 Thumbnail Cover</div>
-                                    <img id="thumb-240x180" src="" class="border" width="240" height="180" alt="240x180">
+                                    <div id="thumb-240x180" class="border d-inline-block" style="width: 240px; height: 180px;"></div>
                                 </div>
                             </div>
 

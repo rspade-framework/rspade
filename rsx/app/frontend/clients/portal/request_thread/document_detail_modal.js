@@ -9,7 +9,7 @@
  */
 class Document_Detail_Modal extends Modal_Abstract {
     /**
-     * @param {Object} document The thread document row (id, name, thumbnail_url,
+     * @param {Object} document The thread document row (id, name, attachment_id,
      *   download_url, review_status, review_label, badge, reject_reason, requires_review).
      * @returns {Promise<boolean>} true if Accept/Reject was applied.
      */

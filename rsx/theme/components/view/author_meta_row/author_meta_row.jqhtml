@@ -2,7 +2,7 @@
 Author_Meta_Row - a "who + when" byline: avatar + author + relative time (+ actions)
 
 $name (string)          - the author's name; seeds the Person_Avatar it renders [required]
-$avatar_url (nullable)  - the author's profile image [optional]
+$attachment_id (nullable) - the author's profile-photo File_Attachment id [optional]
 $initials (string)      - explicit avatar initials override [optional]
 
 <Slot:author>  - the author line: a name (may be a link, may carry an inline email) [required]
@@ -15,13 +15,13 @@ one row - converge the shape, not the widgets (guide 6.5). DISTINCT from Feed_Ro
 (a single-line "actor did thing" event with an icon tile, no avatar).
 
 Usage:
-    <Author_Meta_Row $name=_m.author_name $avatar_url=_m.avatar_url>
+    <Author_Meta_Row $name=_m.author_name $attachment_id=_m.avatar_attachment_id>
         <Slot:author><strong><%= _m.author_name %></strong></Slot:author>
         <Slot:time><%= Rsx_Time.relative(_m.created_at) %></Slot:time>
     </Author_Meta_Row>
 --%>
 <Define:Author_Meta_Row tag="div">
-    <Person_Avatar $name="<%= str(this.args.name) %>" $avatar_url="<%= str(this.args.avatar_url) %>" $initials="<%= str(this.args.initials) %>" $size="md" />
+    <Person_Avatar $name="<%= str(this.args.name) %>" $attachment_id=this.args.attachment_id $initials="<%= str(this.args.initials) %>" $size="md" />
     <div class="Author_Meta_Row__author"><%= content('author') %></div>
     <% if (this.args._slots && this.args._slots.time) { %>
         <div class="Author_Meta_Row__time"><%= content('time') %></div>

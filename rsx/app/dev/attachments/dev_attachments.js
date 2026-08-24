@@ -50,13 +50,16 @@ class Dev_Attachments {
                 // Show thumbnails container
                 $('#thumbnails-container').removeClass('d-none');
 
-                // Generate thumbnail URLs
+                // Mount a thumbnail component per box. Nothing here builds a URL: the
+                // component is handed the attachment id and owns the picture from there,
+                // including the swap when an Office document finishes rendering.
                 const key = response.attachment.key;
+                const attachment_id = response.attachment.id;
                 const extension = response.attachment.file_extension;
 
-                $('#thumb-profile').attr('src', `/_thumbnail/dynamic/${key}/cover/96/96`);
-                $('#thumb-200').attr('src', `/_thumbnail/dynamic/${key}/cover/200/200`);
-                $('#thumb-240x180').attr('src', `/_thumbnail/dynamic/${key}/cover/240/180`);
+                $('#thumb-profile').component('Attachment_Thumbnail', { attachment_id: attachment_id, type: 'cover', width: 96, height: 96 });
+                $('#thumb-200').component('Attachment_Thumbnail', { attachment_id: attachment_id, type: 'cover', width: 200, height: 200 });
+                $('#thumb-240x180').component('Attachment_Thumbnail', { attachment_id: attachment_id, type: 'cover', width: 240, height: 180 });
 
                 // Use icon endpoint for file type icon
                 $('#thumb-icon').attr('src', `/_icon_by_extension/${extension}?width=100&height=100`);

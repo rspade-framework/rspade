@@ -10,11 +10,24 @@
     &__thumb {
         max-width: 220px;
         max-height: 220px;
-        object-fit: contain;
         border: 1px solid $border-color;
         border-radius: $border-radius-sm;
         background-color: $gray-100;
         padding: $spacing-sm;
+
+        // The picture is an <Attachment_Thumbnail>: this class sizes the component's host
+        // box, and the image inside it is already requested at this size, so it only has
+        // to stay inside the box. The placeholder box (an unfetchable record) has no
+        // intrinsic size, so it is given one.
+        .Attachment_Thumbnail__img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .Attachment_Thumbnail__placeholder {
+            width: 220px;
+            height: 220px;
+        }
     }
 
     &__name {

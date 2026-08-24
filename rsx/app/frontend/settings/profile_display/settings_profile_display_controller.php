@@ -24,11 +24,10 @@ class Frontend_Settings_Profile_Display_Controller extends Rsx_Controller_Abstra
     {
         $user = Session::get_user();
 
-        // Get profile photo if exists
+        // The profile photo travels as an ATTACHMENT ID, never a URL: <Attachment_Thumbnail>
+        // is what renders it, and it builds its own URL from the record it fetches.
         $profile_photo = $user->get_attachment('profile_photo');
-        $profile_photo_url = $profile_photo
-            ? $profile_photo->get_thumbnail_url('cover', 128, 128)
-            : null;
+        $profile_photo_attachment_id = $profile_photo ? (int) $profile_photo->id : null;
 
         // Get user profile relation data
         $user_profile = null;
@@ -49,7 +48,7 @@ class Frontend_Settings_Profile_Display_Controller extends Rsx_Controller_Abstra
             'role_id__label' => $user->role_id__label ?? 'Member',
             'created_at' => $user->created_at,
             'last_login_at' => $user->last_login_at,
-            'profile_photo_url' => $profile_photo_url,
+            'profile_photo_attachment_id' => $profile_photo_attachment_id,
             'user_profile' => $user_profile,
         ];
     }

@@ -54,10 +54,9 @@
                     <div class="me-3">
                         <a href="<%= Rsx.Route('Settings_Profile_Display_Action') %>"
                             class="Frontend_Spa_Layout__user-profile-link">
-                            <% if (this.args.user && this.args.user.profile_photo_url) { %>
-                                <img src="<%!= this.args.user.profile_photo_url %>"
-                                    class="Frontend_Spa_Layout__user-profile-icon Frontend_Spa_Layout__user-profile-icon--image" alt="Profile" width="32"
-                                height="32">
+                            <% if (this.args.user && this.args.user.profile_photo_attachment_id) { %>
+                                <Attachment_Thumbnail class="Frontend_Spa_Layout__user-profile-icon Frontend_Spa_Layout__user-profile-icon--image"
+                                    $attachment_id=int(this.args.user.profile_photo_attachment_id) $type="cover" $width=32 $height=32 $alt="Profile" />
                             <% } else { %>
                                 <div class="Frontend_Spa_Layout__user-profile-icon">
                                     <i class="bi bi-person-circle"></i>

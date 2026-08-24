@@ -26,7 +26,7 @@ class Settings_Profile_Display_Action extends Spa_Action {
             role_id__label: 'Member',
             created_at: null,
             last_login_at: null,
-            profile_photo_url: null,
+            profile_photo_attachment_id: null,
             user_profile: null,
         };
 

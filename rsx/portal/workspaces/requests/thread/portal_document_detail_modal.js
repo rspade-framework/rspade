@@ -7,7 +7,7 @@
  */
 class Portal_Document_Detail_Modal extends Modal_Abstract {
     /**
-     * @param {Object} document The thread document row (id, name, thumbnail_url,
+     * @param {Object} document The thread document row (id, name, attachment_id,
      *   download_url, review_status, review_label, badge, reject_reason).
      * @returns {Promise<void>}
      */

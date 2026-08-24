@@ -29,10 +29,21 @@ class Profile_Photo_Input extends Form_Input_Abstract {
         this.state.attachment_key = key || '';
 
         if (this.state.attachment_key) {
-            // Generate thumbnail URL from attachment key
+            // THE ONE PLACE THIS WIDGET DOES NOT MOUNT <Attachment_Thumbnail>, and the reason is
+            // the form contract: this input's value IS the attachment KEY (that is what the form
+            // posts and what _set_value() receives), while <Attachment_Thumbnail> is addressed by
+            // attachment ID and fetches the record itself. There is no id to give it here.
+            //
+            // Safe, because the widget only ever holds an IMAGE: an image's thumbnail is rendered
+            // straight from the blob (render state NOT_REQUIRED), so there is no pending state to
+            // wait for and nothing that would later swap. The URL still goes through the single
+            // builder - no app code spells '/_thumbnail/' - and the builder needs only .key.
             const width = this.args.width || 96;
             const height = this.args.height || 96;
-            this.state.thumbnail_url = `/_thumbnail/dynamic/${this.state.attachment_key}/cover/${width}/${height}`;
+            this.state.thumbnail_url = File_Attachment_Model.thumbnail_url(
+                { key: this.state.attachment_key },
+                { type: 'cover', width: width, height: height }
+            );
         } else {
             // No key - clear thumbnail
             this.state.thumbnail_url = '';

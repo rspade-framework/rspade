@@ -1,7 +1,7 @@
 <%--
 People_List - a calm vertical list of people (avatar + name), never a pill cloud
 
-$people (array)      - [{name, avatar_url?, initials?, subtitle?}] rows to render [required]
+$people (array)      - [{name, avatar_attachment_id?, initials?, subtitle?}] rows to render [required]
 $clickable (bool)    - rows react to the pointer; a click fires `person_click` [optional]
 $removable (bool)    - each row shows a remove button; a click fires `person_remove` [optional]
 $size ("sm"|"md")    - avatar disc size (default "sm") [optional]
@@ -34,7 +34,7 @@ Usage:
             <% const _p = _people[_i];
                const _row_class = 'People_List__row' + (_clickable ? ' People_List__row--clickable' : ''); %>
             <div class="<%= _row_class %>" data-person-index="<%= _i %>" title="<%= str(_p.name) %>">
-                <Person_Avatar $name="<%= str(_p.name) %>" $avatar_url="<%= str(_p.avatar_url) %>" $initials="<%= str(_p.initials) %>" $size="<%= _size %>" />
+                <Person_Avatar $name="<%= str(_p.name) %>" $attachment_id=_p.avatar_attachment_id $initials="<%= str(_p.initials) %>" $size="<%= _size %>" />
                 <div class="People_List__body">
                     <span class="People_List__name"><%= str(_p.name) %></span>
                     <% if (_p.subtitle) { %>

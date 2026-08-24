@@ -127,7 +127,7 @@
                         <tr>
                             <td>
                                 <div class="d-flex align-items-center gap-2">
-                                    <img src="<%= doc.thumbnail_url %>" alt="<%= doc.name %>" class="Clients_Portal_Panel__doc-thumb">
+                                    <Attachment_Thumbnail class="Clients_Portal_Panel__doc-thumb" $attachment_id=doc.attachment_id $width=32 $height=32 $alt=doc.name />
                                     <a href="<%= doc.download_url %>" download><%= doc.name %></a>
                                 </div>
                             </td>

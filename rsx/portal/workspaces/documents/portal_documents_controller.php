@@ -78,7 +78,7 @@ class Portal_Documents_Controller extends Rsx_Controller_Abstract
             $documents[] = [
                 'shared_item_id' => $share->id,
                 'name' => $attachment->file_name,
-                'thumbnail_url' => $attachment->get_thumbnail_url('fit', 120, 120),
+                'attachment_id' => (int) $attachment->id,
                 'download_url' => $attachment->get_download_url(),
                 'shared_by' => $shared_by_label,
                 'shared_at' => $share->created_at,

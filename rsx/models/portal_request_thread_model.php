@@ -205,9 +205,13 @@ class Portal_Request_Thread_Model extends Rsx_Site_Model_Abstract
      *   - staff:   ONLY staff (Login_User_Model authors) who have POSTED in this thread -
      *     staff are unrestricted viewers and are never explicitly added. The site staff
      *     profile (User_Model on the thread's site) supplies the display name, phone and
-     *     profile-photo url; falls back to the login email / initials.
+     *     profile-photo ATTACHMENT ID; falls back to the login email / initials.
      *
-     * Each entry: {type, id, name, email, phone (nullable), avatar_url (nullable), initials}.
+     * A participant never carries an image URL: avatar_attachment_id names the
+     * File_Attachment, and <Person_Avatar> hands it to <Attachment_Thumbnail>, which owns
+     * the URL and keeps the picture correct as the record changes.
+     *
+     * Each entry: {type, id, name, email, phone (nullable), avatar_attachment_id (nullable), initials}.
      *
      * @return array{members: array<int, array>, staff: array<int, array>}
      */
@@ -256,7 +260,7 @@ class Portal_Request_Thread_Model extends Rsx_Site_Model_Abstract
                 'name' => $name,
                 'email' => $email,
                 'phone' => $phone ?: null,
-                'avatar_url' => null,
+                'avatar_attachment_id' => null,
                 'initials' => static::_participant_initials($name),
             ];
         }
@@ -287,11 +291,11 @@ class Portal_Request_Thread_Model extends Rsx_Site_Model_Abstract
             $phone = ($user && trim((string) $user->phone) !== '') ? $user->phone : null;
 
             // Staff profile photo: a 'profile_photo' File_Attachment on the User_Model.
-            $avatar_url = null;
+            $avatar_attachment_id = null;
             if ($user) {
                 $photo = $user->get_attachment('profile_photo');
                 if ($photo) {
-                    $avatar_url = $photo->get_thumbnail_url('cover', 96, 96);
+                    $avatar_attachment_id = (int) $photo->id;
                 }
             }
 
@@ -301,7 +305,7 @@ class Portal_Request_Thread_Model extends Rsx_Site_Model_Abstract
                 'name' => $name,
                 'email' => (string) $login_user->email,
                 'phone' => $phone,
-                'avatar_url' => $avatar_url,
+                'avatar_attachment_id' => $avatar_attachment_id,
                 'initials' => static::_participant_initials($name),
             ];
         }

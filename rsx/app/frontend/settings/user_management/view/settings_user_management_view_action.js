@@ -23,7 +23,7 @@ class Settings_User_Management_View_Action extends Spa_Action {
             role_id__label: '',
             invitation_status: null,
             created_at: null,
-            profile_photo_url: null,
+            profile_photo_attachment_id: null,
             user_profile: null,
             recent_sessions: [],
         };
