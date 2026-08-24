@@ -8,24 +8,27 @@
  * STATE SEMANTICS (must match Rsx_Realtime's connection model exactly):
  *   - The client connects LAZILY: state stays 'disconnected' until the first
  *     watch()/subscribe(), and returns to 'disconnected' (intentionally, no
- *     reconnect) when the last watch stops. So 'disconnected' means idle / lazy /
- *     realtime-disabled -- NOT unreachable. It must NEVER trigger a warning.
- *   - An UNINTENTIONAL drop always passes through 'reconnecting'
- *     (onclose -> _schedule_reconnect); a fresh attempt is 'connecting'.
- *   - Therefore the warning arms a grace timer ONLY on 'connecting'/'reconnecting',
- *     shows the badge if 'connected' has not arrived by the time the timer fires,
- *     and hides on 'connected' or a TERMINAL 'disconnected'.
+ *     reconnect) when the last watch stops. So an IDLE 'disconnected' means idle /
+ *     lazy / realtime-disabled -- NOT unreachable, and it must never warn.
+ *   - An UNINTENTIONAL drop passes through 'reconnecting' IMMEDIATELY (the app is
+ *     told something is happening at once); a fresh attempt is 'connecting'.
+ *   - 'disconnected' AFTER a trying state is the client's delayed offline
+ *     announcement -- it is emitted only once a reconnect has failed to land inside
+ *     Rsx_Realtime.OFFLINE_ANNOUNCE_GRACE_MS, so it means a CONFIRMED outage and the
+ *     badge shows on it at once.
+ *   - Therefore the warning arms a grace timer on 'connecting'/'reconnecting', shows
+ *     the badge if 'connected' has not arrived by the time the timer fires or as soon
+ *     as a confirmed offline announcement arrives, and hides on 'connected' or an
+ *     IDLE 'disconnected'.
  *
  * GRACE_MS (5s) is a deliberate constant, not config: a connection that has been
  * trying for 5s continuously without succeeding is a real outage worth surfacing.
  *
- * Transient-vs-terminal 'disconnected': during a reconnect loop the socket briefly
- * reports 'disconnected' and then SYNCHRONOUSLY 'reconnecting' in the same onclose
- * frame. Because on_state_change delivers those two transitions synchronously, by
- * the time a deferred (setTimeout 0) check runs, _last_state has already advanced to
- * 'reconnecting' for a transient drop, and stays 'disconnected' for a terminal one.
- * That is how we hide on a real idle disconnect without killing the grace timer (and
- * flickering the badge) mid-reconnect.
+ * Which 'disconnected' is which is read from the PREVIOUS state, not from a deferred
+ * re-check: the client no longer flashes a transient 'disconnected' on the way into a
+ * reconnect (that blip is exactly what the delayed announcement removed), so a
+ * 'disconnected' preceded by 'connecting'/'reconnecting' is a real outage and one
+ * preceded by anything else is the idle/terminal kind.
  *
  * The badge lives in the persistent SPA layout header, so it is created once. It
  * still unsubscribes and clears its timer in on_stop() for correctness.
@@ -68,6 +71,7 @@ class Realtime_Status_Badge extends Component {
     }
 
     _on_state_change(state) {
+        const previous = this._last_state;
         this._last_state = state;
 
         if (state === 'connecting' || state === 'reconnecting') {
@@ -75,23 +79,24 @@ class Realtime_Status_Badge extends Component {
         } else if (state === 'connected') {
             this._hide();
         } else if (state === 'disconnected') {
-            this._handle_disconnected();
+            this._handle_disconnected(previous);
         }
     }
 
     /**
-     * 'disconnected' is ambiguous. A TERMINAL disconnect (idle / lazy / disabled)
-     * must hide + cancel; a TRANSIENT one (part of a reconnect) must leave the grace
-     * timer running. A reconnect emits 'reconnecting' synchronously right after this
-     * 'disconnected', so a deferred check reads _last_state === 'reconnecting' for a
-     * transient drop and 'disconnected' for a terminal one.
+     * 'disconnected' carries two meanings, told apart by what preceded it. Following a
+     * trying state it is the client's CONFIRMED offline announcement (the grace window
+     * expired with no reconnect) -- show at once, the outage is real. Otherwise it is the
+     * idle / lazy / disabled kind -- hide and cancel any countdown.
      */
-    _handle_disconnected() {
-        setTimeout(() => {
-            if (this._last_state === 'disconnected') {
-                this._hide();
-            }
-        }, 0);
+    _handle_disconnected(previous) {
+        if (previous === 'connecting' || previous === 'reconnecting') {
+            this._clear_grace_timer();
+            this._show();
+            return;
+        }
+
+        this._hide();
     }
 
     _arm_grace_timer() {
