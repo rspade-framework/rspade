@@ -33,8 +33,7 @@ return [
     | second definition of one value.
     |
     | Set them in .env, and see .env.README for what they do. Auto-fill on a
-    | login form additionally requires RSPADE_DEBUG_DOMAIN_SUFFIX to match the
-    | host being browsed.
+    | login form additionally requires RSPADE_LOGIN_AUTOFILL to be on.
     |
     */
 

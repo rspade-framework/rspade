@@ -8,9 +8,9 @@ use App\RSpade\Core\Rsx;
 use App\RSpade\Lib\Flash\Flash_Alert;
 
 /**
- * Flash alert showcase - gated to debug sites by the 'dev_tools' check.
+ * Flash alert showcase - CLOSED: no one can reach it, by declaration.
  */
-#[Auth('dev_tools')]
+#[Auth('closed')]
 class Dev_Flash_Controller extends Rsx_Controller_Abstract
 {
     /**

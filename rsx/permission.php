@@ -54,7 +54,6 @@ use App\RSpade\Core\Rsx;
  *   can_use_api               PERM_API_ACCESS
  *   can_impersonate           ROLE_MANAGER floor ("View as Client")
  *   is_root_admin             ROLE_ROOT_ADMIN floor
- *   dev_tools                 debug site only (environment, not identity)
  */
 class Permission extends Permission_Abstract
 {
@@ -176,20 +175,5 @@ class Permission extends Permission_Abstract
     public static function is_root_admin(): bool
     {
         return static::has_role(User_Model::ROLE_ROOT_ADMIN);
-    }
-
-    /**
-     * The developer tool suite (rsx/app/dev): debug sites only.
-     *
-     * An #[Auth_Check] may consider ANY user- or environment-scoped fact, not
-     * only roles and ACLs - this one considers no user at all and gates purely
-     * on the environment, keeping the framework's component/behaviour showcase
-     * off production hostnames. What a gate may NOT consider is the specific
-     * record being acted on.
-     */
-    #[Auth_Check]
-    public static function dev_tools(): bool
-    {
-        return Rsx::is_debug_site();
     }
 }

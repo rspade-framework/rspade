@@ -13,9 +13,9 @@ use App\RSpade\Core\Search\Search_Index_Model;
  * exposes the extracted document text so the demo can show the extraction pipeline output next to
  * the rendered preview.
  *
- * Gated to debug sites by the 'dev_tools' check.
+ * CLOSED: no one can reach it, by declaration.
  */
-#[Auth('dev_tools')]
+#[Auth('closed')]
 class Dev_Document_Preview_Controller extends Rsx_Controller_Abstract
 {
     /**

@@ -6,7 +6,7 @@
 @route('/dev/spa/:id')
 @layout('Dev_Spa_Layout')
 @spa('Dev_Spa_Controller::index')
-@auth('dev_tools')
+@auth('closed')
 class Dev_Spa_Action extends Spa_Action {
     on_create() {
         console.log('[Dev_Spa_Action] Created with args:', this.args);

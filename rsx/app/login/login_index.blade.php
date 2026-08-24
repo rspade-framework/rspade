@@ -11,13 +11,15 @@
         $email_value = $prefill_email ?? null;
 
         // Developer credential auto-fill. TWO conditions, both required:
-        //   1. This host is a declared debug site (RSPADE_DEBUG_DOMAIN_SUFFIX matches).
+        //   1. RSPADE_LOGIN_AUTOFILL is on - the developer asked for it, in the
+        //      first-run wizard or by hand. It is off unless someone said so.
         //   2. Credentials are actually configured.
-        // Credentials existing is NOT enough - a production host never matches the
-        // suffix, so it never fills anything in, whatever .env happens to contain.
-        $is_debug = \App\RSpade\Core\Rsx::is_debug_site();
-        $dev_email = $is_debug ? trim((string) config('rsx.default_user.email', '')) : '';
-        $dev_password = $is_debug ? (string) config('rsx.default_user.password', '') : '';
+        // Credentials existing is NOT enough: RSPADE_DEFAULT_* are also the pair the
+        // first user was created with, so they are set on installs that never wanted
+        // a pre-filled form.
+        $autofill_on = (bool) config('rsx.development.login_autofill', false);
+        $dev_email = $autofill_on ? trim((string) config('rsx.default_user.email', '')) : '';
+        $dev_password = $autofill_on ? (string) config('rsx.default_user.password', '') : '';
         $can_autofill = $dev_email !== '' && $dev_password !== '';
 
         if (!$email_value && $can_autofill) {
@@ -69,9 +71,9 @@
     @if ($can_autofill)
         <div class="alert alert-warning small">
             <strong>These credentials were filled in for you.</strong>
-            This host matches <code>RSPADE_DEBUG_DOMAIN_SUFFIX</code> in your
-            <code>.env</code>, a development convenience. Clear that value to turn it
-            off - and do turn it off if anyone else can reach this address.
+            <code>RSPADE_LOGIN_AUTOFILL</code> is on in your <code>.env</code>, a
+            development convenience. Clear that value to turn it off - and do turn it
+            off if anyone else can reach this address.
         </div>
     @endif
 

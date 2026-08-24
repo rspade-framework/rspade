@@ -5,7 +5,7 @@
 @route('/dev/orm')
 @layout('Dev_Spa_Layout')
 @spa('Dev_Spa_Controller::index')
-@auth('dev_tools')
+@auth('closed')
 class Dev_Orm_Action extends Spa_Action {
     on_create() {
         this.data.loading = true;

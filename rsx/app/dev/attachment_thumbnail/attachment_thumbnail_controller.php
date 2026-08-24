@@ -16,9 +16,9 @@ use App\RSpade\Core\Files\File_Storage_Model;
  * push its blob back to PENDING, watch <Attachment_Thumbnail> repaint the extension-icon
  * placeholder, then run the render and watch the real raster swap in over realtime with no reload.
  *
- * Gated to debug sites by the 'dev_tools' check.
+ * CLOSED: no one can reach it, by declaration.
  */
-#[Auth('dev_tools')]
+#[Auth('closed')]
 class Dev_Attachment_Thumbnail_Controller extends Rsx_Controller_Abstract
 {
     /**

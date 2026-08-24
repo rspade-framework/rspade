@@ -43,7 +43,7 @@ announcements, notifications, an action log, and a client portal.
 | `login/` | Server-rendered auth flows: login, signup, invite acceptance, site selection, site-unauthorized. |
 | `api/` | External bearer REST surface, `v1/` (contacts, clients). Every path starts `/api/vN/`. |
 | `apidocs/` | The live API documentation and tester SPA. |
-| `dev/` | Developer showcase (components, modals, ORM, SPA, attachments, ACL) - gated to debug sites by the `dev_tools` check. |
+| `dev/` | Developer showcase (components, modals, ORM, SPA, attachments, ACL) - shipped CLOSED (`#[Auth('closed')]`), reachable by nobody. Read it as a worked reference; open it by declaring a check of your own. |
 | `root/` | Cross-site root console: sites, dashboard, email. |
 | `ssr_test/` | Server-render harness pages. |
 
@@ -218,7 +218,7 @@ appear in `#[Auth('...')]` / `@auth('...')`.
 | `can_use_api` | `PERM_API_ACCESS`. Defined but deliberately NOT applied to the template's `#[Api_Endpoint]` surfaces (pre-existing keys would break); name it on your own endpoints. |
 | `can_impersonate` | Role floor `ROLE_MANAGER` - may start "View as Client". |
 | `is_root_admin` | Role floor `ROLE_ROOT_ADMIN` - the cross-site root console. |
-| `dev_tools` | `Rsx::is_debug_site()` - environment only, no user. Gates `rsx/app/dev/`. |
+| `closed` | Framework built-in: always false. Gates `rsx/app/dev/`, which ships unreachable. The counterpart to `public`. |
 
 Plus the framework-supplied `public` and `is_logged_in`.
 

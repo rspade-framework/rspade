@@ -8,7 +8,7 @@
 @route('/dev/document_preview')
 @layout('Dev_Spa_Layout')
 @spa('Dev_Spa_Controller::index')
-@auth('dev_tools')
+@auth('closed')
 class Dev_Document_Preview_Action extends Spa_Action {
     on_create() {
         this.data.loading = true;

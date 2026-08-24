@@ -6,9 +6,9 @@ use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 
 /**
- * SPA bootstrap for the developer tool suite - gated to debug sites.
+ * SPA bootstrap for the developer tool suite - CLOSED: no one can reach it, by declaration.
  */
-#[Auth('dev_tools')]
+#[Auth('closed')]
 class Dev_Spa_Controller extends Rsx_Controller_Abstract
 {
     /**

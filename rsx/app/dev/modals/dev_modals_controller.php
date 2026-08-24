@@ -6,9 +6,9 @@ use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 
 /**
- * Modal showcase - gated to debug sites by the 'dev_tools' check.
+ * Modal showcase - CLOSED: no one can reach it, by declaration.
  */
-#[Auth('dev_tools')]
+#[Auth('closed')]
 class Dev_Modals_Controller extends Rsx_Controller_Abstract
 {
     /**
