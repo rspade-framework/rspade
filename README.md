@@ -499,4 +499,10 @@ legitimate work, please report it:
 
 MIT — see [LICENSE](LICENSE).
 
+**The template application in `rsx/` carries one additional permission: you do
+not have to keep the copyright notice.** It is there to be deleted and replaced,
+so build your product out of it and license that product however you like,
+proprietary included, with no attribution obligation. The framework in `system/`
+stays plain MIT, notice and all.
+
 Copyright (c) 2026 HansonXyz

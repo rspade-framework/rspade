@@ -19,3 +19,26 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+ADDITIONAL PERMISSION FOR THE TEMPLATE APPLICATION IN rsx/
+
+This project ships a template application in the rsx/ directory. It exists to
+be modified, replaced and built upon: it is the intended starting point for
+your own product, and most of it is meant to be deleted as you go.
+
+For the contents of rsx/ only, the copyright holder grants this additional
+permission: the condition above requiring the copyright notice and permission
+notice to be included in all copies or substantial portions does NOT apply. You
+may use, modify and distribute the contents of rsx/, and any work derived from
+them, without retaining either notice, and under any license you choose,
+including a proprietary one.
+
+This additional permission applies to rsx/ only. The RSpade framework in
+system/ remains under the MIT terms above, and its copyright and permission
+notice must be retained.
+
+This is a grant of additional permission. It is NOT a dedication to the public
+domain and NOT a transfer of ownership. Copyright in the template application
+remains with the copyright holder named above, who retains every right in it,
+including the right to license it on other terms.
