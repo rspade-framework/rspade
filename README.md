@@ -60,6 +60,26 @@ git submodule update --init --recursive
 
 </details>
 
+### VS Code
+
+The project ships editor support for the things the framework adds to PHP — RSX
+naming conventions, `.jqhtml` components, `Rsx::Route()` calls, jump-to-definition
+across the manifest. Two extensions provide it, and both are already listed as
+workspace recommendations.
+
+**Open the project folder in VS Code and click "Install" when it offers the
+recommended extensions.** That is the whole setup.
+
+To install them by hand instead, search the Extensions view (`Ctrl+Shift+X`) for:
+
+- **JQHTML**
+- **RSpade Framework Support**
+
+Neither is required — the framework builds and runs the same without them. They
+are worth having because RSpade's conventions are invisible to a stock PHP
+setup, which will flag correct code as wrong and offer no navigation for
+components, routes or models.
+
 ---
 
 ## What you get
