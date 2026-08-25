@@ -53,7 +53,9 @@ if ((Test-Path $workspaceDist) -and -not (Test-Path $workspaceFile)) {
 # RSPADE EXTENSION
 # Find expected version
 $rspadePath = Join-Path (Split-Path (Split-Path $PSScriptRoot)) "system\app\RSpade\resource\vscode_extension"
-$rspadeVsix = Get-ChildItem -Path $rspadePath -Filter "rspade-framework.vsix" | Select-Object -First 1
+# Globbed, not hardcoded: build.sh emits rspade-vscode-extension-<version>.vsix,
+# so the filename changes on every build. Newest first if several linger.
+$rspadeVsix = Get-ChildItem -Path $rspadePath -Filter "rspade-vscode-extension-*.vsix" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 $packageJson = Get-Content (Join-Path $rspadePath "package.json") -Raw | ConvertFrom-Json
 $expectedVersion = $packageJson.version
 

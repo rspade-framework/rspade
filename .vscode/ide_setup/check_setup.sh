@@ -19,7 +19,9 @@ fi
 # RSPADE EXTENSION
 # Find expected version
 rspade_path="$(dirname "$(dirname "$SCRIPT_DIR")")/system/app/RSpade/resource/vscode_extension"
-rspade_vsix="$rspade_path/rspade-framework.vsix"
+# Globbed, not hardcoded: build.sh emits rspade-vscode-extension-<version>.vsix,
+# so the filename changes on every build. -t picks the newest if several linger.
+rspade_vsix="$(ls -t "$rspade_path"/rspade-vscode-extension-*.vsix 2>/dev/null | head -n1)"
 expected_version=$(node -p "require('$rspade_path/package.json').version")
 
 echo "RSpade expected version: $expected_version"
