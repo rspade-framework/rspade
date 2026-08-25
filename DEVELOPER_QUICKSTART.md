@@ -1105,11 +1105,11 @@ looking for — which, after this document, you do.
 the way the framework intends. When you are unsure how something should look,
 open the equivalent screen in `rsx/app/frontend/` and copy its shape.
 
-**Full online documentation is coming to [jqhtml.org](https://jqhtml.org/).**
+**Full online documentation is coming to [rspade.org](https://rspade.org/).**
 
 ---
 
-## A note on why this exists
+## A note on why RSpade exists
 
 Once upon a time there was a language and an IDE called Visual Basic 6. You
 opened it, you dragged a button onto a form, you double-clicked it, and you wrote
