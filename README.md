@@ -124,6 +124,20 @@ running alongside the staff application with its own routing and permissions.
 
 ## Working on it
 
+**New to RSpade? Read [DEVELOPER_QUICKSTART.md](DEVELOPER_QUICKSTART.md) first.**
+It is the whole framework in one sitting, written for somebody joining an
+existing project rather than designing one from scratch: how a page is assembled,
+how a component loads its data and what the lifecycle rules are for, how models
+reach JavaScript, and how forms, modals, routing, permissions, live updates and
+background jobs are declared. It explains the reasoning behind the parts that are
+unusual, so the code stops looking like magic and starts looking like
+conventions. An hour with it is the difference between reading this codebase and
+guessing at it.
+
+---
+
+## Tooling and commands
+
 Edit a file, refresh the browser. There is no build step, no watcher and no
 compile command — the framework compiles on demand, and your change is live in
 under a second.
@@ -222,7 +236,7 @@ Or from a shell you are already in (`docker compose exec app bash`), just type
 
 The launcher checks for a newer release on each start and updates itself, so the
 CLI does not go stale at whatever version existed on the day you built the
-image. Set `RSPADE_CLAUDE_NO_UPDATE=1` to pin it.
+image. 
 
 **Your settings persist.** `docker-compose.yml` maps `~/.claude` in the
 container to `storage/.claude` in your project, so your login, preferences and
@@ -232,6 +246,39 @@ gitignored, so none of it is committed.
 Run it inside the container rather than on your host — that is where the project,
 the tooling and the documentation all are, and where `git` is the RSpade proxy
 described above.
+
+---
+
+## Built on Laravel, but not Laravel
+
+The reward for those opinions is that application code stays small and
+consistent, with nothing to configure. The cost is that RSpade **diverges from
+Laravel substantially** — mass assignment is prohibited, eager loading throws,
+the Schema builder is not used, and dates are strings rather than Carbon
+objects.
+
+Do not assume a Laravel pattern works here without checking.
+`rsx:man framework_divergences` lists every difference.
+
+---
+
+## Documentation
+
+Everything ships with the framework:
+
+| | |
+|---|---|
+| [`DEVELOPER_QUICKSTART.md`](DEVELOPER_QUICKSTART.md) | the framework in one sitting — start here |
+| `php artisan rsx:man` | every topic, listed |
+| `.env.README` | every credential in `.env` |
+| `rsx/resource/docs/` | your application's own documentation lives here |
+
+**RSpade is built to be worked on with [Claude Code](#claude-code).** Alongside
+the pages above it ships documentation written for an assistant to read —
+instruction files throughout the tree, a skill per subsystem, and the reference
+application as a worked example. It is enough for one to understand the
+codebase, answer questions about it, and write RSpade code rather than generic
+Laravel.
 
 ---
 
@@ -433,36 +480,6 @@ you to bring your own.
 Before you launch, read `php artisan rsx:man prelaunch_checklist`. It is a real
 checklist of things that are impractical to enforce automatically, and it exists
 because each entry on it has bitten somebody.
-
----
-
-## Documentation
-
-Everything ships with the framework:
-
-| | |
-|---|---|
-| `php artisan rsx:man` | every topic, listed |
-| `.env.README` | every credential in `.env` |
-| `rsx/resource/docs/` | your application's own documentation lives here |
-
-If you use an AI coding assistant, the framework carries its own instructions
-for one — several hundred pages of conventions, mandates and worked examples, so
-that an assistant writes RSpade code rather than generic Laravel. No particular
-tool is required or assumed.
-
----
-
-## Built on Laravel, but not Laravel
-
-The reward for those opinions is that application code stays small and
-consistent, with nothing to configure. The cost is that RSpade **diverges from
-Laravel substantially** — mass assignment is prohibited, eager loading throws,
-the Schema builder is not used, and dates are strings rather than Carbon
-objects.
-
-Do not assume a Laravel pattern works here without checking.
-`rsx:man framework_divergences` lists every difference.
 
 ---
 
