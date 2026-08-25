@@ -1109,7 +1109,7 @@ open the equivalent screen in `rsx/app/frontend/` and copy its shape.
 
 ---
 
-## A note on why RSpade exists
+## A note on why this exists
 
 Once upon a time there was a language and an IDE called Visual Basic 6. You
 opened it, you dragged a button onto a form, you double-clicked it, and you wrote
