@@ -585,6 +585,14 @@ return [
         'unsubscribe_secret' => null,
     ],
 
+    'api' => [
+        // Leading token on every newly minted API key: {prefix}{environment}_{random},
+        // so a key from this product reads as rsx_live_xxxxx. Rename it to your own
+        // product's short name. Existing keys are unaffected - lookup is by hash of the
+        // whole key, never by prefix.
+        'key_prefix' => 'rsx_',
+    ],
+
     'auth' => [
         // Signup mode: 'invite_only', 'anonymous', 'disabled'
         //
@@ -612,4 +620,5 @@ return [
         // Default: 7 days
         'invite_expiration_days' => env('RSX_INVITE_EXPIRATION_DAYS', 7),
     ],
+
 ];

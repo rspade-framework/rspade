@@ -1,7 +1,5 @@
 <%-- Extends Datagrid_Abstract --%>
 
-<%-- We are here: seeing if $data_source will work.: --%>
-``
 <Define:Contacts_DataGrid
     extends="DataGrid_Abstract"
     $data_source=Frontend_Contacts_Controller.datagrid_fetch
@@ -14,19 +12,24 @@
         <Card_Title>Contact List</Card_Title>
         <Card_Header_Right>
             <Search_Input $sid="filter_input" $placeholder="Search contacts..." />
-            <button class="btn btn-secondary btn-sm">Filter</button>
+            <select class="form-select w-auto" $sid="priority_filter" aria-label="Filter by priority">
+                <option value="">All Priorities</option>
+                <% for (const opt of Contact_Model.priority__enum_select()) { %>
+                    <option value="<%= opt.value %>"><%= opt.label %></option>
+                <% } %>
+            </select>
         </Card_Header_Right>
     </Slot:DG_Card_Header>
 
     <Slot:DG_Table_Header>
         <tr>
-            <th style="width: 40px;">
+            <th class="checkbox-column">
                 <input class="form-check-input" type="checkbox" $sid="select_all" />
             </th>
             <th data-sortby="id">ID</th>
             <th data-sortby="first_name">Name</th>
             <th data-sortby="email">Email</th>
-            <th>Phone</th>
+            <th data-sortby="phone_work">Phone</th>
             <th data-sortby="company">Company</th>
             <th>Role</th>
             <th data-sortby="priority">Priority</th>
@@ -38,7 +41,7 @@
     <Slot:row>
         <%-- <% console.log("I am a row", row); %> --%>
         <tr data-href="<%= Rsx.Route('Contacts_View_Action',row.id) %>">
-            <td>
+            <td class="checkbox-column">
                 <input class="form-check-input row-checkbox" type="checkbox" value="<%= row.id %>" />
             </td>
             <td>
@@ -80,5 +83,24 @@
             </td>
         </tr>
     </Slot:row>
+
+
+    <%-- Footer mass actions. The Export item mirrors the endpoint's own 'can_export_data'
+         gate (PERM_DATA_EXPORT), so the menu never offers what the server will refuse. --%>
+    <Slot:footer_actions>
+        <% if (Permission.has_permission(User_Model.PERM_DATA_EXPORT)) { %>
+            <li>
+                <a class="dropdown-item" href="#" data-action="export">
+                    <i class="bi bi-download"></i> Export to CSV
+                </a>
+            </li>
+            <li><hr class="dropdown-divider" /></li>
+        <% } %>
+        <li>
+            <a class="dropdown-item text-danger" href="#" data-action="delete">
+                <i class="bi bi-trash"></i> Delete Selected
+            </a>
+        </li>
+    </Slot:footer_actions>
 
 </Define:Contacts_DataGrid>

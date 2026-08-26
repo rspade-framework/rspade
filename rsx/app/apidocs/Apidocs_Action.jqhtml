@@ -1,3 +1,0 @@
-<Define:Apidocs_Action tag="div">
-    <Api_Docs_Page $version=this.state.version />
-</Define:Apidocs_Action>

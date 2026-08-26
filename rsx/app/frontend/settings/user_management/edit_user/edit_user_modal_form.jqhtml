@@ -56,6 +56,13 @@ Validation handled server-side, errors displayed via Form_Utils.
       </Form_Field>
     </div>
 
+    <div class="mb-3">
+      <Form_Field $label="API Access"
+        $help="When off, this user's API keys stop working and no new ones can be used.">
+        <Checkbox_Input $name="is_api_access_enabled" $label="Allow API access" />
+      </Form_Field>
+    </div>
+
   </Rsx_Form>
 
 </Define:Edit_User_Modal_Form>

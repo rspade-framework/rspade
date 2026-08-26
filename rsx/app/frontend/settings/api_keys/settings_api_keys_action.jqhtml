@@ -1,24 +1,36 @@
 <Define:Settings_Api_Keys_Action>
 <Page_Scaffold>
     <Slot:main>
-        <div class="d-flex justify-content-between align-items-start gap-3">
-            <p class="text-muted mb-0">
+        <% if (!this.data.has_api_access) { %>
+            <Unauthorized_Error_Page_Component $message="API access is not enabled for your account" />
+        <% } else { %>
+            <p class="text-muted">
                 API keys allow you to authenticate and interact with our API programmatically.
                 Keep your keys secure and never share them publicly.
             </p>
-            <button class="btn btn-primary btn-sm flex-shrink-0" $sid="btn_add_key">
-                <i class="bi bi-plus-circle"></i> Generate New Key
-            </button>
-        </div>
 
-        <Api_Keys_DataGrid $sid="api_keys_datagrid" />
+            <Api_Keys_DataGrid $sid="api_keys_datagrid" />
+        <% } %>
     </Slot:main>
 
     <Slot:sidebar>
-        <Section $title="API Documentation">
-            <p class="mb-3">Learn how to use our API to integrate with your applications.</p>
-            <a href="#" class="btn btn-primary btn-sm">View API Docs</a>
+        <%-- Two stacked actions of equal width, so they read as a pair rather than as a
+             primary button with an afterthought beside it. Each label says what it is, so
+             neither needs explanatory copy of its own. --%>
+        <%-- Both actions lead somewhere the server refuses without API access, so the
+             whole section goes rather than leaving buttons that only produce errors. --%>
+        <% if (this.data.has_api_access) { %>
+        <Section $title="Actions">
+            <div class="Settings_Api_Keys_Action__actions">
+                <button class="btn btn-primary btn-sm" $sid="btn_add_key">
+                    <i class="bi bi-plus-circle"></i> Generate New Key
+                </button>
+                <a href="<%= Rsx.Route('Apidocs_Controller') %>" class="btn btn-secondary btn-sm">
+                    <i class="bi bi-journal-code"></i> Online API Documentation
+                </a>
+            </div>
         </Section>
+        <% } %>
 
         <Section $title="Security Best Practices">
             <ul class="list-unstyled mb-0 small">

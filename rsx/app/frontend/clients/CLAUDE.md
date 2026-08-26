@@ -111,29 +111,29 @@ The `edit/frontend_clients_form.blade.php` serves both add and edit operations:
 
 ## DataGrid Integration
 
-DataGrid component in `index/clients_datagrid.jqhtml`:
+The list screen is `list/clients_datagrid.{php,js,jqhtml}` fed by
+`Frontend_Clients_Controller::datagrid_fetch`, with `bulk_delete` and `export_csv` serving the
+footer mass actions.
 
-```jqhtml
-<Define:Clients_DataGrid>
-  <% for (let row of this.data.rows) { %>
-    <tr $href=Rsx.Route('Frontend_Clients_Controller','view',row.id)>
-      <td><%= row.name %></td>
-      <td><%= row.company %></td>
-      <!-- Row is clickable via $href attribute -->
-    </tr>
-  <% } %>
-</Define:Clients_DataGrid>
-```
+What this module's grid declares:
 
-DataGrid class extends abstract with data source:
+- **PHP** (`Clients_DataGrid`) - `build_query()` with the free-text search across name/address/
+  city/state/phone/website plus the `status_id` and `priority` quick filters; a
+  `$sortable_columns` whitelist; `$secondary_sort = 'id'` so paging stays stable under the
+  low-cardinality `priority` sort. No join, so column names are unqualified.
+- **jqhtml** - `extends="DataGrid_Abstract"` with `$data_source`, `$sort="id"`, `$order="desc"`;
+  sortable columns as literal `data-sortby` attributes in `Slot:DG_Table_Header`; the search and
+  the two `<select>` quick filters in `Slot:DG_Card_Header`; `Slot:footer_actions` items carrying
+  `data-action="export"` / `"delete"`, the export one gated on `PERM_DATA_EXPORT` to mirror the
+  endpoint.
+- **JS** (`Clients_DataGrid`) - `allowed_filters`, `record_noun_plural`, the quick-filter widget
+  binding, and `on_footer_action()` dispatching to the two endpoints. `whole_set_selection()` is
+  public so the page-header Export button in `Clients_Index_Action.js` can export the whole
+  filtered set.
 
-```javascript
-class Clients_DataGrid extends DataGrid_Abstract {
-    async on_load() {
-        this.args.data_source = Frontend_Clients_Controller.datagrid_fetch;
-    }
-}
-```
+**The contracts live in `rsx/theme/components/datagrid/CLAUDE.md`** - sorting, custom filters and
+their URL-hash persistence, the selection payload and its server-side resolution, and the gotchas.
+Read that before changing any of the three files here.
 
 ## URL Generation
 

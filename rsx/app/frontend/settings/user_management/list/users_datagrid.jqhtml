@@ -12,29 +12,28 @@
         <Card_Title>User List</Card_Title>
         <Card_Header_Right>
             <Search_Input $sid="filter_input" $placeholder="Search users..." />
-            <button class="btn btn-secondary btn-sm">Filter</button>
         </Card_Header_Right>
     </Slot:DG_Card_Header>
 
     <Slot:DG_Table_Header>
         <tr>
-            <th style="width: 40px;">
+            <th class="checkbox-column">
                 <input class="form-check-input" type="checkbox" $sid="select_all">
             </th>
-            <th $sortby="id">ID</th>
-            <th $sortby="first_name">Name</th>
-            <th $sortby="email">Email</th>
-            <th>Status</th>
-            <th>Phone</th>
-            <th $sortby="role_id">Role</th>
-            <th $sortby="created_at">Created</th>
+            <th data-sortby="id">ID</th>
+            <th data-sortby="first_name">Name</th>
+            <th data-sortby="email">Email</th>
+            <th data-sortby="invitation_status">Status</th>
+            <th data-sortby="phone">Phone</th>
+            <th data-sortby="role_id">Role</th>
+            <th data-sortby="created_at">Created</th>
             <th style="width: 120px;">Actions</th>
         </tr>
     </Slot:DG_Table_Header>
 
     <Slot:row>
         <tr data-href="<%= Rsx.Route('Settings_User_Management_View_Action', row.id) %>">
-            <td>
+            <td class="checkbox-column">
                 <input class="form-check-input row-checkbox" type="checkbox" value="<%= row.id %>">
             </td>
             <td>
@@ -77,5 +76,18 @@
             </td>
         </tr>
     </Slot:row>
+
+
+    <%-- Footer mass actions. Export only: a user is removed from its own screen, where the
+         rules for doing so live. The item mirrors the endpoint's 'can_export_data' gate. --%>
+    <Slot:footer_actions>
+        <% if (Permission.has_permission(User_Model.PERM_DATA_EXPORT)) { %>
+            <li>
+                <a class="dropdown-item" href="#" data-action="export">
+                    <i class="bi bi-download"></i> Export to CSV
+                </a>
+            </li>
+        <% } %>
+    </Slot:footer_actions>
 
 </Define:Users_DataGrid>

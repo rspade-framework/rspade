@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Models\User_Model;
+use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Time\Rsx_Date;
 use Rsx\App\Frontend\Projects\List\Projects_DataGrid;
@@ -382,5 +383,101 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
             $row->$fk_column = $id;
             $row->save();
         }
+    }
+
+    /**
+     * Ajax endpoint: bulk-delete the projects a datagrid footer action selected.
+     *
+     * The selection payload names a SET, not a page: additive ids, subtractive exclusions, or
+     * the whole filtered result. The filters ride along in filter_params so the server rebuilds
+     * the exact query the user was looking at rather than trusting a client-side id list to be
+     * complete - and because the projects grid opens on Active, a mass action launched from the
+     * default view covers active projects ONLY, which is exactly what the user is looking at.
+     * Every row goes through the model layer one at a time - a raw bulk DELETE would skip the
+     * soft delete, the audit stamp, the realtime frame and the action log.
+     *
+     * Gate: the class-level 'is_logged_in'. Projects have no single-record delete endpoint to
+     * copy a gate from, so this matches save() - the controller's other mutating endpoint.
+     *
+     * @param Request $request
+     * @param array $params
+     * @return mixed
+     */
+    #[Ajax_Endpoint]
+    public static function bulk_delete(Request $request, array $params = [])
+    {
+        $query = Projects_DataGrid::build_query_public($params['filter_params'] ?? []);
+
+        $query = Projects_DataGrid::apply_selection($query, 'projects.id', $params);
+
+        if ($query instanceof Error_Response) {
+            return $query;
+        }
+
+        $deleted = 0;
+
+        foreach (Projects_DataGrid::iterate_selection($query, 'projects.id') as $project) {
+            Action_Log::record(Action_Log_Model::TYPE_PROJECT_DELETED, $project);
+            $project->delete();
+            $deleted++;
+        }
+
+        return [
+            'deleted' => $deleted,
+        ];
+    }
+
+    /**
+     * Ajax endpoint: export the selected projects as CSV.
+     *
+     * Same selection resolution as bulk_delete(). Returns the CSV as a string; the browser
+     * turns it into a download, because an Ajax response cannot be one.
+     *
+     * @param Request $request
+     * @param array $params
+     * @return mixed
+     */
+    #[Auth('can_export_data')]
+    #[Ajax_Endpoint]
+    public static function export_csv(Request $request, array $params = [])
+    {
+        $query = Projects_DataGrid::build_query_public($params['filter_params'] ?? []);
+
+        $query = Projects_DataGrid::apply_selection($query, 'projects.id', $params);
+
+        if ($query instanceof Error_Response) {
+            return $query;
+        }
+
+        $rows = [];
+
+        foreach (Projects_DataGrid::iterate_selection($query, 'projects.id') as $project) {
+            $rows[] = [
+                $project->id,
+                $project->name,
+                $project->client_name,
+                $project->status__label,
+                $project->priority__label,
+                $project->start_date,
+                $project->due_date,
+                $project->completed_date,
+                $project->budget,
+                $project->created_at,
+            ];
+        }
+
+        $csv = Projects_DataGrid::build_csv(
+            [
+                'ID', 'Project Name', 'Client', 'Status', 'Priority', 'Start Date', 'Due Date',
+                'Completed Date', 'Budget', 'Created',
+            ],
+            $rows
+        );
+
+        return [
+            'csv' => $csv,
+            'filename' => 'projects_export_' . Rsx_Date::today() . '.csv',
+            'count' => count($rows),
+        ];
     }
 }

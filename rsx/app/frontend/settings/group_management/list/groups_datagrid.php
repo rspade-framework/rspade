@@ -35,8 +35,14 @@ class Groups_DataGrid extends DataGrid_Abstract
         'id',
         'name',
         'created_at',
-        'updated_at',
     ];
+
+    /**
+     * created_at is not unique, so id breaks the tie and keeps paging stable.
+     */
+    protected static ?string $secondary_sort = 'id';
+
+    protected static string $secondary_order = 'desc';
 
     /**
      * Build the query for fetching groups

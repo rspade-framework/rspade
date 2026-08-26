@@ -1,7 +1,7 @@
 // Widget_Grid - two-up (desktop) / one-up (mobile) grid of overview widgets.
 // Owns only the inter-widget gap; each widget is a full section that owns its
 // own chrome. align-items:start so a short widget does not stretch to match a
-// taller neighbour.
+// taller neighbor.
 .Widget_Grid {
     display: grid;
     // minmax(0, 1fr) so a wide child (a record table) can shrink to the track

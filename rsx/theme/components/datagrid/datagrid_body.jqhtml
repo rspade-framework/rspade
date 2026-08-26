@@ -11,6 +11,8 @@ $per_page - Rows per page
 $sort - Sort column
 $order - Sort order ('asc' or 'desc')
 $filter - Filter text
+$custom_filters - Object of whitelisted custom filter params, merged into the Ajax payload
+$has_empty_state - True when the concrete grid supplied a DG_Empty_State slot
 --%>
 <Define:DataGrid_Body tag="tbody">
 
@@ -26,12 +28,18 @@ $filter - Filter text
     <% } else if (this.data.is_empty) { %>
         <tr class="DataGrid_Abstract__empty-row">
             <td colspan="999" class="text-center py-5">
-                <i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d;"></i>
-                <% if (this.args.filter) { %>
-                    <p class="text-muted mt-3">No results found for "<%= this.args.filter %>"</p>
-                    <button $sid="clear_filter_btn" class="btn btn-sm btn-secondary mt-2">Clear Filter</button>
+                <%-- The grid's own empty state wins, but only when it actually supplied one and
+                     the user is not looking at a filtered-to-nothing result. --%>
+                <% if (this.args.has_empty_state && !this.args.filter) { %>
+                    <%= content('DG_Empty_State'); %>
                 <% } else { %>
-                    <p class="text-muted mt-3">No results found</p>
+                    <i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d;"></i>
+                    <% if (this.args.filter) { %>
+                        <p class="text-muted mt-3">No results found for "<%= this.args.filter %>"</p>
+                        <button $sid="clear_filter_btn" class="btn btn-sm btn-secondary mt-2">Clear Filter</button>
+                    <% } else { %>
+                        <p class="text-muted mt-3">No results found</p>
+                    <% } %>
                 <% } %>
             </td>
         </tr>

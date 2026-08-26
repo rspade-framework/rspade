@@ -5,7 +5,6 @@
 namespace Rsx\App\Frontend\Projects\List;
 
 use Illuminate\Database\Eloquent\Builder;
-use Rsx\Models\Client_Model;
 use Rsx\Models\Project_Model;
 use Rsx\Theme\Components\Datagrid\DataGrid_Abstract;
 
@@ -39,14 +38,34 @@ class Projects_DataGrid extends DataGrid_Abstract
     protected static array $sortable_columns = [
         'id',
         'name',
-        'client_id',
+        'client',
         'status',
         'priority',
         'start_date',
         'due_date',
         'created_at',
-        'updated_at',
     ];
+
+    /**
+     * created_at is not unique, so rows sharing a timestamp would shuffle between pages.
+     */
+    protected static ?string $secondary_sort = 'id';
+
+    protected static string $secondary_order = 'desc';
+
+    /**
+     * 'client' is the joined clients.name, selected as client_name - the column the grid
+     * actually displays, so sorting matches what the user sees. Everything else is qualified
+     * with the projects table: the join brings in columns of the same name (id, name,
+     * created_at, ...), so an unqualified ORDER BY is ambiguous.
+     */
+    protected static function map_sort_column(string $column): string
+    {
+        return match($column) {
+            'client' => 'client_name',
+            default => 'projects.' . $column
+        };
+    }
 
     /**
      * Build the query for fetching projects
@@ -56,42 +75,36 @@ class Projects_DataGrid extends DataGrid_Abstract
      */
     protected static function build_query(array $params): Builder
     {
-        $query = Project_Model::query();
+        // The client name is joined rather than looked up per page: the grid both displays it
+        // and sorts by it, and a lookup can only do the first of those.
+        $query = Project_Model::query()
+            ->select([
+                'projects.*',
+                'clients.name as client_name',
+            ])
+            ->leftJoin('clients', 'projects.client_id', '=', 'clients.id');
 
-        // Apply filter if provided - searches across multiple fields
+        // Apply filter if provided - searches across multiple fields.
+        // Every column is qualified: clients carries name/id of its own.
         if (!empty($params['filter'])) {
             $filter = $params['filter'];
             $query->where(function ($q) use ($filter) {
-                $q->where('name', 'LIKE', "%{$filter}%")
-                    ->orWhere('description', 'LIKE', "%{$filter}%")
-                    ->orWhere('notes', 'LIKE', "%{$filter}%");
+                $q->where('projects.name', 'LIKE', "%{$filter}%")
+                    ->orWhere('projects.description', 'LIKE', "%{$filter}%")
+                    ->orWhere('projects.notes', 'LIKE', "%{$filter}%");
             });
         }
 
-        return $query;
-    }
-
-    /**
-     * Transform records after fetching
-     * Load related client names manually
-     */
-    protected static function transform_records(array $records, array $params): array
-    {
-        // Get all unique client IDs
-        $client_ids = array_unique(array_column($records, 'client_id'));
-
-        // Load all clients at once
-        $clients = Client_Model::whereIn('id', $client_ids)->get()->keyBy('id');
-
-        // Attach client name to each record
-        // Note: Use 'client_name' not 'client' to avoid conflict with
-        // the auto-generated client() relationship method in JS
-        foreach ($records as &$record) {
-            $record['client_name'] = isset($clients[$record['client_id']])
-                ? $clients[$record['client_id']]->name
-                : null;
+        // Quick filters from the card header. Qualified for the same reason as the search
+        // above: the clients join carries columns of the same name.
+        if (!empty($params['status'])) {
+            $query->where('projects.status', (int) $params['status']);
         }
 
-        return $records;
+        if (!empty($params['priority'])) {
+            $query->where('projects.priority', (int) $params['priority']);
+        }
+
+        return $query;
     }
 }

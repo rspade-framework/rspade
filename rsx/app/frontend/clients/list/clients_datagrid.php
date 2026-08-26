@@ -31,12 +31,17 @@ class Clients_DataGrid extends DataGrid_Abstract
         'id',
         'name',
         'city',
-        'state',
         'phone',
         'priority',
         'created_at',
-        'updated_at',
     ];
+
+    /**
+     * priority has four values, so id breaks the tie and keeps paging stable under it.
+     */
+    protected static ?string $secondary_sort = 'id';
+
+    protected static string $secondary_order = 'desc';
 
     /**
      * Build the query for fetching clients
@@ -95,6 +100,16 @@ class Clients_DataGrid extends DataGrid_Abstract
                     ->orWhere('phone_secondary', 'LIKE', "%{$filter}%")
                     ->orWhere('website', 'LIKE', "%{$filter}%");
             });
+        }
+
+        // Quick filters from the card header. No join here, so unqualified names are
+        // unambiguous - keep it that way if a join is ever added.
+        if (!empty($params['status_id'])) {
+            $query->where('status_id', (int) $params['status_id']);
+        }
+
+        if (!empty($params['priority'])) {
+            $query->where('priority', (int) $params['priority']);
         }
 
         return $query;

@@ -12,26 +12,25 @@
         <Card_Title>Group List</Card_Title>
         <Card_Header_Right>
             <Search_Input $sid="filter_input" $placeholder="Search groups..." />
-            <button class="btn btn-secondary btn-sm">Filter</button>
         </Card_Header_Right>
     </Slot:DG_Card_Header>
 
     <Slot:DG_Table_Header>
         <tr>
-            <th style="width: 40px;">
+            <th class="checkbox-column">
                 <input class="form-check-input" type="checkbox" $sid="select_all">
             </th>
-            <th $sortby="id">ID</th>
-            <th $sortby="name">Name</th>
+            <th data-sortby="id">ID</th>
+            <th data-sortby="name">Name</th>
             <th>Description</th>
             <th>Members</th>
-            <th $sortby="created_at">Created</th>
+            <th data-sortby="created_at">Created</th>
         </tr>
     </Slot:DG_Table_Header>
 
     <Slot:row>
         <tr data-href="<%= Rsx.Route('Settings_Group_Management_View_Action', row.id) %>">
-            <td>
+            <td class="checkbox-column">
                 <input class="form-check-input row-checkbox" type="checkbox" value="<%= row.id %>">
             </td>
             <td>
@@ -53,5 +52,18 @@
             <td><%= Rsx_Time.format_date(row.created_at) %></td>
         </tr>
     </Slot:row>
+
+
+    <%-- Footer mass actions. Export only: a group is removed from its own screen, where the
+         rules for doing so live. The item mirrors the endpoint's 'can_export_data' gate. --%>
+    <Slot:footer_actions>
+        <% if (Permission.has_permission(User_Model.PERM_DATA_EXPORT)) { %>
+            <li>
+                <a class="dropdown-item" href="#" data-action="export">
+                    <i class="bi bi-download"></i> Export to CSV
+                </a>
+            </li>
+        <% } %>
+    </Slot:footer_actions>
 
 </Define:Groups_DataGrid>

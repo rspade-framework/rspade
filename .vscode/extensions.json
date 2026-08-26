@@ -6,10 +6,6 @@
     // REQUIRED - jqhtml template support (highlighting for .jqhtml and Blade)
     "jqhtml.jqhtml-vscode-extension",
     
-    // REQUIRED - Run commands on save (for formatting)
-    // Commented out - using VS Code extension formatter instead
-    // "emeraldwalk.runonsave",
-    
     // PHP Development
     "bmewburn.vscode-intelephense-client",
     

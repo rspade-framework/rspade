@@ -6,7 +6,9 @@ use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Models\User_Model;
+use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Session\Session;
+use App\RSpade\Core\Time\Rsx_Date;
 use App\RSpade\Lib\Flash\Flash_Alert;
 use Rsx\App\Frontend\Settings\GroupManagement\List\Groups_DataGrid;
 use Rsx\Models\User_Group_Model;
@@ -351,5 +353,52 @@ class Frontend_Settings_Group_Management_Controller extends Rsx_Controller_Abstr
         Flash_Alert::success('Group deleted successfully');
 
         return ['deleted' => true];
+    }
+
+    /**
+     * Ajax endpoint: export the selected groups as CSV.
+     *
+     * Export only - a group is deleted from its own screen, where the deletion_protection
+     * rule is enforced, so the grid offers no mass delete.
+     *
+     * @param Request $request
+     * @param array $params
+     * @return mixed
+     */
+    #[Auth('can_export_data')]
+    #[Ajax_Endpoint]
+    public static function export_csv(Request $request, array $params = [])
+    {
+        $query = Groups_DataGrid::build_query_public($params['filter_params'] ?? []);
+
+        $query = Groups_DataGrid::apply_selection($query, 'user_groups.id', $params);
+
+        if ($query instanceof Error_Response) {
+            return $query;
+        }
+
+        $rows = [];
+
+        foreach (Groups_DataGrid::iterate_selection($query, 'user_groups.id') as $group) {
+            $rows[] = [
+                $group->id,
+                $group->name,
+                $group->description,
+                $group->member_count(),
+                $group->deletion_protection ? 'Yes' : 'No',
+                $group->created_at,
+            ];
+        }
+
+        $csv = Groups_DataGrid::build_csv(
+            ['ID', 'Name', 'Description', 'Members', 'Protected', 'Created'],
+            $rows
+        );
+
+        return [
+            'csv' => $csv,
+            'filename' => 'groups_export_' . Rsx_Date::today() . '.csv',
+            'count' => count($rows),
+        ];
     }
 }

@@ -10,6 +10,14 @@ use App\RSpade\Core\Session\Session;
 use Rsx\App\Frontend\Settings\ApiKeys\Api_Keys_DataGrid;
 
 /**
+ * Frontend_Settings_Api_Keys_Controller - the API key management endpoints.
+ *
+ * EVERY ENDPOINT RE-ASKS Session::has_api_access(). The #[Auth('is_logged_in')] gate says
+ * who may reach this controller at all; whether this identity may deal in API keys is
+ * users.is_api_access_enabled, the same predicate Api_Dispatcher applies to a Bearer key
+ * and the page applies to its own chrome. The nav link and the buttons hide themselves for
+ * a user without it, but a hidden link is not access control - the refusal has to live
+ * here, where the write happens.
  */
 #[Auth('is_logged_in')]
 class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
@@ -24,6 +32,10 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
     #[Ajax_Endpoint]
     public static function datagrid_fetch(Request $request, array $params = [])
     {
+        if (!Session::has_api_access()) {
+            return response_unauthorized('API access is not enabled for your account');
+        }
+
         return Api_Keys_DataGrid::fetch($params);
     }
 
@@ -39,6 +51,10 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
     #[Ajax_Endpoint]
     public static function create_key(Request $request, array $params = [])
     {
+        if (!Session::has_api_access()) {
+            return response_unauthorized('API access is not enabled for your account');
+        }
+
         $errors = [];
 
         // Validate name
@@ -70,7 +86,7 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
             'name' => $result['model']->name,
             'key' => $result['key'], // Plaintext - only shown once!
             'key_prefix' => $result['model']->key_prefix,
-            'created_at' => $result['model']->created_at->format('Y-m-d H:i:s'),
+            'created_at' => $result['model']->created_at,
         ];
     }
 
@@ -84,6 +100,10 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
     #[Ajax_Endpoint]
     public static function revoke_key(Request $request, array $params = [])
     {
+        if (!Session::has_api_access()) {
+            return response_unauthorized('API access is not enabled for your account');
+        }
+
         $key_id = $params['id'] ?? null;
 
         if (!$key_id) {

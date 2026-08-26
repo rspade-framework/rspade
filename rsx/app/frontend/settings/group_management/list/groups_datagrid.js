@@ -1,11 +1,11 @@
 /**
- * Users_DataGrid Component
+ * Groups_DataGrid Component
  *
  * Pagination, sorting, filtering and selection all come from DataGrid_Abstract; what is
  * here is the footer Export action.
  */
-class Users_DataGrid extends DataGrid_Abstract {
-    static record_noun_plural = 'users';
+class Groups_DataGrid extends DataGrid_Abstract {
+    static record_noun_plural = 'groups';
 
     on_ready() {
         super.on_ready();
@@ -39,7 +39,7 @@ class Users_DataGrid extends DataGrid_Abstract {
      * @param {Object} selection - payload from on_footer_action()
      */
     async export_selection(selection) {
-        const result = await Frontend_Settings_User_Management_Controller.export_csv({
+        const result = await Frontend_Settings_Group_Management_Controller.export_csv({
             mode: selection.mode,
             ids: selection.ids,
             filter_params: selection.filter_params,
@@ -47,6 +47,6 @@ class Users_DataGrid extends DataGrid_Abstract {
 
         trigger_file_download(result.csv, result.filename);
 
-        Flash_Alert.success('Exported ' + result.count + ' user' + (result.count === 1 ? '' : 's'));
+        Flash_Alert.success('Exported ' + result.count + ' group' + (result.count === 1 ? '' : 's'));
     }
 }

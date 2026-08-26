@@ -72,12 +72,19 @@
             }
         }
 
-        // Checkbox column
-        th:first-child,
-        td:first-child {
+        // Checkbox column - opt in by putting .checkbox-column on the th AND the td.
+        // Never :first-child: most grids lead with real data, and squeezing that column
+        // to checkbox width is how every non-checkbox grid ended up with a 40px ID column.
+        th.checkbox-column,
+        td.checkbox-column {
             text-align: center;
             width: $datagrid-checkbox-width;
         }
+    }
+
+    // Selected row highlight
+    &__row--selected {
+        background-color: $datagrid-selected-row-bg;
     }
 
     // Sortable column headers
@@ -145,6 +152,40 @@
                 color: inherit;
                 text-decoration: none;
             }
+        }
+    }
+
+    // Footer mass-action dropdown (rendered only when a footer_actions slot was supplied)
+    &__footer-actions {
+        .dropdown-item {
+            cursor: pointer;
+        }
+    }
+
+    // "N selected" badge in the footer
+    &__selection-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: $datagrid-selection-badge-gap;
+        padding: $datagrid-selection-badge-padding-y $datagrid-selection-badge-padding-x;
+        border-radius: $border-radius-sm;
+        background-color: $gray-200;
+        color: $text-color;
+        font-size: $font-size-sm;
+        white-space: nowrap;
+    }
+
+    &__selection-badge-clear {
+        border: 0;
+        background: none;
+        padding: 0;
+        line-height: 1;
+        color: $text-muted;
+        display: inline-flex;
+        align-items: center;
+
+        &:hover {
+            color: $text-color;
         }
     }
 

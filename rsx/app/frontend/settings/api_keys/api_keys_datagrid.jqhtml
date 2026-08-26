@@ -3,9 +3,9 @@
 <Define:Api_Keys_DataGrid
     extends="DataGrid_Abstract"
     $data_source=Frontend_Settings_Api_Keys_Controller.datagrid_fetch
-    $sort="created_at"
-    $order="desc"
-    $per_page=15
+    $sort="status"
+    $order="asc"
+    $per_page=25
     class="card DataGrid">
 
     <Slot:DG_Card_Header>
@@ -17,12 +17,12 @@
 
     <Slot:DG_Table_Header>
         <tr>
-            <th $sortby="id" style="width: 80px;">ID</th>
-            <th $sortby="name">Name</th>
+            <th data-sortby="id" style="width: 80px;">ID</th>
+            <th data-sortby="name">Name</th>
             <th>Key</th>
-            <th>Status</th>
-            <th $sortby="created_at">Created</th>
-            <th $sortby="last_used_at">Last Used</th>
+            <th data-sortby="status">Status</th>
+            <th data-sortby="created_at">Created</th>
+            <th data-sortby="last_used_at">Last Used</th>
             <th style="width: 100px;">Actions</th>
         </tr>
     </Slot:DG_Table_Header>

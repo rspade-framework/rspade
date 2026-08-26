@@ -1,3 +1,0 @@
-<Define:Apidocs_Layout tag="div">
-    <div $sid="content" class="Apidocs_Layout__content"></div>
-</Define:Apidocs_Layout>

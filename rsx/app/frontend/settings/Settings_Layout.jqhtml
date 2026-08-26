@@ -42,11 +42,17 @@
                     <i class="bi bi-shield-lock"></i>
                     <span>Password & Security</span>
                 </a>
+                <%-- API access is identity state, not a role, so this link asks the same
+                     predicate the API and the docs console ask: Permission.has_api_access()
+                     (the JS twin of Session::has_api_access()). A user without it is refused
+                     by the page and by every endpoint behind it, so the link does not show. --%>
+                <% if (Permission.has_api_access()) { %>
                 <a class="settings-sidebar__item" data-page="api_keys"
                     href="<%= Rsx.Route('Settings_Api_Keys_Action') %>">
                     <i class="bi bi-key"></i>
                     <span>API Keys</span>
                 </a>
+                <% } %>
             </div>
 
             <%--

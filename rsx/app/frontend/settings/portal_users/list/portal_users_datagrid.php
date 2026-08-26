@@ -35,8 +35,15 @@ class Portal_Users_DataGrid extends DataGrid_Abstract
         'email',
         'status_id',
         'last_login',
-        'created_at',
     ];
+
+    /**
+     * status_id has a handful of values and last_login repeats (every never-logged-in user
+     * is NULL), so id breaks the tie and keeps paging stable.
+     */
+    protected static ?string $secondary_sort = 'id';
+
+    protected static string $secondary_order = 'desc';
 
     /**
      * Build the query for fetching portal users, scoped to the current site.

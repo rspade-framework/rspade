@@ -18,10 +18,18 @@ class Action_Logs_DataGrid extends DataGrid_Abstract
      * Columns that can be sorted
      */
     protected static array $sortable_columns = [
-        'id',
-        'type_id',
         'created_at',
+        'subject_type',
     ];
+
+    /**
+     * subject_type is a type-ref id, so sorting by it groups the log by the kind of record
+     * that was acted on - which is what the Target Type column is for. Neither it nor
+     * created_at is unique, so id breaks the tie and a group reads newest-first.
+     */
+    protected static ?string $secondary_sort = 'id';
+
+    protected static string $secondary_order = 'desc';
 
     /**
      * Default sort column

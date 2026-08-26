@@ -1,0 +1,14 @@
+.Settings_Api_Keys_Action {
+    // The two sidebar actions: stacked, and a fixed matching width so neither is sized by the
+    // length of its own label. Spacing between sections comes from the Section wrapper, so
+    // there is no margin here.
+    &__actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+
+        .btn {
+            width: 240px;
+        }
+    }
+}

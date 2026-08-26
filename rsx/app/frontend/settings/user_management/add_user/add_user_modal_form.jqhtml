@@ -17,7 +17,11 @@ Validation handled server-side, errors displayed via Form_Utils.
 --%>
 <Define:Add_User_Modal_Form>
 
-  <Rsx_Form $controller="Frontend_Settings_User_Management_Controller" $method="add_user">
+  <%-- $data seeds ADD-form defaults, the same way a CRUD edit action passes form_data for
+       both modes. API access is on by default, matching the column's own default - a new
+       user should not have to be granted something every existing user already has. --%>
+  <Rsx_Form $controller="Frontend_Settings_User_Management_Controller" $method="add_user"
+    $data="<%= JSON.stringify({is_api_access_enabled: '1'}) %>">
 
     <div class="mb-3">
       <Form_Field $label="Email Address" $required=true>
@@ -52,6 +56,13 @@ Validation handled server-side, errors displayed via Form_Utils.
     <div class="mb-3">
       <Form_Field $label="Phone Number">
         <Phone_Text_Input $name="phone" $placeholder="(555) 123-4567" />
+      </Form_Field>
+    </div>
+
+    <div class="mb-3">
+      <Form_Field $label="API Access"
+        $help="When off, this user's API keys stop working and no new ones can be used.">
+        <Checkbox_Input $name="is_api_access_enabled" $label="Allow API access" />
       </Form_Field>
     </div>
 

@@ -1,7 +1,7 @@
 <Define:Clients_Index_Action>
 <Page_Scaffold>
     <Slot:main>
-        <Clients_DataGrid />
+        <Clients_DataGrid $sid="grid" />
     </Slot:main>
 </Page_Scaffold>
 </Define:Clients_Index_Action>

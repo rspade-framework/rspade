@@ -1,7 +1,7 @@
 <Define:Projects_Index_Action>
 <Page_Scaffold>
     <Slot:main>
-        <Projects_DataGrid />
+        <Projects_DataGrid $sid="grid" />
     </Slot:main>
 </Page_Scaffold>
 </Define:Projects_Index_Action>

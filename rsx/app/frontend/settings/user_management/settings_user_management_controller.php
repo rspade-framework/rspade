@@ -4,10 +4,13 @@ namespace Rsx\App\Frontend\Settings\UserManagement;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
+use App\RSpade\Core\Api\Api_Key_Model;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Models\User_Model;
+use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
+use App\RSpade\Core\Time\Rsx_Date;
 use App\RSpade\Lib\Flash\Flash_Alert;
 use Rsx\App\Frontend\Settings\UserManagement\List\Users_DataGrid;
 
@@ -94,6 +97,10 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         $user->invite_expires_at = now()->addDays(
             config('rsx.auth.invite_expiration_days', 7)
         );
+
+        // A checkbox posts nothing when unchecked, so absence means OFF. The form ships it
+        // checked, so a caller who leaves the field alone gets what the column defaults to.
+        $user->is_api_access_enabled = !empty($params['is_api_access_enabled']) ? 1 : 0;
         $user->save();
 
         // Send invitation email
@@ -120,6 +127,110 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             'first_name' => $user->first_name,
             'last_name' => $user->last_name,
         ];
+    }
+
+    /**
+     * Ajax endpoint: the ACTIVE API keys belonging to one user, for the admin key screen.
+     *
+     * Active only. The question this page answers is "what can still reach the API as this
+     * user", and a revoked or expired key is not part of that answer.
+     *
+     * Site-scoped like every other endpoint here: an admin may only see keys belonging to a
+     * user in their own site, and the lookup fails as not-found rather than empty when they
+     * are not - the two are the same to a caller, which is what stops this being a way to
+     * probe for user ids in other sites.
+     */
+    #[Ajax_Endpoint]
+    public static function get_user_api_keys(Request $request, array $params = [])
+    {
+        $user = static::__site_user($params['id'] ?? null);
+
+        if (!$user instanceof User_Model) {
+            return $user;
+        }
+
+        $keys = [];
+
+        foreach (Api_Key_Model::get_for_user((int) $user->id) as $key) {
+            if (!$key->is_valid()) {
+                continue;
+            }
+
+            $keys[] = [
+                'id' => $key->id,
+                'name' => $key->name,
+                'key_prefix' => $key->key_prefix,
+                'created_at' => $key->created_at,
+                'expires_at' => $key->expires_at,
+                'last_used_at' => $key->last_used_at,
+            ];
+        }
+
+        return [
+            'user' => [
+                'id' => $user->id,
+                'email' => $user->email,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+            ],
+            'keys' => $keys,
+        ];
+    }
+
+    /**
+     * Ajax endpoint: revoke one of a user's API keys, as an admin.
+     *
+     * REVOKES, never deletes: _api_request_log rows reference api_key_id, and destroying the
+     * key would leave every call it ever made pointing at nothing - exactly when somebody is
+     * working out what a compromised key did.
+     *
+     * The key is re-checked against the user AND the site, so a key id from elsewhere cannot
+     * be revoked by passing it here.
+     */
+    #[Ajax_Endpoint]
+    public static function revoke_user_api_key(Request $request, array $params = [])
+    {
+        $user = static::__site_user($params['id'] ?? null);
+
+        if (!$user instanceof User_Model) {
+            return $user;
+        }
+
+        $key = Api_Key_Model::where('id', $params['key_id'] ?? null)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$key) {
+            return response_error(Ajax::ERROR_NOT_FOUND, 'API key not found for this user');
+        }
+
+        $key->revoke();
+
+        Flash_Alert::success('API key revoked');
+
+        return ['revoked' => true];
+    }
+
+    /**
+     * Resolve a user id within the caller's site, or the error response to return.
+     *
+     * Shared by the two endpoints above so "which users may I act on" is answered once.
+     */
+    private static function __site_user($user_id)
+    {
+        if (!$user_id) {
+            return response_error(Ajax::ERROR_VALIDATION, ['id' => 'User ID is required']);
+        }
+
+        $user = User_Model::where('site_id', Session::get_site_id())
+            ->where('id', $user_id)
+            ->first();
+
+        if (!$user) {
+            return response_error(Ajax::ERROR_NOT_FOUND, 'User not found');
+        }
+
+        return $user;
     }
 
     /**
@@ -158,6 +269,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             'last_name' => $user->last_name,
             'phone' => $user->phone,
             'role_id' => $user->role_id,
+            'is_api_access_enabled' => (bool) $user->is_api_access_enabled,
         ];
     }
 
@@ -237,6 +349,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         $user->last_name = $last_name;
         $user->phone = $params['phone'] ?? null;
         $user->role_id = !empty($params['role_id']) ? (int)$params['role_id'] : User_Model::ROLE_USER;
+        $user->is_api_access_enabled = !empty($params['is_api_access_enabled']) ? 1 : 0;
         $user->save();
 
         // Flash success message for display after redirect
@@ -377,6 +490,18 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         $profile_photo = $user->get_attachment('profile_photo');
         $profile_photo_attachment_id = $profile_photo ? (int) $profile_photo->id : null;
 
+        // API access summary. Counted here rather than shipped as a key list: the view page
+        // shows a count and a last-used moment, and a page that only needs "how many" should
+        // not carry every row to say so - the admin key screen is where the rows belong.
+        $api_keys = Api_Key_Model::where('user_id', $user->id)
+            ->where('is_revoked', false)
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            });
+
+        $api_active_key_count = (clone $api_keys)->count();
+        $api_last_used_at = (clone $api_keys)->max('last_used_at');
+
         return [
             'id' => $user->id,
             'email' => $user->email,
@@ -384,6 +509,9 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             'last_name' => $user->last_name,
             'phone' => $user->phone,
             'is_enabled' => $user->is_enabled,
+            'is_api_access_enabled' => (bool) $user->is_api_access_enabled,
+            'api_active_key_count' => $api_active_key_count,
+            'api_last_used_at' => $api_last_used_at,
             'role_id' => $user->role_id,
             'role_id__label' => $user->role_id__label ?? 'Member',
             'invitation_status' => $user->get_invitation_status(),
@@ -395,6 +523,56 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
                 'bio' => $user->user_profile->bio,
             ] : null,
             'recent_sessions' => $recent_sessions,
+        ];
+    }
+
+    /**
+     * Ajax endpoint: export the selected users as CSV.
+     *
+     * Export only - user records are removed one at a time through the user-management screens,
+     * where the role and self-deletion rules live, so the grid offers no mass delete.
+     *
+     * @param Request $request
+     * @param array $params
+     * @return mixed
+     */
+    #[Auth('can_export_data')]
+    #[Ajax_Endpoint]
+    public static function export_csv(Request $request, array $params = [])
+    {
+        $query = Users_DataGrid::build_query_public($params['filter_params'] ?? []);
+
+        $query = Users_DataGrid::apply_selection($query, 'users.id', $params);
+
+        if ($query instanceof Error_Response) {
+            return $query;
+        }
+
+        $rows = [];
+
+        foreach (Users_DataGrid::iterate_selection($query, 'users.id') as $user) {
+            $rows[] = [
+                $user->id,
+                $user->first_name,
+                $user->last_name,
+                $user->email,
+                $user->phone,
+                $user->role_id__label,
+                $user->get_invitation_status(),
+                $user->is_enabled ? 'Yes' : 'No',
+                $user->created_at,
+            ];
+        }
+
+        $csv = Users_DataGrid::build_csv(
+            ['ID', 'First Name', 'Last Name', 'Email', 'Phone', 'Role', 'Invitation Status', 'Enabled', 'Created'],
+            $rows
+        );
+
+        return [
+            'csv' => $csv,
+            'filename' => 'users_export_' . Rsx_Date::today() . '.csv',
+            'count' => count($rows),
         ];
     }
 }

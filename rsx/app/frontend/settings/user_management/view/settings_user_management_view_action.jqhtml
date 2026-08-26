@@ -102,6 +102,32 @@
                         <View_Field $label="Site Role">
                             <span class="badge badge-outline-primary"><%= _u.role_id__label || 'Member' %></span>
                         </View_Field>
+                        <View_Field $label="API Access">
+                            <% if (_u.is_api_access_enabled) { %>
+                                <Status_Badge $label="Enabled" $badge="bg-success" />
+                            <% } else { %>
+                                <Status_Badge $label="Disabled" $badge="bg-danger" />
+                            <% } %>
+                        </View_Field>
+                        <View_Field $label="API Keys">
+                            <%-- Always a link, including at zero: an admin arriving to check
+                                 whether a user has keys should not have to already know the
+                                 answer to find the page that shows it. --%>
+                            <a href="<%= Rsx.Route('Settings_User_Management_Api_Keys_Action', _u.id) %>">
+                                <% if (_u.api_active_key_count > 0) { %>
+                                    <%= _u.api_active_key_count %> Active
+                                <% } else { %>
+                                    None Active
+                                <% } %>
+                            </a>
+                        </View_Field>
+                        <View_Field $label="API Last Access">
+                            <% if (_u.api_last_used_at) { %>
+                                <%= Rsx_Time.relative(_u.api_last_used_at) %>
+                            <% } else { %>
+                                <span class="text-muted">Never</span>
+                            <% } %>
+                        </View_Field>
                     </View_Fields>
                 </Section>
 

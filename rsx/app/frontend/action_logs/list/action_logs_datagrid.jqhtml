@@ -19,7 +19,7 @@
         <tr>
             <th data-sortby="created_at" style="width: 180px;">Date/Time</th>
             <th style="width: 200px;">Initiator</th>
-            <th style="width: 150px;">Target Type</th>
+            <th data-sortby="subject_type" style="width: 150px;">Target Type</th>
             <th>Action</th>
             <th style="width: 80px;">Details</th>
         </tr>

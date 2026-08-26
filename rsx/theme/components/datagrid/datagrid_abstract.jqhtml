@@ -1,11 +1,13 @@
 <%--
-Contacts_DataGrid
+DataGrid_Abstract
 
-Custom datagrid for contacts with specialized row rendering.
-Wraps base DataGrid component.
+Shared card shell for every datagrid: header slot, sortable table head, DataGrid_Body,
+footer actions dropdown, selection badge, pagination. Contract: see CLAUDE.md in this
+directory.
 
 ARGUMENTS:
-    $api - API controller class
+    $data_source - Ajax endpoint (Controller.method) the body fetches from
+    $per_page / $sort / $order - initial state seeds
 --%>
 <Define:DataGrid_Abstract class="card DataGrid">
 
@@ -16,6 +18,14 @@ ARGUMENTS:
     <%-- <div>
         <%= JSON.stringify(this.state) %>
     </div> --%>
+
+    <%
+        // Slot presence: content('name') is '' when the concrete grid did not provide the slot.
+        // The empty-state slot is FORWARDED to DataGrid_Body, which cannot tell an absent slot
+        // from an empty one - so its presence travels as a boolean arg alongside it.
+        const _footer_actions = content('footer_actions');
+        const _has_empty_state = !!content('DG_Empty_State');
+    %>
 
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -29,10 +39,14 @@ ARGUMENTS:
                     $per_page="<%= this.state.per_page %>"
                     $sort="<%= this.state.sort %>"
                     $order="<%= this.state.order %>"
-                    $filter="<%= this.state.filter %>">
+                    $filter="<%= this.state.filter %>"
+                    $has_empty_state=_has_empty_state>
                     <Slot:row>
                         <%= content('row', row); %>
                     </Slot:row>
+                    <Slot:DG_Empty_State>
+                        <%= content('DG_Empty_State'); %>
+                    </Slot:DG_Empty_State>
                 </DataGrid_Body>
             </table>
         </div>
@@ -40,19 +54,24 @@ ARGUMENTS:
 
     <Card_Footer>
         <div class="d-flex gap-2 align-items-center">
-            <div class="dropdown">
-                <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    Actions
+            <% if (_footer_actions) { %>
+                <div class="dropdown DataGrid_Abstract__footer-actions">
+                    <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        Actions
+                    </button>
+                    <ul class="dropdown-menu">
+                        <%= _footer_actions %>
+                    </ul>
+                </div>
+            <% } %>
+
+            <span class="DataGrid_Abstract__selection-badge" $sid="selection_badge" style="display: none;">
+                <span $sid="selection_badge_count">0</span> selected
+                <button type="button" class="DataGrid_Abstract__selection-badge-clear" aria-label="Clear selection">
+                    <i class="bi bi-x"></i>
                 </button>
-                <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="#">Export Selected</a></li>
-                    <li><a class="dropdown-item" href="#">Delete Selected</a></li>
-                    <li>
-                        <hr class="dropdown-divider">
-                    </li>
-                    <li><a class="dropdown-item" href="#">Mark as Active</a></li>
-                </ul>
-            </div>
+            </span>
+
             <Pagination_Info $sid="pagination_info">
                 <% if (this.state.total && this.state.page && this.state.per_page) { %>
                     <%

@@ -17,7 +17,7 @@ use App\RSpade\Core\View\PageData;
 
 /**
  * Public by design: an anonymous-reachable SSR/session smoke page (the session
- * endpoints exist precisely to observe cookie behaviour without a login).
+ * endpoints exist precisely to observe cookie behavior without a login).
  */
 #[Auth('public')]
 class SSR_Test_Controller extends Rsx_Controller_Abstract

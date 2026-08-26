@@ -34,6 +34,10 @@ namespace Rsx\Theme\Components\Datagrid;
 use DB;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\LazyCollection;
+use App\RSpade\Core\Ajax\Ajax;
+use App\RSpade\Core\Database\Rsx_Result_Set;
+use App\RSpade\Core\Response\Error_Response;
 
 abstract class DataGrid_Abstract
 {
@@ -46,6 +50,27 @@ abstract class DataGrid_Abstract
     protected static string $default_order = 'desc';
 
     protected static array $sortable_columns = [];
+
+    /**
+     * Tie-breaker applied AFTER the primary sort, or null for none.
+     *
+     * A sort on a low-cardinality column - a status, a type, a boolean - leaves large groups
+     * of rows in whatever order the database felt like returning them, which changes between
+     * pages and between requests. Naming a tie-breaker makes the ordering total, so page 2 is
+     * the rows that actually follow page 1.
+     *
+     * Skipped when it IS the primary sort, so a column never orders by itself twice.
+     *
+     * @var string|null
+     */
+    protected static ?string $secondary_sort = null;
+
+    /**
+     * Direction for $secondary_sort.
+     *
+     * @var string
+     */
+    protected static string $secondary_order = 'desc';
 
     /**
      * Map sort column names to actual database columns
@@ -97,6 +122,134 @@ abstract class DataGrid_Abstract
     abstract protected static function build_query(array $params): Builder;
 
     /**
+     * Public seam onto build_query() for mass-action endpoints.
+     *
+     * A mass action ("delete every record matching what the user is looking at") has to
+     * rebuild the SAME query the grid was showing, then constrain it by the ids the
+     * selection payload carries. $params is exactly the filter array build_query()
+     * receives from fetch() - filter, sort, order and whatever custom filter keys the
+     * concrete grid declares. Sorting and pagination are NOT applied here; the caller
+     * adds its own id constraints (whereIn / whereNotIn) to the returned builder.
+     *
+     * @param array $params Filter params, same shape build_query() receives
+     * @return Builder Query builder instance
+     */
+    public static function build_query_public(array $params): Builder
+    {
+        return static::build_query($params);
+    }
+
+
+    /**
+     * Constrain a rebuilt grid query by a footer-action selection payload.
+     *
+     * The client sends {mode, ids, total, filter_params}; filter_params has already gone to
+     * build_query_public() by the time this is called, so all that is left is the id set:
+     *
+     *   additive    - ids ARE the selection            -> whereIn
+     *   subtractive - everything EXCEPT ids            -> whereNotIn (skipped when ids is empty)
+     *   all         - everything the filters matched   -> no constraint
+     *
+     * $id_column is ALWAYS table-qualified ('clients.id', 'contacts.id'): several of these
+     * queries join a table that carries an id column of its own, and an unqualified one is
+     * an ambiguous-column error at best and the wrong table's rows at worst.
+     *
+     * Returns the constrained builder, or an Error_Response when the payload is malformed -
+     * the caller returns that verbatim.
+     *
+     * @param Builder $query Query from build_query_public()
+     * @param string $id_column Table-qualified primary key column
+     * @param array $selection Selection payload: mode, ids
+     * @return Builder|Error_Response
+     */
+    public static function apply_selection(Builder $query, string $id_column, array $selection)
+    {
+        $mode = $selection['mode'] ?? null;
+
+        if (!in_array($mode, ['additive', 'subtractive', 'all'], true)) {
+            return response_error(Ajax::ERROR_VALIDATION, 'Unknown selection mode');
+        }
+
+        $ids = $selection['ids'] ?? [];
+
+        if (!is_array($ids)) {
+            return response_error(Ajax::ERROR_VALIDATION, 'Selection ids must be an array');
+        }
+
+        foreach ($ids as $id) {
+            if (!is_int($id) && !(is_string($id) && ctype_digit($id))) {
+                return response_error(Ajax::ERROR_VALIDATION, 'Selection ids must be integers');
+            }
+        }
+
+        $ids = array_map('intval', array_values($ids));
+
+        if ($mode === 'additive') {
+            // An additive selection with no ids selects NOTHING - whereIn([]) is exactly that,
+            // and is deliberately not shortcut into "everything".
+            $query->whereIn($id_column, $ids);
+        } elseif ($mode === 'subtractive' && !empty($ids)) {
+            $query->whereNotIn($id_column, $ids);
+        }
+
+        return $query;
+    }
+
+
+
+    /**
+     * Iterate the WHOLE of a constrained grid query, one keyset page at a time.
+     *
+     * NOT ->result_set(). Rsx_Result_Set calls lazyById() with no column, and Laravel's
+     * default key name is UNQUALIFIED ('id') - which MySQL rejects as ambiguous the moment
+     * the query joins a table carrying an id of its own, exactly what the contacts and
+     * projects grids do. Passing the table-qualified column (the same one apply_selection()
+     * constrained on) removes the ambiguity; the alias reads the cursor value back off the
+     * model, where the property is still plain 'id'.
+     *
+     * The set is walked, never truncated: there is no LIMIT here beyond the page size.
+     *
+     * @param Builder $query Query returned by apply_selection()
+     * @param string $id_column Table-qualified primary key column
+     * @return LazyCollection
+     */
+    public static function iterate_selection(Builder $query, string $id_column): LazyCollection
+    {
+        return $query->lazyById(Rsx_Result_Set::DEFAULT_CHUNK_SIZE, $id_column, 'id');
+    }
+
+    /**
+     * Render a header row plus data rows as one RFC4180 CSV string.
+     *
+     * Lives here rather than in each controller because every grid's export endpoint needs
+     * exactly this and there is one right way to escape a CSV field. fputcsv over a memory
+     * stream IS the standard escape - quoting, doubled quotes, embedded newlines and commas -
+     * so nothing about it is hand-rolled.
+     *
+     * @param array $headers Column headings
+     * @param array $rows List of rows, each a flat list of scalar values
+     * @return string
+     */
+    public static function build_csv(array $headers, array $rows): string
+    {
+        $handle = fopen('php://temp', 'r+');
+
+        fputcsv($handle, $headers);
+
+        foreach ($rows as $row) {
+            fputcsv($handle, $row);
+        }
+
+        rewind($handle);
+
+        $csv = stream_get_contents($handle);
+
+        fclose($handle);
+
+        return $csv;
+    }
+
+    /**
      * Transform records after fetching (optional override)
      *
      * Use this to add computed fields, format data, or perform any
@@ -134,9 +287,9 @@ abstract class DataGrid_Abstract
 
         $per_page = (int)($params['per_page'] ?? static::$default_per_page);
 
-        if ($per_page > static::$max_per_page || $per_page < 1) {
-            $per_page = static::$max_per_page;
-        }
+        // Clamp into the legal range rather than snapping an out-of-range value to the ceiling:
+        // a per_page of 0 is a nonsense request for nothing, not a request for the maximum.
+        $per_page = min(max(1, $per_page), static::$max_per_page);
 
         $sort = $params['sort'] ?? static::$default_sort;
 
@@ -162,6 +315,14 @@ abstract class DataGrid_Abstract
         if ($sort !== null) {
             $sort_column = static::map_sort_column($sort);
             $query->orderBy($sort_column, $order);
+        }
+
+        // Tie-breaker, so rows sharing a primary sort value have a stable order across pages.
+        if (static::$secondary_sort !== null && static::$secondary_sort !== $sort) {
+            $query->orderBy(
+                static::map_sort_column(static::$secondary_sort),
+                static::$secondary_order
+            );
         }
 
         // Get total count

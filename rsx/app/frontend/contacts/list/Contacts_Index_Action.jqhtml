@@ -1,7 +1,7 @@
 <Define:Contacts_Index_Action>
 <Page_Scaffold>
     <Slot:main>
-        <Contacts_DataGrid />
+        <Contacts_DataGrid $sid="grid" />
     </Slot:main>
 </Page_Scaffold>
 </Define:Contacts_Index_Action>

@@ -35,15 +35,21 @@ class DataGrid_Body extends Component {
         // Set loading state
         that.data.loading = true;
 
-        console.log('Loading ', that.args);
-
-        const response = await Ajax.call(that.args.data_source, {
+        const params = {
             page: that.args.page || 1,
             per_page: that.args.per_page || 15,
             sort: that.args.sort || null,
             order: that.args.order || 'asc',
             filter: that.args.filter || '',
-        });
+        };
+
+        // Custom filters arrive from the parent as ONE object arg and go out as top-level
+        // params, which is what PHP build_query($params) reads them as.
+        if (that.args.custom_filters) {
+            Object.assign(params, that.args.custom_filters);
+        }
+
+        const response = await Ajax.call(that.args.data_source, params);
 
         // Update data with response
         that.data.loading = false;

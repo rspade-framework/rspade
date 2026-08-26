@@ -12,8 +12,10 @@ use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
+use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
+use App\RSpade\Core\Time\Rsx_Date;
 use App\RSpade\Lib\Flash\Flash_Alert;
 use Rsx\App\Frontend\Contacts\List\Contacts_DataGrid;
 use Rsx\Lib\ActionLog\Action_Log;
@@ -307,6 +309,103 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
         return [
             'contact_id' => $contact->id,
             'redirect' => Rsx::Route('Contacts_View_Action', $contact->id),
+        ];
+    }
+
+    /**
+     * Ajax endpoint: bulk-delete the contacts a datagrid footer action selected.
+     *
+     * The selection payload names a SET, not a page: additive ids, subtractive exclusions, or
+     * the whole filtered result. The filters ride along in filter_params so the server rebuilds
+     * the exact query the user was looking at rather than trusting a client-side id list to be
+     * complete. Every row goes through the model layer one at a time - a raw bulk DELETE would
+     * skip the soft delete, the audit stamp, the realtime frame and the action log.
+     *
+     * Gate: the class-level 'is_logged_in'. Contacts have no single-record delete endpoint to
+     * copy a gate from, so this matches save() - the controller's other mutating endpoint.
+     *
+     * @param Request $request
+     * @param array $params
+     * @return mixed
+     */
+    #[Ajax_Endpoint]
+    public static function bulk_delete(Request $request, array $params = [])
+    {
+        $query = Contacts_DataGrid::build_query_public($params['filter_params'] ?? []);
+
+        $query = Contacts_DataGrid::apply_selection($query, 'contacts.id', $params);
+
+        if ($query instanceof Error_Response) {
+            return $query;
+        }
+
+        $deleted = 0;
+
+        foreach (Contacts_DataGrid::iterate_selection($query, 'contacts.id') as $contact) {
+            Action_Log::record(Action_Log_Model::TYPE_CONTACT_DELETED, $contact);
+            $contact->delete();
+            $deleted++;
+        }
+
+        return [
+            'deleted' => $deleted,
+        ];
+    }
+
+    /**
+     * Ajax endpoint: export the selected contacts as CSV.
+     *
+     * Same selection resolution as bulk_delete(). Returns the CSV as a string; the browser
+     * turns it into a download, because an Ajax response cannot be one.
+     *
+     * @param Request $request
+     * @param array $params
+     * @return mixed
+     */
+    #[Auth('can_export_data')]
+    #[Ajax_Endpoint]
+    public static function export_csv(Request $request, array $params = [])
+    {
+        $query = Contacts_DataGrid::build_query_public($params['filter_params'] ?? []);
+
+        $query = Contacts_DataGrid::apply_selection($query, 'contacts.id', $params);
+
+        if ($query instanceof Error_Response) {
+            return $query;
+        }
+
+        $rows = [];
+
+        foreach (Contacts_DataGrid::iterate_selection($query, 'contacts.id') as $contact) {
+            $rows[] = [
+                $contact->id,
+                $contact->first_name,
+                $contact->last_name,
+                $contact->title,
+                $contact->company_name,
+                $contact->email,
+                $contact->phone_work,
+                $contact->phone_cell,
+                $contact->city,
+                $contact->state,
+                $contact->priority__label,
+                $contact->is_active ? 'Yes' : 'No',
+                $contact->created_at,
+            ];
+        }
+
+        $csv = Contacts_DataGrid::build_csv(
+            [
+                'ID', 'First Name', 'Last Name', 'Title', 'Company', 'Email', 'Work Phone',
+                'Cell Phone', 'City', 'State', 'Priority', 'Active', 'Created',
+            ],
+            $rows
+        );
+
+        return [
+            'csv' => $csv,
+            'filename' => 'contacts_export_' . Rsx_Date::today() . '.csv',
+            'count' => count($rows),
         ];
     }
 }

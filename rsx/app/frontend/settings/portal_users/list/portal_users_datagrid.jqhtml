@@ -17,11 +17,11 @@
 
     <Slot:DG_Table_Header>
         <tr>
-            <th $sortby="id">ID</th>
-            <th $sortby="email">Email</th>
-            <th $sortby="status_id">Status</th>
+            <th data-sortby="id">ID</th>
+            <th data-sortby="email">Email</th>
+            <th data-sortby="status_id">Status</th>
             <th>Clients</th>
-            <th $sortby="last_login">Last Login</th>
+            <th data-sortby="last_login">Last Login</th>
             <th style="width: 220px;">Actions</th>
         </tr>
     </Slot:DG_Table_Header>

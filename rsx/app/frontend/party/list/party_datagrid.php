@@ -17,8 +17,15 @@ class Party_DataGrid extends DataGrid_Abstract
     protected static string $default_order = 'desc';
 
     protected static array $sortable_columns = [
-        'id', 'name', 'type_id', 'email', 'created_at', 'updated_at',
+        'id', 'name', 'type_id', 'email', 'phone', 'created_at',
     ];
+
+    /**
+     * created_at is not unique, so rows sharing a timestamp would shuffle between pages.
+     */
+    protected static ?string $secondary_sort = 'id';
+
+    protected static string $secondary_order = 'desc';
 
     protected static function build_query(array $params): Builder
     {
@@ -31,6 +38,11 @@ class Party_DataGrid extends DataGrid_Abstract
                     ->orWhere('email', 'LIKE', "%{$filter}%")
                     ->orWhere('phone', 'LIKE', "%{$filter}%");
             });
+        }
+
+        // Quick filter from the card header.
+        if (!empty($params['type_id'])) {
+            $query->where('type_id', (int) $params['type_id']);
         }
 
         return $query;

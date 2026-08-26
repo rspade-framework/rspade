@@ -1,9 +1,15 @@
 /**
- * Party_DataGrid - handles row delete clicks (confirm -> delete -> reload).
+ * Party_DataGrid - type quick filter, and row delete clicks (confirm -> delete -> reload).
  */
 class Party_DataGrid extends DataGrid_Abstract {
+    static allowed_filters = ['type_id'];
+
+    static record_noun_plural = 'parties';
+
     on_ready() {
         super.on_ready();
+
+        this._bind_quick_filter('type_filter', 'type_id');
 
         this.$.on('click', '[data-action="delete"]', async (e) => {
             e.preventDefault();
@@ -27,6 +33,29 @@ class Party_DataGrid extends DataGrid_Abstract {
             } catch (error) {
                 Modal.alert('Error', error.message || 'Failed to delete party');
             }
+        });
+    }
+
+    /**
+     * Point one header <select> at one whitelisted filter key.
+     *
+     * The grid's state is authoritative in both directions of the boot: default_filters and
+     * the URL-hash restore have both already run in on_create(), so the widget is set FROM
+     * the state - never the other way round, and never from a `selected` attribute in markup.
+     *
+     * @param {string} sid - $sid of the <select> in the card header
+     * @param {string} key - filter key, must be in allowed_filters
+     */
+    _bind_quick_filter(sid, key) {
+        let that = this;
+
+        const $select = that.$sid(sid);
+
+        $select.val(str(that.get_custom_filter(key) ?? ''));
+
+        $select.on('change', function () {
+            const $element = $(this);
+            that.set_custom_filter(key, $element.val() || null);
         });
     }
 }

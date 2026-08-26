@@ -24,19 +24,53 @@ class Api_Keys_DataGrid extends DataGrid_Abstract
     /**
      * Default configuration
      */
-    protected static ?string $default_sort = 'created_at';
+    /**
+     * Usable keys first, newest first within each group.
+     *
+     * Status leads because it is the question the page is usually answering - "which of my
+     * keys still work" - and a revoked key from last year has no business sitting above a
+     * live one just because it happens to be newer.
+     */
+    protected static ?string $default_sort = 'status';
 
-    protected static string $default_order = 'desc';
+    protected static string $default_order = 'asc';
 
     /**
-     * Columns that can be sorted
+     * Newest first within a status group, and the tie-breaker under every other sort - a
+     * status column has three values, so without it the order inside a group is arbitrary
+     * and shuffles between pages.
+     */
+    protected static ?string $secondary_sort = 'created_at';
+
+    protected static string $secondary_order = 'desc';
+
+    /**
+     * 25 per page. Keys accumulate slowly and are read as a whole list, so a page that shows
+     * most of them beats one that hides them behind a pager.
+     */
+    protected static int $default_per_page = 25;
+
+    /**
+     * Columns that can be sorted.
+     *
+     * Key and Actions are absent deliberately: the key column shows a masked prefix whose
+     * order means nothing, and Actions is not data.
      */
     protected static array $sortable_columns = [
         'id',
         'name',
+        'status',
         'created_at',
         'last_used_at',
     ];
+
+    /**
+     * 'status' is computed, not stored - see build_query's status_rank.
+     */
+    protected static function map_sort_column(string $column): string
+    {
+        return $column === 'status' ? 'status_rank' : $column;
+    }
 
     /**
      * Build the query for fetching API keys
@@ -48,7 +82,15 @@ class Api_Keys_DataGrid extends DataGrid_Abstract
      */
     protected static function build_query(array $params): Builder
     {
-        $query = Api_Key_Model::query();
+        // status_rank makes the computed status sortable in SQL: 0 usable, 1 not. The same
+        // three-way state is spelled out for display in transform_records() - this one exists
+        // only to order by, which is why it is a rank rather than a label.
+        $query = Api_Key_Model::query()
+            ->select('_api_keys.*')
+            ->selectRaw(
+                'CASE WHEN is_revoked = 0 AND (expires_at IS NULL OR expires_at > NOW()) '
+                . 'THEN 0 ELSE 1 END AS status_rank'
+            );
 
         // Security: Only show keys for the current user
         $user = Session::get_user();

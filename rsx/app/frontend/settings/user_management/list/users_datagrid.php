@@ -36,12 +36,28 @@ class Users_DataGrid extends DataGrid_Abstract
     protected static array $sortable_columns = [
         'id',
         'first_name',
-        'last_name',
         'email',
+        'invitation_status',
+        'phone',
         'role_id',
         'created_at',
-        'updated_at',
     ];
+
+    /**
+     * role_id and the computed status have a handful of values each, so id breaks the tie
+     * and keeps paging stable under those sorts.
+     */
+    protected static ?string $secondary_sort = 'id';
+
+    protected static string $secondary_order = 'desc';
+
+    /**
+     * The Status column is computed, not stored - see build_query's invitation_rank.
+     */
+    protected static function map_sort_column(string $column): string
+    {
+        return $column === 'invitation_status' ? 'invitation_rank' : $column;
+    }
 
     /**
      * Build the query for fetching users
@@ -53,7 +69,17 @@ class Users_DataGrid extends DataGrid_Abstract
      */
     protected static function build_query(array $params): Builder
     {
-        $query = User_Model::query();
+        // invitation_rank makes the computed Status column sortable in SQL, in the order the
+        // badges read: 0 accepted, 1 pending, 2 expired. It mirrors get_invitation_status(),
+        // which is still what transform_records() puts on the row for display - this one
+        // exists only to order by, which is why it is a rank rather than a label.
+        $query = User_Model::query()
+            ->select('users.*')
+            ->selectRaw(
+                'CASE WHEN invite_accepted_at IS NOT NULL THEN 0 '
+                . 'WHEN invite_expires_at IS NOT NULL AND invite_expires_at < NOW() THEN 2 '
+                . 'ELSE 1 END AS invitation_rank'
+            );
 
         // Security: Only show users from the same site
         // User_Model now has site_id column directly (site-specific user profiles)

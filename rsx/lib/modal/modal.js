@@ -701,7 +701,7 @@ class Modal {
             component_instance.on('ready', () => resolve());
         });
 
-        // Find a form instance if component instance doesnt have .vals()
+        // Find a form instance if component instance doesn't have .vals()
         if (!component_instance.vals) {
             let $form = component_instance.$.find('.Rsx_Form');
             if ($form.exists()) {

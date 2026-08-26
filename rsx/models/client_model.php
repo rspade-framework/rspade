@@ -49,8 +49,8 @@ use Rsx\Models\Portal_Membership_Model;
  * @property array $tags
  * @property int $status_id
  * @property string $preferred_contact_method
- * @property bool $newsletter_opt_in
- * @property bool $portal_enabled
+ * @property int $newsletter_opt_in
+ * @property int $portal_enabled
  * @property string $portal_last_activity_at
  * @property string $deleted_at
  * @property int $deleted_by_id

@@ -15,8 +15,10 @@ use App\RSpade\Core\Models\Portal_Notification_Model;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
+use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
+use App\RSpade\Core\Time\Rsx_Date;
 use App\RSpade\Lib\Flash\Flash_Alert;
 use Rsx\App\Frontend\Clients\List\Clients_DataGrid;
 use Rsx\Lib\ActionLog\Action_Log;
@@ -283,6 +285,97 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
 
         return [
             'message' => 'Client deleted successfully',
+        ];
+    }
+
+
+    /**
+     * Ajax endpoint: bulk-delete the clients a datagrid footer action selected.
+     *
+     * The selection payload names a SET, not a page: additive ids, subtractive exclusions, or
+     * the whole filtered result. The filters ride along in filter_params so the server rebuilds
+     * the exact query the user was looking at rather than trusting a client-side id list to be
+     * complete. Every row goes through the model layer one at a time - a raw bulk DELETE would
+     * skip the soft delete, the audit stamp, the realtime frame and the action log.
+     *
+     * Gate: the class-level 'is_logged_in', the same gate the single-record delete() carries.
+     *
+     * @param Request $request
+     * @param array $params
+     * @return mixed
+     */
+    #[Ajax_Endpoint]
+    public static function bulk_delete(Request $request, array $params = [])
+    {
+        $query = Clients_DataGrid::build_query_public($params['filter_params'] ?? []);
+
+        $query = Clients_DataGrid::apply_selection($query, 'clients.id', $params);
+
+        if ($query instanceof Error_Response) {
+            return $query;
+        }
+
+        $deleted = 0;
+
+        foreach (Clients_DataGrid::iterate_selection($query, 'clients.id') as $client) {
+            Action_Log::record(Action_Log_Model::TYPE_CLIENT_DELETED, $client);
+            $client->delete();
+            $deleted++;
+        }
+
+        return [
+            'deleted' => $deleted,
+        ];
+    }
+
+    /**
+     * Ajax endpoint: export the selected clients as CSV.
+     *
+     * Same selection resolution as bulk_delete(). Returns the CSV as a string; the browser
+     * turns it into a download, because an Ajax response cannot be one.
+     *
+     * @param Request $request
+     * @param array $params
+     * @return mixed
+     */
+    #[Auth('can_export_data')]
+    #[Ajax_Endpoint]
+    public static function export_csv(Request $request, array $params = [])
+    {
+        $query = Clients_DataGrid::build_query_public($params['filter_params'] ?? []);
+
+        $query = Clients_DataGrid::apply_selection($query, 'clients.id', $params);
+
+        if ($query instanceof Error_Response) {
+            return $query;
+        }
+
+        $rows = [];
+
+        foreach (Clients_DataGrid::iterate_selection($query, 'clients.id') as $client) {
+            $rows[] = [
+                $client->id,
+                $client->name,
+                $client->city,
+                $client->state,
+                $client->phone,
+                $client->email,
+                $client->website,
+                $client->status_id__label,
+                $client->priority__label,
+                $client->created_at,
+            ];
+        }
+
+        $csv = Clients_DataGrid::build_csv(
+            ['ID', 'Company Name', 'City', 'State', 'Phone', 'Email', 'Website', 'Status', 'Priority', 'Created'],
+            $rows
+        );
+
+        return [
+            'csv' => $csv,
+            'filename' => 'clients_export_' . Rsx_Date::today() . '.csv',
+            'count' => count($rows),
         ];
     }
 

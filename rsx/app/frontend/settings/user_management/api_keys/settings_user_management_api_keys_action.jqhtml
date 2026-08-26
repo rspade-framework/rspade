@@ -1,0 +1,66 @@
+<Define:Settings_User_Management_Api_Keys_Action>
+<% const d = this.data; %>
+<% if (d.loading) { %>
+    <Page_Scaffold>
+        <Slot:main><Loading_Spinner $message="Loading API keys..." /></Slot:main>
+    </Page_Scaffold>
+<% } else if (d.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= d.error_data %>"
+                $record_type="User"
+                $back_label="Back to User Management"
+                $back_url="<%= Rsx.Route('Settings_User_Management_Index_Action') %>" />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Card_Widget>
+                <Section $title="Active API Keys" $count=d.keys.length $flush=true>
+                    <Slot:body>
+                        <% if (!d.keys.length) { %>
+                            <Empty_State
+                                $icon="bi bi-key"
+                                $message="This user has no active API keys." />
+                        <% } else { %>
+                            <table class="table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 80px;">ID</th>
+                                        <th>Name</th>
+                                        <th>Key</th>
+                                        <th>Created</th>
+                                        <th>Expires</th>
+                                        <th>Last Used</th>
+                                        <th style="width: 100px;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% for (const key of d.keys) { %>
+                                        <tr>
+                                            <td>#<%= key.id %></td>
+                                            <td><%= key.name %></td>
+                                            <td><code class="bg-light p-1 rounded"><%= key.key_prefix %></code></td>
+                                            <td><%= Rsx_Time.format_date(key.created_at) %></td>
+                                            <td><%= key.expires_at ? Rsx_Time.format_date(key.expires_at) : 'Never' %></td>
+                                            <td><%= key.last_used_at ? Rsx_Time.relative(key.last_used_at) : 'Never' %></td>
+                                            <td>
+                                                <button class="btn btn-outline-danger btn-sm"
+                                                    data-action="revoke" data-id="<%= key.id %>" title="Revoke Key">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    <% } %>
+                                </tbody>
+                            </table>
+                        <% } %>
+                    </Slot:body>
+                </Section>
+            </Card_Widget>
+        </Slot:main>
+    </Page_Scaffold>
+<% } %>
+</Define:Settings_User_Management_Api_Keys_Action>

@@ -29,7 +29,7 @@ use Rsx\Models\Client_Model;
  * @property string $state
  * @property string $zip
  * @property int $reports_to_contact_id
- * @property bool $is_active
+ * @property int $is_active
  * @property int $priority
  * @property string $notes
  * @property int $created_by_id

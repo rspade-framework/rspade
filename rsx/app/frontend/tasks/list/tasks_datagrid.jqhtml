@@ -4,6 +4,7 @@
     extends="DataGrid_Abstract"
     $data_source=Frontend_Tasks_Controller.datagrid_fetch
     $sort="created_at"
+    $order="desc"
     $per_page=15
     class="card DataGrid">
 
@@ -11,6 +12,21 @@
         <Card_Title>Task List</Card_Title>
         <Card_Header_Right>
             <Search_Input $sid="filter_input" $placeholder="Search tasks..." />
+            <select class="form-select w-auto" $sid="status_filter" aria-label="Filter by status">
+                <option value="">All Statuses</option>
+                <%-- "Open" is the composite the grid boots with: every status that is neither
+                     finished nor abandoned. The server expands it; see tasks_datagrid.php. --%>
+                <option value="open">Open</option>
+                <% for (const opt of Task_Model.status__enum_select()) { %>
+                    <option value="<%= opt.value %>"><%= opt.label %></option>
+                <% } %>
+            </select>
+            <select class="form-select w-auto" $sid="priority_filter" aria-label="Filter by priority">
+                <option value="">All Priorities</option>
+                <% for (const opt of Task_Model.priority__enum_select()) { %>
+                    <option value="<%= opt.value %>"><%= opt.label %></option>
+                <% } %>
+            </select>
         </Card_Header_Right>
     </Slot:DG_Card_Header>
 
@@ -18,10 +34,10 @@
         <tr>
             <th data-sortby="title">Title</th>
             <th>Parent</th>
-            <th>Project</th>
+            <th data-sortby="project">Project</th>
             <th data-sortby="status">Status</th>
             <th data-sortby="priority">Priority</th>
-            <th>Assignee</th>
+            <th data-sortby="assignee">Assignee</th>
             <th data-sortby="due_date">Due Date</th>
             <th data-sortby="hour_estimate" class="text-end">Est. Hours</th>
         </tr>

@@ -4,6 +4,7 @@
     extends="DataGrid_Abstract"
     $data_source=Frontend_Party_Controller.datagrid_fetch
     $sort="created_at"
+    $order="desc"
     $per_page=15
     class="card DataGrid">
 
@@ -11,6 +12,12 @@
         <Card_Title>Parties</Card_Title>
         <Card_Header_Right>
             <Search_Input $sid="filter_input" $placeholder="Search parties..." />
+            <select class="form-select w-auto" $sid="type_filter" aria-label="Filter by type">
+                <option value="">All Types</option>
+                <% for (const opt of Party_Model.type_id__enum_select()) { %>
+                    <option value="<%= opt.value %>"><%= opt.label %></option>
+                <% } %>
+            </select>
         </Card_Header_Right>
     </Slot:DG_Card_Header>
 
@@ -20,7 +27,7 @@
             <th data-sortby="name">Name</th>
             <th data-sortby="type_id">Type</th>
             <th data-sortby="email">Email</th>
-            <th>Phone</th>
+            <th data-sortby="phone">Phone</th>
             <th data-sortby="created_at">Created</th>
             <th style="width: 90px;">Actions</th>
         </tr>

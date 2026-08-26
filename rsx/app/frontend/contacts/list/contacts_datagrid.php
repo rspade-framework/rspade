@@ -38,18 +38,27 @@ class Contacts_DataGrid extends DataGrid_Abstract
     protected static array $sortable_columns = [
         'id',
         'first_name',
-        'last_name',
         'email',
+        'phone_work',
         'company',
         'priority',
         'created_at',
-        'updated_at',
     ];
+
+    /**
+     * priority has four values and a company groups many contacts, so id breaks the tie and
+     * keeps paging stable under those sorts.
+     */
+    protected static ?string $secondary_sort = 'id';
+
+    protected static string $secondary_order = 'desc';
 
     /**
      * Map sort column names to actual database columns
      *
-     * Maps 'company' to the joined clients.name column for proper sorting.
+     * 'company' is the joined clients.name, selected as company_name. Every other column is
+     * qualified with the contacts table: the query joins clients, which carries columns of
+     * the same name (id, created_at, ...), so an unqualified ORDER BY is a coin toss.
      *
      * @param string $column Column name from request
      * @return string Actual database column to sort by
@@ -58,7 +67,7 @@ class Contacts_DataGrid extends DataGrid_Abstract
     {
         return match($column) {
             'company' => 'company_name',
-            default => $column
+            default => 'contacts.' . $column
         };
     }
 
@@ -92,6 +101,12 @@ class Contacts_DataGrid extends DataGrid_Abstract
                     ->orWhere('contacts.title', 'LIKE', "%{$filter}%")
                     ->orWhere('clients.name', 'LIKE', "%{$filter}%");
             });
+        }
+
+        // Quick filter from the card header. Qualified: the clients join carries a priority
+        // column of its own.
+        if (!empty($params['priority'])) {
+            $query->where('contacts.priority', (int) $params['priority']);
         }
 
         return $query;

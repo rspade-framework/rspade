@@ -32,6 +32,7 @@ class Frontend_Bundle extends Rsx_Module_Bundle_Abstract
             // Additional route paths for Rsx.Route() generation (not bundled, just route extraction)
             'include_routes' => [
                 'rsx/app/login',                // Login module routes (logout, etc.)
+                'rsx/app/apidocs',              // so Rsx.Route('Apidocs_Controller') resolves
             ],
         ];
     }

@@ -4,7 +4,7 @@
  * Maps an action-log type_id to the Feed_Row presentation (icon + accent variant)
  * for an entity Activity tab. The activity endpoints return the raw
  * {id, html, created_at, type_id}; the rendered summary html is authored by
- * Action_Log_Model::render(), so all a page adds is a leading icon + a colour
+ * Action_Log_Model::render(), so all a page adds is a leading icon + a color
  * accent by action category. This is the client-side twin of the dashboard's
  * server-side Frontend_Dashboard_Controller::_activity_icon() - kept in ONE place
  * so every entity view (Contacts / Projects / Party / Clients) decorates the feed

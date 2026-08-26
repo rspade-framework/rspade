@@ -22,7 +22,7 @@ use App\RSpade\Core\Models\User_Model;
  * @property int $site_id
  * @property string $name
  * @property string $description
- * @property bool $deletion_protection
+ * @property int $deletion_protection
  * @property string $deleted_at
  * @property int $deleted_by_id
  * @property int $deleted_by_type

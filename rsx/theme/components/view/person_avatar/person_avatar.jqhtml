@@ -1,14 +1,14 @@
 <%--
 Person_Avatar - a person's face: a profile image or a deterministic initials disc
 
-$name (string)          - the person's name; alt text, initials fallback, colour seed [required]
+$name (string)          - the person's name; alt text, initials fallback, color seed [required]
 $attachment_id (nullable) - the person's profile-photo File_Attachment id; the photo is shown
                           instead of the initials disc when set [optional]
 $initials (string)      - explicit initials override; derived from $name when absent [optional]
 $size ("sm"|"md"|"lg")  - 28 / 36 / 72px disc; default "md" [optional]
 
 Display-only (no JS file). The initials-disc background is a deterministic hue from
-the initials, so a person reads with a consistent colour everywhere. Consumed by
+the initials, so a person reads with a consistent color everywhere. Consumed by
 Author_Meta_Row and directly wherever a person needs a face (thread participants, the
 contact-card modal). Promoted from the per-page Request/Portal_Participant_Avatar.
 
