@@ -63,12 +63,16 @@ write NO manual `->where('site_id', ...)`. A cross-site id simply comes back nul
 
 ## Auth & testing
 
-`Authorization: Bearer rsk_...` (mint keys in Settings > API Keys). External calls in
-dev must use the `APP_URL` host or loopback (dev hostname guard). CLI test:
+`Authorization: Bearer rsk_...` (mint keys in Settings > API Keys, or from the CLI).
+External calls in dev must use the `APP_URL` host or loopback (dev hostname guard).
+CLI test - mint a self-expiring key and call the API exactly as an outside client does:
 
 ```
-curl -H "Authorization: Bearer rsk_test_..." http://localhost/api/v1/contacts
+KEY=$(php artisan rsx:api:key:temp --user=1 --expires="1 hour" --json | jq -r .data.key)
+curl -H "Authorization: Bearer $KEY" http://localhost/api/v1/contacts
 ```
+
+`rsx:man external_api` (COMMAND LINE) has the rest of the `rsx:api:*` namespace.
 
 ## Docblocks
 

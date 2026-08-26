@@ -34,7 +34,7 @@ class Settings_User_Management_View_Action extends Spa_Action {
     async on_load() {
         try {
             this.data.user = await Frontend_Settings_User_Management_Controller.get_user({
-                id: this.args.id
+                id: this.args.id,
             });
         } catch (e) {
             this.data.error_data = e;

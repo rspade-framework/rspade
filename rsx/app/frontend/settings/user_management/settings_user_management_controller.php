@@ -79,7 +79,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
 
         if ($existing) {
             return response_error(Ajax::ERROR_VALIDATION, [
-                'email' => 'User already invited to this site'
+                'email' => 'User already invited to this site',
             ]);
         }
 
@@ -247,7 +247,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
 
         if (!$user_id) {
             return response_error(Ajax::ERROR_VALIDATION, [
-                'user_id' => 'User ID is required'
+                'user_id' => 'User ID is required',
             ]);
         }
 
@@ -289,7 +289,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         $user_id = $params['id'] ?? null;
         if (!$user_id) {
             return response_error(Ajax::ERROR_VALIDATION, [
-                'id' => 'User ID is required'
+                'id' => 'User ID is required',
             ]);
         }
 
@@ -338,7 +338,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
 
             if ($existing) {
                 return response_error(Ajax::ERROR_VALIDATION, [
-                    'email' => 'Email address already in use by another user'
+                    'email' => 'Email address already in use by another user',
                 ]);
             }
         }
@@ -380,7 +380,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
 
         if (!$user_id) {
             return response_error(Ajax::ERROR_VALIDATION, [
-                'user_id' => 'User ID is required'
+                'user_id' => 'User ID is required',
             ]);
         }
 
@@ -398,14 +398,14 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         // Check if user account is enabled
         if (!$user->is_enabled) {
             return response_error(Ajax::ERROR_VALIDATION, [
-                'user_id' => 'Cannot send invitation to disabled account'
+                'user_id' => 'Cannot send invitation to disabled account',
             ]);
         }
 
         // Check if invitation already accepted
         if ($user->invite_accepted_at !== null) {
             return response_error(Ajax::ERROR_VALIDATION, [
-                'user_id' => 'This user has already accepted their invitation'
+                'user_id' => 'This user has already accepted their invitation',
             ]);
         }
 
@@ -452,7 +452,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
 
         if (!$user_id) {
             return response_error(Ajax::ERROR_VALIDATION, [
-                'id' => 'User ID is required'
+                'id' => 'User ID is required',
             ]);
         }
 

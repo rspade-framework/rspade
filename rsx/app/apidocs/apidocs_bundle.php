@@ -13,9 +13,19 @@ use App\RSpade\Core\Bundle\Rsx_Module_Bundle_Abstract;
  * serve an application's route. This is the whole of it - the framework supplies the
  * components (app/RSpade/Core/Api) and the page_data payload.
  *
- * Deliberately hermetic (no Bootstrap, no application theme): the console's midnight look
- * lives entirely in the framework's Core/Api/components SCSS as self-contained CSS custom
- * properties, so mounting it cannot disturb - or be disturbed by - the rest of the app.
+ * THE INVARIANT: THIS INCLUDE LIST NAMES NO rsx/ PATH AND NO APP-DEFINED CLASS.
+ *
+ * The console is framework code that happens to be mounted on an application route, and a
+ * framework feature does not get to depend on the application hosting it. An app is free to
+ * restyle its theme, redefine its Bootstrap build, or replace its Modal outright - all of
+ * which are its own business, and any of which would break a console that had borrowed them.
+ * So the console ships its own equivalents: the midnight look is self-contained --api-*
+ * custom properties in Core/Api/components, and the one dialog it needs is
+ * Api_Confirm_Dialog, beside them. Nothing here reaches into rsx/, and CONV-BUNDLE-04
+ * enforces that for every framework-owned bundle.
+ *
+ * The remaining benefit is mutual: the console cannot disturb - or be disturbed by - the
+ * rest of the app, because the two share no stylesheet at all.
  */
 class Apidocs_Bundle extends Rsx_Module_Bundle_Abstract
 {
@@ -25,10 +35,6 @@ class Apidocs_Bundle extends Rsx_Module_Bundle_Abstract
             'include' => [
                 'jquery',
                 'lodash',
-                'rsx/theme/variables.scss',
-                'rsx/theme/responsive.scss',
-                'Bootstrap5_Src_Bundle',
-                'rsx/lib/modal',
                 'app/RSpade/Core/Api',   // the console components + the vendor asset bundle
                 __DIR__,                 // this module's controller
             ],
