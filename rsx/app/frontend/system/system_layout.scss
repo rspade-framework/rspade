@@ -24,8 +24,8 @@
         }
 
         &__card {
-            background: $white;
-            border: $border-width solid rgba($black, 0.125);
+            background: var(--bs-body-bg);
+            border: $border-width solid var(--bs-border-color-translucent);
             border-radius: $border-radius-lg;
             overflow: hidden;
             box-shadow: 0 2px 4px rgba($black, 0.075);
@@ -33,7 +33,7 @@
 
         &__section {
             &:not(:first-child) {
-                border-top: $border-width solid rgba($black, 0.1);
+                border-top: $border-width solid var(--bs-border-color-translucent);
             }
         }
 
@@ -41,10 +41,10 @@
             padding: $spacing-3 $spacing-md;
             font-size: $font-size-xs;
             font-weight: $font-weight-semibold;
-            color: $text-muted;
+            color: var(--bs-secondary-color);
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            background: $background-light;
+            background: var(--bs-tertiary-bg);
         }
 
         &__item {
@@ -52,7 +52,7 @@
             align-items: center;
             gap: $spacing-3;
             padding: 10px $spacing-md;
-            color: $gray-800;
+            color: var(--bs-body-color);
             text-decoration: none;
             font-size: $font-size-sm;
             font-weight: $font-weight-medium;
@@ -61,7 +61,7 @@
 
             &:hover { // @SCSS-ANIM-01-EXCEPTION: anchor tag nav item
                 background: rgba($black, 0.04);
-                color: $gray-800;
+                color: var(--bs-body-color);
                 text-decoration: none;
             }
 
@@ -75,7 +75,7 @@
                 width: 18px;
                 height: 18px;
                 font-size: $font-size-base;
-                color: $text-muted;
+                color: var(--bs-secondary-color);
                 flex-shrink: 0;
             }
 

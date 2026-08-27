@@ -10,9 +10,9 @@
     &__thumb {
         max-width: 220px;
         max-height: 220px;
-        border: 1px solid $border-color;
+        border: 1px solid var(--bs-border-color);
         border-radius: $border-radius-sm;
-        background-color: $gray-100;
+        background-color: var(--bs-tertiary-bg);
         padding: $spacing-sm;
 
         // The picture is an <Attachment_Thumbnail>: this class sizes the component's host
@@ -32,7 +32,7 @@
 
     &__name {
         font-weight: $font-weight-semibold;
-        color: $gray-900;
+        color: var(--bs-body-color);
         word-break: break-word;
     }
 

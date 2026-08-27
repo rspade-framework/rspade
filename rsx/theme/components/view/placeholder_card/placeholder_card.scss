@@ -12,13 +12,13 @@
     border-radius: $border-radius-lg;
 
     &--dashed {
-        border: $border-width dashed $gray-400;
+        border: $border-width dashed var(--bs-border-color);
         background: transparent;
     }
 
     &--muted {
-        border: $border-width solid $border-color;
-        background: $background-light;
+        border: $border-width solid var(--bs-border-color);
+        background: var(--bs-tertiary-bg);
     }
 
     &__icon {
@@ -30,12 +30,12 @@
     &__title {
         font-size: $font-size-base;
         font-weight: $font-weight-semibold;
-        color: $text-color;
+        color: var(--bs-body-color);
     }
 
     &__body {
         font-size: $font-size-sm;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         max-width: 420px;
     }
 

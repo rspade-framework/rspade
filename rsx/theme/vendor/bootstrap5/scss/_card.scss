@@ -107,8 +107,7 @@
     padding: var(--#{$prefix}card-cap-padding-y) var(--#{$prefix}card-cap-padding-x);
     margin-bottom: 0; // Removes the default margin-bottom of <hN>
     color: var(--#{$prefix}card-cap-color);
-    background-color: var(--#{$prefix}card-cap-bg); // mod
-    background-color: white;
+    background-color: var(--#{$prefix}card-cap-bg);
     border-bottom: var(--#{$prefix}card-border-width) solid var(--#{$prefix}card-border-color);
 
     &:first-child {

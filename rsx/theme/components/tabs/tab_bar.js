@@ -59,7 +59,7 @@ class Tab_Bar extends Component {
         this.$.find('.Tab_Bar__tab').each((i, el) => {
             const $tab = $(el);
             const is_active = str($tab.attr('data-tab-key')) === str(key);
-            $tab.toggleClass('Tab_Bar__tab--active', is_active).attr('aria-selected', is_active ? 'true' : 'false');
+            $tab.toggleClass('active', is_active).attr('aria-selected', is_active ? 'true' : 'false');
         });
 
         if (this.args.hash) {

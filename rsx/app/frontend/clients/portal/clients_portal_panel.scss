@@ -16,9 +16,9 @@
     &__doc-thumb {
         width: 32px;
         height: 32px;
-        border: $border-width solid $border-color;
+        border: $border-width solid var(--bs-border-color);
         border-radius: $border-radius-sm;
-        background-color: $gray-100;
+        background-color: var(--bs-tertiary-bg);
         flex-shrink: 0;
 
         // The picture is an <Attachment_Thumbnail>: this class now sizes the component's
@@ -41,18 +41,18 @@
     &__announcement {
         padding: $spacing-sm $spacing-md;
         border-left: 3px solid $primary-color;
-        background-color: $gray-100;
+        background-color: var(--bs-tertiary-bg);
         border-radius: $border-radius-sm;
     }
 
     &__announcement-title {
         font-weight: $font-weight-semibold;
-        color: $gray-900;
+        color: var(--bs-body-color);
     }
 
     &__announcement-body {
         margin-top: 2px;
-        color: $text-color;
+        color: var(--bs-body-color);
         font-size: $font-size-sm;
     }
 

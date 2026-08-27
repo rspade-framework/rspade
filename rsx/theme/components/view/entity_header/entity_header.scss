@@ -16,7 +16,7 @@
         font-size: $font-size-2xl; // 24px
         font-weight: $font-weight-semibold;
         line-height: $line-height-tight;
-        color: $gray-900;
+        color: var(--bs-body-color);
     }
 
     &__chips {
@@ -28,7 +28,7 @@
 
     &__subtitle {
         font-size: $font-size-base;
-        color: $text-color;
+        color: var(--bs-body-color);
     }
 
     &__meta {
@@ -37,6 +37,6 @@
         flex-wrap: wrap;
         gap: $spacing-2 $spacing-3;
         font-size: $font-size-sm;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
     }
 }

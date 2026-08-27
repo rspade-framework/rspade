@@ -39,8 +39,8 @@
         }
 
         &__card {
-            background: $white;
-            border: $border-width solid rgba($black, 0.125);
+            background: var(--bs-body-bg);
+            border: $border-width solid var(--bs-border-color-translucent);
             border-radius: $border-radius-lg;
             overflow: hidden;
             box-shadow: 0 2px 4px rgba($black, 0.075);
@@ -52,7 +52,7 @@
 
         &__section {
             &:not(:first-child) {
-                border-top: $border-width solid rgba($black, 0.1);
+                border-top: $border-width solid var(--bs-border-color-translucent);
             }
         }
 
@@ -60,10 +60,10 @@
             padding: $spacing-3 $spacing-md;
             font-size: $font-size-xs;
             font-weight: $font-weight-semibold;
-            color: $text-muted;
+            color: var(--bs-secondary-color);
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            background: $background-light;
+            background: var(--bs-tertiary-bg);
         }
 
         &__item {
@@ -71,7 +71,7 @@
             align-items: center;
             gap: $spacing-3;
             padding: 10px $spacing-md;
-            color: $gray-800;
+            color: var(--bs-body-color);
             text-decoration: none;
             font-size: $font-size-sm;
             font-weight: $font-weight-medium;
@@ -80,7 +80,7 @@
 
             &:hover { // @SCSS-ANIM-01-EXCEPTION: anchor tag nav item
                 background: rgba($black, 0.04);
-                color: $gray-800;
+                color: var(--bs-body-color);
                 text-decoration: none;
             }
 
@@ -94,7 +94,7 @@
                 width: 18px;
                 height: 18px;
                 font-size: $font-size-base;
-                color: $text-muted;
+                color: var(--bs-secondary-color);
                 flex-shrink: 0;
             }
 
@@ -156,14 +156,16 @@
     // CARD STYLES (for content pages)
     // =============================================================================
 
-    .card {
-        border: $border-width solid rgba($black, 0.125);
+    // Legacy hand-rolled card look for this page's own markup. A semantic
+    // Section is excluded: it now renders as a .card and owns its own chrome.
+    .card:not(.View_Section_Abstract) {
+        border: $border-width solid var(--bs-border-color-translucent);
         box-shadow: 0 2px 4px rgba($black, 0.075);
         margin-bottom: $spacing-lg;
 
         .card-header {
-            background-color: $background-light;
-            border-bottom: $border-width solid rgba($black, 0.125);
+            background-color: var(--bs-tertiary-bg);
+            border-bottom: $border-width solid var(--bs-border-color-translucent);
             padding: $spacing-md 20px;
 
             h5,
@@ -189,7 +191,7 @@
 
     .form-text {
         font-size: 0.875em;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
     }
 
     // =============================================================================
@@ -223,7 +225,7 @@
         &:not(:first-child) {
             margin-top: $spacing-lg;
             padding-top: $spacing-lg;
-            border-top: $border-width solid rgba($black, 0.1);
+            border-top: $border-width solid var(--bs-border-color-translucent);
         }
 
         &__header {
@@ -237,13 +239,13 @@
         &__title {
             font-size: $font-size-base;
             font-weight: $font-weight-semibold;
-            color: $gray-900;
+            color: var(--bs-body-color);
             margin: 0;
         }
 
         &__subtitle {
             font-size: $font-size-sm;
-            color: $text-muted;
+            color: var(--bs-secondary-color);
             margin: $spacing-xs 0 0 0;
         }
     }
@@ -263,7 +265,7 @@
             gap: $spacing-md;
             align-items: baseline;
             padding: $spacing-sm 0;
-            border-bottom: $border-width solid rgba($black, 0.08);
+            border-bottom: $border-width solid var(--bs-border-color-translucent);
 
             &:last-child {
                 border-bottom: none;
@@ -277,15 +279,15 @@
 
         &__label {
             font-size: $font-size-sm;
-            color: $text-muted;
+            color: var(--bs-secondary-color);
         }
 
         &__value {
             font-size: $font-size-sm;
-            color: $gray-900;
+            color: var(--bs-body-color);
 
             &--muted {
-                color: $text-muted;
+                color: var(--bs-secondary-color);
                 font-style: italic;
             }
         }
@@ -306,15 +308,15 @@
             gap: $spacing-sm;
             padding: $spacing-sm $spacing-3;
             font-size: $font-size-sm;
-            color: $gray-900;
-            background: $background-light;
-            border: $border-width solid rgba($black, 0.125);
+            color: var(--bs-body-color);
+            background: var(--bs-tertiary-bg);
+            border: $border-width solid var(--bs-border-color-translucent);
             border-radius: $border-radius-md;
             text-decoration: none;
             transition: $transition-fast;
 
             &:hover {
-                background: $white;
+                background: var(--bs-body-bg);
                 border-color: $primary-color;
                 color: $primary-color;
             }
@@ -344,7 +346,7 @@
         gap: $spacing-sm;
         justify-content: flex-end;
         padding-top: $spacing-md;
-        border-top: $border-width solid rgba($black, 0.1);
+        border-top: $border-width solid var(--bs-border-color-translucent);
         margin-top: $spacing-md;
     }
 
@@ -377,13 +379,13 @@
 
             .stat-label {
                 font-size: $font-size-sm;
-                color: $text-muted;
+                color: var(--bs-secondary-color);
             }
 
             .stat-value {
                 font-size: $font-size-lg;
                 font-weight: $font-weight-semibold;
-                color: $gray-900;
+                color: var(--bs-body-color);
             }
         }
     }
@@ -394,7 +396,7 @@
 
     .usage-metric {
         .progress {
-            background-color: $gray-200;
+            background-color: var(--bs-secondary-bg);
 
             .progress-bar {
                 background-color: $primary-color;
@@ -417,7 +419,7 @@
         }
 
         .billing-info {
-            background-color: $background-light;
+            background-color: var(--bs-tertiary-bg);
             border-radius: $border-radius-md;
             padding: $spacing-md;
             margin-top: $spacing-md;

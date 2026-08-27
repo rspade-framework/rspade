@@ -1,4 +1,4 @@
-<Define:Card_Header class="card-header bg-light">
+<Define:Card_Header class="card-header bg-body-tertiary">
   <div class="d-flex justify-content-between align-items-center">
     <%= content() %>
   </div>

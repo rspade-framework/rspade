@@ -1,9 +1,0 @@
-// Card_Widget - standalone card container (chrome from View_Section_Abstract).
-.Card_Widget {
-    &__body {
-        padding: var(--card-pad-y) var(--card-pad-x);
-        display: flex;
-        flex-direction: column;
-        gap: var(--block-gap); // stacked children (header, tabs) get rhythm here
-    }
-}

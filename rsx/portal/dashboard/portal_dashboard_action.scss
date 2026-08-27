@@ -16,7 +16,7 @@
         justify-content: space-between;
         gap: $spacing-md;
         padding: $spacing-sm var(--card-pad-x);
-        border-bottom: $border-width solid $border-color;
+        border-bottom: $border-width solid var(--bs-border-color);
 
         &:last-child {
             border-bottom: 0;
@@ -46,7 +46,7 @@
         align-items: flex-start;
         gap: $spacing-sm;
         padding: $spacing-sm var(--card-pad-x);
-        border-bottom: $border-width solid $border-color;
+        border-bottom: $border-width solid var(--bs-border-color);
 
         &:last-child {
             border-bottom: 0;
@@ -58,7 +58,7 @@
         cursor: pointer;
 
         &:hover {
-            background-color: $gray-100;
+            background-color: var(--bs-tertiary-bg);
         }
     }
 
@@ -87,7 +87,7 @@
 
     &__item-title {
         font-weight: $font-weight-semibold;
-        color: $gray-900;
+        color: var(--bs-body-color);
     }
 
     // An unread item gets a heavier title to draw the eye.
@@ -97,7 +97,7 @@
 
     &__item-text {
         margin-top: 2px;
-        color: $text-color;
+        color: var(--bs-body-color);
         font-size: $font-size-sm;
     }
 
@@ -107,7 +107,7 @@
         gap: $spacing-sm;
         margin-top: $spacing-xs;
         font-size: $font-size-xs;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
     }
 
     &__item-cta {

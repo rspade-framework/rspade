@@ -25,6 +25,6 @@ Usage:
         </Slot:body>
     </Section>
 --%>
-<Define:Record_Table tag="table">
+<Define:Record_Table tag="table" class="table">
     <%= content() %>
 </Define:Record_Table>

@@ -8,7 +8,7 @@
 
     // Sidebar Navigation
     .app-sidebar {
-        background: $background-light;
+        background: var(--bs-tertiary-bg);
         width: 250px;
         position: fixed;
         top: 0;
@@ -50,13 +50,13 @@
         .sidebar-bottom {
             padding: $spacing-md;
             border-top: $border-width solid var(--bs-border-color);
-            background: $white;
+            background: var(--bs-body-bg);
 
             .nav-link {
                 display: flex;
                 align-items: center;
                 padding: $nav-link-padding;
-                color: $text-color;
+                color: var(--bs-body-color);
                 text-decoration: none;
                 border-radius: $nav-link-border-radius;
                 transition: background-color $transition-duration-base ease,
@@ -88,7 +88,7 @@
     // Main Content Area
     .app-content {
         margin-left: 250px;
-        background: rgb(248, 249, 250); // Gray background fills full width
+        background: var(--bs-tertiary-bg); // Gray background fills full width
         min-height: calc(100vh - 57px); // Account for header height
 
         @include mobile {
@@ -98,7 +98,7 @@
 
     // Top Header Navbar
     .app-header {
-        background: $white;
+        background: var(--bs-body-bg);
         border-bottom: $border-width solid var(--bs-border-color);
         height: 57px;
         display: flex;
@@ -111,14 +111,14 @@
             width: 32px;
             height: 32px;
             border-radius: 50%;
-            background: $gray-200;
+            background: var(--bs-secondary-bg);
             display: flex;
             align-items: center;
             justify-content: center;
 
             i {
                 font-size: $font-size-xl;
-                color: $text-muted;
+                color: var(--bs-secondary-color);
             }
         }
 
@@ -138,10 +138,5 @@
         @include mobile {
             padding: $spacing-md;
         }
-    }
-
-    // Card styling
-    .card {
-        background-color: $white;
     }
 }

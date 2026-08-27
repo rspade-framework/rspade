@@ -8,7 +8,7 @@
     &__label {
         font-size: $font-size-xs;
         font-weight: $font-weight-medium;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         text-transform: uppercase;
         letter-spacing: 0.3px;
     }
@@ -19,7 +19,7 @@
 
     &__value {
         font-size: $font-size-sm;
-        color: $text-color;
+        color: var(--bs-body-color);
         word-break: break-word;
     }
 

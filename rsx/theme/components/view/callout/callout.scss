@@ -1,17 +1,32 @@
-// Callout - inline alert banner (icon + title / body / actions).
+// Callout - inline alert banner (icon + title / body / actions). Built on
+// Bootstrap's .alert for its geometry and its theme-aware token set; three of
+// those tokens are re-pointed so the banner keeps its calm neutral surface.
 .Callout {
+    // Serious-tool restraint: the surface stays neutral and only the accent edge
+    // and the headline carry the variant colour.
+    --bs-alert-bg: var(--bs-tertiary-bg);
+    --bs-alert-border-color: var(--bs-border-color);
+    --bs-alert-color: var(--bs-body-color);
+    --bs-alert-padding-x: var(--card-pad-x);
     display: flex;
     align-items: flex-start;
     gap: $spacing-3;
-    padding: var(--card-pad-y) var(--card-pad-x);
-    background: $background-light;
-    border: $border-width solid $border-color;
-    border-left-width: $border-width-thick * 2; // colored accent edge
-    border-radius: $border-radius-md;
+    margin-bottom: 0; // the page column owns the gap between blocks
+    border-left-width: $border-width-thick * 2;
+    border-left-color: var(--callout-accent);
+
+    &.alert-danger {
+        --callout-accent: var(--bs-danger);
+    }
+
+    &.alert-warning {
+        --callout-accent: var(--bs-warning);
+    }
 
     &__icon {
         font-size: $font-size-lg;
         line-height: 1.4;
+        color: var(--callout-accent);
     }
 
     &__content {
@@ -21,12 +36,12 @@
 
     &__title {
         font-weight: $font-weight-semibold;
-        color: $text-color;
+        color: var(--callout-accent);
     }
 
     &__body {
         margin-top: $spacing-1;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         font-size: $font-size-sm;
     }
 
@@ -35,23 +50,5 @@
         display: flex;
         align-items: center;
         gap: $spacing-2;
-    }
-
-    &--danger {
-        border-left-color: $danger-color;
-
-        .Callout__icon,
-        .Callout__title {
-            color: $danger-color;
-        }
-    }
-
-    &--warning {
-        border-left-color: $warning-color;
-
-        .Callout__icon,
-        .Callout__title {
-            color: $warning-color;
-        }
     }
 }

@@ -18,9 +18,9 @@ Usage:
     <Tab_Bar $sid="tabs" $tabs=_tabs $hash="tab" $divided=true />
     <Tab_Panels $sid="panels"> ...Tab_Panel per key... </Tab_Panels>
 --%>
-<Define:Tab_Bar tag="div" role="tablist">
+<Define:Tab_Bar tag="div" class="nav nav-underline" role="tablist">
     <% for (const tab of (this.args.tabs || [])) { %>
-        <button type="button" class="Tab_Bar__tab" role="tab" data-tab-key="<%= tab.key %>" aria-selected="false">
+        <button type="button" class="Tab_Bar__tab nav-link" role="tab" data-tab-key="<%= tab.key %>" aria-selected="false">
             <% if (tab.icon) { %>
                 <i class="Tab_Bar__icon <%= tab.icon %>"></i>
             <% } %>

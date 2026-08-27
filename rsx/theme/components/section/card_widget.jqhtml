@@ -13,8 +13,8 @@ Usage:
         <Tab_Panels> ... </Tab_Panels>
     </Card_Widget>
 --%>
-<Define:Card_Widget extends="View_Section_Abstract" class="View_Section_Abstract">
-    <div class="Card_Widget__body">
+<Define:Card_Widget extends="View_Section_Abstract" class="View_Section_Abstract card shadow-sm">
+    <div class="View_Section_Abstract__stack card-body">
         <%= content() %>
     </div>
 </Define:Card_Widget>

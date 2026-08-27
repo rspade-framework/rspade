@@ -1,35 +1,32 @@
-// Tab_Bar - neutral underline tab strip.
+// Tab_Bar - neutral underline tab strip, built on Bootstrap's .nav-underline.
+// Bootstrap owns the underline mechanics and every colour; this file restores the
+// padded-tab geometry the app draws (nav-underline zeroes the link padding).
 .Tab_Bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: $spacing-1; // 4px between tabs
+    // The vendored Bootstrap ships a mangled fractional border width here, which
+    // renders the active underline as a sub-pixel hairline. State it in px.
+    --bs-nav-underline-border-width: #{$border-width-thick};
+    --bs-nav-underline-link-active-color: var(--bs-primary);
+    --bs-nav-underline-gap: #{$spacing-1}; // 4px between tabs
+    --bs-nav-link-color: var(--bs-secondary-color);
+    --bs-nav-link-hover-color: var(--bs-body-color);
+    --bs-nav-link-font-size: #{$font-size-sm};
+    --bs-nav-link-font-weight: #{$font-weight-medium};
     align-items: stretch;
 
     &--divided {
-        border-top: $border-width solid $border-color;
+        border-top: $border-width solid var(--bs-border-color);
         padding-top: $spacing-2;
     }
 
-    &__tab {
+    // Compounded with .nav-link to outrank Bootstrap's own padding reset.
+    &__tab.nav-link {
         display: inline-flex;
         align-items: center;
         gap: $spacing-2;
         padding: $spacing-2 $spacing-3; // 8px 12px
-        border: none;
-        border-bottom: $border-width-thick solid transparent;
-        background: transparent;
-        color: $text-muted;
-        font-size: $font-size-sm;
-        font-weight: $font-weight-medium;
         cursor: pointer;
 
-        &:hover {
-            color: $text-color;
-        }
-
-        &--active {
-            color: $primary-color;
-            border-bottom-color: $primary-color;
+        &.active {
             font-weight: $font-weight-semibold;
         }
     }

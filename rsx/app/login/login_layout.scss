@@ -15,7 +15,7 @@
     }
 
     .pagemodal-card {
-        background: $white;
+        background: var(--bs-body-bg);
         border-radius: $border-radius-lg;
         box-shadow: 0 10px 40px rgba($black, 0.2);
         width: 100%;
@@ -32,12 +32,12 @@
         margin: 0 0 $spacing-sm;
         font-size: 28px;
         font-weight: $font-weight-semibold;
-        color: $gray-900;
+        color: var(--bs-body-color);
     }
 
     .pagemodal-header p {
         margin: 0;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         font-size: 15px;
     }
 

@@ -9,10 +9,11 @@ $icon - leading icon class string, e.g. "bi bi-exclamation-triangle" [optional]
 <Slot:actions> - trailing action buttons [optional]
 
 The one inline-alert shape (an overdue-invoice warning, a soft-deleted-record
-banner). A colored left accent + colored icon/title carry the variant; the
-body reads on a calm neutral surface (serious-tool restraint, not a loud
-Bootstrap alert). Variant is validated loudly - a typo fails, never renders
-unstyled.
+banner). Rendered as a Bootstrap .alert, so padding, radius and border arrive through the
+theme-aware --bs-alert-* set. The surface is deliberately re-pointed at the
+neutral tertiary background: a colored left accent + colored icon/title carry the
+variant, and the body reads calm (serious-tool restraint, not a tinted Bootstrap
+alert). Variant is validated loudly - a typo fails, never renders unstyled.
 
 Usage:
     <Callout $variant="warning" $icon="bi bi-exclamation-triangle">
@@ -20,7 +21,7 @@ Usage:
         <Slot:body>The balance was due on Jun 30, 2026.</Slot:body>
     </Callout>
 --%>
-<Define:Callout tag="div">
+<Define:Callout tag="div" class="alert">
     <% if (this.args.variant !== 'danger' && this.args.variant !== 'warning') { %>
         <% throw new Error('Callout requires $variant "danger" or "warning"'); %>
     <% } %>

@@ -4,14 +4,14 @@
     flex-direction: column;
     gap: $spacing-1;
     padding: $spacing-2 $spacing-3; // 8px 12px
-    border: $border-width solid $border-color;
+    border: $border-width solid var(--bs-border-color);
     border-radius: $border-radius-md;
-    background: $background-light;
+    background: var(--bs-tertiary-bg);
 
     &__label {
         font-size: $font-size-xs;
         font-weight: $font-weight-medium;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         text-transform: uppercase;
         letter-spacing: 0.3px;
     }
@@ -20,12 +20,12 @@
         font-size: $font-size-xl; // 20px
         font-weight: $font-weight-semibold;
         line-height: 1.1;
-        color: $gray-900;
+        color: var(--bs-body-color);
     }
 
     &__sub {
         font-size: $font-size-xs;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
     }
 
     // $alert: the number needs attention (overdue, negative).

@@ -1,10 +1,24 @@
-// View_Section_Abstract - the single home of section/card chrome.
-// Stamped on the root of every concrete section (Section, Card_Widget,
-// Detail_Sidebar) via extends=. Reskin the card look here, once.
+// View_Section_Abstract - the single home of section/card chrome, which IS
+// Bootstrap's .card. Stamped on the root of every concrete section (Section,
+// Card_Widget, Detail_Sidebar) via extends=. Reskin the card look here, once.
 .View_Section_Abstract {
-    background: $card-bg; // #fff
-    border: $border-width solid $border-color;
-    border-radius: $card-border-radius; // 8px
-    box-shadow: $shadow-sm;
+    // Point Bootstrap's card padding at the app's composition tokens, so every
+    // .card-header / .card-body inside a section is spaced by --card-pad-* and
+    // no child restates a padding of its own.
+    --bs-card-spacer-y: var(--card-pad-y);
+    --bs-card-spacer-x: var(--card-pad-x);
+    --bs-card-cap-padding-y: var(--card-pad-y);
+    --bs-card-cap-padding-x: var(--card-pad-x);
+    // The app draws card edges in the flat border colour, not Bootstrap's
+    // translucent one, so a card reads the same over any surface.
+    --bs-card-border-color: var(--bs-border-color);
     // No overflow:hidden - dropdowns/popovers inside a section must escape.
+
+    // Card_Widget and Detail_Sidebar are the same card: a padded body whose
+    // stacked children carry the standard block rhythm.
+    &__stack {
+        display: flex;
+        flex-direction: column;
+        gap: var(--block-gap);
+    }
 }

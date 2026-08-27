@@ -15,11 +15,11 @@
 class Settings_User_Settings_Action extends Spa_Action {
     scaffolded = true;
 
-    // The timezone section is REAL (loads + saves through Rsx_Timezone_Controller).
-    // The remaining controls - notifications, privacy, language/theme/date format -
-    // are still a static demo with no persistence layer, and their Save/Reset buttons
-    // are non-functional. Escalated: those need a real settings model + load/save
-    // endpoints before they can round-trip.
+    // The timezone and appearance sections are REAL (they load and save through the
+    // framework's own Rsx_Timezone_Controller / Rsx_Dark_Mode_Controller). The remaining
+    // controls - notifications, privacy, language/date format - are still a static demo
+    // with no persistence layer, and their Save/Reset buttons are non-functional.
+    // Escalated: those need a real settings model + load/save endpoints to round-trip.
 
     on_create() {
         this.data.loading = true;
@@ -29,17 +29,28 @@ class Settings_User_Settings_Action extends Spa_Action {
             timezone_auto: true,
         };
 
+        this.data.theme_options = [];
+        this.data.theme_form_data = {
+            dark_mode: Rsx_Dark_Mode.MODE_AUTO,
+        };
+
         // UI state: whether the post-change forced-navigation handler is armed.
         this.state.forced_navigation_installed = false;
     }
 
     async on_load() {
-        const [options, settings] = await Promise.all([
+        const [options, settings, theme] = await Promise.all([
             Rsx_Timezone_Controller.timezone_options(),
             Rsx_Timezone_Controller.get_settings(),
+            Rsx_Dark_Mode_Controller.get_settings(),
         ]);
 
         this.data.timezone_options = options;
+
+        this.data.theme_options = theme.options;
+        this.data.theme_form_data = {
+            dark_mode: theme.mode,
+        };
 
         this.data.timezone_form_data = {
             // The selector shows the EFFECTIVE zone: a user who never chose one is
@@ -85,6 +96,32 @@ class Settings_User_Settings_Action extends Spa_Action {
         form.on('success', function (component, result) {
             that._on_timezone_saved(result);
         });
+
+        this.sid('theme_form').on('success', function (component, result) {
+            that._on_theme_saved(result);
+        });
+    }
+
+    /**
+     * The theme is rendered SERVER-SIDE onto <body> (that is what stops a dark-mode user
+     * seeing a white flash), so a saved change cannot be applied to the page currently on
+     * screen - only a real request can paint it.
+     *
+     * Spa.disable() is how that is arranged: the SPA keeps working, but the next
+     * navigation - a link click or a programmatic redirect alike - becomes a full page
+     * load, which re-renders <body> in the new theme. Deliberately not a reload here: the
+     * user may still be changing other settings on this page, and yanking the page out
+     * from under them to recolour it would be worse than the mismatch.
+     */
+    _on_theme_saved(result) {
+        if (result && result.changed === true) {
+            Spa.disable();
+            Flash_Alert.success('Theme saved. The app will switch over when you navigate away.');
+
+            return;
+        }
+
+        Flash_Alert.success('Theme saved.');
     }
 
     /**

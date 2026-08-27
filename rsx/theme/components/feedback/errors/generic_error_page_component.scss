@@ -19,7 +19,7 @@
 
     &__message {
         font-size: $font-size-sm;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         margin-bottom: $spacing-lg;
     }
 }

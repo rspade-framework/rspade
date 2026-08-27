@@ -10,7 +10,7 @@
     &__name {
         font-size: $font-size-lg;
         font-weight: $font-weight-semibold;
-        color: $gray-900;
+        color: var(--bs-body-color);
         margin-bottom: $spacing-sm;
     }
 

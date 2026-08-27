@@ -9,7 +9,7 @@
 
     &__count {
         font-weight: $font-weight-semibold;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         white-space: nowrap;
     }
 
@@ -20,7 +20,7 @@
     &__scroll {
         max-height: 50vh;
         overflow-y: auto;
-        border: 1px solid $border-color;
+        border: 1px solid var(--bs-border-color);
         border-radius: $border-radius-md;
     }
 
@@ -29,7 +29,7 @@
             position: sticky;
             top: 0;
             z-index: 1;
-            background: $white;
+            background: var(--bs-body-bg);
         }
     }
 

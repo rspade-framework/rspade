@@ -621,4 +621,32 @@ return [
         'invite_expiration_days' => env('RSX_INVITE_EXPIRATION_DAYS', 7),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Theme (dark mode)
+    |--------------------------------------------------------------------------
+    |
+    | THIS APP'S theme vocabulary. The framework resolves the user's preference and
+    | renders these attributes onto <body> before the SPA shell loads; it has no idea
+    | what they mean, which is what keeps RSpade free of any one UI toolkit.
+    |
+    | This template is built on Bootstrap 5.3, whose colour modes are driven by
+    | data-bs-theme - so that is what it declares. An app on a different toolkit
+    | declares whatever ITS css reads, and one that themes purely off the framework's
+    | own rsx-dark class declares nothing at all.
+    |
+    | The mode set and the default live in the framework config; only the expression
+    | is an application decision. See rsx:man dark_mode.
+    |
+    */
+
+    'theme' => [
+        'dark_mode' => [
+            'attributes' => [
+                'dark' => ['data-bs-theme' => 'dark'],
+                'light' => ['data-bs-theme' => 'light'],
+            ],
+        ],
+    ],
+
 ];

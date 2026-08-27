@@ -14,8 +14,8 @@ Usage:
         <button class="btn btn-primary">Edit</button>
     </Detail_Sidebar>
 --%>
-<Define:Detail_Sidebar extends="View_Section_Abstract" class="View_Section_Abstract">
-    <div class="Detail_Sidebar__body">
+<Define:Detail_Sidebar extends="View_Section_Abstract" class="View_Section_Abstract card shadow-sm">
+    <div class="View_Section_Abstract__stack card-body">
         <%= content() %>
     </div>
 </Define:Detail_Sidebar>

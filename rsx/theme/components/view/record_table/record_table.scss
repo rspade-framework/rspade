@@ -1,35 +1,37 @@
-// Record_Table - the shared compact record-list look.
+// Record_Table - the shared compact record-list look, built on Bootstrap's
+// .table so the surface, cell borders and row hover follow the theme. Only the
+// geometry Bootstrap does not expose as a variable is restated here.
 .Record_Table {
-    width: 100%;
-    border-collapse: collapse;
+    // Cell text reads at body weight, not Bootstrap's near-black emphasis colour.
+    --bs-table-color: var(--bs-body-color);
+    margin-bottom: 0; // the Section body owns the gap below a flush table
     font-size: $font-size-sm;
 
     thead th {
+        // Horizontal padding aligns cell text with the section header above it.
         padding: $spacing-2 var(--card-pad-x);
-        text-align: left;
         font-weight: $font-weight-semibold;
-        color: $text-muted;
-        border-bottom: $border-width-thick solid $border-color;
+        color: var(--bs-secondary-color);
+        border-bottom-width: $border-width-thick;
         white-space: nowrap;
     }
 
     tbody td {
         padding: $spacing-3 var(--card-pad-x);
-        border-bottom: $border-width solid $border-color;
         vertical-align: middle;
-        color: $text-color;
     }
 
     tbody tr:last-child td {
-        border-bottom: none;
+        border-bottom-width: 0;
     }
 
-    // Whole-row navigation affordance.
+    // Whole-row navigation affordance. Scoped to navigable rows on purpose:
+    // .table-hover would light up rows that do nothing when clicked.
     tbody tr[data-href] {
         cursor: pointer;
 
-        &:hover {
-            background: $datagrid-row-hover-bg;
+        &:hover > * {
+            background-color: var(--bs-table-hover-bg);
         }
     }
 }

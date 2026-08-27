@@ -1,15 +1,21 @@
-// Section - the workhorse section (header anatomy + padded body).
+// Section - the workhorse section (header anatomy + padded body). Chrome and
+// padding come from Bootstrap's .card / .card-header / .card-body via
+// View_Section_Abstract; this file owns only the header anatomy.
 .Section {
     &__header {
         display: flex;
         align-items: center;
         gap: $spacing-2; // 8px
-        padding: var(--card-pad-y) var(--card-pad-x);
-        border-bottom: $border-width solid $border-color;
+
+        // A section header is flush with the card surface rather than tinted:
+        // Bootstrap's default --bs-card-cap-bg is a 3% ink wash, which reads as a
+        // banded strip under our dense section stacks. Transparent follows the
+        // card in both themes.
+        background-color: transparent;
     }
 
     &__icon {
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         font-size: $font-size-lg;
         line-height: 1;
     }
@@ -17,7 +23,6 @@
     &__heading {
         font-size: $font-size-base;
         font-weight: $font-weight-semibold;
-        color: $text-color;
         margin: 0;
     }
 
@@ -28,19 +33,12 @@
         gap: $spacing-2;
     }
 
-    &__body {
-        padding: var(--card-pad-y) var(--card-pad-x);
-    }
-
-    // $flush: strip body padding for edge-to-edge content (R2 - the lever,
-    // never CSS that cancels the parent padding from inside a child).
-    &--flush {
-        .Section__body {
-            padding: 0;
-            // A too-wide edge-to-edge table (narrow viewport) scrolls within the
-            // card instead of forcing the page wider. Flush bodies hold tables /
-            // empty states, never popovers, so a scroll container is safe here.
-            overflow-x: auto;
-        }
+    // $flush: the template drops .p-0 on the body for edge-to-edge content (R2 -
+    // the lever, never CSS that cancels the parent padding from inside a child).
+    // A too-wide edge-to-edge table (narrow viewport) scrolls within the card
+    // instead of forcing the page wider. Flush bodies hold tables / empty states,
+    // never popovers, so a scroll container is safe here.
+    &--flush &__body {
+        overflow-x: auto;
     }
 }

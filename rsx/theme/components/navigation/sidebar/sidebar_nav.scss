@@ -19,7 +19,7 @@
         font-weight: $font-weight-semibold;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         padding: $spacing-sm $spacing-md;
         margin-bottom: $spacing-xs;
     }
@@ -30,7 +30,7 @@
         align-items: center;
         padding: $nav-link-padding;
         margin-bottom: $spacing-xs;
-        color: $text-color;
+        color: var(--bs-body-color);
         text-decoration: none;
         border-radius: $nav-link-border-radius;
         transition: background-color $transition-duration-base ease,
@@ -74,7 +74,7 @@
         align-items: center;
         padding: $nav-link-padding;
         margin-bottom: $spacing-xs;
-        color: $text-color;
+        color: var(--bs-body-color);
         text-decoration: none;
         border-radius: $nav-link-border-radius;
         transition: background-color $transition-duration-base ease,
@@ -123,7 +123,7 @@
         display: block;
         padding: $spacing-sm $spacing-md;
         margin-bottom: 2px;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         text-decoration: none;
         border-radius: $border-radius-sm;
         font-size: $font-size-sm;

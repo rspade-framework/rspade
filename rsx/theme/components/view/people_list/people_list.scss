@@ -1,26 +1,29 @@
 // People_List - a calm stacked list of people (avatar + name), never a pill cloud.
-// Owns only the list/row layout; the face is Person_Avatar's, the label is authored data.
+// Built on Bootstrap's .list-group so the surface, borders and hover follow the
+// theme. Owns only the list/row layout; the face is Person_Avatar's, the label is
+// authored data.
 .People_List {
-    display: flex;
-    flex-direction: column;
+    // Rows are deliberately SEPARATE cards rather than a contiguous group, so the
+    // group radius comes down to row size and each row keeps its own top border.
+    --bs-list-group-border-radius: #{$border-radius-sm};
+    --bs-list-group-item-padding-y: #{$spacing-xs};
+    --bs-list-group-item-padding-x: #{$spacing-xs};
+    // A person row is not a link; its name reads at body colour, active or not.
+    --bs-list-group-action-color: inherit;
+    --bs-list-group-action-hover-color: inherit;
     gap: $spacing-xs;
 
     &__row {
         display: flex;
         align-items: center;
         gap: $spacing-sm;
-        padding: $spacing-xs;
-        border: $border-width solid $border-color;
-        border-radius: $border-radius-sm;
+        border-top-width: var(--bs-list-group-border-width);
+        border-radius: var(--bs-list-group-border-radius);
     }
 
     // Only an interactive list reacts to the pointer.
     &__row--clickable {
         cursor: pointer;
-
-        &:hover {
-            background-color: $gray-100;
-        }
     }
 
     &__body {
@@ -38,7 +41,7 @@
 
     &__subtitle {
         font-size: $font-size-xs;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -47,20 +50,10 @@
     // Opt-in remove affordance ($removable).
     &__remove {
         flex: 0 0 auto;
-        padding: 0;
-        border: 0;
-        background: none;
-        line-height: 1;
-        color: $text-muted;
-        cursor: pointer;
-
-        &:hover {
-            color: $danger-color;
-        }
     }
 
     &__empty {
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         font-size: $font-size-sm;
     }
 }

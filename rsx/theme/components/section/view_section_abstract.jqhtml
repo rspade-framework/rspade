@@ -1,13 +1,14 @@
 <%--
 View_Section_Abstract - section/card chrome base (background, border, radius, shadow)
 
-The single home of section/card chrome. Concrete children (Section, Card_Widget,
-Detail_Sidebar) re-parent this base via body-preserving extends= and render their
-own template; the base contributes only its class (and therefore its chrome) to
-the shared root. Never used directly as a tag.
+The single home of section/card chrome, which IS Bootstrap's .card. Concrete
+children (Section, Card_Widget, Detail_Sidebar) re-parent this base via
+body-preserving extends= and render their own template; each restates the shared
+root classes. Never used directly as a tag.
 
-Reskinning the app's card look is one edit here.
+Reskinning the app's card look is one edit here - view_section_abstract.scss
+points Bootstrap's card padding tokens at the app's composition tokens.
 --%>
-<Define:View_Section_Abstract>
+<Define:View_Section_Abstract class="card shadow-sm">
     <%= content() %>
 </Define:View_Section_Abstract>

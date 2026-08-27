@@ -13,7 +13,7 @@
 
     &__subheader {
         flex-shrink: 0;
-        background: $white;
+        background: var(--bs-body-bg);
     }
 
     &__subnav {
@@ -45,7 +45,7 @@
     }
 
     &__nav-link {
-        color: $gray-700;
+        color: var(--bs-body-color);
         text-decoration: none;
 
         &:hover {

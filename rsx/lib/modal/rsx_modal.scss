@@ -41,8 +41,7 @@
     // Header styling
     .modal-header {
         flex-shrink: 0;
-        border-bottom: $border-width solid $border-color;
-        background-color: $background-light;
+        background-color: var(--bs-tertiary-bg);
         padding: $modal-header-padding;
 
         .modal-title {
@@ -114,7 +113,6 @@
     // Footer with buttons
     .modal-footer {
         flex-shrink: 0;
-        border-top: $border-width solid $border-color;
         padding: $modal-footer-padding;
         display: flex;
         gap: $spacing-sm;

@@ -3,13 +3,122 @@
     text-align: left;
 }
 
+/*
+ * TOM SELECT THEMING.
+ *
+ * Tom Select ships no dark mode and no colour custom properties. Its stylesheet is
+ * loaded prebuilt from a CDN and hardcodes every colour as a literal (#fff, #d0d0d0,
+ * #303030 and so on), so there is nothing to re-point and nothing to recompile - the
+ * rules below are the only way to make the widget follow the theme.
+ *
+ * Its own bootstrap5 stylesheet does NOT solve this: that file is written against
+ * Bootstrap's COMPILE-TIME SCSS variables ($input-bg, $dropdown-bg, $gray-800), which is
+ * the same reason the rest of this template was theme-blind. It only appears to work in
+ * projects that build Tom Select from source alongside their own variables; we consume a
+ * prebuilt file, so it would be just as fixed as the default one.
+ *
+ * Everything here maps to var(--bs-*), so ONE set of rules serves both themes and there
+ * is no .rsx-dark selector to keep in sync. The widget also carries .form-select
+ * (added in select_input.js on init), so these values are deliberately the same tokens
+ * Bootstrap's own form controls resolve to - the two have to agree or a Tom Select sits
+ * visibly differently from a native select beside it.
+ *
+ * Selectors match Tom Select's own specificity on purpose. Several of its rules are
+ * .ts-wrapper.single .ts-control (0,2,1); a plainer selector here would lose.
+ */
+.ts-wrapper {
+
+    .ts-control {
+        color: var(--bs-body-color);
+        background-color: var(--bs-body-bg);
+        border-color: var(--bs-border-color);
+
+        // Their control carries an inset dark shadow that reads as grime on a dark
+        // surface, and adds nothing over a themed border on a light one.
+        box-shadow: none;
+
+        input,
+        .item {
+            color: var(--bs-body-color);
+        }
+
+        input::placeholder {
+            color: var(--bs-secondary-color);
+        }
+    }
+
+    // THE GRADIENT IS THE TRAP. .ts-wrapper.single .ts-control paints a
+    // linear-gradient(#fefefe, #f2f2f2) OVER its own background-color, so setting the
+    // colour alone leaves the control stubbornly light. The image has to go.
+    &.single .ts-control {
+        background-color: var(--bs-body-bg);
+        background-image: none;
+        border-color: var(--bs-border-color);
+    }
+
+    // The caret is a CSS triangle drawn with border-color, not an icon.
+    &.single .ts-control:after {
+        border-top-color: var(--bs-body-color);
+    }
+
+    &.single.dropdown-active .ts-control:after {
+        border-bottom-color: var(--bs-body-color);
+    }
+
+    &.disabled .ts-control,
+    .disabled .ts-control {
+        background-color: var(--bs-secondary-bg);
+        color: var(--bs-secondary-color);
+    }
+
+    // The dropdown's own search field (the dropdown_input plugin, the only one enabled).
+    &.plugin-dropdown_input .dropdown-input {
+        color: var(--bs-body-color);
+        background-color: var(--bs-body-bg);
+        border-color: var(--bs-border-color);
+        box-shadow: none;
+    }
+}
+
 /* TomSelect dropdown - appears above modals */
 .ts-dropdown {
     z-index: $z-index-modal-content;
     text-align: left;
+    color: var(--bs-body-color);
+    background: var(--bs-body-bg);
+    border-color: var(--bs-border-color);
 
     /* Hide empty option in dropdown (still selectable via clearing input) */
     .option[data-value=""] {
         display: none;
+    }
+
+    // The hovered/keyboard-focused option. Tom Select ships a pale blue wash that
+    // disappears on a dark surface; the tertiary token is what Bootstrap's own
+    // .dropdown-item hover resolves to, so the two menus behave alike.
+    .active {
+        color: var(--bs-body-color);
+        background-color: var(--bs-tertiary-bg);
+    }
+
+    .optgroup-header {
+        color: var(--bs-secondary-color);
+        background: var(--bs-body-bg);
+    }
+
+    .optgroup {
+        border-top-color: var(--bs-border-color);
+    }
+
+    // Search-term match inside an option. Kept a warning tint rather than a token so it
+    // still reads as a highlight, but expressed through the brand channel so it holds
+    // up on either surface.
+    [data-selectable] .highlight {
+        color: inherit;
+        background: rgba(var(--bs-warning-rgb), 0.35);
+    }
+
+    .create {
+        color: var(--bs-secondary-color);
     }
 }

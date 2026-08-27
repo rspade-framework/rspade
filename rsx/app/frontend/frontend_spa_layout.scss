@@ -47,7 +47,7 @@ $progress-bar-height: 8px; // Height of progress bars
 
     // Sidebar Navigation
     &__sidebar {
-        background: $background-light;
+        background: var(--bs-tertiary-bg);
         width: $sidebar-width;
         position: fixed;
         top: 0;
@@ -98,13 +98,13 @@ $progress-bar-height: 8px; // Height of progress bars
     &__sidebar-bottom {
         padding: $spacing-md;
         border-top: $border-width solid var(--bs-border-color);
-        background: $white;
+        background: var(--bs-body-bg);
     }
 
     // Main Content Area
     &__content {
         margin-left: $sidebar-width;
-        background: rgb(248, 249, 250); // Gray background fills full width
+        background: var(--bs-tertiary-bg); // Gray background fills full width
         min-height: calc(100vh - $header-height); // Account for header height
 
         @include mobile {
@@ -114,7 +114,7 @@ $progress-bar-height: 8px; // Height of progress bars
 
     // Top Header Navbar
     &__header {
-        background: $white;
+        background: var(--bs-body-bg);
         border-bottom: $border-width solid var(--bs-border-color);
         height: $header-height;
         display: flex;
@@ -139,14 +139,14 @@ $progress-bar-height: 8px; // Height of progress bars
         width: $user-profile-icon-size;
         height: $user-profile-icon-size;
         border-radius: 50%;
-        background: $gray-200;
+        background: var(--bs-secondary-bg);
         display: flex;
         align-items: center;
         justify-content: center;
 
         i {
             font-size: $font-size-xl;
-            color: $text-muted;
+            color: var(--bs-secondary-color);
         }
 
         // The photo is an <Attachment_Thumbnail>: the host is the disc, the picture fills it.
@@ -204,11 +204,6 @@ $progress-bar-height: 8px; // Height of progress bars
         }
     }
 
-    // Card styling
-    .card {
-        background-color: $white;
-    }
-
     // Dashboard Content
     &__dashboard-content {
 
@@ -243,7 +238,7 @@ $progress-bar-height: 8px; // Height of progress bars
         // Progress bars
         .progress {
             height: $progress-bar-height;
-            background-color: $gray-200;
+            background-color: var(--bs-secondary-bg);
         }
     }
 

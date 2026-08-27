@@ -7,8 +7,8 @@
     height: 20px;
     padding: 0 $spacing-2; // 8px
     border-radius: $border-radius-full;
-    background: $gray-200;
-    color: $text-muted;
+    background: var(--bs-secondary-bg);
+    color: var(--bs-secondary-color);
     font-size: $font-size-xs;
     font-weight: $font-weight-semibold;
     line-height: 1;

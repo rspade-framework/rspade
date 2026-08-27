@@ -8,7 +8,7 @@
         display: inline-block;
         margin-bottom: $spacing-sm;
         font-size: $font-size-sm;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         text-decoration: none;
 
         &:hover {
@@ -24,7 +24,7 @@
 
     &__role {
         margin: 0;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         font-size: $font-size-sm;
     }
 
@@ -44,12 +44,12 @@
     }
 
     &__pill {
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         border-radius: $border-radius-md;
         text-align: left;
 
         &:hover {
-            background-color: $gray-100;
+            background-color: var(--bs-tertiary-bg);
             color: $primary-color;
         }
 

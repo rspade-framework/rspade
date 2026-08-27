@@ -169,8 +169,8 @@
         gap: $datagrid-selection-badge-gap;
         padding: $datagrid-selection-badge-padding-y $datagrid-selection-badge-padding-x;
         border-radius: $border-radius-sm;
-        background-color: $gray-200;
-        color: $text-color;
+        background-color: var(--bs-secondary-bg);
+        color: var(--bs-body-color);
         font-size: $font-size-sm;
         white-space: nowrap;
     }
@@ -180,12 +180,12 @@
         background: none;
         padding: 0;
         line-height: 1;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         display: inline-flex;
         align-items: center;
 
         &:hover {
-            color: $text-color;
+            color: var(--bs-body-color);
         }
     }
 

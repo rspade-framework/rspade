@@ -192,7 +192,10 @@ $content-max-width-wide: 2300px;
 // COMPONENTS - Cards
 // ==========================================================================
 
-$card-bg: $white;
+// Bootstrap defines $card-bg as var(--bs-body-bg), which follows the theme. Pinning it to a
+// literal white here shadows that definition (no !default) and leaves every card white in
+// dark mode, so the token has to stay the theme-aware custom property.
+$card-bg: var(--bs-body-bg);
 $card-border-radius: $border-radius-lg;
 $card-shadow: $shadow-lg;
 $card-padding: $spacing-xl;
@@ -215,7 +218,10 @@ $button-min-width-sm: 60px;
 $input-padding-x: $spacing-md;
 $input-padding-y: $spacing-sm;
 $input-border-radius: $border-radius-md;
-$input-border-color: $gray-300;
+// Same shadowing problem as $card-bg: Bootstrap resolves the form-control border to
+// var(--bs-border-color), and a literal grey here draws a light border on every input in
+// dark mode.
+$input-border-color: var(--bs-border-color);
 $input-focus-border-color: $primary-color;
 
 // ==========================================================================
@@ -246,13 +252,13 @@ $nav-submenu-indent: 40px;
 
 $datagrid-cell-padding-y: 12px;
 $datagrid-cell-padding-x: 12px;
-$datagrid-header-bg: $gray-100;
-$datagrid-header-border: $border-width-thick solid $gray-300;
-$datagrid-row-hover-bg: $gray-100;
+$datagrid-header-bg: var(--bs-tertiary-bg);
+$datagrid-header-border: $border-width-thick solid var(--bs-border-color);
+$datagrid-row-hover-bg: var(--bs-tertiary-bg);
 $datagrid-checkbox-width: 40px;
 $datagrid-loading-padding: 60px 20px;
 $datagrid-spinner-size: 48px;
-$datagrid-selected-row-bg: $gray-200;
+$datagrid-selected-row-bg: var(--bs-secondary-bg);
 $datagrid-selection-badge-gap: 6px;
 $datagrid-selection-badge-padding-y: 4px;
 $datagrid-selection-badge-padding-x: 10px;

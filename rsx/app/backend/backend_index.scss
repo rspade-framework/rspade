@@ -4,14 +4,14 @@
 
     .sidebar {
         min-height: calc(100vh - 56px);
-        border-right: $border-width solid $border-color;
+        border-right: $border-width solid var(--bs-border-color);
 
         .nav-link {
-            color: $gray-800;
+            color: var(--bs-body-color);
             padding: $spacing-sm $spacing-md;
 
             &:hover {
-                background-color: $background-light;
+                background-color: var(--bs-tertiary-bg);
             }
         }
 

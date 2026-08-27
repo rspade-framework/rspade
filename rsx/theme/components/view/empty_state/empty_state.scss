@@ -16,12 +16,12 @@
     &__title {
         font-size: $font-size-base;
         font-weight: $font-weight-semibold;
-        color: $text-color;
+        color: var(--bs-body-color);
     }
 
     &__body {
         font-size: $font-size-sm;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         max-width: 360px;
     }
 

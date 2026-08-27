@@ -1,9 +1,0 @@
-// Detail_Sidebar - entity sidebar wrapper (chrome from View_Section_Abstract).
-.Detail_Sidebar {
-    &__body {
-        padding: var(--card-pad-y) var(--card-pad-x);
-        display: flex;
-        flex-direction: column;
-        gap: var(--block-gap); // KPI group, fields, actions stack with rhythm
-    }
-}

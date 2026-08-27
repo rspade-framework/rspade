@@ -22,7 +22,7 @@
         justify-content: space-between;
         gap: $spacing-sm;
         padding: $spacing-sm $spacing-3;
-        background: $gray-100;
+        background: var(--bs-tertiary-bg);
         border-radius: $border-radius-md;
         margin-bottom: $spacing-sm;
 
@@ -55,7 +55,7 @@
         justify-content: center;
         border: none;
         background: transparent;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         border-radius: $border-radius-sm;
         cursor: pointer;
         transition: $transition-fast;
@@ -71,7 +71,7 @@
         padding: $spacing-3;
         text-align: center;
         font-size: $font-size-sm;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
     }
 
     // Pending picker row (shown when adding)
@@ -110,7 +110,7 @@
         justify-content: center;
         border: none;
         background: transparent;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         border-radius: $border-radius-sm;
         cursor: pointer;
         transition: $transition-fast;

@@ -7,7 +7,7 @@
     padding: $spacing-2 0; // 8px
 
     &__label {
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         font-size: $font-size-sm;
     }
 
@@ -16,18 +16,18 @@
         font-variant-numeric: tabular-nums;
         text-align: right;
         white-space: nowrap;
-        color: $text-color;
+        color: var(--bs-body-color);
     }
 
     // $strong_label: totals emphasis - a divider above, a bolder label, a
     // larger primary-colored value.
     &--strong {
-        border-top: $border-width solid $border-color;
+        border-top: $border-width solid var(--bs-border-color);
         margin-top: $spacing-1;
         padding-top: $spacing-3;
 
         .Stat_Row__label {
-            color: $text-color;
+            color: var(--bs-body-color);
             font-size: $font-size-base;
             font-weight: $font-weight-semibold;
         }

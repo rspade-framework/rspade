@@ -16,9 +16,9 @@
     &__thumb {
         width: 36px;
         height: 36px;
-        border: $border-width solid $border-color;
+        border: $border-width solid var(--bs-border-color);
         border-radius: $border-radius-sm;
-        background-color: $gray-100;
+        background-color: var(--bs-tertiary-bg);
         flex-shrink: 0;
 
         // The picture is an <Attachment_Thumbnail>: this class now sizes the component's
@@ -46,7 +46,7 @@
 
     &__message {
         font-size: $font-size-xs;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         font-style: italic;
         overflow: hidden;
         text-overflow: ellipsis;

@@ -5,14 +5,14 @@
     gap: $spacing-1;
 
     &__icon {
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         font-size: 0.9em;
         align-self: center;
     }
 
     &__name {
         &--muted {
-            color: $text-muted;
+            color: var(--bs-secondary-color);
         }
     }
 

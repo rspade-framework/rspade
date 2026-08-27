@@ -6,7 +6,7 @@
  */
 .Breadcrumb_Nav {
     &__placeholder {
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         opacity: 0.5;
         font-family: monospace;
         letter-spacing: 0;

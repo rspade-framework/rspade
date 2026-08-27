@@ -11,7 +11,7 @@
 
     // Sidebar Navigation
     .app-sidebar {
-        background: $background-light;
+        background: var(--bs-tertiary-bg);
         width: 250px;
         position: fixed;
         top: 0;
@@ -61,7 +61,7 @@
     // Main Content Area
     .app-content {
         margin-left: 250px;
-        background: rgb(248, 249, 250);
+        background: var(--bs-tertiary-bg);
         min-height: calc(100vh - 57px);
 
         @include mobile {
@@ -71,7 +71,7 @@
 
     // Top Header Navbar
     .app-header {
-        background: $white;
+        background: var(--bs-body-bg);
         border-bottom: $border-width solid var(--bs-border-color);
         height: 57px;
         display: flex;
@@ -84,14 +84,14 @@
             width: 32px;
             height: 32px;
             border-radius: 50%;
-            background: $gray-200;
+            background: var(--bs-secondary-bg);
             display: flex;
             align-items: center;
             justify-content: center;
 
             i {
                 font-size: $font-size-xl;
-                color: $text-muted;
+                color: var(--bs-secondary-color);
             }
         }
 
@@ -110,10 +110,5 @@
         @include mobile {
             padding: $spacing-md;
         }
-    }
-
-    // Card styling
-    .card {
-        background-color: $white;
     }
 }

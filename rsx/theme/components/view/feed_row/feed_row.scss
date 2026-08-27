@@ -7,7 +7,7 @@
     align-items: flex-start;
     gap: $spacing-3; // 12px
     padding: $spacing-3 var(--card-pad-x); // 12px / 20px, aligns with section body
-    border-bottom: $border-width solid $border-color;
+    border-bottom: $border-width solid var(--bs-border-color);
 
     &:last-child {
         border-bottom: 0;
@@ -21,7 +21,7 @@
         width: 32px;
         height: 32px;
         border-radius: $border-radius-md;
-        background: $background-light;
+        background: var(--bs-tertiary-bg);
     }
 
     &__icon {
@@ -34,14 +34,14 @@
         flex: 1 1 auto;
         min-width: 0;
         font-size: $font-size-sm;
-        color: $text-color;
+        color: var(--bs-body-color);
         line-height: 1.4;
     }
 
     &__time {
         flex: 0 0 auto;
         font-size: $font-size-xs;
-        color: $text-muted;
+        color: var(--bs-secondary-color);
         white-space: nowrap;
     }
 
@@ -52,5 +52,5 @@
     &--info &__icon { color: $info-color; }
     &--warning &__icon { color: $warning-color; }
     &--danger &__icon { color: $danger-color; }
-    &--secondary &__icon { color: $text-muted; }
+    &--secondary &__icon { color: var(--bs-secondary-color); }
 }

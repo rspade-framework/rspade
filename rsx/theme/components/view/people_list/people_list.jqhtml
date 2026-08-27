@@ -20,7 +20,7 @@ Usage:
     <People_List $sid="members" $people=_members $clickable=true />
     this.sid('members').on('person_click', (c, d) => Modal.show(d.person));
 --%>
-<Define:People_List tag="div">
+<Define:People_List tag="div" class="list-group">
     <% const _people = this.args.people || [];
        const _size = this.args.size === 'md' ? 'md' : 'sm';
        const _clickable = !!this.args.clickable;
@@ -32,7 +32,7 @@ Usage:
     <% } else { %>
         <% for (let _i = 0; _i < _people.length; _i++) { %>
             <% const _p = _people[_i];
-               const _row_class = 'People_List__row' + (_clickable ? ' People_List__row--clickable' : ''); %>
+               const _row_class = 'People_List__row list-group-item' + (_clickable ? ' People_List__row--clickable list-group-item-action' : ''); %>
             <div class="<%= _row_class %>" data-person-index="<%= _i %>" title="<%= str(_p.name) %>">
                 <Person_Avatar $name="<%= str(_p.name) %>" $attachment_id=_p.avatar_attachment_id $initials="<%= str(_p.initials) %>" $size="<%= _size %>" />
                 <div class="People_List__body">
@@ -42,9 +42,7 @@ Usage:
                     <% } %>
                 </div>
                 <% if (_removable) { %>
-                    <button type="button" class="People_List__remove" data-person-remove="<%= _i %>" title="Remove">
-                        <i class="bi bi-x"></i>
-                    </button>
+                    <button type="button" class="People_List__remove btn-close" data-person-remove="<%= _i %>" aria-label="Remove"></button>
                 <% } %>
             </div>
         <% } %>

@@ -13,7 +13,7 @@
     // the dark header navbar, consistent with the portal read-only banner
     // (bg-warning text-dark).
     background-color: $warning-color;
-    color: $gray-900;
+    color: var(--bs-body-color);
     font-size: $font-size-xs;
     font-weight: $font-weight-semibold;
     line-height: 1;
