@@ -7,7 +7,8 @@ docs live in framework core (`App\RSpade\Core\Api`).
 ## What lives here
 
 - `v1/contacts_api_controller.php` - contacts CRUD (`Contacts_Api_Controller`).
-- `v1/clients_api_controller.php` - clients CRUD (`Clients_Api_Controller`).
+- `v1/clients_api_controller.php` - clients CRUD + document attachments (`Clients_Api_Controller`).
+- `v1/tasks_api_controller.php` - task reads + attachments (`Tasks_Api_Controller`).
 
 Each new API version gets its own `vN/` directory. Every endpoint pattern MUST start
 `/api/vN/` (N = one or more digits) - the manifest scan throws otherwise.
@@ -33,11 +34,52 @@ public static function get(Request $request, array $params = [])
 }
 ```
 
-`#[Api_Param]` args: `name`, `type` (`string|int|float|bool` only in v1), `required`,
-`default`, `description`, `example`. `required: true` cannot combine with a `default`.
+`#[Api_Param]` args: `name`, `type` (`string|int|float|bool`, plus `file` for a
+multipart upload part - array/json is still backlogged), `required`, `default`,
+`description`, `example`. `required: true` cannot combine with a `default`. A `file` param
+is POST-only, can never be a `:token`, and can never carry a default (all three are
+manifest-scan failures).
 Every `:token` in the pattern needs a matching param. Do NOT use another class's
 constant as a `default` - it forces that class to autoload during the manifest scan and
 fails; use a literal with a comment.
+
+## File attachments
+
+**The framework owns the bytes; this app owns "attach".** `POST /api/v1/files` (framework)
+ingests a file and returns an unclaimed `key`; an endpoint HERE claims that key onto a
+record, because which record, which category and who may do it are application policy the
+framework cannot answer for you.
+
+The pattern, three endpoints per record type - see `Clients_Api_Controller` and
+`Tasks_Api_Controller`, which implement it identically:
+
+| Endpoint | Does |
+|---|---|
+| `GET /api/v1/{thing}/:id/attachments` | `foreach ($record->get_attachments(CATEGORY))` |
+| `POST /api/v1/{thing}/:id/attachments/attach` | `find_by_key()` + `can_user_assign_this_file()` + `add_to()` |
+| `POST /api/v1/{thing}/:id/attachments/:attachment_id/delete` | `find_attachment()` then `delete()` |
+
+Three things that are easy to get wrong:
+
+- **`can_user_assign_this_file()` is STRUCTURAL, not a permission check.** It proves the
+  file is still unclaimed and is in this tenant - nothing about WHO. Authorizing the claim
+  is your endpoint's job (here, the class `#[Auth]` gate plus the site scope that found the
+  record). It works fine under a Bearer identity: a key is a staff session with a real site.
+- **Removing needs `$record->find_attachment($id_or_key, $category)`.** It returns null
+  unless the attachment belongs to THIS record in THIS category. Resolving with a bare
+  `File_Attachment_Model::find()` would let any attachment id in the site be deleted through
+  any record's URL.
+- **`add_to()` for many files, `attach_to()` for one.** `attach_to()` REPLACES whatever is
+  already in the category.
+
+`get_attachments()` returns an `Rsx_Result_Set`, not a Collection - iterate it, don't
+`->map()` it. Clients attach into `Client_Model::DOCUMENTS_CATEGORY`, the same category the
+staff Documents tab reads, so a file uploaded over the API appears in the UI. Deleting a
+client document goes through `Client_Model::remove_document()`, which revokes its portal
+shares before soft-deleting.
+
+Downloads need no app endpoint: the URLs in the payload (`/_download`, `/_inline`,
+`/_thumbnail/*`, `/_preview/pdf`) accept the same `Authorization: Bearer` key.
 
 ## Response contract
 

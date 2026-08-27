@@ -5,6 +5,7 @@ namespace Rsx\App\Api\V1;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Api\Rsx_Api;
 use App\RSpade\Core\Api\Rsx_Api_Controller_Abstract;
+use App\RSpade\Core\Files\File_Attachment_Model;
 use Rsx\Models\Client_Model;
 
 /**
@@ -384,5 +385,183 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
         $client->delete();
 
         return Rsx_Api::no_content();
+    }
+
+    // =====================================================================
+    // ATTACHMENTS
+    //
+    // THE APP OWNS "ATTACH", THE FRAMEWORK OWNS THE BYTES. An integration uploads to
+    // POST /api/v1/files (framework), gets back an unclaimed key, and then calls the
+    // endpoint below to claim that key onto a record. Which record, which category and who
+    // may do it are application policy, which is exactly why the framework does not ship
+    // this endpoint - it cannot know the answer for your app.
+    //
+    // Files land in Client_Model::DOCUMENTS_CATEGORY, the SAME category the staff
+    // Documents tab reads, so a document uploaded over the API shows up in the UI and
+    // vice versa. That is the point of the example: one store, two surfaces.
+    // =====================================================================
+
+    /**
+     * List a client's documents.
+     *
+     * Every document attached to this client, with the framework's file URLs. The URLs
+     * accept the same `Authorization: Bearer` key this endpoint did, so a client can
+     * download bytes without a browser session.
+     *
+     * @api-response
+     * {
+     *   "items": [
+     *     {
+     *       "attachment_id": 8,
+     *       "key": "191dc2fb9c9eb2c503b0e294434efe009d14f314adb0ec29abc51f596a4764de",
+     *       "file_name": "contract.pdf",
+     *       "mime_type": "application/pdf",
+     *       "size": 51200,
+     *       "uploaded_at": "2026-08-27T15:30:00.000Z",
+     *       "urls": {
+     *         "download": "/_download/191dc2fb...",
+     *         "inline": "/_inline/191dc2fb...",
+     *         "thumbnail": "/_thumbnail/dynamic/191dc2fb.../fit/400",
+     *         "preview": "/_preview/pdf/191dc2fb..."
+     *       }
+     *     }
+     *   ],
+     *   "meta": { "total": 1 }
+     * }
+     */
+    #[Api_Endpoint('/api/v1/clients/:id/attachments', methods: ['GET'])]
+    #[Api_Param('id', type: 'int', required: true, description: 'Client ID')]
+    public static function attachments_list(Request $request, array $params = [])
+    {
+        $client = Client_Model::find($params['id']);
+
+        if (!$client) {
+            return Rsx_Api::not_found('Client not found');
+        }
+
+        // get_attachments() returns an Rsx_Result_Set - iterate it. It is not a Collection
+        // and has no ->map(); the set is walked a page at a time because one record's
+        // attachment count has no ceiling.
+        $items = [];
+        foreach ($client->get_attachments(Client_Model::DOCUMENTS_CATEGORY) as $attachment) {
+            $items[] = static::__attachment_payload($attachment);
+        }
+
+        return [
+            'items' => $items,
+            'meta' => ['total' => count($items)],
+        ];
+    }
+
+    /**
+     * Attach an uploaded file to a client.
+     *
+     * Two-step, and the first step is the framework's: POST the bytes to
+     * /api/v1/files, then pass the `key` it returned here. A key may be claimed ONCE -
+     * claiming an already-attached key is refused.
+     *
+     * @api-response
+     * {
+     *   "attachment_id": 42,
+     *   "key": "191dc2fb9c9eb2c503b0e294434efe009d14f314adb0ec29abc51f596a4764de",
+     *   "file_name": "contract.pdf",
+     *   "mime_type": "application/pdf",
+     *   "size": 51200,
+     *   "uploaded_at": "2026-08-27T15:30:00.000Z",
+     *   "urls": { "download": "...", "inline": "...", "thumbnail": "...", "preview": "..." }
+     * }
+     */
+    #[Api_Endpoint('/api/v1/clients/:id/attachments/attach', methods: ['POST'])]
+    #[Api_Param('id', type: 'int', required: true, description: 'Client ID')]
+    #[Api_Param('key', type: 'string', required: true, description: 'File key returned by POST /api/v1/files')]
+    public static function attachments_attach(Request $request, array $params = [])
+    {
+        $client = Client_Model::find($params['id']);
+
+        if (!$client) {
+            return Rsx_Api::not_found('Client not found');
+        }
+
+        $attachment = File_Attachment_Model::find_by_key($params['key']);
+
+        // can_user_assign_this_file() is STRUCTURAL: the file is still unclaimed and is in
+        // this tenant. It is not a per-user permission check - that is this endpoint's job,
+        // and here it is the class-level #[Auth] gate plus the site scope that found the
+        // client. A missing key and an already-claimed one are ONE answer, so a caller
+        // cannot probe for which keys exist.
+        if (!$attachment || !$attachment->can_user_assign_this_file()) {
+            return Rsx_Api::validation_error(
+                ['key' => 'Not found, or already attached to something else'],
+                'File not available to attach'
+            );
+        }
+
+        // add_to(), not attach_to(): a client has MANY documents. attach_to() is the
+        // single-file form and would detach whatever was already there.
+        $attachment->add_to($client, Client_Model::DOCUMENTS_CATEGORY);
+
+        return Rsx_Api::created(static::__attachment_payload($attachment));
+    }
+
+    /**
+     * Remove a document from a client.
+     *
+     * Revokes every share of the document and soft-deletes it into the framework's
+     * retention window - the bytes are not destroyed and the attachment stays
+     * recoverable from the staff UI. Returns 204 No Content.
+     *
+     * @api-response
+     * (empty body, HTTP 204)
+     */
+    #[Api_Endpoint('/api/v1/clients/:id/attachments/:attachment_id/delete', methods: ['POST'])]
+    #[Api_Param('id', type: 'int', required: true, description: 'Client ID')]
+    #[Api_Param('attachment_id', type: 'int', required: true, description: 'Attachment ID to remove')]
+    public static function attachments_delete(Request $request, array $params = [])
+    {
+        $client = Client_Model::find($params['id']);
+
+        if (!$client) {
+            return Rsx_Api::not_found('Client not found');
+        }
+
+        // THE OWNERSHIP RE-VERIFICATION. find_attachment() returns null unless this
+        // attachment is a document of THIS client - without it, any attachment id in the
+        // tenant could be deleted through any client's URL.
+        $attachment = $client->find_attachment($params['attachment_id'], Client_Model::DOCUMENTS_CATEGORY);
+
+        if (!$attachment) {
+            return Rsx_Api::not_found('Document not found for this client');
+        }
+
+        $client->remove_document($attachment);
+
+        return Rsx_Api::no_content();
+    }
+
+    /**
+     * One document's wire shape.
+     *
+     * Field names deliberately echo the framework's own file payload
+     * (Files_Api_Controller), so an integration reads one vocabulary across both.
+     *
+     * @param File_Attachment_Model $attachment
+     * @return array
+     */
+    private static function __attachment_payload($attachment): array
+    {
+        return [
+            'attachment_id' => (int) $attachment->id,
+            'key' => $attachment->key,
+            'file_name' => $attachment->file_name,
+            'mime_type' => $attachment->mime_type,
+            'size' => $attachment->get_size(),
+            'uploaded_at' => $attachment->created_at,
+            'urls' => [
+                'download' => $attachment->get_download_url(),
+                'inline' => $attachment->get_url(),
+                'thumbnail' => $attachment->get_thumbnail_url(),
+                'preview' => '/_preview/pdf/' . $attachment->key,
+            ],
+        ];
     }
 }

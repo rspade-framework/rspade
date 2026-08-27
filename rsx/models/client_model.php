@@ -10,6 +10,7 @@ use App\RSpade\Core\Models\User_Model;
 use Rsx\Models\Client_Department_Model;
 use Rsx\Models\Contact_Model;
 use Rsx\Models\Portal_Membership_Model;
+use Rsx\Models\Shared_Item_Model;
 /**
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: clients
@@ -100,6 +101,16 @@ class Client_Model extends Rsx_Site_Model_Abstract
     const STATUS_INACTIVE = 2;
     const STATUS_PROSPECT = 3;
     const STATUS_ARCHIVED = 4;
+
+    /**
+     * The attachment category a client's uploaded documents live under.
+     *
+     * ON THE MODEL, not on a controller, because more than one surface claims files into
+     * it: the staff Documents tab (Frontend_Clients_Controller) and the external REST API
+     * (Clients_Api_Controller) both attach here, and they must name the SAME string or the
+     * API would quietly write into a category the UI never displays.
+     */
+    const DOCUMENTS_CATEGORY = 'documents';
 
     use SoftDeletes;
 
@@ -269,5 +280,32 @@ class Client_Model extends Rsx_Site_Model_Abstract
         $data['get_created_by_author'] = $this->get_created_by_author();
 
         return $data;
+    }
+
+    /**
+     * Remove one of this client's documents: revoke every share of it, THEN soft-delete it
+     * into the retention window.
+     *
+     * BOTH STEPS, ALWAYS, WHICH IS WHY THIS IS ONE METHOD. A client document can be shared
+     * with the client's portal users (Shared_Item rows). Deleting the attachment without
+     * clearing those rows leaves live shares pointing at a deleted document - the portal
+     * side would still list it as shared. Every surface that removes a document (the staff
+     * Documents tab and the REST API) must therefore do the same two things in the same
+     * order, so the pair is written once, here, rather than trusted to each caller.
+     *
+     * delete() ENTERS RETENTION - it does not destroy anything. The attachment stays
+     * recoverable via get_deleted_attachments()/undelete(); the shares do not come back.
+     *
+     * @param \App\RSpade\Core\Files\File_Attachment_Model $attachment A document already
+     *        resolved against THIS client (use find_attachment()).
+     * @return void
+     */
+    public function remove_document($attachment): void
+    {
+        Shared_Item_Model::where('item_type', 'File_Attachment_Model')
+            ->where('item_id', $attachment->id)
+            ->delete();
+
+        $attachment->delete();
     }
 }

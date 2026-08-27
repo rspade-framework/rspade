@@ -1231,11 +1231,6 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
     // =====================================================================
 
     /**
-     * The 'documents' category key under which client documents are attached.
-     */
-    const DOCUMENTS_CATEGORY = 'documents';
-
-    /**
      * Ajax endpoint: list a client's shared documents (with share recipients).
      *
      * Each document is a File_Attachment in the client's 'documents' category. For
@@ -1257,7 +1252,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
         }
 
         $documents = [];
-        foreach ($client->get_attachments(static::DOCUMENTS_CATEGORY) as $attachment) {
+        foreach ($client->get_attachments(Client_Model::DOCUMENTS_CATEGORY) as $attachment) {
             $shares = Shared_Item_Model::where('item_type', 'File_Attachment_Model')
                 ->where('item_id', $attachment->id)
                 ->orderBy('created_at')
@@ -1298,9 +1293,10 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
     /**
      * Ajax endpoint: attach an uploaded file to the client as a document.
      *
-     * The browser uploads the file to /_upload first (session-owned, unattached),
-     * then calls this with the returned key. We validate assignability (same session
-     * + site, not already attached) before attaching under the 'documents' category.
+     * The browser uploads the file to /_upload first (unattached), then calls this with
+     * the returned key. can_user_assign_this_file() is STRUCTURAL, not a per-user check:
+     * it proves the file is still unclaimed and belongs to this tenant. WHO may claim it
+     * is this endpoint's decision, and here that is the class-level #[Auth] gate.
      */
     #[Ajax_Endpoint]
     public static function documents_add(Request $request, array $params = [])
@@ -1322,7 +1318,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             return response_error(Ajax::ERROR_VALIDATION, 'File not found or access denied');
         }
 
-        $attachment->add_to($client, static::DOCUMENTS_CATEGORY);
+        $attachment->add_to($client, Client_Model::DOCUMENTS_CATEGORY);
 
         // DEMO ONLY (dev sites): auto-share every uploaded document with the client so
         // the portal Documents tab is populated without manual sharing. Documents are
@@ -1511,12 +1507,8 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             return response_error(Ajax::ERROR_NOT_FOUND, 'Document not found for this client');
         }
 
-        // Remove every share of this attachment, then soft-delete it into retention.
-        Shared_Item_Model::where('item_type', 'File_Attachment_Model')
-            ->where('item_id', $attachment->id)
-            ->delete();
-
-        $attachment->delete();
+        // Revoke every share, then soft-delete into retention - both steps, in that order.
+        $client->remove_document($attachment);
 
         return ['message' => 'Document deleted'];
     }
@@ -1540,7 +1532,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
         }
 
         $deleted = [];
-        foreach ($client->get_deleted_attachments(static::DOCUMENTS_CATEGORY) as $attachment) {
+        foreach ($client->get_deleted_attachments(Client_Model::DOCUMENTS_CATEGORY) as $attachment) {
             $deleted[] = [
                 'attachment_id' => $attachment->id,
                 'name' => $attachment->file_name,
@@ -1594,25 +1586,21 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      */
     private static function _resolve_client_document(Client_Model $client, array $params): ?File_Attachment_Model
     {
-        $attachment = null;
+        // find_attachment() IS the ownership re-verification: it resolves by id or key and
+        // returns null unless the attachment is a document of THIS client. Accepting either
+        // spelling is this endpoint family's own convention, so the choice stays here.
+        $id_or_key = null;
         if (!empty($params['attachment_id'])) {
-            $attachment = File_Attachment_Model::find($params['attachment_id']);
+            $id_or_key = $params['attachment_id'];
         } elseif (!empty($params['key'])) {
-            $attachment = File_Attachment_Model::find_by_key($params['key']);
+            $id_or_key = $params['key'];
         }
 
-        if (!$attachment) {
+        if ($id_or_key === null) {
             return null;
         }
 
-        // Must be a 'documents' attachment of THIS client.
-        if ((string) $attachment->fileable_type !== 'Client_Model'
-            || (int) $attachment->fileable_id !== (int) $client->id
-            || (string) $attachment->fileable_category !== static::DOCUMENTS_CATEGORY) {
-            return null;
-        }
-
-        return $attachment;
+        return $client->find_attachment($id_or_key, Client_Model::DOCUMENTS_CATEGORY);
     }
 
     /**
@@ -1642,7 +1630,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
         // Must be a 'documents' attachment of THIS client.
         if ((string) $attachment->fileable_type !== 'Client_Model'
             || (int) $attachment->fileable_id !== (int) $client->id
-            || (string) $attachment->fileable_category !== static::DOCUMENTS_CATEGORY) {
+            || (string) $attachment->fileable_category !== Client_Model::DOCUMENTS_CATEGORY) {
             return null;
         }
 
