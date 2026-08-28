@@ -30,33 +30,29 @@
  *
  * **Integration**:
  * Modal classes use Modal.js static API (Modal.form(), Modal.show(), etc.)
- * as building blocks. Form validation handled by Rsx_Form and Form_Utils.
- * Page JS orchestrates modal flow but doesn't contain modal UI logic.
+ * as building blocks. A form modal is CHROME around an <Rsx_Form>: the form owns
+ * the endpoint, the submission and the error rendering, so the modal class names
+ * none of them.
  *
  * **Pattern Examples**:
  *
- * Simple form modal:
+ * Simple form modal - the component's template holds the <Rsx_Form>, and that form
+ * declares the endpoint. There is nothing else to write:
  * ```
  * class Add_User_Modal extends Modal_Abstract {
  *     static async show() {
  *         const result = await Modal.form({
  *             title: 'Add User',
  *             component: 'Add_User_Modal_Form',
- *             on_submit: async (form) => {
- *                 try {
- *                     const values = form.vals();
- *                     const result = await Controller.add_user(values);
- *                     return result; // Close modal, return data
- *                 } catch (error) {
- *                     await form.render_error(error);
- *                     return false; // Keep modal open
- *                 }
- *             },
  *         });
  *         return result || false;
  *     }
  * }
  * ```
+ *
+ * A dialog with NO form - it collects a choice and the caller acts on it - is
+ * Modal.show({buttons}), never Modal.form(). Returning literal false from a button
+ * callback keeps that dialog open; any other value (null included) closes it.
  *
  * Custom content modal:
  * ```

@@ -18,7 +18,9 @@
         }
     @endphp
 
-    <Rsx_Form $data="{!! json_encode($form_data) !!}" $controller="Signup_Controller" $method="submit" $on_success="Signup_Index.on_success">
+    <Rsx_Form $data="{!! json_encode($form_data) !!}" $controller="Signup_Controller" $method="submit">
+        <Form_Errors />
+
         @if (isset($invite_code) && $invite_code)
             <Hidden_Input $name="invite_code" />
         @endif

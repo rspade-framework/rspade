@@ -35,9 +35,7 @@ class Checkbox_Input extends Form_Input_Abstract {
         // Trigger events on user interaction
         const that = this;
         $input.on('change', function() {
-            const value = that.val();
-            that.trigger('input', value);
-            that.trigger('val', value);
+            that._notify_input(that.val());
         });
     }
 

@@ -19,10 +19,14 @@ Args:
 - $confirm_message: Remove confirmation message
 - $duplicate_message: Message for duplicate attempts
 
-Usage:
+Usage - an inline object literal cannot ride on a $arg (unquoted args may not contain
+spaces), so name it in a code block first:
+
+<% const _edit_args = {options: my_options}; %>
 <Repeater_Simple_Input
+    $name="item_ids"
     $edit_input="Select_Input"
-    $edit_input_args={options: myOptions}
+    $edit_input_args=_edit_args
     $add_label="Add Item"
 />
 

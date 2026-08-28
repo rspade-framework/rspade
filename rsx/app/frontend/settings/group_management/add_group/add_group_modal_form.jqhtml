@@ -5,30 +5,27 @@ Allows admins to create new user groups with a name, description, and members.
 
 this.args.user_options - Array of {id, label, subtitle?} for member selection
 
-Form follows Rsx_Form pattern with Form_Field + input components.
-Validation handled server-side, errors displayed via Form_Utils.
+A template-only component: the <Rsx_Form> names the endpoint (the one place it is
+named), the hosting modal drives its submit, and every rule is checked server-side and
+rendered by the form.
 --%>
 <Define:Add_Group_Modal_Form>
 
   <Rsx_Form $controller="Frontend_Settings_Group_Management_Controller" $method="add_group">
 
-    <div class="mb-3">
-      <Form_Field $label="Group Name" $required=true>
-        <Text_Input $name="name" $placeholder="Enter group name" $autofocus=true />
-      </Form_Field>
-    </div>
+    <Form_Errors />
 
-    <div class="mb-3">
-      <Form_Field $label="Description">
-        <Text_Input $name="description" $type="textarea" $rows="3" $placeholder="Optional group description" />
-      </Form_Field>
-    </div>
+    <Form_Field $label="Group Name" $required=true>
+      <Text_Input $name="name" $max_length=User_Group_Model.field_length('name') $placeholder="Enter group name" $autofocus=true />
+    </Form_Field>
 
-    <div class="mb-3">
-      <Form_Field $label="Members">
-        <Checkbox_Multiselect_Input $name="member_ids" $options="<%= this.args.user_options %>" $empty_text="No users available" />
-      </Form_Field>
-    </div>
+    <Form_Field $label="Description">
+      <Text_Input $name="description" $max_length=-1 $type="textarea" $rows="3" $placeholder="Optional group description" />
+    </Form_Field>
+
+    <Form_Field $label="Members">
+      <Checkbox_Multiselect_Input $name="member_ids" $options=this.args.user_options $empty_text="No users available" />
+    </Form_Field>
 
   </Rsx_Form>
 

@@ -233,26 +233,17 @@ class Dev_Modals {
         });
 
         // Form Modals
+        //
+        // A modal is CHROME around a form. Modal.form() renders the component, finds
+        // the <Rsx_Form> inside it, and wires the primary button to THAT form's
+        // submit(); the endpoint comes from the form's own $controller/$method. A
+        // successful submit closes the dialog and resolves with the server result; a
+        // failure keeps it open with the form's errors already rendered.
         $('#test-form-simple').on('click', async () => {
             const result = await Modal.form({
                 title: 'User Registration',
                 component: 'Test_Modal_Form',
-                on_submit: async (form) => {
-                    // Get form values
-                    const values = form.vals();
-
-                    // Simple validation - just check required fields
-                    if (!values.name || !values.email || !values.role) {
-                        Form_Utils.apply_form_errors(form.$, 'Please fill in all required fields');
-                        return false; // Keep modal open
-                    }
-
-                    // Simulate saving
-                    await sleep(500);
-
-                    // Return data to close modal
-                    return values;
-                },
+                submit_label: 'Register',
             });
 
             if (result) {
@@ -262,38 +253,15 @@ class Dev_Modals {
             }
         });
 
+        // The same form and the same call: the server rejects a short name, a
+        // malformed email or a missing role, and the form renders each message under
+        // its field plus the summary in <Form_Errors />. Nothing about the failure
+        // path is written at the call site.
         $('#test-form-validation').on('click', async () => {
             const result = await Modal.form({
-                title: 'User Registration (With Server Validation)',
+                title: 'User Registration (Server Validation)',
                 component: 'Test_Modal_Form',
-                on_submit: async (form) => {
-                    // Get form values
-                    const values = form.vals();
-
-                    // Simulate server-side validation
-                    await sleep(500);
-
-                    // Simulate validation errors
-                    const errors = {};
-                    if (!values.name || values.name.length < 3) {
-                        errors.name = 'Name must be at least 3 characters';
-                    }
-                    if (!values.email || !values.email.includes('@')) {
-                        errors.email = 'Please enter a valid email address';
-                    }
-                    if (!values.role) {
-                        errors.role = 'Please select a role';
-                    }
-
-                    // If there are errors, show them and keep modal open
-                    if (Object.keys(errors).length > 0) {
-                        Form_Utils.apply_form_errors(form.$, errors);
-                        return false; // Keep modal open
-                    }
-
-                    // Success - return data
-                    return values;
-                },
+                submit_label: 'Register',
             });
 
             if (result) {
@@ -303,6 +271,7 @@ class Dev_Modals {
             }
         });
 
+        // Edit variant: the SAME component, seeded through the form's $data.
         $('#test-form-prefilled').on('click', async () => {
             const result = await Modal.form({
                 title: 'Edit User Profile',
@@ -315,19 +284,6 @@ class Dev_Modals {
                     },
                 },
                 submit_label: 'Update',
-                on_submit: async (form) => {
-                    const values = form.vals();
-
-                    // Simple validation
-                    if (!values.name || !values.email || !values.role) {
-                        await Modal.alert('Please fill in all required fields');
-                        return false;
-                    }
-
-                    // Simulate update
-                    await sleep(500);
-                    return values;
-                },
             });
 
             if (result) {
@@ -337,36 +293,14 @@ class Dev_Modals {
             }
         });
 
+        // A one-field form is still a form: Pin_Input owns the value, the endpoint
+        // owns the rules (all six digits, and the right ones).
         $('#test-form-pin').on('click', async () => {
             const result = await Modal.form({
                 title: 'Enter Verification Code',
                 component: 'Pin_Verification_Form',
                 submit_label: 'Verify',
                 max_width: 450,
-                on_submit: async (form) => {
-                    const pin = form.val();
-
-                    // Validate PIN is complete
-                    if (pin.length !== 6) {
-                        Form_Utils.apply_form_errors(form.$, 'Please enter all 6 digits');
-                        return false;
-                    }
-
-                    // Simulate PIN verification
-                    await sleep(800);
-
-                    // Simulate checking against correct PIN
-                    const correct_pin = '123456';
-                    if (pin !== correct_pin) {
-                        Form_Utils.apply_form_errors(form.$, `Incorrect PIN. (Hint: try ${correct_pin})`);
-                        // Clear the PIN and refocus first input
-                        form.val('');
-                        return false;
-                    }
-
-                    // Success
-                    return { pin: pin, verified: true };
-                },
             });
 
             if (result) {

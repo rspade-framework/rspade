@@ -43,8 +43,7 @@ class Select_User_Role_Input extends Form_Input_Abstract {
             },
             onChange: function(value) {
                 that._update_description(value);
-                that.trigger('input', value);
-                that.trigger('val', value);
+                that._notify_input(value);
             }
         };
 

@@ -1,14 +1,21 @@
 <%--
 Form_Field
 
-Wrapper component that provides consistent label, help text, and error display for form widgets.
+Presentation around ONE input: label, required mark, help text. A Field contains
+exactly one Input, and $name always belongs on the INPUT - the Field only reads its
+child's data-name for accessibility wiring.
+
+Error markup is NOT rendered here. A failed submit is rendered by the form's one error
+renderer, which pins the message under the field it targets; a second error path in the
+Field would be a second styling path for the same failure.
 
 $label - Label text, plain string (use <Slot:label> for markup) [optional]
-$required - Boolean - if true, shows red asterisk next to label
+$required - Boolean - shows a red asterisk beside the label. PRESENTATION ONLY: it is
+            the asterisk announcing a SERVER rule, and enforces nothing anywhere.
 $help - Help text to display below the field
 
 <Slot:label> - label override; WINS over $label when present (dual-channel, D2)
-widget - the form input as loose content, OR inside <Slot:body> when <Slot:label> is used
+input - the form input as loose content, OR inside <Slot:body> when <Slot:label> is used
 
 Title/label channel rule: plain text -> $label arg; ANY markup/icon/nesting -> <Slot:label>.
 HTML placed inside the $label string is a defect (it now renders escaped).
@@ -22,9 +29,6 @@ NOTE: $name goes on the INPUT component, not on Form_Field:
 <Form_Field $label="Email Address" $required=true>
     <Text_Input $name="email" $placeholder="user@example.com" />
 </Form_Field>
-
-The input component sets data-name on itself, and Form_Field reads it
-for error display integration.
 --%>
 <Define:Form_Field extends="Form_Field_Abstract" tag="div" class="form-group mb-3">
 
@@ -42,19 +46,13 @@ for error display integration.
         </label>
     <% } %>
 
-    <div class="<%= this.has_error() ? 'is-invalid' : '' %>">
+    <div>
         <% if (this.args._slots && this.args._slots.body) { %>
             <%= content('body') %>
         <% } else { %>
             <%= content() %>
         <% } %>
     </div>
-
-    <% if (this.has_error()) { %>
-        <div class="invalid-feedback d-block">
-            <%= this.get_error() %>
-        </div>
-    <% } %>
 
     <% if (this.args.help) { %>
         <small class="form-text text-muted d-block mt-1">

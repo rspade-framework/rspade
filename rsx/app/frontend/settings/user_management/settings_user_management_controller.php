@@ -65,9 +65,12 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             $errors['last_name'] = 'Last name is required';
         }
 
+        // Validate role: a real, selectable role the signed-in user may administer.
+        $role_id = static::_validate_role_id($params['role_id'] ?? null, $errors);
+
         // Return validation errors if any
         if (!empty($errors)) {
-            return response_error(Ajax::ERROR_VALIDATION, $errors);
+            return response_form_error('Please correct the errors below.', $errors);
         }
 
         $site_id = Session::get_site_id();
@@ -78,7 +81,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             ->first();
 
         if ($existing) {
-            return response_error(Ajax::ERROR_VALIDATION, [
+            return response_form_error('User already invited to this site', [
                 'email' => 'User already invited to this site',
             ]);
         }
@@ -90,7 +93,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         $user->first_name = $first_name;
         $user->last_name = $last_name;
         $user->phone = $params['phone'] ?? null;
-        $user->role_id = !empty($params['role_id']) ? (int)$params['role_id'] : User_Model::ROLE_USER;
+        $user->role_id = $role_id;
         $user->login_user_id = null; // Not linked yet
         $user->invite_code = \Illuminate\Support\Str::random(32); // Unique code
         $user->invite_accepted_at = null; // Pending
@@ -219,7 +222,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
     private static function __site_user($user_id)
     {
         if (!$user_id) {
-            return response_error(Ajax::ERROR_VALIDATION, ['id' => 'User ID is required']);
+            return response_form_error('User ID is required', ['id' => 'User ID is required']);
         }
 
         $user = User_Model::where('site_id', Session::get_site_id())
@@ -246,7 +249,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         $user_id = $params['user_id'] ?? null;
 
         if (!$user_id) {
-            return response_error(Ajax::ERROR_VALIDATION, [
+            return response_form_error('User ID is required', [
                 'user_id' => 'User ID is required',
             ]);
         }
@@ -288,7 +291,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         // Validate user ID
         $user_id = $params['id'] ?? null;
         if (!$user_id) {
-            return response_error(Ajax::ERROR_VALIDATION, [
+            return response_form_error('User ID is required', [
                 'id' => 'User ID is required',
             ]);
         }
@@ -313,9 +316,12 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             $errors['last_name'] = 'Last name is required';
         }
 
+        // Validate role: a real, selectable role the signed-in user may administer.
+        $role_id = static::_validate_role_id($params['role_id'] ?? null, $errors);
+
         // Return validation errors if any
         if (!empty($errors)) {
-            return response_error(Ajax::ERROR_VALIDATION, $errors);
+            return response_form_error('Please correct the errors below.', $errors);
         }
 
         $site_id = Session::get_site_id();
@@ -337,7 +343,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
                 ->first();
 
             if ($existing) {
-                return response_error(Ajax::ERROR_VALIDATION, [
+                return response_form_error('Email address already in use by another user', [
                     'email' => 'Email address already in use by another user',
                 ]);
             }
@@ -348,7 +354,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         $user->first_name = $first_name;
         $user->last_name = $last_name;
         $user->phone = $params['phone'] ?? null;
-        $user->role_id = !empty($params['role_id']) ? (int)$params['role_id'] : User_Model::ROLE_USER;
+        $user->role_id = $role_id;
         $user->is_api_access_enabled = !empty($params['is_api_access_enabled']) ? 1 : 0;
         $user->save();
 
@@ -379,7 +385,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         $user_id = $params['user_id'] ?? null;
 
         if (!$user_id) {
-            return response_error(Ajax::ERROR_VALIDATION, [
+            return response_form_error('User ID is required', [
                 'user_id' => 'User ID is required',
             ]);
         }
@@ -397,14 +403,14 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
 
         // Check if user account is enabled
         if (!$user->is_enabled) {
-            return response_error(Ajax::ERROR_VALIDATION, [
+            return response_form_error('Cannot send invitation to disabled account', [
                 'user_id' => 'Cannot send invitation to disabled account',
             ]);
         }
 
         // Check if invitation already accepted
         if ($user->invite_accepted_at !== null) {
-            return response_error(Ajax::ERROR_VALIDATION, [
+            return response_form_error('This user has already accepted their invitation', [
                 'user_id' => 'This user has already accepted their invitation',
             ]);
         }
@@ -451,7 +457,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         $user_id = $params['id'] ?? null;
 
         if (!$user_id) {
-            return response_error(Ajax::ERROR_VALIDATION, [
+            return response_form_error('User ID is required', [
                 'id' => 'User ID is required',
             ]);
         }
@@ -574,5 +580,35 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             'filename' => 'users_export_' . Rsx_Date::today() . '.csv',
             'count' => count($rows),
         ];
+    }
+
+    /**
+     * The role a user-management form may assign: present, a member of the role_id enum,
+     * selectable (Developer / Root Admin are assigned by the system only), and one the
+     * signed-in user may administer - the same set the form offered, enforced here
+     * because the form is presentation. Fills $errors['role_id'] and returns null when
+     * the value fails.
+     */
+    private static function _validate_role_id($value, array &$errors): ?int
+    {
+        if ($value === null || $value === '') {
+            $errors['role_id'] = 'Role is required';
+            return null;
+        }
+
+        $role_id = (int) $value;
+        $roles = User_Model::role_id__enum();
+
+        if (!isset($roles[$role_id]) || ($roles[$role_id]['selectable'] ?? true) === false) {
+            $errors['role_id'] = 'Invalid role';
+            return null;
+        }
+
+        if (!Session::get_user()->can_admin_role($role_id)) {
+            $errors['role_id'] = 'You cannot assign this role';
+            return null;
+        }
+
+        return $role_id;
     }
 }

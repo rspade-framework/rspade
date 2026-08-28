@@ -297,16 +297,6 @@ class Modal {
         }
     }
 
-    /**
-     * Apply validation errors to the current modal
-     * @param {Object} errors - Error object {field: message}
-     */
-    static apply_errors(errors) {
-        if (this._current) {
-            this._current.apply_errors(errors);
-        }
-    }
-
     // ================================================================================
     // Simple Dialog Methods
     // ================================================================================
@@ -665,13 +655,40 @@ class Modal {
     }
 
     /**
-     * Show a modal with a jqhtml form component
+     * Show a modal that HOSTS A FORM.
+     *
+     * A modal is CHROME around a form; it has no submission pipeline of its own. This
+     * renders the component, finds the <Rsx_Form> inside it, and wires the primary
+     * button to THAT form's submit(). The endpoint comes from the form's own
+     * $controller/$method - the single place an endpoint is ever named.
+     *
+     *     const result = await Modal.form({
+     *         title: 'Generate API key',
+     *         component: 'Add_Api_Key_Modal_Form',
+     *     });
+     *     if (result) { ... }   // created; result is the server payload
+     *
+     * That is the whole common case: the host component usually needs no JavaScript
+     * class at all - no vals() delegate, no render_error() delegate, no controller
+     * call. A successful submit CLOSES the dialog and resolves with the server result;
+     * a failure keeps it OPEN with the form's own errors already rendered; cancel or
+     * dismiss resolves false.
+     *
+     * A dialog with no form - one that collects a choice and hands it to a callback,
+     * or whose "form" would have no endpoint - is a Modal.show({buttons}), not this.
+     *
      * @param {Object} options
-     * @param {string} options.component - Component class name
-     * @param {Object} options.component_args - Arguments to pass to component
-     * @param {Function} options.on_submit - Callback function called on submit. Receives form component instance.
-     *                                        Return false to keep modal open, or return data to close and resolve.
-     * @returns {Promise<Object|false>}
+     * @param {string} options.title - Dialog title
+     * @param {string} options.component - Component class name whose template holds an <Rsx_Form>
+     * @param {Object} [options.component_args] - Args passed to that component
+     * @param {string} [options.submit_label] - Primary button label
+     * @param {string} [options.cancel_label] - Secondary button label
+     * @param {number} [options.max_width] - Dialog max width in px
+     * @param {Function} [options.before_submit] - (vals, form) adjust the payload, throw a
+     *        {field: message} object to render as validation, or return false to abort
+     *        silently (an "are you sure?" the user declined is not an error)
+     * @param {Function} [options.on_success] - (result, form) side effects before the dialog closes
+     * @returns {Promise<Object|false>} The server result on success, false otherwise
      */
     static async form(options) {
         const defaults = {
@@ -682,7 +699,8 @@ class Modal {
             closable: true,
             submit_label: 'Submit',
             cancel_label: 'Cancel',
-            on_submit: null,
+            before_submit: null,
+            on_success: null,
         };
 
         const final_options = Object.assign({}, defaults, options);
@@ -692,24 +710,13 @@ class Modal {
             return false;
         }
 
-        // Create component instance (setter returns $element, call .component() to get instance)
-        let $component_container = $('<div>');
-        let component_instance = $component_container.component(final_options.component, final_options.component_args).component();
+        // The dialog opens immediately; the body component is created inside it by
+        // on_show, so an edit form starts its own fetch behind its loading overlay
+        // instead of the user waiting on a blank screen for the dialog to appear.
+        const $body_content = $('<div class="modal-form-component-container"></div>');
+        let component_instance = null;
 
-        // Wait for component to be ready
-        await new Promise((resolve) => {
-            component_instance.on('ready', () => resolve());
-        });
-
-        // Find a form instance if component instance doesn't have .vals()
-        if (!component_instance.vals) {
-            let $form = component_instance.$.find('.Rsx_Form');
-            if ($form.exists()) {
-                component_instance = $form.component();
-            }
-        }
-
-        // Create buttons
+        // Button order: dismiss on the LEFT, primary on the RIGHT.
         const buttons = [
             {
                 label: final_options.cancel_label,
@@ -722,36 +729,54 @@ class Modal {
                 class: 'btn-primary',
                 default: true,
                 callback: async function () {
-                    // If on_submit callback provided, use it
-                    if (final_options.on_submit && typeof final_options.on_submit === 'function') {
-                        const result = await final_options.on_submit(component_instance);
-                        // If callback returns null/undefined, keep modal open
-                        if (result === null || result === undefined) {
-                            return false;
-                        }
-                        // Otherwise (including false), return the result to close modal
-                        return result;
+                    const $rsx_form = component_instance.$.hasClass('Rsx_Form')
+                        ? component_instance.$
+                        : component_instance.$.find('.Rsx_Form').first();
+
+                    if (!$rsx_form.exists()) {
+                        shouldnt_happen(
+                            `Modal.form({component: '${final_options.component}'}) found no <Rsx_Form> inside that component. ` +
+                            `A dialog with no form belongs on Modal.show({buttons}).`
+                        );
+                        return false;
                     }
 
-                    // No on_submit callback - get form data and close modal
-                    if (component_instance.submit && typeof component_instance.submit === 'function') {
-                        return await component_instance.submit();
-                    } else if (component_instance.vals && typeof component_instance.vals === 'function') {
-                        return component_instance.vals();
-                    } else {
-                        console.warn('Form component has no submit() or vals() method');
-                        return true;
+                    const rsx_form = $rsx_form.component();
+
+                    if (final_options.before_submit) {
+                        rsx_form.before_submit = (vals, form) => final_options.before_submit(vals, form);
                     }
+
+                    const result = await rsx_form.submit();
+
+                    if (result === false) {
+                        // Validation, transport failure, or a before_submit abort - the
+                        // form has rendered whatever there was to render. Stay open.
+                        // (Only a literal false keeps a dialog open; null closes it.)
+                        return false;
+                    }
+
+                    if (final_options.on_success) {
+                        await final_options.on_success(result, rsx_form);
+                    }
+
+                    // Close, resolving with the server result. An empty success still
+                    // closes truthily, so a caller's `if (result)` reads as "submitted".
+                    return result ?? true;
                 },
             },
         ];
 
         return await this._show_modal({
             title: final_options.title,
-            body: component_instance.$,
+            body: $body_content,
             buttons: buttons,
             max_width: final_options.max_width,
             closable: final_options.closable,
+            on_show: () => {
+                $body_content.component(final_options.component, final_options.component_args);
+                component_instance = $body_content.component();
+            },
         });
     }
 
@@ -843,19 +868,5 @@ class Modal {
             closable: true,
             close_on_submit: true,
         });
-    }
-
-    /**
-     * Reopen current modal with validation errors
-     * @param {Object} errors
-     * @returns {Promise<void>}
-     */
-    static async reopen_with_errors(errors) {
-        if (this._current) {
-            // Modal is still open, just apply errors
-            this.apply_errors(errors);
-        } else {
-            console.warn('No modal open to apply errors to');
-        }
     }
 }

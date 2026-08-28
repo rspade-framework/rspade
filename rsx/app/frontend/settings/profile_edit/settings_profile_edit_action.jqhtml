@@ -1,11 +1,5 @@
 <Define:Settings_Profile_Edit_Action>
-<% if (this.data.loading) { %>
-    <Page_Scaffold>
-        <Slot:main>
-            <Loading_Spinner $message="Loading profile..." />
-        </Slot:main>
-    </Page_Scaffold>
-<% } else if (this.data.error_data) { %>
+<% if (this.data.error_data) { %>
     <Page_Scaffold>
         <Slot:main>
             <Universal_Error_Page_Component
@@ -19,9 +13,11 @@
 <% } else { %>
     <Page_Scaffold>
         <Slot:main>
-            <Rsx_Form $data="<%= JSON.stringify(this.data.form_data) %>" $controller="Frontend_Settings_Profile_Edit_Controller" $method="save_profile">
+            <Rsx_Form $data=this.data.form_data $controller="Frontend_Settings_Profile_Edit_Controller" $method="save_profile">
                 <Card_Widget>
                     <Section $title="Profile Information">
+                        <Form_Errors />
+
                         <Form_Field $label="Profile Photo">
                             <Profile_Photo_Input $name="profile_photo" $width=96 $height=96 $show_remove=true />
                         </Form_Field>

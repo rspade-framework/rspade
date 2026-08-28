@@ -1,11 +1,5 @@
 <Define:Projects_Edit_Action>
-<% if (this.data.loading) { %>
-    <Page_Scaffold>
-        <Slot:main>
-            <Loading_Spinner $message="Loading project details..." />
-        </Slot:main>
-    </Page_Scaffold>
-<% } else if (this.data.error_data) { %>
+<% if (this.data.error_data) { %>
     <Page_Scaffold>
         <Slot:main>
             <Universal_Error_Page_Component
@@ -19,13 +13,15 @@
 <% } else { %>
     <Page_Scaffold>
         <Slot:main>
-            <Rsx_Form $data="<%= JSON.stringify(this.data.form_data) %>" $controller="Frontend_Projects_Controller" $method="save">
+            <Rsx_Form $data=this.data.form_data $controller="Frontend_Projects_Controller" $method="save">
                 <% if (this.data.is_edit) { %>
                     <Hidden_Input $name="id" />
                 <% } %>
 
                 <Card_Widget>
                     <Section $title="Project Information">
+                        <Form_Errors />
+
                         <Form_Field $label="Project Name" $required=true>
                             <Text_Input $name="name" $placeholder="Enter project name" $max_length=Project_Model.field_length('name') />
                         </Form_Field>

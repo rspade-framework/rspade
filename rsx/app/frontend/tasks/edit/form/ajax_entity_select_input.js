@@ -63,8 +63,7 @@ class Ajax_Entity_Select_Input extends Select_Input {
                 this.control.classList.add('form-select');
             },
             onChange: function (value) {
-                that.trigger('input', value);
-                that.trigger('val', value);
+                that._notify_input(value);
             },
         });
 

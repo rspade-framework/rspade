@@ -80,8 +80,6 @@ class Parent_Selector_Input extends Form_Input_Abstract {
     }
 
     _emit() {
-        const v = this._get_value();
-        this.trigger('input', v);
-        this.trigger('val', v);
+        this._notify_input(this._get_value());
     }
 }

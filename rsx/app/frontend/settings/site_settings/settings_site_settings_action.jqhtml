@@ -1,9 +1,11 @@
 <Define:Settings_Site_Settings_Action>
 <Page_Scaffold>
     <Slot:main>
-        <Rsx_Form $data="<%= JSON.stringify(this.data.form_data) %>" $controller="Frontend_Settings_Site_Settings_Controller" $method="update">
+        <Rsx_Form $data=this.data.form_data $controller="Frontend_Settings_Site_Settings_Controller" $method="update">
             <Card_Widget>
                 <Section $title="General Settings">
+                    <Form_Errors />
+
                     <Form_Field $label="Site Logo">
                         <Profile_Photo_Input $name="site_logo" $width=96 $height=96 $show_remove=true />
                     </Form_Field>

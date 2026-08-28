@@ -182,7 +182,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
 
         // Return validation errors if any
         if (!empty($errors)) {
-            return response_error(Ajax::ERROR_VALIDATION, $errors);
+            return response_form_error('Please correct the errors below.', $errors);
         }
 
         // Determine if this is create or update
@@ -1780,10 +1780,10 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
         $body = trim($params['body'] ?? '');
 
         if (!$client_id) {
-            return response_error(Ajax::ERROR_VALIDATION, 'Client ID is required');
+            return response_form_error('Client ID is required.');
         }
         if ($title === '' || $body === '') {
-            return response_form_error('Validation failed', [
+            return response_form_error('Please correct the errors below.', [
                 'title' => $title === '' ? 'Title is required' : null,
                 'body' => $body === '' ? 'Message is required' : null,
             ]);
@@ -1808,9 +1808,12 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
         // The opening ask. Staff author -> no auto status transition.
         $thread->post_message($staff, $body);
 
+        // thread_url, NOT 'redirect': 'redirect' is the one result key the form itself
+        // acts on, and it means "leave the page". The caller here stays in the SPA and
+        // dispatches to the new thread.
         return [
             'thread_id' => $thread->id,
-            'redirect' => Rsx::Route('Clients_Request_Thread_Action', [
+            'thread_url' => Rsx::Route('Clients_Request_Thread_Action', [
                 'id' => (int) $client_id,
                 'thread_id' => (int) $thread->id,
             ]),

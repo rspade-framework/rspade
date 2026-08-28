@@ -1,11 +1,5 @@
 <Define:Party_Edit_Action>
-<% if (this.data.loading) { %>
-    <Page_Scaffold>
-        <Slot:main>
-            <Loading_Spinner $message="Loading party..." />
-        </Slot:main>
-    </Page_Scaffold>
-<% } else if (this.data.error_data) { %>
+<% if (this.data.error_data) { %>
     <Page_Scaffold>
         <Slot:main>
             <Universal_Error_Page_Component
@@ -25,7 +19,7 @@
     %>
     <Page_Scaffold>
         <Slot:main>
-            <Rsx_Form $data="<%= JSON.stringify(this.data.form_data) %>" $controller="Frontend_Party_Controller" $method="save">
+            <Rsx_Form $data=this.data.form_data $controller="Frontend_Party_Controller" $method="save">
                 <% if (this.data.is_edit) { %>
                     <Hidden_Input $name="id" />
                 <% } %>
@@ -34,6 +28,8 @@
                 <Card_Widget>
                     <%-- Type-specific fields (live on the detail table) --%>
                     <Section $title=_type_title>
+                        <Form_Errors />
+
                         <% if (t === Party_Model.TYPE_PERSON) { %>
                             <Form_Field $label="First Name" $required=true>
                                 <Text_Input $name="first_name" $max_length=Party_Model.field_length('first_name') />

@@ -25,9 +25,9 @@ class Text_Input extends Form_Input_Abstract {
 
         const that = this;
         this.$sid('input').on('input', function() {
-            const value = that.val();
-            that.trigger('input', value);
-            that.trigger('val', value);
+            // _notify_input() is the ONE way an input announces a USER change: it
+            // fires 'input' then 'val', in that order. Never hand-trigger the pair.
+            that._notify_input(that.val());
         });
     }
 

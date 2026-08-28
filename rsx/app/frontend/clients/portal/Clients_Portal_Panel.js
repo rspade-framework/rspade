@@ -224,8 +224,8 @@ class Clients_Portal_Panel extends Component {
         // New Request: title + body -> request_thread_create, then open the new thread.
         if (this.$sid('new-request-btn').exists()) {
             this.$sid('new-request-btn').off('click').click(async () => {
-                const redirect = await New_Request_Thread_Modal.show(this.args.client_id);
-                if (redirect) Spa.dispatch(redirect);
+                const thread_url = await New_Request_Thread_Modal.show(this.args.client_id);
+                if (thread_url) Spa.dispatch(thread_url);
             });
         }
     }

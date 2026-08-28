@@ -182,13 +182,13 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
             if (!$validation['valid']) {
                 // Handle email mismatch specially
                 if ($validation['error_type'] === 'email_mismatch') {
-                    return response_error(Ajax::ERROR_VALIDATION, [
-                        'message' => "This invitation was sent to {$validation['invited_email']} but you are logged in as {$validation['current_email']}. " .
+                    return response_form_error(
+                        "This invitation was sent to {$validation['invited_email']} but you are logged in as {$validation['current_email']}. " .
                         'Please logout and create your account with the invited email address.'
-                    ]);
+                    );
                 }
 
-                return response_error(Ajax::ERROR_VALIDATION, ['message' => $validation['error']]);
+                return response_form_error($validation['error']);
             }
 
             $invitation = $validation['invitation'];
@@ -232,17 +232,17 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
             $errors['password_confirm'] = 'Passwords do not match';
         }
 
-        // Return validation errors
+        // Return validation errors. response_form_error() carries a summary under
+        // _message alongside the field map, so the form's top alert says something
+        // even when every message matched a field.
         if (!empty($errors)) {
-            return response_error(Ajax::ERROR_VALIDATION, $errors);
+            return response_form_error('Please correct the errors below.', $errors);
         }
 
         // Re-validate invitation one final time before creating account
         $final_validation = Invite_Helper::validate_invitation($invite_code);
         if (!$final_validation['valid']) {
-            return response_error(Ajax::ERROR_VALIDATION, [
-                'message' => 'This invitation is no longer active. Please contact the site administrator for a new invitation.'
-            ]);
+            return response_form_error('This invitation is no longer active. Please contact the site administrator for a new invitation.');
         }
 
         $invitation = $final_validation['invitation'];

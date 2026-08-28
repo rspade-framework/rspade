@@ -1,0 +1,31 @@
+<%--
+Pin_Input
+
+A one-value input for a short numeric code, rendered as N single-character boxes.
+Its value is the whole code as a string ('' when nothing is entered) - the boxes are
+presentation, not separate fields.
+
+  $name    (required) the field name the form serializes it under
+  $length  number of digits (default 6)
+
+  <Form_Field $label="Verification code" $required=true>
+      <Pin_Input $name="pin" $length=6 />
+  </Form_Field>
+
+Interaction: typing a digit advances, Backspace on an empty box clears and steps back,
+the arrow keys move, and a paste distributes its digits across the boxes.
+
+There is NO "you must enter all N digits" check here. Completeness is a rule the SERVER
+can see for itself, so it lives there once - a client copy of it would hide the day the
+server's copy went missing (see Rsx_Form's docblock).
+--%>
+<Define:Pin_Input extends="Form_Input_Abstract" tag="div">
+    <div class="Pin_Input__boxes d-flex justify-content-center gap-2" $sid="boxes">
+        <% const _length = this.args.length ? int(this.args.length) : 6; %>
+        <% for (let i = 0; i < _length; i++) { %>
+            <input type="text" class="form-control Pin_Input__box text-center"
+                maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off"
+                data-index="<%= i %>" />
+        <% } %>
+    </div>
+</Define:Pin_Input>

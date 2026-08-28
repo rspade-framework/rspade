@@ -16,16 +16,7 @@ class Add_Api_Key_Modal extends Modal_Abstract {
         const result = await Modal.form({
             title: 'Generate New API Key',
             component: 'Add_Api_Key_Modal_Form',
-            on_submit: async (form) => {
-                try {
-                    const values = form.vals();
-                    const result = await Frontend_Settings_Api_Keys_Controller.create_key(values);
-                    return result; // Close form modal, return key data
-                } catch (error) {
-                    await form.render_error(error);
-                    return false; // Keep modal open
-                }
-            },
+            submit_label: 'Generate Key',
         });
 
         // If key was created successfully, show the success modal with copyable key

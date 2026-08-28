@@ -12,59 +12,58 @@ Fields:
 - role_id (required): User's role (Owner/Admin/Member/Viewer)
 - phone (optional): User's phone number
 
-Form follows Rsx_Form pattern with Form_Field + input components.
-Validation handled server-side, errors displayed via Form_Utils.
+A template-only component - the standard case for a modal form. The <Rsx_Form> names
+the endpoint, which is the ONE place it is named, and the hosting Modal.form() drives
+that form's submit(). Every "(required)" above is a rule the endpoint enforces and the
+form renders; none of them is repeated in the browser.
 --%>
 <Define:Add_User_Modal_Form>
 
   <%-- $data seeds ADD-form defaults, the same way a CRUD edit action passes form_data for
        both modes. API access is on by default, matching the column's own default - a new
-       user should not have to be granted something every existing user already has. --%>
-  <Rsx_Form $controller="Frontend_Settings_User_Management_Controller" $method="add_user"
-    $data="<%= JSON.stringify({is_api_access_enabled: '1'}) %>">
+       user should not have to be granted something every existing user already has.
 
-    <div class="mb-3">
-      <Form_Field $label="Email Address" $required=true>
-        <Text_Input $name="email" $type="email" $placeholder="user@example.com" $autofocus=true />
-      </Form_Field>
-    </div>
+       An inline literal cannot ride directly on a $arg (unquoted args may not contain
+       spaces), so seeds and option lists are named in a code block first. --%>
+  <% const _defaults = {is_api_access_enabled: '1'}; %>
+  <%-- Roles come from the User_Model enum (selectable ones only), narrowed to the
+       roles the signed-in user may administer - the same rule the endpoint enforces. --%>
+  <% const _role_options = User_Model.role_id__enum_select()
+       .filter(o => Permission.can_admin_role(int(o.value))); %>
+
+  <Rsx_Form $controller="Frontend_Settings_User_Management_Controller" $method="add_user" $data=_defaults>
+
+    <Form_Errors />
+
+    <Form_Field $label="Email Address" $required=true>
+      <Text_Input $name="email" $type="email" $max_length=User_Model.field_length('email') $placeholder="user@example.com" $autofocus=true />
+    </Form_Field>
 
     <div class="row">
-      <div class="col-md-6 mb-3">
+      <div class="col-tablet-6">
         <Form_Field $label="First Name" $required=true>
-          <Text_Input $name="first_name" />
+          <Text_Input $name="first_name" $max_length=User_Model.field_length('first_name') />
         </Form_Field>
       </div>
-      <div class="col-md-6 mb-3">
+      <div class="col-tablet-6">
         <Form_Field $label="Last Name" $required=true>
-          <Text_Input $name="last_name" />
+          <Text_Input $name="last_name" $max_length=User_Model.field_length('last_name') />
         </Form_Field>
       </div>
     </div>
 
-    <div class="mb-3">
-      <Form_Field $label="Role" $required=true>
-        <Select_Input $name="role_id" $options="<%= JSON.stringify([
-          {value: 3, label: 'Member'},
-          {value: 2, label: 'Admin'},
-          {value: 1, label: 'Owner'},
-          {value: 4, label: 'Viewer'}
-        ]) %>" />
-      </Form_Field>
-    </div>
+    <Form_Field $label="Role" $required=true>
+      <Select_Input $name="role_id" $options=_role_options />
+    </Form_Field>
 
-    <div class="mb-3">
-      <Form_Field $label="Phone Number">
-        <Phone_Text_Input $name="phone" $placeholder="(555) 123-4567" />
-      </Form_Field>
-    </div>
+    <Form_Field $label="Phone Number">
+      <Phone_Text_Input $name="phone" $placeholder="(555) 123-4567" />
+    </Form_Field>
 
-    <div class="mb-3">
-      <Form_Field $label="API Access"
-        $help="When off, this user's API keys stop working and no new ones can be used.">
-        <Checkbox_Input $name="is_api_access_enabled" $label="Allow API access" />
-      </Form_Field>
-    </div>
+    <Form_Field $label="API Access"
+      $help="When off, this user's API keys stop working and no new ones can be used.">
+      <Checkbox_Input $name="is_api_access_enabled" $label="Allow API access" />
+    </Form_Field>
 
   </Rsx_Form>
 

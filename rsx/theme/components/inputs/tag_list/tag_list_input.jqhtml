@@ -1,0 +1,31 @@
+<%--
+Tag_List_Input
+
+One named value: a LIST OF SHORT STRINGS, edited as a stack of text boxes with add and
+remove buttons. val() reports the entered tags as an array (blank rows dropped);
+val(array) rebuilds the rows from it.
+
+  $name        (required) the field name the form serializes it under
+  $placeholder placeholder for each row
+  $add_label   label on the add button (default "Add")
+
+  <Form_Field $label="Tags" $help="Use tags to categorize and organize your clients">
+      <Tag_List_Input $name="tags" $placeholder="e.g., VIP, Enterprise" $add_label="Add Tag" />
+  </Form_Field>
+
+WHY this is a component and not markup in the page: only a Form_Input_Abstract is
+discovered by a form. Loose <input name="tags[]"> elements inside a form are NOT
+serialized - they submit nothing at all, silently - so a repeating field has to own its
+value the way every other input does.
+--%>
+<Define:Tag_List_Input extends="Form_Input_Abstract" tag="div">
+
+    <%-- The rows container must exist in the TEMPLATE and render unconditionally:
+         a node built in JS never receives a scoped id, so $sid() would not find it. --%>
+    <div class="Tag_List_Input__rows" $sid="rows"></div>
+
+    <button type="button" class="btn btn-sm btn-primary" $sid="add_btn">
+        <i class="bi bi-plus"></i> <%= this.args.add_label || 'Add' %>
+    </button>
+
+</Define:Tag_List_Input>

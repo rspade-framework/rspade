@@ -1,44 +1,48 @@
 <%--
 Test_Modal_Form
 
-Simple test form for demonstrating modal form functionality.
-Demonstrates text inputs, dropdown, and validation error handling.
+The modal-form worked example: a component whose template is an <Rsx_Form>, and
+nothing else. It has NO JavaScript class, which is the standard case - the modal is
+chrome, it finds this form and drives its submit(), and the endpoint is named exactly
+once, on the form tag.
+
+$data (optional) seed values, for the pre-filled (edit) variant of the demo. A create
+form simply omits it and starts pristine.
+
+Note what is NOT here: no vals() delegate, no render_error() delegate, no controller
+call, and no client-side checking of name/email/role. Every one of those rules is the
+SERVER's, and the server's error comes back and renders in <Form_Errors /> and under
+the fields it names.
 --%>
-<Define:Test_Modal_Form tag="div">
-    <div class="mb-4">
-        <h5 class="text-muted mb-3">User Information</h5>
+<Define:Test_Modal_Form>
 
-        <div $sid="error_container"></div>
+    <Rsx_Form $controller="Dev_Modals_Controller" $method="register_user" $data=this.args.data>
 
-        <div class="form-group mb-3">
-            <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>
-            <input type="text"
-                   class="form-control"
-                   $sid="name_input"
-                   name="name"
-                   placeholder="Enter your full name">
+        <div class="mb-4">
+            <h5 class="text-muted mb-3">User Information</h5>
+
+            <%-- Failure feedback renders HERE, because the author placed it here. --%>
+            <Form_Errors />
+
+            <Form_Field $label="Full Name" $required=true>
+                <Text_Input $name="name" $max_length=255 $placeholder="Enter your full name" $autofocus=true />
+            </Form_Field>
+
+            <Form_Field $label="Email Address" $required=true>
+                <Text_Input $name="email" $type="email" $max_length=255 $placeholder="user@example.com" />
+            </Form_Field>
+
+            <% const _role_options = [
+                {value: 'admin', label: 'Administrator'},
+                {value: 'manager', label: 'Manager'},
+                {value: 'user', label: 'User'},
+                {value: 'guest', label: 'Guest'},
+            ]; %>
+            <Form_Field $label="Role" $required=true>
+                <Select_Input $name="role" $options=_role_options $placeholder="-- Select a role --" />
+            </Form_Field>
         </div>
 
-        <div class="form-group mb-3">
-            <label for="email" class="form-label">Email Address <span class="text-danger">*</span></label>
-            <input type="email"
-                   class="form-control"
-                   $sid="email_input"
-                   name="email"
-                   placeholder="user@example.com">
-        </div>
+    </Rsx_Form>
 
-        <div class="form-group mb-3">
-            <label for="role" class="form-label">Role <span class="text-danger">*</span></label>
-            <select class="form-select"
-                    $sid="role_select"
-                    name="role">
-                <option value="">-- Select a role --</option>
-                <option value="admin">Administrator</option>
-                <option value="manager">Manager</option>
-                <option value="user">User</option>
-                <option value="guest">Guest</option>
-            </select>
-        </div>
-    </div>
 </Define:Test_Modal_Form>

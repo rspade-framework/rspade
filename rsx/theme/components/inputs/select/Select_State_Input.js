@@ -103,20 +103,18 @@ class Select_State_Input extends Select_Ajax_Input {
     }
 
     /**
-     * Override val() to update cache when value is set
-     * This is an exception to the template method pattern - we need to
-     * intercept setter calls to update the state cache.
+     * Remember the pick per country, so switching country and back restores it.
+     *
+     * The cache hangs off _set_value(), NOT off val(): val() is the base class's -
+     * buffering, events and the pending-value logic live there, and an input that
+     * needs different write behaviour expresses it here.
+     *
+     * @param {*} value
      */
-    val(value) {
-        if (arguments.length === 0) {
-            // Getter - use parent implementation
-            return super.val();
-        } else {
-            // Setter - update cache and call parent
-            if (this.args.country_code && value && value !== 'N/A') {
-                this._state_cache[this.args.country_code] = value;
-            }
-            return super.val(value);
+    _set_value(value) {
+        if (this.args.country_code && value && value !== 'N/A') {
+            this._state_cache[this.args.country_code] = value;
         }
+        super._set_value(value);
     }
 }

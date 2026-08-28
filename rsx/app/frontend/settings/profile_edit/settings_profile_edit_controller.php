@@ -70,7 +70,7 @@ class Frontend_Settings_Profile_Edit_Controller extends Rsx_Controller_Abstract
 
         // Return validation errors if any
         if (!empty($errors)) {
-            return response_error(Ajax::ERROR_VALIDATION, $errors);
+            return response_form_error('Please correct the errors below.', $errors);
         }
 
         // Update user fields (no mass assignment - explicit field setting)

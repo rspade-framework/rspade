@@ -1,21 +1,17 @@
 /**
- * Pin_Verification_Form Styles
+ * Pin_Input Styles
  *
- * BEM naming: Pin_Verification_Form__element
+ * BEM naming: Pin_Input__element
  */
 
-.Pin_Verification_Form {
-    &__inputs {
-        // Container styled via Bootstrap utilities in template
-    }
-
-    &__input {
+.Pin_Input {
+    &__box {
         width: 50px;
         height: 60px;
         font-size: $font-size-2xl;
         font-weight: $font-weight-semibold;
         padding: 0;
-        border: $border-width-thick solid var(--bs-border-color);
+        border: $border-width-thick solid $border-color;
         border-radius: $border-radius-lg;
         transition: $transition-base;
 
@@ -24,13 +20,11 @@
             box-shadow: 0 0 0 4px rgba($primary-color, 0.25);
             outline: 0;
         }
-
-        &.is-invalid {
-            border-color: $danger-color;
-        }
     }
+}
 
-    &__hint {
-        margin-top: 10px;
-    }
+// The error renderer marks the INPUT component root, so the boxes take their
+// invalid state from the component, not from a class of their own.
+.Pin_Input.is-invalid .Pin_Input__box {
+    border-color: $danger-color;
 }

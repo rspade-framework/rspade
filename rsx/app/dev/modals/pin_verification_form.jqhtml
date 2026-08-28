@@ -1,0 +1,22 @@
+<%--
+Pin_Verification_Form
+
+The PIN-entry worked example: an <Rsx_Form> around a single Pin_Input. It shows that a
+one-field form is still a form - the code is checked by the endpoint, and a wrong or
+incomplete code comes back as a validation error pinned on the `pin` field.
+--%>
+<Define:Pin_Verification_Form>
+
+    <Rsx_Form $controller="Dev_Modals_Controller" $method="verify_pin">
+
+        <Form_Errors />
+
+        <Pin_Input $name="pin" $length=6 />
+
+        <div class="text-center text-muted small mt-2">
+            Enter the 6-digit PIN code
+        </div>
+
+    </Rsx_Form>
+
+</Define:Pin_Verification_Form>

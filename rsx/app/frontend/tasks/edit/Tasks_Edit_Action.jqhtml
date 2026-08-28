@@ -1,11 +1,5 @@
 <Define:Tasks_Edit_Action>
-<% if (this.data.loading) { %>
-    <Page_Scaffold>
-        <Slot:main>
-            <Loading_Spinner $message="Loading task details..." />
-        </Slot:main>
-    </Page_Scaffold>
-<% } else if (this.data.error_data) { %>
+<% if (this.data.error_data) { %>
     <Page_Scaffold>
         <Slot:main>
             <Universal_Error_Page_Component
@@ -19,13 +13,15 @@
 <% } else { %>
     <Page_Scaffold>
         <Slot:main>
-            <Rsx_Form $data="<%= JSON.stringify(this.data.form_data) %>" $controller="Frontend_Tasks_Controller" $method="save">
+            <Rsx_Form $data=this.data.form_data $controller="Frontend_Tasks_Controller" $method="save">
                 <% if (this.data.is_edit) { %>
                     <Hidden_Input $name="id" />
                 <% } %>
 
                 <Card_Widget>
                     <Section $title="Task Information">
+                        <Form_Errors />
+
                         <Form_Field $label="Title" $required=true>
                             <Text_Input $name="title" $placeholder="Enter task title" $max_length=Task_Model.field_length('title') />
                         </Form_Field>

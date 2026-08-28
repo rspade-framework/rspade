@@ -26,39 +26,89 @@ if (name) {
 
 ## Form Modals
 
-Display jqhtml form components with validation:
+A modal is CHROME around a form. It has no submission pipeline of its own: it renders
+the component, finds the `<Rsx_Form>` inside it, and wires the primary button to THAT
+form's `submit()`. The endpoint comes from the form's own `$controller`/`$method` -
+the single place an endpoint is ever named.
 
 ```javascript
 const result = await Modal.form({
-    title: "Edit User",
-    component: "User_Form",  // jqhtml component name
-    component_args: {        // Args passed to component
-        data: user_data,
-        mode: 'edit'
-    },
-    on_submit: async (form) => {
-        // Get form values
-        const values = form.vals();
-
-        // Call API
-        const response = await User_Controller.save(values);
-
-        // Handle validation errors
-        if (response.errors) {
-            Form_Utils.apply_form_errors(form.$, response.errors);
-            return false; // Keep modal open
-        }
-
-        // Success - close modal and return data
-        return response.data;
-    }
+    title: 'Edit User',
+    component: 'Edit_User_Modal_Form',   // its template contains an <Rsx_Form>
+    component_args: { user_id },
 });
 
 if (result) {
-    // User saved successfully
-    console.log('User saved:', result);
+    // Saved. `result` is exactly what the endpoint returned.
 }
 ```
+
+That is the whole common case. The host component usually needs **no JavaScript class
+at all** - no `vals()` delegate, no `render_error()` delegate, no controller call, and
+no client-side validation. On a failed submit the form has already pinned each server
+message under its field and raised its top alert; the dialog simply stays open.
+
+Outcomes:
+
+- **Success** closes the dialog and resolves with the server result.
+- **Failure** keeps it open, errors already rendered.
+- **Cancel / dismiss** resolves `false`.
+
+### The two hooks, for the non-standard minority
+
+```javascript
+await Modal.form({
+    title: 'Log time',
+    component: 'Log_Time_Modal_Form',
+
+    // Adjust the payload, throw a {field: message} object to render it as
+    // validation, or return false to abort SILENTLY - the seam for interaction
+    // guards, because an "are you sure?" the user declined is not an error.
+    before_submit: (vals, form) => ({ ...vals, minutes: to_minutes(vals.duration) }),
+
+    // Side effects before the dialog closes.
+    on_success: (result, form) => Timer.stop(),
+});
+```
+
+### A dialog with no form is Modal.show, not Modal.form
+
+If the dialog collects a choice and the CALLER acts on it - a picker, a selection
+table, a wizard step that persists nothing - there is no form and no endpoint for a
+form to name. Use `Modal.show({ buttons })` and give the body component a named
+accessor (`get_selection()`), not a `vals()`:
+
+```javascript
+const $body = $('<div>');
+let body = null;
+
+const picked = await Modal.show({
+    title: 'Choose contacts',
+    body: $body,
+    buttons: [
+        { label: 'Cancel', value: false, class: 'btn-secondary' },
+        {
+            label: 'Continue',
+            class: 'btn-primary',
+            default: true,
+            callback: () => {
+                const selection = body.get_selection();
+                if (!selection.length) {
+                    body.show_empty_selection_note();
+                    return false;   // ONLY a literal false keeps the dialog open
+                }
+                return selection;
+            },
+        },
+    ],
+    on_show: () => {
+        body = $body.component('Contact_Picker_Body', { contacts }).component();
+    },
+});
+```
+
+**`return null` CLOSES the dialog.** Only a literal `false` holds it open. A callback
+that returns `null` "to keep the modal open" discards whatever the user had entered.
 
 ## Modal Classes
 
@@ -67,39 +117,10 @@ For complex modals or modals called from multiple places, create dedicated modal
 ```javascript
 // File: /rsx/app/users/modals/add_user_modal.js
 class Add_User_Modal extends Modal_Abstract {
-    static async show(initial_data = {}) {
+    static async show() {
         const result = await Modal.form({
             title: 'Add User',
-            component: 'Add_User_Form',
-            component_args: {
-                data: initial_data
-            },
-            on_submit: async (form) => {
-                try {
-                    const values = form.vals();
-
-                    // Validate
-                    if (!values.email) {
-                        Form_Utils.apply_form_errors(form.$, {
-                            email: 'Email is required'
-                        });
-                        return false;
-                    }
-
-                    // Save
-                    const result = await User_Controller.add_user(values);
-
-                    if (result.errors) {
-                        Form_Utils.apply_form_errors(form.$, result.errors);
-                        return false;
-                    }
-
-                    return result; // Close modal, return data
-                } catch (error) {
-                    await form.render_error(error);
-                    return false; // Keep modal open
-                }
-            },
+            component: 'Add_User_Modal_Form',
         });
 
         return result || false;
@@ -121,31 +142,80 @@ $('#add-user-btn').click(async () => {
 
 ## Form Component Requirements
 
-Form components used in modals must:
+A form modal's body component is a component whose template wraps an `<Rsx_Form>`:
 
-1. Extend `Component`
-2. Implement `vals(values)` method for getting/setting values
-3. Include error container: `<div $id="error_container"></div>`
+```jqhtml
+<Define:Add_User_Modal_Form>
+  <Rsx_Form $controller="Frontend_Users_Controller" $method="add_user">
+    <Form_Errors />
+
+    <Form_Field $label="Email" $required=true>
+      <Text_Input $name="email" $type="email" $max_length=255 />
+    </Form_Field>
+  </Rsx_Form>
+</Define:Add_User_Modal_Form>
+```
+
+Requirements:
+
+1. Exactly one `<Rsx_Form>`, carrying `$controller` + `$method`.
+2. Exactly one `<Form_Errors />`, placed where the layout wants the failure feedback.
+3. `$name` on every input (never on `Form_Field`).
+4. No `vals()`, no `render_error()`, no `on_submit`, and no client-side validation.
+
+### Edit modals: the record arrives after the dialog opens
+
+An edit modal's body IS the loader, and it needs a JS class for that - three hooks,
+each for a definitional reason:
 
 ```javascript
-class User_Form extends Component {
-    vals(values) {
-        if (values) {
-            // Setter mode - populate form
-            this.$id('name').val(values.name || '');
-            this.$id('email').val(values.email || '');
-            return null;
-        } else {
-            // Getter mode - extract values
-            return {
-                id: this.$id('id').val(),
-                name: this.$id('name').val(),
-                email: this.$id('email').val()
-            };
+class Edit_User_Modal_Form extends Component {
+    // Earliest legal moment: the fetch races the children's own initialization
+    // instead of queueing behind it. Start the promise here; never await it here.
+    on_create() {
+        this._record = Users_Controller.get_user_for_edit({ user_id: int(this.args.user_id) });
+    }
+
+    // Renders REBUILD the DOM, so the overlay is STATE, re-armed every render.
+    on_render() {
+        if (!this._record_settled) {
+            this._get_form()?.set_loading(true);
         }
+    }
+
+    // populate() applies the values and clears the overlay in its finally, on
+    // success and on rejection alike. Guarded, because populate() can re-render.
+    on_ready() {
+        if (this._populate_started) return;
+        this._populate_started = true;
+        this._populate();
+    }
+
+    async _populate() {
+        const form = this._get_form();
+        try {
+            await form.populate(this._record);
+        } catch (e) {
+            this._record_settled = true;
+            await form.render_error(e);
+            return;
+        }
+        this._record_settled = true;
+    }
+
+    _get_form() {
+        const $form = this.$.find('.Rsx_Form').first();
+        return $form.exists() ? $form.component() : null;
     }
 }
 ```
+
+The settled flag is an INSTANCE property, deliberately not `this.data`: `this.data` is
+the maybe-cached result of `on_load()`, and a cached "already settled" would lie on the
+next open while the real fetch was still in flight.
+
+The template still renders the REAL form unconditionally - never a placeholder. The
+overlay is what the user waits behind, and it is the form's own structure underneath.
 
 ## Custom Modals
 
@@ -179,50 +249,30 @@ const modal = await Modal.show({
 ```javascript
 Modal.form({
     title: 'Modal Title',
-    component: 'Component_Name',
+    component: 'Component_Name',   // required; its template holds the <Rsx_Form>
     component_args: {},
-    size: 'lg',              // 'sm', 'md' (default), 'lg', 'xl'
-    backdrop: 'static',      // Prevent closing on backdrop click
-    keyboard: false,         // Prevent closing on ESC key
-    on_submit: async (form) => {},
-    on_shown: (modal) => {}, // After modal shown
-    on_hidden: () => {}      // After modal hidden
+    submit_label: 'Save',
+    cancel_label: 'Cancel',
+    max_width: 800,
+    closable: true,
+    before_submit: (vals, form) => {},   // adjust the payload / abort with false
+    on_success: (result, form) => {},    // side effects before the dialog closes
 });
 ```
 
 ## Error Handling in Modals
 
-```javascript
-on_submit: async (form) => {
-    try {
-        const values = form.vals();
-        const result = await API.save(values);
+There is nothing to write. The form owns it:
 
-        if (!result.success) {
-            // Display field-specific errors
-            if (result.errors) {
-                Form_Utils.apply_form_errors(form.$, result.errors);
-            }
+- **Validation failures** (`response_form_error()` from the endpoint) pin each message
+  under the input its key names, and the summary renders in `<Form_Errors />`.
+- **Everything else** - not found, unauthorized, a network failure - renders as a
+  single alert in the same container.
+- Either way `submit()` resolves `false`, so the dialog stays open.
 
-            // Display general error
-            if (result.message) {
-                form.$.find('.error-container').html(
-                    `<div class="alert alert-danger">${result.message}</div>`
-                );
-            }
-
-            return false; // Keep modal open
-        }
-
-        return result.data;
-    } catch (error) {
-        // Handle unexpected errors
-        console.error('Modal error:', error);
-        await form.render_error(error);
-        return false;
-    }
-}
-```
+Never wrap a submit in `try/catch` to "handle" a validation error: swallowing it
+before the renderer sees it is exactly how a failed save comes to look like a
+successful one.
 
 ## Modal Patterns
 
@@ -265,37 +315,26 @@ $('#delete-btn').click(async () => {
 
 ### Edit Modal Pattern
 
+The dialog opens IMMEDIATELY and the body loads its own record behind the form's
+loading overlay (see **Edit modals** above). Nothing is fetched before opening:
+
 ```javascript
 class Edit_Item_Modal extends Modal_Abstract {
     static async show(item_id) {
-        // Load current data
-        const item = await Item_Model.fetch(item_id);
-
         const result = await Modal.form({
-            title: `Edit ${item.name}`,
-            component: 'Item_Form',
-            component_args: {
-                data: item
-            },
-            on_submit: async (form) => {
-                const values = form.vals();
-                values.id = item_id;  // Include ID for update
-
-                const response = await Item_Controller.update(values);
-
-                if (response.errors) {
-                    Form_Utils.apply_form_errors(form.$, response.errors);
-                    return false;
-                }
-
-                return response.data;
-            }
+            title: 'Edit Item',
+            component: 'Edit_Item_Modal_Form',
+            component_args: { item_id: int(item_id) },
         });
 
         return result || false;
     }
 }
 ```
+
+While the record is in flight the form refuses to submit. That is not politeness: a
+blank field is a VALUE, so a submit racing the fetch would validly clear every field
+the data had not reached yet.
 
 ## Global Events
 
@@ -358,20 +397,23 @@ Modals automatically close on SPA navigation via `spa_dispatch_start` event. Thi
 
 Modals automatically manage state:
 
-- **Loading state**: Disable buttons during async operations
-- **Form state**: Preserve form values on validation errors
-- **Error state**: Display errors without closing
-- **Success state**: Close and return data
+- **Loading state**: submit buttons enter the submitting state and are inert until the
+  round trip completes; an edit form additionally wears a loading overlay, and refuses
+  to submit, until its record lands
+- **Form state**: values are untouched by a failed submit - the same form instance
+  stays on screen with the server's messages rendered into it
+- **Error state**: display errors without closing
+- **Success state**: close and resolve with the server result
 
 ## Best Practices
 
 1. **Use Modal Classes** for reusable modals
-2. **Return false to keep modal open** on errors
-3. **Return data to close modal** on success
-4. **Use Form_Utils.apply_form_errors()** for validation
+2. **Let the form own the submission** - `Modal.form({title, component})` and nothing else
+3. **Only a literal `false` keeps a dialog open** from a button callback; `null` closes it
+4. **No form? Use `Modal.show({buttons})`**, and name the accessor for what it returns
 5. **Chain modals sequentially**, not nested
 6. **Place modal classes in feature directories**
-7. **Let page JS handle UI updates** after modal actions
+7. **Let the caller handle UI updates** after the dialog resolves
 
 ## File Organization
 
@@ -394,17 +436,23 @@ Modals automatically manage state:
 ## Common Issues
 
 ### Modal doesn't close after submit
-- Ensure `on_submit` returns a truthy value on success
-- Return `false` explicitly to keep open
+- The endpoint returned a validation error, and the form rendered it - look at the fields
+- From a `Modal.show` button callback, only a literal `false` holds the dialog open
 
-### Form values not preserved on error
-- Don't recreate the form component
-- Use `Form_Utils.apply_form_errors()` to show errors
+### Modal closed and threw the user's input away
+- A button callback returned `null` (or `undefined`). Return `false` to keep it open
+
+### Form validation not showing
+- The form has no `<Form_Errors />` - add one where the layout wants it
+- The endpoint used `response_error(ERROR_VALIDATION, 'a string')`: the second argument
+  is METADATA, not a message, so the alert renders empty. Use `response_form_error()`
+- The error keys do not match any input's `$name`. Unmatched keys are legitimate - they
+  render in the top alert instead
 
 ### Modal appears behind backdrop
 - Check z-index conflicts in CSS
 - Ensure no parent has `position: fixed` with lower z-index
 
-### Form validation not showing
-- Verify error container exists: `<div $id="error_container"></div>`
-- Check error field names match form field names
+### "Modal.form() found no <Rsx_Form>"
+- The body component has no form. If it never submits anything, it belongs on
+  `Modal.show({buttons})`

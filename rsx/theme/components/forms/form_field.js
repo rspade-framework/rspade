@@ -1,12 +1,11 @@
 /**
  * Form_Field
  *
- * Form field wrapper that adds labels, help text, and required indicators.
+ * The standard visual field wrapper: label, required mark, help text.
  * See form_field.jqhtml for full documentation.
  *
- * Extends Form_Field_Abstract to inherit all core functionality.
- * This class exists primarily for template inheritance and any future
- * formatted-field-specific behavior.
+ * All behaviour is inherited from Form_Field_Abstract; this class exists for the
+ * template and for any formatted-field-specific behaviour a project adds later.
  */
 class Form_Field extends Form_Field_Abstract {
     // All functionality inherited from Form_Field_Abstract

@@ -26,9 +26,7 @@ class Checkbox_Multiselect_Input extends Form_Input_Abstract {
 
         const that = this;
         this.$sid('checkbox_list').on('change', '.multiselect-checkbox', function() {
-            const value = that.val();
-            that.trigger('input', value);
-            that.trigger('val', value);
+            that._notify_input(that.val());
         });
     }
 }

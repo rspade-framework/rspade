@@ -14,9 +14,7 @@ class Select_With_Description_Input extends Form_Input_Abstract {
         const that = this;
         this.$sid('input').on('change', function() {
             that._update_description();
-            const value = that.val();
-            that.trigger('input', value);
-            that.trigger('val', value);
+            that._notify_input(that.val());
         });
 
         this._update_description();

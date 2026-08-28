@@ -1,11 +1,5 @@
 <Define:Clients_Edit_Action>
-<% if (this.data.loading) { %>
-    <Page_Scaffold>
-        <Slot:main>
-            <Loading_Spinner $message="Loading client details..." />
-        </Slot:main>
-    </Page_Scaffold>
-<% } else if (this.data.error_data) { %>
+<% if (this.data.error_data) { %>
     <Page_Scaffold>
         <Slot:main>
             <Universal_Error_Page_Component
@@ -19,13 +13,17 @@
 <% } else { %>
     <Page_Scaffold>
         <Slot:main>
-            <Rsx_Form $data="<%= JSON.stringify(this.data.form_data) %>" $controller="Frontend_Clients_Controller" $method="save">
+            <Rsx_Form $data=this.data.form_data $controller="Frontend_Clients_Controller" $method="save">
                 <% if (this.data.is_edit) { %>
                     <Hidden_Input $name="id" />
                 <% } %>
 
                 <Card_Widget>
                     <Section $title="Basic Information" $icon="bi bi-building">
+                        <%-- Failure feedback renders where the AUTHOR puts it, so the
+                             section's own spacing applies to it. Every form places one. --%>
+                        <Form_Errors />
+
                         <Form_Field $label="Company Name" $required=true
                             $help="The official name of the client company"
                             $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::company_name') %>">
@@ -125,24 +123,11 @@
                     </Section>
 
                     <Section $title="Tags" $icon="bi bi-tags">
-                        <div $sid="tags-container">
-                            <% for (let tag of this.data.tags) { %>
-                                <div class="input-group mb-2">
-                                    <input type="text" class="form-control" name="tags[]"
-                                        value="<%= tag %>"
-                                        placeholder="e.g., VIP, Enterprise, Strategic Partner">
-                                    <button class="btn btn-danger remove-tag" type="button">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            <% } %>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-primary" $sid="add-tag">
-                            <i class="bi bi-plus"></i> Add Tag
-                        </button>
-                        <small class="form-text text-muted d-block mt-2">
-                            Use tags to categorize and organize your clients
-                        </small>
+                        <Form_Field $help="Use tags to categorize and organize your clients">
+                            <Tag_List_Input $name="tags"
+                                $placeholder="e.g., VIP, Enterprise, Strategic Partner"
+                                $add_label="Add Tag" />
+                        </Form_Field>
                     </Section>
 
                     <Section $title="Internal Notes" $icon="bi bi-journal-text">

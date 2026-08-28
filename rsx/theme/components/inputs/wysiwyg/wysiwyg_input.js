@@ -71,9 +71,7 @@ class Wysiwyg_Input extends Form_Input_Abstract {
         // Update hidden input on text change and trigger events
         this.quill.on('text-change', function() {
             that.$sid('hidden_input').val(that.quill.root.innerHTML);
-            const value = that.val();
-            that.trigger('input', value);
-            that.trigger('val', value);
+            that._notify_input(that.val());
         });
     }
 

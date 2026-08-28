@@ -124,7 +124,7 @@ running alongside the staff application with its own routing and permissions.
 
 ## Working on it
 
-**New to RSpade? Read [DEVELOPER_QUICKSTART.md](DEVELOPER_QUICKSTART.md) first.**
+**New to RSpade? Read [DEVELOPER_QUICKSTART.md](https://github.com/rspade-framework/rspade_system/tree/master/app/RSpade/docs/developer/DEVELOPER_QUICKSTART.md) first.**
 It is the whole framework in one sitting, written for somebody joining an
 existing project rather than designing one from scratch: how a page is assembled,
 how a component loads its data and what the lifecycle rules are for, how models
@@ -268,7 +268,7 @@ Everything ships with the framework:
 
 | | |
 |---|---|
-| [`DEVELOPER_QUICKSTART.md`](DEVELOPER_QUICKSTART.md) | the framework in one sitting — start here |
+| [`DEVELOPER_QUICKSTART.md`](https://github.com/rspade-framework/rspade_system/tree/master/app/RSpade/docs/developer/DEVELOPER_QUICKSTART.md) | the framework in one sitting — start here |
 | `php artisan rsx:man` | every topic, listed |
 | `.env.README` | every credential in `.env` |
 | `rsx/resource/docs/` | your application's own documentation lives here |

@@ -1,37 +1,35 @@
 <%--
 Edit_Group_Modal_Form - Modal form for editing groups
 
-Allows admins to edit existing user groups.
+this.args.group_id - the group being edited
 
-this.args.group_data - Group data including id, name, description, member_ids
-this.args.user_options - Array of {id, label, subtitle?} for member selection
+An EDIT modal: the record arrives AFTER the dialog has opened, so this component is
+the loader. The procedure lives in its JS class - start the fetch the moment the
+component exists, hold the form's loading overlay on every render until the record
+lands, then apply the values through the form's populate().
 
-Form follows Rsx_Form pattern with Form_Field + input components.
-Validation handled server-side, errors displayed via Form_Utils.
+The template renders the REAL form unconditionally (never a placeholder): the overlay
+is what the user waits behind, and it is the form's own structure underneath.
 --%>
 <Define:Edit_Group_Modal_Form>
 
-  <Rsx_Form $controller="Frontend_Settings_Group_Management_Controller" $method="save_group" $data="<%= JSON.stringify(this.args.group_data) %>">
+  <Rsx_Form $controller="Frontend_Settings_Group_Management_Controller" $method="save_group">
+
+    <Form_Errors />
 
     <Hidden_Input $name="id" />
 
-    <div class="mb-3">
-      <Form_Field $label="Group Name" $required=true>
-        <Text_Input $name="name" $autofocus=true />
-      </Form_Field>
-    </div>
+    <Form_Field $label="Group Name" $required=true>
+      <Text_Input $name="name" $max_length=User_Group_Model.field_length('name') $autofocus=true />
+    </Form_Field>
 
-    <div class="mb-3">
-      <Form_Field $label="Description">
-        <Text_Input $name="description" $type="textarea" $rows="3" />
-      </Form_Field>
-    </div>
+    <Form_Field $label="Description">
+      <Text_Input $name="description" $max_length=-1 $type="textarea" $rows="3" />
+    </Form_Field>
 
-    <div class="mb-3">
-      <Form_Field $label="Members">
-        <Checkbox_Multiselect_Input $name="member_ids" $options="<%= this.args.user_options %>" $empty_text="No users available" />
-      </Form_Field>
-    </div>
+    <Form_Field $label="Members">
+      <Checkbox_Multiselect_Input $name="member_ids" $options=this.data.user_options $empty_text="No users available" />
+    </Form_Field>
 
   </Rsx_Form>
 

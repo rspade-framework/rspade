@@ -213,9 +213,11 @@ class Signup_Controller extends Rsx_Controller_Abstract
             }
         }
 
-        // Return validation errors
+        // Return validation errors. response_form_error() carries a summary under
+        // _message alongside the field map, so the form's top alert says something
+        // even when every message matched a field.
         if (!empty($errors)) {
-            return response_error(Ajax::ERROR_VALIDATION, $errors);
+            return response_form_error('Please correct the errors below.', $errors);
         }
 
         // Create login_user record
@@ -226,11 +228,13 @@ class Signup_Controller extends Rsx_Controller_Abstract
         $login_user->is_activated = 1; // Activated by default
         $login_user->save();
 
-        // Return success with user data as JSON for now
-        // Will expand on email verification and auto-login later
+        Flash_Alert::success('Account created successfully! Please check your email to verify your account.');
+
+        // 'redirect' is the one result key the form itself acts on: the browser leaves
+        // for the login page, and the flash message is waiting there.
         return [
-            'user' => $login_user->toArray(),
-            'message' => 'Account created successfully! Please check your email to verify your account.',
+            'user_id' => $login_user->id,
+            'redirect' => Rsx::Route('Login_Controller'),
         ];
     }
 }

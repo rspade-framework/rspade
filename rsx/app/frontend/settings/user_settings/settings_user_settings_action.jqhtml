@@ -6,55 +6,60 @@
              own Rsx_Timezone_Controller (no pass-through app controller). Every other
              control on this page is still decorative scaffolding. --%>
             <Section $title="Timezone">
-                <% if (this.data.loading) { %>
-                    <Loading_Spinner $message="Loading timezone settings..." />
-                <% } else { %>
-                    <Rsx_Form $sid="timezone_form"
-                        $data="<%= JSON.stringify(this.data.timezone_form_data) %>"
-                        $controller="Rsx_Timezone_Controller"
-                        $method="set_timezone">
-                        <div class="mb-3">
-                            <Checkbox_Input $sid="timezone_auto_input" $name="timezone_auto"
-                                $label="Automatically set timezone" />
-                            <div class="form-text">
-                                Keeps your timezone matched to the one your browser reports, once per
-                                browser session. Choosing a timezone below turns this off.
-                            </div>
-                        </div>
+                <%-- The REAL form renders immediately and unconditionally; the action
+                     arms its loading overlay until the settings land. A placeholder
+                     standing in for a form would show the user something that is not
+                     the thing they are waiting for. --%>
+                <Rsx_Form $sid="timezone_form"
+                    $data=this.data.timezone_form_data
+                    $controller="Rsx_Timezone_Controller"
+                    $method="set_timezone">
 
-                        <Form_Field $label="Timezone"
-                            $help="Dates and times throughout the app are shown in this timezone.">
-                            <Select_Input $sid="timezone_input" $name="timezone"
-                                $options="<%= JSON.stringify(this.data.timezone_options) %>"
-                                $placeholder="Select Timezone..." />
-                        </Form_Field>
+                    <Form_Errors />
 
-                        <div class="d-flex">
-                            <button type="submit" class="btn btn-primary">Save Timezone</button>
+                    <div class="mb-3">
+                        <Checkbox_Input $sid="timezone_auto_input" $name="timezone_auto"
+                            $label="Automatically set timezone" />
+                        <div class="form-text">
+                            Keeps your timezone matched to the one your browser reports, once per
+                            browser session. Choosing a timezone below turns this off.
                         </div>
-                    </Rsx_Form>
-                <% } %>
+                    </div>
+
+                    <Form_Field $label="Timezone"
+                        $help="Dates and times throughout the app are shown in this timezone.">
+                        <Select_Input $sid="timezone_input" $name="timezone"
+                            $options=this.data.timezone_options
+                            $placeholder="Select Timezone..." />
+                    </Form_Field>
+
+                    <div class="d-flex">
+                        <button type="submit" class="btn btn-primary">Save Timezone</button>
+                    </div>
+                </Rsx_Form>
             </Section>
 
             <Section $title="Appearance">
-                <% if (this.data.loading) { %>
-                    <Loading_Spinner $message="Loading appearance settings..." />
-                <% } else { %>
-                    <Rsx_Form $sid="theme_form"
-                        $data="<%= JSON.stringify(this.data.theme_form_data) %>"
-                        $controller="Rsx_Dark_Mode_Controller"
-                        $method="set_dark_mode">
-                        <Form_Field $label="Theme"
-                            $help="Auto matches your operating system's light or dark appearance.">
-                            <Select_Input $sid="dark_mode_input" $name="dark_mode"
-                                $options="<%= JSON.stringify(this.data.theme_options) %>" />
-                        </Form_Field>
+                <%-- Same shape as the timezone form above: the REAL form renders
+                     immediately behind its own loading overlay, never a placeholder
+                     standing in for it. --%>
+                <Rsx_Form $sid="theme_form"
+                    $data=this.data.theme_form_data
+                    $controller="Rsx_Dark_Mode_Controller"
+                    $method="set_dark_mode">
 
-                        <div class="d-flex">
-                            <button type="submit" class="btn btn-primary">Save Theme</button>
-                        </div>
-                    </Rsx_Form>
-                <% } %>
+                    <Form_Errors />
+
+                    <Form_Field $label="Theme"
+                        $help="Auto matches your operating system's light or dark appearance.">
+                        <Select_Input $sid="dark_mode_input" $name="dark_mode"
+                            $options=this.data.theme_options />
+                    </Form_Field>
+
+                    <div class="d-flex">
+                        <button type="submit" class="btn btn-primary">Save Theme</button>
+                    </div>
+                </Rsx_Form>
             </Section>
 
             <Section $title="General Preferences">

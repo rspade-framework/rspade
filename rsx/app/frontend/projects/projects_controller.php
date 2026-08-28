@@ -139,7 +139,7 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
         }
 
         if (!empty($errors)) {
-            return response_error(Ajax::ERROR_VALIDATION, $errors);
+            return response_form_error('Please correct the errors below.', $errors);
         }
 
         // Determine if this is create or update
@@ -165,7 +165,9 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
         if ($parent_project_id && $project_id) {
             $forbidden = Project_Model::self_and_descendant_ids((int) $project_id);
             if (in_array($parent_project_id, $forbidden, true)) {
-                return response_error(Ajax::ERROR_VALIDATION, ['parent_project_id' => 'A project cannot be its own parent or a descendant of itself']);
+                return response_form_error('Please correct the errors below.', [
+                    'parent_project_id' => 'A project cannot be its own parent or a descendant of itself',
+                ]);
             }
         }
 

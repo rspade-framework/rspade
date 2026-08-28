@@ -136,9 +136,8 @@ class Profile_Photo_Input extends Form_Input_Abstract {
                 // Clear file input for future uploads
                 this.$sid('file_input').val('');
 
-                // Trigger change event for form tracking
-                this.trigger('input', this.val());
-                this.trigger('val', this.val());
+                // Announce the user's change ('input' then 'val').
+                this._notify_input(this.val());
             },
             error: (xhr, status, error) => {
                 console.error('Profile photo upload failed:', error);
@@ -161,9 +160,8 @@ class Profile_Photo_Input extends Form_Input_Abstract {
         // Clear attachment key (sets to placeholder)
         this.val('');
 
-        // Trigger change event for form tracking
-        this.trigger('input', this.val());
-        this.trigger('val', this.val());
+        // Announce the user's change ('input' then 'val').
+        this._notify_input(this.val());
     }
 
     async seed() {

@@ -1,9 +1,13 @@
 /**
  * New_Request_Thread_Modal - the staff "New Request" dialog. Collects a title + an
  * opening message and creates a Portal_Request_Thread (status NEW_REQUEST, with the
- * message as the firm's opening ask) via Frontend_Clients_Controller.request_thread_create.
+ * message as the firm's opening ask).
  *
- * Returns the redirect URL to the new staff thread view on success, false on cancel.
+ * The dialog is chrome: the endpoint lives on the form's own <Rsx_Form> tag and the
+ * client the request belongs to rides in the form as a hidden field, so nothing here
+ * repeats either.
+ *
+ * Returns the new thread's staff view URL on success, false on cancel.
  */
 class New_Request_Thread_Modal extends Modal_Abstract {
     /**
@@ -14,22 +18,10 @@ class New_Request_Thread_Modal extends Modal_Abstract {
         const result = await Modal.form({
             title: 'New Request',
             component: 'New_Request_Thread_Modal_Form',
-            on_submit: async (form) => {
-                try {
-                    const values = form.vals();
-                    const response = await Frontend_Clients_Controller.request_thread_create({
-                        client_id,
-                        title: values.title,
-                        body: values.body,
-                    });
-                    return response.redirect;
-                } catch (error) {
-                    await form.render_error(error);
-                    return false; // Keep modal open
-                }
-            },
+            component_args: { client_id: int(client_id) },
+            submit_label: 'Send Request',
         });
 
-        return result || false;
+        return result ? result.thread_url : false;
     }
 }

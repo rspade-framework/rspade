@@ -1,11 +1,5 @@
 <Define:Contacts_Edit_Action>
-<% if (this.data.loading) { %>
-    <Page_Scaffold>
-        <Slot:main>
-            <Loading_Spinner $message="Loading contact details..." />
-        </Slot:main>
-    </Page_Scaffold>
-<% } else if (this.data.error_data) { %>
+<% if (this.data.error_data) { %>
     <Page_Scaffold>
         <Slot:main>
             <Universal_Error_Page_Component
@@ -19,13 +13,15 @@
 <% } else { %>
     <Page_Scaffold>
         <Slot:main>
-            <Rsx_Form $data="<%= JSON.stringify(this.data.form_data) %>" $controller="Frontend_Contacts_Controller" $method="save">
+            <Rsx_Form $data=this.data.form_data $controller="Frontend_Contacts_Controller" $method="save">
                 <% if (this.data.is_edit) { %>
                     <Hidden_Input $name="id" />
                 <% } %>
 
                 <Card_Widget>
                     <Section $title="Basic Information">
+                        <Form_Errors />
+
                         <Form_Field $label="First Name" $required=true>
                             <Text_Input $name="first_name" $seeder="first_name" $max_length=Contact_Model.field_length('first_name') />
                         </Form_Field>

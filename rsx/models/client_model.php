@@ -256,6 +256,20 @@ class Client_Model extends Rsx_Site_Model_Abstract
     }
 
     /**
+     * The tags column as an array of strings (it is stored as JSON).
+     *
+     * @return array
+     */
+    public function tags_array(): array
+    {
+        if (is_array($this->tags)) {
+            return $this->tags;
+        }
+
+        return json_decode((string) $this->tags, true) ?: [];
+    }
+
+    /**
      * The client display payload: toArray() plus the computed fields the client screens
      * read. Built from an already-loaded instance so both the ORM fetch surface above and
      * the deleted-client endpoint (Frontend_Clients_Controller::fetch_deleted) return the
@@ -266,6 +280,11 @@ class Client_Model extends Rsx_Site_Model_Abstract
         // Start with model's toArray() to get __MODEL and base data
         // Enum properties (status_id__label, status_id__badge) are auto-included
         $data = $this->toArray();
+
+        // tags is stored as a JSON string; the screens (and the @property above) expect
+        // the array. Decoding HERE means every consumer of the fetch payload gets the
+        // same shape - a caller that decodes for itself is a shape that can drift.
+        $data['tags'] = $this->tags_array();
 
         // Augment with model methods (key must match method name)
         $data['region_name'] = $this->region_name();

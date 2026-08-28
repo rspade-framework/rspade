@@ -132,16 +132,20 @@ components (validation-error integration) - do not mix the two.
 **Data** - `DataGrid_Abstract`, `DataGrid_Body`, `Pagination_Controls`,
 `Pagination_Info` (see below).
 
-**Forms and inputs** - `Rsx_Form`, `Form_Field`, and the inputs: `Text_Input`,
-`Select_Input`, `Select_Ajax_Input`, `Select_Country_Input`, `Select_State_Input`,
-`Select_With_Description_Input`, `Select_User_Role_Input`, `Checkbox_Input`,
-`Checkbox_Multiselect_Input`, `Hidden_Input`, `Profile_Photo_Input`,
-`Repeater_Simple_Input`, `Wysiwyg_Input`, plus `Pin_Verification_Form`.
+**Forms and inputs** - `Rsx_Form` + `Form_Errors` (framework core; every form places
+exactly one `<Form_Errors />` where its layout wants the failure feedback),
+`Form_Field`, and the inputs: `Text_Input`, `Select_Input`, `Select_Ajax_Input`,
+`Select_Country_Input`, `Select_State_Input`, `Select_With_Description_Input`,
+`Select_User_Role_Input`, `Checkbox_Input`, `Checkbox_Multiselect_Input`,
+`Hidden_Input`, `Profile_Photo_Input`, `Repeater_Simple_Input`, `Tag_List_Input`,
+`Pin_Input`, `Wysiwyg_Input`.
 
 **Navigation and chrome** - `Sidebar_Nav`, `Search_Bar`, `Search_Input`,
 `Search_Button`, `Notification_Dropdown`, `Realtime_Status_Badge`,
-`Loading_Spinner`, and the `*_Error_Page_Component` family (rendered by the
-framework's error screens - not composed by hand).
+`Loading_Spinner` (a page-level "loading..." block - the framework's own
+`<Spinner />` renders whatever `Rsx.set_default_spinner()` registered, and is
+what the form loading overlay hosts), and the `*_Error_Page_Component` family
+(rendered by the framework's error screens - not composed by hand).
 
 **The success test for a page: its own SCSS file is near-empty.** If you are
 copy-pasting markup or writing page-level CSS, extract or reuse a component instead.

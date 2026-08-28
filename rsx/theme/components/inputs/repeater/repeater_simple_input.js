@@ -34,8 +34,10 @@
  * - val(array) sets items, creating display_input for each value
  *
  * Edit Input Contract:
- * - Must trigger 'change' event when selection is made: this.trigger('change', this.val())
- * - Must implement val() getter
+ * - A Form_Input_Abstract, so it announces user changes with _notify_input(), which
+ *   raises 'input'. That is what this repeater listens for - 'input' means the USER
+ *   picked something, where 'val' would also fire on the programmatic seed.
+ * - val() getter (guaranteed by Form_Input_Abstract)
  *
  * Display Input Contract:
  * - Receives value via $value arg
@@ -130,7 +132,7 @@ class Repeater_Simple_Input extends Form_Input_Abstract {
             edit_component.exclude(this.state.items);
         }
 
-        edit_component.on('change', (comp, value) => {
+        edit_component.on('input', (comp, value) => {
             if (value !== null && value !== undefined && value !== '') {
                 this._add_item(value);
             }
@@ -182,8 +184,7 @@ class Repeater_Simple_Input extends Form_Input_Abstract {
         this._hide_pending();
         this.$sid('empty').hide();
         this._append_item(value, index);
-        this.trigger('input', this.val());
-        this.trigger('val', this.val());
+        this._notify_input(this.val());
     }
 
     /**
@@ -207,8 +208,7 @@ class Repeater_Simple_Input extends Form_Input_Abstract {
             this.$sid('empty').show();
         }
 
-        this.trigger('input', this.val());
-        this.trigger('val', this.val());
+        this._notify_input(this.val());
     }
 
     /**

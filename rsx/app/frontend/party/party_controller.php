@@ -93,7 +93,7 @@ class Frontend_Party_Controller extends Rsx_Controller_Abstract
 
         $errors = static::__validate($type_id, $params);
         if (!empty($errors)) {
-            return response_error(Ajax::ERROR_VALIDATION, $errors);
+            return response_form_error('Please correct the errors below.', $errors);
         }
 
         if ($party_id) {

@@ -1,67 +1,57 @@
 <%--
 Edit_User_Modal_Form - Modal form for editing user information
 
-Allows admins to update user profile information for existing users.
+this.args.user_id - the user being edited
 
-Fields:
-- id (hidden): User ID
-- email (required): User's email address
-- first_name (required): User's first name
-- last_name (required): User's last name
-- role_id (required): User's role (Owner/Admin/Member/Viewer)
-- phone (optional): User's phone number
+An EDIT modal: the record arrives AFTER the dialog opens, so this component is the
+loader and its JS class carries the procedure (fetch in on_create, overlay armed in
+on_render, values applied through the form's populate() in on_ready).
 
-Form follows Rsx_Form pattern with Form_Field + input components.
-Validation handled server-side, errors displayed via Form_Utils.
+The template renders the real form unconditionally - the overlay is what the user
+waits behind, never a placeholder standing in for the form.
 --%>
 <Define:Edit_User_Modal_Form>
 
-  <Rsx_Form $controller="Frontend_Settings_User_Management_Controller" $method="save_user" $data="<%= JSON.stringify(this.args.data) %>">
+  <%-- Roles come from the User_Model enum (selectable ones only), narrowed to the
+       roles the signed-in user may administer - the same rule the endpoint enforces. --%>
+  <% const _role_options = User_Model.role_id__enum_select()
+       .filter(o => Permission.can_admin_role(int(o.value))); %>
+
+  <Rsx_Form $controller="Frontend_Settings_User_Management_Controller" $method="save_user">
+
+    <Form_Errors />
 
     <Hidden_Input $name="id" />
 
-    <div class="mb-3">
-      <Form_Field $label="Email Address" $required=true>
-        <Text_Input $name="email" $type="email" $placeholder="user@example.com" $max_length=User_Model.field_length('email') $autofocus=true />
-      </Form_Field>
-    </div>
+    <Form_Field $label="Email Address" $required=true>
+      <Text_Input $name="email" $type="email" $placeholder="user@example.com" $max_length=User_Model.field_length('email') $autofocus=true />
+    </Form_Field>
 
     <div class="row">
-      <div class="col-md-6 mb-3">
+      <div class="col-tablet-6">
         <Form_Field $label="First Name" $required=true>
           <Text_Input $name="first_name" $max_length=User_Model.field_length('first_name') />
         </Form_Field>
       </div>
-      <div class="col-md-6 mb-3">
+      <div class="col-tablet-6">
         <Form_Field $label="Last Name" $required=true>
           <Text_Input $name="last_name" $max_length=User_Model.field_length('last_name') />
         </Form_Field>
       </div>
     </div>
 
-    <div class="mb-3">
-      <Form_Field $label="Role" $required=true>
-        <Select_Input $name="role_id" $options="<%= JSON.stringify([
-          {value: 3, label: 'Member'},
-          {value: 2, label: 'Admin'},
-          {value: 1, label: 'Owner'},
-          {value: 4, label: 'Viewer'}
-        ]) %>" />
-      </Form_Field>
-    </div>
+    <Form_Field $label="Role" $required=true>
+      <Select_Input $name="role_id" $options=_role_options />
+    </Form_Field>
 
-    <div class="mb-3">
-      <Form_Field $label="Phone Number">
-        <Phone_Text_Input $name="phone" $placeholder="(555) 123-4567" />
-      </Form_Field>
-    </div>
+    <Form_Field $label="Phone Number">
+      <Phone_Text_Input $name="phone" $placeholder="(555) 123-4567" />
+    </Form_Field>
 
-    <div class="mb-3">
-      <Form_Field $label="API Access"
-        $help="When off, this user's API keys stop working and no new ones can be used.">
-        <Checkbox_Input $name="is_api_access_enabled" $label="Allow API access" />
-      </Form_Field>
-    </div>
+    <Form_Field $label="API Access"
+      $help="When off, this user's API keys stop working and no new ones can be used.">
+      <Checkbox_Input $name="is_api_access_enabled" $label="Allow API access" />
+    </Form_Field>
 
   </Rsx_Form>
 

@@ -13,33 +13,34 @@ Widget interface:
 - val([1, 2, 3]) - Set checked state from array of IDs
 
 Example:
-<Checkbox_Multiselect_Input $options="<%= JSON.stringify(this.args.users) %>" />
+<Checkbox_Multiselect_Input $name="member_ids" $options=this.args.users />
 --%>
 <Define:Checkbox_Multiselect_Input extends="Form_Input_Abstract">
     <% const options = this.args.options || []; %>
     <% const columns = this.args.columns || 2; %>
     <% const col_class = 'col-' + (12 / columns); %>
 
-    <% if (options.length === 0) { %>
-        <div class="text-muted small py-2">
-            <%= this.args.empty_text || 'No options available' %>
-        </div>
-    <% } else { %>
-        <div class="row g-2" $sid="checkbox_list">
-            <% for (let option of options) { %>
-                <div class="<%= col_class %>">
-                    <label class="d-flex align-items-center border rounded px-2 py-1 <%= option.disabled ? 'text-muted' : '' %>" style="cursor: pointer;">
-                        <input type="checkbox"
-                               class="form-check-input me-2 mt-0 multiselect-checkbox"
-                               value="<%= option.id %>"
-                               <% if (option.disabled) { %>disabled<% } %>>
-                        <span class="text-truncate" title="<%= option.label %>">
-                            <%= option.label %>
-                            <% if (option.subtitle) { %><small class="text-muted">(<%= option.subtitle %>)</small><% } %>
-                        </span>
-                    </label>
-                </div>
-            <% } %>
-        </div>
-    <% } %>
+    <%-- The empty notice is TOGGLED, and the list container renders unconditionally:
+         a $sid element gated behind a condition does not exist on the render where the
+         condition is false, so anything looking it up finds an empty set. --%>
+    <div class="text-muted small py-2 <%= options.length ? 'd-none' : '' %>">
+        <%= this.args.empty_text || 'No options available' %>
+    </div>
+
+    <div class="row g-2" $sid="checkbox_list">
+        <% for (let option of options) { %>
+            <div class="<%= col_class %>">
+                <label class="d-flex align-items-center border rounded px-2 py-1 <%= option.disabled ? 'text-muted' : '' %>" style="cursor: pointer;">
+                    <input type="checkbox"
+                           class="form-check-input me-2 mt-0 multiselect-checkbox"
+                           value="<%= option.id %>"
+                           <% if (option.disabled) { %>disabled<% } %>>
+                    <span class="text-truncate" title="<%= option.label %>">
+                        <%= option.label %>
+                        <% if (option.subtitle) { %><small class="text-muted">(<%= option.subtitle %>)</small><% } %>
+                    </span>
+                </label>
+            </div>
+        <% } %>
+    </div>
 </Define:Checkbox_Multiselect_Input>

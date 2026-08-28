@@ -238,7 +238,7 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
         }
 
         if (!empty($errors)) {
-            return response_error(Ajax::ERROR_VALIDATION, $errors);
+            return response_form_error('Please correct the errors below.', $errors);
         }
 
         // Determine if this is create or update

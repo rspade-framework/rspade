@@ -1,9 +1,10 @@
 /**
  * Create_Account
  *
- * Account creation form - no JavaScript needed
- * Form submission and redirect handled automatically by Rsx_Form
+ * The account-creation page needs no JavaScript. The <Rsx_Form> in the blade names its
+ * own endpoint, serializes and submits itself, renders the server's validation errors,
+ * and follows the `redirect` the endpoint returns on success.
  */
 class Create_Account {
-    // No custom logic needed - Rsx_Form handles everything
+    // Intentionally empty - the form owns the whole submission.
 }

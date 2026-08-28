@@ -28,14 +28,29 @@ class Share_Document_Modal extends Modal_Abstract {
         const shared_set = new Set(shared_contact_ids.map((id) => int(id)));
         contacts.forEach((c) => { c.currently_shared = shared_set.has(int(c.id)); });
 
-        // The checkbox table (pre-checked for current shares) + optional message.
-        const selection = await Modal.form({
+        // The checkbox table (pre-checked for current shares) + optional message. This
+        // dialog SUBMITS NOTHING: it reports a selection, this class diffs it, confirms
+        // it, and then makes the one set-based call. No form, no endpoint - so
+        // Modal.show, not Modal.form.
+        const $body = $('<div>');
+        let body = null;
+
+        const selection = await Modal.show({
             title: 'Share Document',
-            component: 'Share_Document_Modal_Form',
-            component_args: { contacts },
-            submit_label: 'Review changes',
+            body: $body,
             max_width: 720,
-            on_submit: (form) => form.vals(), // {contact_ids, message}
+            buttons: [
+                { label: 'Cancel', value: false, class: 'btn-secondary' },
+                {
+                    label: 'Review changes',
+                    class: 'btn-primary',
+                    default: true,
+                    callback: () => body.get_selection(), // {contact_ids, message}
+                },
+            ],
+            on_show: function () {
+                body = $body.component('Share_Document_Modal_Form', { contacts }).component();
+            },
         });
 
         if (!selection) {

@@ -7,10 +7,14 @@
  * filter shows/hides rows by name/email and a "N selected" counter tracks the
  * enabled-checked rows.
  *
+ * This is NOT a form: nothing here is submitted. It reports a SELECTION, which the
+ * hosting Add_Portal_Members_Modal confirms and then invites - which is why the
+ * accessor is get_selected_contact_ids() and not vals(). A component that returns a
+ * choice rather than a payload belongs on Modal.show, not Modal.form.
+ *
  * State-only component (no on_load): the parent modal class passes the
- * already-fetched contacts in via this.args.contacts and reads the selection back
- * through vals(). All UI state is incremental DOM mutation, so handlers live in
- * on_render() (the template is rendered once).
+ * already-fetched contacts in via this.args.contacts. All UI state is incremental DOM
+ * mutation, so handlers live in on_render() (the template is rendered once).
  */
 class Add_Portal_Members_Modal_Form extends Component {
 
@@ -104,11 +108,25 @@ class Add_Portal_Members_Modal_Form extends Component {
      *
      * @returns {{contact_ids: number[]}}
      */
-    vals() {
+    get_selected_contact_ids() {
         const contact_ids = [];
         this._selectable_checks().filter(':checked').each((i, el) => {
             contact_ids.push(int($(el).data('contact-id')));
         });
-        return { contact_ids };
+        return contact_ids;
+    }
+
+    /**
+     * Say, in the dialog itself, that nothing is selected yet.
+     *
+     * An interrupting Modal.alert would race this dialog's own restore; a note beside
+     * the thing it is about needs no restore at all. It clears on the next change.
+     */
+    show_empty_selection_note() {
+        this.$sid('empty-selection-note').removeClass('d-none');
+
+        this.$sid('rows').one('change', () => {
+            this.$sid('empty-selection-note').addClass('d-none');
+        });
     }
 }

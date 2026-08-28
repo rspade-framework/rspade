@@ -1,7 +1,10 @@
 /**
  * Add_Group_Modal - Modal for adding new groups
  *
- * Loads available users first, then displays form.
+ * The dialog is chrome: Add_Group_Modal_Form declares the endpoint on its own
+ * <Rsx_Form>, and Modal.form() drives that form's submit(). The selectable users are
+ * loaded before opening because the member checkboxes need them to render.
+ *
  * Returns created group record on success, false on cancel.
  */
 class Add_Group_Modal extends Modal_Abstract {
@@ -33,17 +36,7 @@ class Add_Group_Modal extends Modal_Abstract {
             component_args: {
                 user_options: user_options
             },
-            on_submit: async (form) => {
-                try {
-                    const values = form.vals();
-                    const result = await Frontend_Settings_Group_Management_Controller.add_group(values);
-                    return result; // Close modal, return group data
-                } catch (error) {
-                    // Render error (form handles both validation and generic errors)
-                    await form.render_error(error);
-                    return false; // Keep modal open
-                }
-            },
+            submit_label: 'Add Group',
         });
 
         return result || false;

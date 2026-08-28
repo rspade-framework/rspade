@@ -51,7 +51,7 @@ class Frontend_Settings_Group_Management_Controller extends Rsx_Controller_Abstr
 
         // Return validation errors if any
         if (!empty($errors)) {
-            return response_error(Ajax::ERROR_VALIDATION, $errors);
+            return response_form_error('Please correct the errors below.', $errors);
         }
 
         $site_id = Session::get_site_id();
@@ -62,8 +62,8 @@ class Frontend_Settings_Group_Management_Controller extends Rsx_Controller_Abstr
             ->first();
 
         if ($existing) {
-            return response_error(Ajax::ERROR_VALIDATION, [
-                'name' => 'A group with this name already exists'
+            return response_form_error('A group with this name already exists', [
+                'name' => 'A group with this name already exists',
             ]);
         }
 
@@ -103,8 +103,8 @@ class Frontend_Settings_Group_Management_Controller extends Rsx_Controller_Abstr
         $group_id = $params['group_id'] ?? null;
 
         if (!$group_id) {
-            return response_error(Ajax::ERROR_VALIDATION, [
-                'group_id' => 'Group ID is required'
+            return response_form_error('Group ID is required', [
+                'group_id' => 'Group ID is required',
             ]);
         }
 
@@ -140,8 +140,8 @@ class Frontend_Settings_Group_Management_Controller extends Rsx_Controller_Abstr
         // Validate group ID
         $group_id = $params['id'] ?? null;
         if (!$group_id) {
-            return response_error(Ajax::ERROR_VALIDATION, [
-                'id' => 'Group ID is required'
+            return response_form_error('Group ID is required', [
+                'id' => 'Group ID is required',
             ]);
         }
 
@@ -155,7 +155,7 @@ class Frontend_Settings_Group_Management_Controller extends Rsx_Controller_Abstr
 
         // Return validation errors if any
         if (!empty($errors)) {
-            return response_error(Ajax::ERROR_VALIDATION, $errors);
+            return response_form_error('Please correct the errors below.', $errors);
         }
 
         $site_id = Session::get_site_id();
@@ -177,8 +177,8 @@ class Frontend_Settings_Group_Management_Controller extends Rsx_Controller_Abstr
                 ->first();
 
             if ($existing) {
-                return response_error(Ajax::ERROR_VALIDATION, [
-                    'name' => 'A group with this name already exists'
+                return response_form_error('A group with this name already exists', [
+                    'name' => 'A group with this name already exists',
                 ]);
             }
         }
@@ -215,8 +215,8 @@ class Frontend_Settings_Group_Management_Controller extends Rsx_Controller_Abstr
         $group_id = $params['id'] ?? null;
 
         if (!$group_id) {
-            return response_error(Ajax::ERROR_VALIDATION, [
-                'id' => 'Group ID is required'
+            return response_form_error('Group ID is required', [
+                'id' => 'Group ID is required',
             ]);
         }
 
@@ -327,8 +327,8 @@ class Frontend_Settings_Group_Management_Controller extends Rsx_Controller_Abstr
         $group_id = $params['id'] ?? null;
 
         if (!$group_id) {
-            return response_error(Ajax::ERROR_VALIDATION, [
-                'id' => 'Group ID is required'
+            return response_form_error('Group ID is required', [
+                'id' => 'Group ID is required',
             ]);
         }
 

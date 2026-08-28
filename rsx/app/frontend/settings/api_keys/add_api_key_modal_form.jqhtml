@@ -1,27 +1,24 @@
 <%--
 Add_Api_Key_Modal_Form - Modal form for creating API keys
 
-Simple form that collects just the key name. The key itself is generated
-server-side and shown to the user after creation.
+Collects just the key name; the key itself is generated server-side and shown to the
+user once, after creation.
 
-Fields:
-- name (required): Human-readable name for the key (e.g., "Production API", "CI/CD Integration")
-
-Form follows Rsx_Form pattern with Form_Field + input components.
-Validation handled server-side, errors displayed via Form_Utils.
+A template-only component: it has no JS class, because it does not need one. The form
+declares its endpoint on the <Rsx_Form> tag - the single place the endpoint is named -
+and the hosting Modal.form() drives that form's submit(). Validation is the server's,
+and its messages render in <Form_Errors /> and under the field they name.
 --%>
 <Define:Add_Api_Key_Modal_Form>
 
     <Rsx_Form $controller="Frontend_Settings_Api_Keys_Controller" $method="create_key">
 
-        <div class="mb-3">
-            <Form_Field $label="Key Name" $required=true>
-                <Text_Input $name="name" $placeholder="e.g., Production API, CI/CD Integration" $autofocus=true />
-            </Form_Field>
-            <div class="form-text">
-                Give your key a descriptive name so you can identify it later.
-            </div>
-        </div>
+        <Form_Errors />
+
+        <Form_Field $label="Key Name" $required=true
+            $help="Give your key a descriptive name so you can identify it later.">
+            <Text_Input $name="name" $max_length=255 $placeholder="e.g., Production API, CI/CD Integration" $autofocus=true />
+        </Form_Field>
 
     </Rsx_Form>
 

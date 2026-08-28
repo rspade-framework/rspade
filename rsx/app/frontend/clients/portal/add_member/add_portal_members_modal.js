@@ -24,21 +24,36 @@ class Add_Portal_Members_Modal extends Modal_Abstract {
             return false;
         }
 
-        // Step 1: the selection table. on_submit returns the selected contact ids
-        // (or null to keep the modal open if nothing is selected).
-        const selection = await Modal.form({
+        // Step 1: the selection table. This dialog SUBMITS NOTHING - it collects a
+        // choice and hands it back, and this class performs the invite below. That
+        // makes it Modal.show, not Modal.form: there is no form and no endpoint for a
+        // form to name.
+        const $body = $('<div>');
+        let body = null;
+
+        const selection = await Modal.show({
             title: 'Add Portal Members',
-            component: 'Add_Portal_Members_Modal_Form',
-            component_args: { contacts },
-            submit_label: 'Invite Contacts',
+            body: $body,
             max_width: 720,
-            on_submit: (form) => {
-                const vals = form.vals();
-                if (vals.contact_ids.length === 0) {
-                    Modal.alert('Nothing Selected', 'Select at least one contact to invite.');
-                    return null; // keep open
-                }
-                return vals.contact_ids; // close + return ids
+            buttons: [
+                { label: 'Cancel', value: false, class: 'btn-secondary' },
+                {
+                    label: 'Invite Contacts',
+                    class: 'btn-primary',
+                    default: true,
+                    callback: () => {
+                        const contact_ids = body.get_selected_contact_ids();
+                        if (contact_ids.length === 0) {
+                            // Only a literal false keeps the dialog open.
+                            body.show_empty_selection_note();
+                            return false;
+                        }
+                        return contact_ids;
+                    },
+                },
+            ],
+            on_show: function () {
+                body = $body.component('Add_Portal_Members_Modal_Form', { contacts }).component();
             },
         });
 

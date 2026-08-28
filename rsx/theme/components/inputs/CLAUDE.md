@@ -19,16 +19,20 @@ This is non-negotiable. If a caller needs to use `await component.ready()` or ti
 
 ## Template Method Pattern
 
-The base class (`Form_Input_Abstract`) handles:
-- Pre-initialization value buffering (`_pending_value`, `_is_ready`)
+The base class (`Form_Input_Abstract`, framework core) handles:
+- Pre-initialization value buffering (`_pending_value` + a `_has_pending` BOOLEAN, so
+  `null`, `0`, `false` and `''` are all faithfully buffered - `null` is a real value)
 - The complete `val()` getter/setter logic
-- Automatic `trigger('val', value)` on all value changes
+- `trigger('val', value)` on every value change
 - Applying buffered values via `_mark_ready()`
+- `_notify_input(value)` - the ONE way to announce a user change (fires `'input'` then `'val'`)
 
 Concrete classes implement:
 - `_get_value()` - How to read the current value (REQUIRED)
 - `_set_value(value)` - How to write a value (REQUIRED)
-- `on_ready()` - Call `_mark_ready()` and setup user interaction events
+- `_validate(value)` - OPTIONAL, and almost never used (see below)
+- Initialization: call `_mark_ready()` at the earliest moment a `_set_value()` would
+  stick, and wire user interaction to `_notify_input()`
 
 ## Minimal Implementation
 
@@ -42,20 +46,19 @@ class My_Custom_Input extends Form_Input_Abstract {
         this.$sid('input').val(value || '');
     }
 
-    on_ready() {
+    on_render() {
         this._mark_ready();
 
         const that = this;
         this.$sid('input').on('input', function() {
-            const value = that.val();
-            that.trigger('input', value);
-            that.trigger('val', value);
+            that._notify_input(that.val());
         });
     }
 }
 ```
 
-That's it. No `on_create()` for buffering state, no `val()` method, no manual `trigger('val')` in setter.
+That's it. No `on_create()` for buffering state, no `val()` method, no manual
+`trigger('val')` in the setter, and no hand-triggered event pair.
 
 ## Contract Requirements
 
@@ -102,12 +105,15 @@ _set_value(value) {
 
 **For checkboxes**: Already handle multiple truthy representations (`1`, `'1'`, `true`).
 
-### 4. Call _mark_ready() in on_ready()
+### 4. Call _mark_ready() at the earliest writable moment
 
-The `_mark_ready()` method applies any buffered value and marks the component as initialized:
+`_mark_ready()` applies any buffered value and marks the component as initialized.
+Initialize in `on_render()` whenever the input's DOM is self-contained - the input
+becomes editable as early as possible - and use `on_ready()` only when initialization
+genuinely depends on child components or an async library:
 
 ```javascript
-on_ready() {
+on_render() {
     this._mark_ready();  // Apply buffered value, set _is_ready = true
     // ... setup event handlers
 }
@@ -125,19 +131,20 @@ on_ready() {
 }
 ```
 
-### 5. Trigger Events on User Interaction
+### 5. Announce user interaction with _notify_input()
 
-On user interaction, trigger BOTH 'input' and 'val':
+When the USER changes the value, call `_notify_input()`. It fires `'input'` then
+`'val'`, in that order:
 
 ```javascript
 this.$sid('input').on('input', function() {
-    const value = that.val();
-    that.trigger('input', value);  // User interaction only
-    that.trigger('val', value);    // All changes
+    that._notify_input(that.val());
 });
 ```
 
-Note: The base class `val()` setter already triggers 'val', but you still trigger it on user interaction because the user changed the value directly (not via `val()`).
+Hand-triggering the pair is a defect: the ordering and the pairing belong to the base
+class, and a call site that fires only one of them silently breaks every listener that
+expects the other.
 
 ### 6. Template Requirements
 
@@ -177,6 +184,25 @@ this.sid('amount').on('val', (component, value) => {
     this.update_total(value);
 });
 ```
+
+### 7. Do NOT write client-side validation
+
+An input has a `_validate(value)` seam, and almost every input should keep the
+inherited no-op forever.
+
+**Validation lives on the server, once.** A client check that duplicates a server rule
+MASKS the absence of the server rule: blank never reaches the endpoint, the missing
+server validator is never exercised, and the gap surfaces only when an API caller or a
+script hits the endpoint directly - silently, in production. The round trip is fast
+enough that pressing Submit and rendering the server's message IS the responsive UX,
+and the rule then exists in exactly one place.
+
+`_validate()` exists ONLY for a constraint whose invalid state cannot even be
+EXPRESSED to the server - a pick-at-most-two multiselect where a third selection is
+unrepresentable in the payload, a structured value that cannot serialize when
+malformed. Never for required, format, length or range. And even where it is
+legitimate, prefer interaction design: the best pick-at-most-two multiselect simply
+refuses the third click, and needs no message at all.
 
 ## Extending Other Inputs
 
@@ -239,18 +265,24 @@ User_Model.field_length('id')       // null (not a varchar)
 
 1. **Implementing val()** - Don't. Use `_get_value()` and `_set_value()` instead.
 
-2. **Forgetting _mark_ready()** - Must call in `on_ready()` to apply buffered values.
+2. **Forgetting _mark_ready()** - Without it a buffered value is never applied.
 
 3. **Using `this.data`** - Inputs have no `on_load()`, so `this.data` is always `{}`.
 
 4. **Adding `class="Widget"`** - Not needed, `.Form_Input_Abstract` is automatic.
 
-5. **Not triggering both events** - User interaction must trigger both 'input' and 'val'.
+5. **Hand-triggering 'input' + 'val'** - Call `_notify_input(value)` instead.
 
 6. **Calling _mark_ready() too early** - For async init, wait until actually ready.
+
+7. **Writing a client-side required/format/length check** - that rule is the server's.
+
+8. **Treating `null` as "no value"** - the buffer tracks presence with a boolean, so
+   `val(null)` buffers and applies `null`. Do not reintroduce a null sentinel.
 
 ## See Also
 
 - `php artisan rsx:man form_input` - Complete documentation
-- `form_input_abstract.js` - Base class definition
-- `rsx/theme/components/forms/CLAUDE.md` - Form component documentation
+- The base class ships with the framework (`Core/Forms/Form_Input_Abstract.js`) and
+  reaches every bundle - an application never carries a copy of it.
+- `rsx/theme/components/forms/` - Form_Field, the presentational field wrapper

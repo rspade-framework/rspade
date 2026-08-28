@@ -126,6 +126,16 @@ class Rsx_Modal extends Component {
         // Fade in modal (and backdrop if not using shared)
         await this._fade_in(should_animate);
 
+        // Called once the dialog is on screen. Body components are created HERE, not
+        // before show(): the dialog opens instantly and its contents assemble inside
+        // it, rather than the user waiting on a component for the dialog to appear.
+        if (options.on_show && typeof options.on_show === 'function') {
+            // One tick, so the modal DOM exists before components mount into it.
+            setTimeout(() => {
+                options.on_show();
+            }, 10);
+        }
+
         // Auto-focus first input element
         this._focus_first_input();
 
@@ -354,13 +364,5 @@ class Rsx_Modal extends Component {
             this.state.resolve_fn(result);
             this.state.resolve_fn = null;
         }
-    }
-
-    /**
-     * Apply validation errors to form fields in modal body
-     */
-    apply_errors(errors) {
-        // Use Form_Utils to apply errors to elements within modal body
-        Form_Utils.apply_form_errors(this.$sid('body'), errors);
     }
 }

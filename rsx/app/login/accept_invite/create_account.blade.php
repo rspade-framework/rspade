@@ -19,6 +19,8 @@
     @endphp
 
     <Rsx_Form $data="{!! json_encode($form_data) !!}" $controller="Accept_Invite_Controller" $method="create_account_submit">
+        <Form_Errors />
+
         @if (isset($invite_code) && $invite_code)
             <Hidden_Input $name="invite_code" />
         @endif

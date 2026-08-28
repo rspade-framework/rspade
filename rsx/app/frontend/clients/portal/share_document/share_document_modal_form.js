@@ -7,9 +7,13 @@
  * can be shared with members, invited contacts, or not-yet-invited contacts alike
  * (the controller invites the latter automatically).
  *
+ * This is NOT a form: nothing here is submitted. It reports a SELECTION, which the
+ * hosting Share_Document_Modal diffs against the current shares, confirms, and then
+ * applies in one call - which is why the accessor is get_selection() and not vals().
+ *
  * State-only component (no on_load): the parent modal class passes the already-fetched
- * contacts in via this.args.contacts and reads the selection + message back through
- * vals(). All UI state is incremental DOM mutation, so handlers live in on_render().
+ * contacts in via this.args.contacts. All UI state is incremental DOM mutation, so
+ * handlers live in on_render().
  */
 class Share_Document_Modal_Form extends Component {
 
@@ -102,7 +106,7 @@ class Share_Document_Modal_Form extends Component {
      *
      * @returns {{contact_ids: number[], message: string}}
      */
-    vals() {
+    get_selection() {
         const contact_ids = [];
         this._all_checks().filter(':checked').each((i, el) => {
             contact_ids.push(int($(el).data('contact-id')));

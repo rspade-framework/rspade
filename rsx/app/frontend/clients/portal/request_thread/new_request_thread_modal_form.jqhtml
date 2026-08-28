@@ -1,23 +1,29 @@
 <%--
 New_Request_Thread_Modal_Form - the staff "New Request" form (title + opening message).
-Submitted via Frontend_Clients_Controller.request_thread_create with the client_id
-supplied by the modal's on_submit (not a form field).
+
+this.args.client_id - the client the request belongs to
+
+The client id is a HIDDEN FIELD, not something the launcher splices into a payload:
+everything the endpoint is sent comes out of the form, so there is one serialization
+path and one place the request is described.
 --%>
 <Define:New_Request_Thread_Modal_Form>
 
-  <Rsx_Form $controller="Frontend_Clients_Controller" $method="request_thread_create">
+  <% const _seed = {client_id: this.args.client_id}; %>
 
-    <div class="mb-3">
-      <Form_Field $label="Title" $required=true>
-        <Text_Input $name="title" $max_length=Portal_Request_Thread_Model.field_length('title') $placeholder="e.g. 2025 W-2 forms" $autofocus=true />
-      </Form_Field>
-    </div>
+  <Rsx_Form $controller="Frontend_Clients_Controller" $method="request_thread_create" $data=_seed>
 
-    <div class="mb-3">
-      <Form_Field $label="Message" $required=true>
-        <Text_Input $name="body" $type="textarea" $max_length=-1 $rows="4" $placeholder="Describe what you need the client to send..." />
-      </Form_Field>
-    </div>
+    <Form_Errors />
+
+    <Hidden_Input $name="client_id" />
+
+    <Form_Field $label="Title" $required=true>
+      <Text_Input $name="title" $max_length=Portal_Request_Thread_Model.field_length('title') $placeholder="e.g. 2025 W-2 forms" $autofocus=true />
+    </Form_Field>
+
+    <Form_Field $label="Message" $required=true>
+      <Text_Input $name="body" $type="textarea" $max_length=-1 $rows="4" $placeholder="Describe what you need the client to send..." />
+    </Form_Field>
 
   </Rsx_Form>
 

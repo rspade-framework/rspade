@@ -44,3 +44,27 @@
         --page-pad: #{$spacing-md}; // 16px
     }
 }
+
+// ==========================================================================
+// THEME TOKENS
+// ==========================================================================
+// Runtime tokens that must FLIP with the theme, so they cannot be Sass
+// variables (those are baked at compile time and a class cannot re-point
+// them). The framework's documented token-first shape: declare the light
+// value on :root, redeclare it under the dark class.
+//
+//   --rsx-form-veil   the translucent veil Rsx_Form draws over itself while
+//                     it is loading (Core/Forms/Rsx_Form.scss). Framework
+//                     core has no palette, so it reads this token and falls
+//                     back to a light-surface veil; a dark page needs the
+//                     dark declaration below or the form flashes white.
+//                     It is a VEIL, not a curtain: the translucency is what
+//                     tells the user the form underneath is real and coming.
+
+:root {
+    --rsx-form-veil: rgba(255, 255, 255, 0.65);
+}
+
+body.rsx-dark {
+    --rsx-form-veil: rgba(16, 21, 27, 0.7);
+}

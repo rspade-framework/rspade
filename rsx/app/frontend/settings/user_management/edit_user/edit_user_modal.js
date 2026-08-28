@@ -1,8 +1,10 @@
 /**
  * Edit_User_Modal - Modal for editing existing user information
  *
- * Displays form to update user profile information.
- * Uses Edit_User_Modal_Form component for UI and validation.
+ * The dialog opens IMMEDIATELY; Edit_User_Modal_Form loads the record itself and wears
+ * the form's loading overlay until the values land, so the fields are never shown
+ * blank and a submit cannot race the fetch. The endpoint is the form's own
+ * $controller/$method.
  *
  * Returns updated user record on success, false on cancel.
  */
@@ -14,30 +16,11 @@ class Edit_User_Modal extends Modal_Abstract {
      * @returns {Promise<Object|false>} Updated user record on success, false on cancel
      */
     static async show(user_id) {
-        // Load user data for editing
-        let user_data;
-        try {
-            user_data = await Frontend_Settings_User_Management_Controller.get_user_for_edit({user_id});
-        } catch (error) {
-            await Modal.error(error, 'Failed to Load User');
-            return false;
-        }
-
         const result = await Modal.form({
             title: 'Edit User',
             component: 'Edit_User_Modal_Form',
-            component_args: {data: user_data},
-            on_submit: async (form) => {
-                try {
-                    const values = form.vals();
-                    const result = await Frontend_Settings_User_Management_Controller.save_user(values);
-                    return result; // Close modal, return user data
-                } catch (error) {
-                    // Render error (form handles both validation and generic errors)
-                    await form.render_error(error);
-                    return false; // Keep modal open
-                }
-            },
+            component_args: { user_id: int(user_id) },
+            submit_label: 'Save User',
         });
 
         return result || false;
