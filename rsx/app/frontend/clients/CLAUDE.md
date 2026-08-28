@@ -112,8 +112,8 @@ The `edit/frontend_clients_form.blade.php` serves both add and edit operations:
 ## DataGrid Integration
 
 The list screen is `list/clients_datagrid.{php,js,jqhtml}` fed by
-`Frontend_Clients_Controller::datagrid_fetch`, with `bulk_delete` and `export_csv` serving the
-footer mass actions.
+`Frontend_Clients_Controller::datagrid_fetch`, with `bulk_delete`, `export_csv` and `export_xlsx`
+serving the footer mass actions.
 
 What this module's grid declares:
 
@@ -124,10 +124,10 @@ What this module's grid declares:
 - **jqhtml** - `extends="DataGrid_Abstract"` with `$data_source`, `$sort="id"`, `$order="desc"`;
   sortable columns as literal `data-sortby` attributes in `Slot:DG_Table_Header`; the search and
   the two `<select>` quick filters in `Slot:DG_Card_Header`; `Slot:footer_actions` items carrying
-  `data-action="export"` / `"delete"`, the export one gated on `PERM_DATA_EXPORT` to mirror the
-  endpoint.
+  `data-action="export"` / `"export_xlsx"` / `"delete"`, the two export ones gated on
+  `PERM_DATA_EXPORT` to mirror the endpoints.
 - **JS** (`Clients_DataGrid`) - `allowed_filters`, `record_noun_plural`, the quick-filter widget
-  binding, and `on_footer_action()` dispatching to the two endpoints. `whole_set_selection()` is
+  binding, and `on_footer_action()` dispatching to the three endpoints. `whole_set_selection()` is
   public so the page-header Export button in `Clients_Index_Action.js` can export the whole
   filtered set.
 

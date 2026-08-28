@@ -1,0 +1,143 @@
+<%--
+Revision_History - the change timeline of one record, grouped by the action that made it
+
+$record_type - the model's simple name, e.g. "Client_Model" (required). Must be one of
+               the types Frontend_Revisions_Controller publishes.
+$record_id   - the record's id (required)
+$before_id   - internal: the pagination cursor. Set by this component's own
+               "Older changes" control; callers pass $record_type and $record_id only.
+
+One group per TRANSACTION - one thing the user did - with the field-level before/after
+table underneath it. A client save that also wrote three contacts is one group with four
+rows, which is the whole reason revisions are grouped this way.
+
+Values are rendered through the model's own vocabulary: an enum id becomes its label via
+the generated stub's field__enum_labels(), an _at / _date column goes through
+Rsx_Time / Rsx_Date (JQHTML-DATETIME-01), an is_ column reads Yes/No, and a null renders
+as <Empty_Value>. Nothing is formatted server-side - the endpoint ships the stored values
+under their real field names.
+
+Usage:
+    <Revision_History $record_type="Client_Model" $record_id=this.args.id />
+
+See: php artisan rsx:man revisions
+--%>
+<Define:Revision_History>
+    <%
+        if (!this.args.record_type) throw new Error('Revision_History: $record_type is required');
+        if (!this.args.record_id) throw new Error('Revision_History: $record_id is required');
+
+        const _transactions = this.data.transactions;
+        const _subject_type = this.args.record_type;
+    %>
+
+    <% if (this.data.loading) { %>
+        <Loading_Spinner $message="Loading history..." />
+    <% } else if (this.data.error_message) { %>
+        <Callout $variant="danger" $icon="bi bi-exclamation-triangle">
+            <Slot:title>History unavailable</Slot:title>
+            <Slot:body><%= this.data.error_message %></Slot:body>
+        </Callout>
+    <% } else if (_transactions.length === 0) { %>
+        <Empty_State $icon="bi bi-clock-history">
+            <Slot:title>No recorded changes</Slot:title>
+            <Slot:body>Every edit to this record is recorded here, with what changed and who changed it.</Slot:body>
+        </Empty_State>
+    <% } else { %>
+        <% for (const _t of _transactions) { %>
+            <div class="Revision_History__group">
+                <div class="Revision_History__header">
+                    <div class="Revision_History__who">
+                        <Record_Author $author=_t.get_created_by_author />
+                        <span class="Revision_History__count"><%= _t.revision_count %> <%= _t.revision_count === 1 ? 'change' : 'changes' %></span>
+                    </div>
+                    <div class="Revision_History__when"><%= Rsx_Time.relative(_t.created_at) %></div>
+                </div>
+
+                <div class="Revision_History__meta">
+                    <span class="Revision_History__source"><%= _t.source_id__label %></span>
+                    <% if (_t.endpoint) { %>
+                        <code class="Revision_History__endpoint"><%= _t.endpoint %></code>
+                    <% } %>
+                    <% if (_t.description) { %>
+                        <span class="Revision_History__description"><%= _t.description %></span>
+                    <% } %>
+                </div>
+
+                <% for (const _r of _t.revisions) { %>
+                    <div class="Revision_History__revision">
+                        <div class="Revision_History__operation">
+                            <span class="Revision_History__badge Revision_History__badge--op<%= _r.operation_id %>"><%= _r.operation_id__label %></span>
+                            <% if (_r.record_type !== _subject_type) { %>
+                                <span class="Revision_History__record"><%= this.humanize_type(_r.record_type) %> #<%= _r.record_id %></span>
+                            <% } %>
+                        </div>
+
+                        <% const _fields = Object.keys(_r.diff); %>
+                        <% if (_fields.length === 0) { %>
+                            <div class="Revision_History__nofields">No field values recorded for this operation.</div>
+                        <% } else { %>
+                            <table class="Revision_History__table">
+                                <thead>
+                                    <tr>
+                                        <th>Field</th>
+                                        <th>Before</th>
+                                        <th>After</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% for (const _field of _fields) { %>
+                                        <%
+                                            const _before = this.format_value(_r.record_type, _field, _r.diff[_field][0]);
+                                            const _after = this.format_value(_r.record_type, _field, _r.diff[_field][1]);
+                                            const _before_key = _r.id + ':' + _field + ':0';
+                                            const _after_key = _r.id + ':' + _field + ':1';
+                                        %>
+                                        <tr>
+                                            <td class="Revision_History__field"><%= this.humanize_field(_field) %></td>
+                                            <td class="Revision_History__value">
+                                                <% if (_before === null) { %>
+                                                    <Empty_Value />
+                                                <% } else { %>
+                                                    <%= this.display_text(_before_key, _before) %>
+                                                    <% if (this.is_truncatable(_before)) { %>
+                                                        <button type="button" class="Revision_History__toggle" data-revision-value="<%= _before_key %>"><%= this.is_expanded(_before_key) ? 'Show less' : 'Show more' %></button>
+                                                    <% } %>
+                                                <% } %>
+                                            </td>
+                                            <td class="Revision_History__value">
+                                                <% if (_after === null) { %>
+                                                    <Empty_Value />
+                                                <% } else { %>
+                                                    <%= this.display_text(_after_key, _after) %>
+                                                    <% if (this.is_truncatable(_after)) { %>
+                                                        <button type="button" class="Revision_History__toggle" data-revision-value="<%= _after_key %>"><%= this.is_expanded(_after_key) ? 'Show less' : 'Show more' %></button>
+                                                    <% } %>
+                                                <% } %>
+                                            </td>
+                                        </tr>
+                                    <% } %>
+                                </tbody>
+                            </table>
+                        <% } %>
+                    </div>
+                <% } %>
+            </div>
+        <% } %>
+
+        <% if (this.data.has_more || this.args.before_id) { %>
+            <div class="Revision_History__pager">
+                <% if (this.args.before_id) { %>
+                    <button type="button" class="btn btn-secondary btn-sm" $sid="latest">
+                        <i class="bi bi-arrow-up"></i> Back to latest
+                    </button>
+                <% } %>
+                <% if (this.data.has_more) { %>
+                    <button type="button" class="btn btn-secondary btn-sm" $sid="older">
+                        Older changes <i class="bi bi-arrow-down"></i>
+                    </button>
+                <% } %>
+            </div>
+        <% } %>
+    <% } %>
+</Define:Revision_History>

@@ -329,6 +329,18 @@
                         </Action_Menu>
                     </div>
                 <% } %>
+
+                <%-- Outside the deleted/live branch on purpose: the history of a deleted
+                     client is exactly when somebody wants to read it. Visibility follows the
+                     DESTINATION's own @auth list, so this link cannot advertise a page the
+                     viewer would be refused. --%>
+                <% if (Permission.can_access('Clients_History_Action')) { %>
+                    <div class="d-grid">
+                        <a href="<%= Rsx.Route('Clients_History_Action', _client.id) %>" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-clock-history"></i> History
+                        </a>
+                    </div>
+                <% } %>
             </Detail_Sidebar>
         </Slot:sidebar>
     </Page_Scaffold>

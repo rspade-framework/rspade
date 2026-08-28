@@ -114,6 +114,7 @@ stack), `Section_Columns` (nested 2:1 split), and the older `Card` / `Card_Heade
 | `Stat_Row` | One money/numeric `label: value` line (monospaced, right-aligned). |
 | `Record_Table` | Compact record list; `<tr data-href>` gives whole-row navigation. |
 | `Feed_Row` | One activity/timeline event line: icon tile + summary + relative time. |
+| `Revision_History` | The change timeline of one record (`$record_type` + `$record_id`), grouped by transaction with the field diffs under each. |
 | `Author_Meta_Row` | The shared "who + when" byline (avatar + author + time). |
 | `Person_Avatar` | A profile image or a deterministic initials disc. |
 | `People_List` | A calm vertical list of people; fires `person_click` / `person_remove`. |

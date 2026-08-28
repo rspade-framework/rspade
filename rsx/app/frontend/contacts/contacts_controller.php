@@ -8,6 +8,9 @@
 namespace Rsx\App\Frontend\Contacts;
 
 use Illuminate\Http\Request;
+use libphonenumber\NumberParseException;
+use libphonenumber\PhoneNumberFormat;
+use libphonenumber\PhoneNumberUtil;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Portal\Portal_Session;
@@ -237,6 +240,15 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
             $errors['email'] = 'Please enter a valid email address';
         }
 
+        // Phone numbers: validated and normalised to E.164 here, on the server, because a
+        // browser widget formats but never decides. Each field is independent - one bad
+        // number reports on its own field and does not stop the others being accepted.
+        $phones = [];
+
+        foreach (['phone_work', 'phone_cell', 'phone_other'] as $phone_field) {
+            $phones[$phone_field] = self::_normalize_phone($params[$phone_field] ?? null, $errors, $phone_field);
+        }
+
         if (!empty($errors)) {
             return response_form_error('Please correct the errors below.', $errors);
         }
@@ -262,9 +274,9 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
         $contact->title = $params['title'] ?? null;
         $contact->email = $params['email'] ?? null;
         $contact->email_secondary = $params['email_secondary'] ?? null;
-        $contact->phone_work = $params['phone_work'] ?? null;
-        $contact->phone_cell = $params['phone_cell'] ?? null;
-        $contact->phone_other = $params['phone_other'] ?? null;
+        $contact->phone_work = $phones['phone_work'];
+        $contact->phone_cell = $phones['phone_cell'];
+        $contact->phone_other = $phones['phone_other'];
         $contact->address = $params['address'] ?? null;
         $contact->city = $params['city'] ?? null;
         $contact->state = $params['state'] ?? null;
@@ -310,6 +322,59 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
             'contact_id' => $contact->id,
             'redirect' => Rsx::Route('Contacts_View_Action', $contact->id),
         ];
+    }
+
+    /**
+     * Validate one submitted phone number and return the value to store.
+     *
+     * Phone numbers are stored in E.164 ("+19206145140") - one canonical spelling, so two
+     * records holding the same number compare equal, a search matches whatever the user
+     * typed, and an SMS gateway gets the form it requires. The display formatting is
+     * Rsx\Lib\Formatters::phone()'s job on the way out; nothing but E.164 goes in.
+     *
+     * A BLANK value is a value: the user clearing the field means "this contact has no work
+     * number", so it stores null rather than being treated as "not submitted". That is the
+     * form contract - a form submits every field it renders.
+     *
+     * The bar is libphonenumber's isPossibleNumber(), not isValidNumber(), matching
+     * Formatters::phone(): a length/pattern check that accepts a number in an unassigned or
+     * placeholder range. A CRM records the number on the business card; deciding that a
+     * carrier has not issued that block yet is not a data-entry error.
+     *
+     * A number typed without a '+' is understood to belong to config('rsx.formatting.phone_region').
+     *
+     * @param string|null $value Raw submitted value
+     * @param array $errors Error map, appended to by reference when the number is unusable
+     * @param string $field Field name the error is reported against
+     * @return string|null E.164 number, or null when the field was submitted blank
+     */
+    private static function _normalize_phone(?string $value, array &$errors, string $field): ?string
+    {
+        $value = trim((string)$value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        $region = config('rsx.formatting.phone_region');
+
+        try {
+            // A '+' number carries its own country code and ignores the region; anything
+            // else is read as a number dialled inside the region.
+            $proto = PhoneNumberUtil::getInstance()->parse($value, $region);
+        } catch (NumberParseException $e) {
+            // Expected: this is user input, and unparseable input is exactly what this
+            // function exists to report.
+            $errors[$field] = 'Please enter a valid phone number';
+            return null;
+        }
+
+        if (!PhoneNumberUtil::getInstance()->isPossibleNumber($proto)) {
+            $errors[$field] = 'Please enter a valid phone number';
+            return null;
+        }
+
+        return PhoneNumberUtil::getInstance()->format($proto, PhoneNumberFormat::E164);
     }
 
     /**

@@ -206,9 +206,15 @@ An additive selection with no ids selects NOTHING (`whereIn([])`) - deliberately
 **CSV export** - `DataGrid_Abstract::build_csv($headers, $rows)` returns an RFC4180 string
 (`fputcsv` over a memory stream). An Ajax response cannot BE a download, so the endpoint returns
 `['csv' => ..., 'filename' => ..., 'count' => ...]` and the client calls
-`trigger_file_download(csv, filename)` from `rsx/lib/csv_download.js`. Menu items for gated actions
+`trigger_file_download(content, filename[, mime_type])` from `rsx/lib/file_download.js`. Menu items for gated actions
 mirror the endpoint's `#[Auth]` in the template (`Permission.has_permission(...)`) so the menu never
 offers what the server refuses. An export does NOT clear the selection; a delete does.
+
+**Excel export** - same shape, different container: the endpoint builds a workbook with
+PhpSpreadsheet and returns `['xlsx_base64' => ..., 'filename' => ..., 'count' => ...]`, because JSON
+carries no bytes. The client rebuilds them with `base64_to_bytes()` (same file) and passes the xlsx
+MIME type to `trigger_file_download()`. Worked example: `Frontend_Clients_Controller::export_xlsx`
+and `Clients_DataGrid.export_selection_xlsx`.
 
 A page-header button can drive the same machinery with a whole-set payload - see
 `whole_set_selection()` in `clients_datagrid.js` and its caller in `Clients_Index_Action.js`.

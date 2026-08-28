@@ -54,6 +54,11 @@ class Clients_DataGrid extends DataGrid_Abstract {
 
         if (action === 'export') {
             await that.export_selection(selection);
+            return;
+        }
+
+        if (action === 'export_xlsx') {
+            await that.export_selection_xlsx(selection);
         }
     }
 
@@ -107,6 +112,31 @@ class Clients_DataGrid extends DataGrid_Abstract {
         });
 
         trigger_file_download(result.csv, result.filename);
+
+        Flash_Alert.success('Exported ' + result.count + ' client' + (result.count === 1 ? '' : 's'));
+    }
+
+    /**
+     * Export everything the selection covers as an Excel workbook.
+     *
+     * Same selection payload as export_selection() - only the container differs. The
+     * workbook is binary, and the Ajax envelope is JSON, so the endpoint base64-encodes it
+     * and this rebuilds the bytes before handing them to the browser.
+     *
+     * @param {Object} selection - payload from on_footer_action()
+     */
+    async export_selection_xlsx(selection) {
+        const result = await Frontend_Clients_Controller.export_xlsx({
+            mode: selection.mode,
+            ids: selection.ids,
+            filter_params: selection.filter_params,
+        });
+
+        trigger_file_download(
+            base64_to_bytes(result.xlsx_base64),
+            result.filename,
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
 
         Flash_Alert.success('Exported ' + result.count + ' client' + (result.count === 1 ? '' : 's'));
     }

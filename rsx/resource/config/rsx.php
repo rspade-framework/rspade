@@ -505,6 +505,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Formatting
+    |--------------------------------------------------------------------------
+    |
+    | THIS APP'S formatting defaults. The framework has no opinion about them.
+    |
+    | phone_region is the ISO 3166-1 region a phone number typed WITHOUT a '+'
+    | country code is understood to belong to. It is the parse region for
+    | server-side validation (Frontend_Contacts_Controller::save) and the display
+    | region for Rsx\Lib\Formatters::phone(). An app serving another country
+    | changes it here; a number carrying '+' ignores it entirely.
+    |
+    */
+
+    'formatting' => [
+        'phone_region' => 'US',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Client Portal
     |--------------------------------------------------------------------------
     |

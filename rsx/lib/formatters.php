@@ -5,6 +5,10 @@ namespace Rsx\Lib;
 use libphonenumber\PhoneNumberUtil;
 use libphonenumber\PhoneNumberFormat;
 use libphonenumber\NumberParseException;
+use Brick\Money\Money;
+use Brick\Money\Context\CustomContext;
+use Brick\Math\RoundingMode;
+use Brick\Math\Exception\MathException;
 
 /**
  * String formatting utilities
@@ -22,8 +26,10 @@ class Formatters
      * Format a phone number
      *
      * Behavior matches Phone_Text_Input component:
-     * - International mode (starts with '+'): Parsed with libphonenumber and
-     *   rendered in INTERNATIONAL format when the number is possible; otherwise
+     * - International mode (starts with '+'): Parsed with libphonenumber. A number
+     *   whose country code is $region's own is rendered in that region's national
+     *   style (so a stored E.164 value round-trips to what the user typed); any
+     *   other possible number is rendered in INTERNATIONAL format; anything else is
      *   returned unchanged (never throws for a display formatter).
      * - Default US mode ($region === 'US'): Progressive formatting as
      *   (XXX) XXX-XXXX. Strips a leading "1" country code, limits to 10 digits,
@@ -45,6 +51,7 @@ class Formatters
      * Formatters::phone('(555) 123-4567')    // "(555) 123-4567"
      * Formatters::phone('+442071234567')     // "+44 20 7123 4567"
      * Formatters::phone('+44 20 7123 4567')  // "+44 20 7123 4567"
+     * Formatters::phone('+19206145140')      // "(920) 614-5140"  (US is the home region)
      * Formatters::phone('2071234567', 'GB')  // "020 7123 4567"
      */
     public static function phone(?string $input, string $region = 'US'): string
@@ -61,6 +68,17 @@ class Formatters
                 // Region is irrelevant when the number carries '+'.
                 $proto = PhoneNumberUtil::getInstance()->parse($input, null);
                 if (PhoneNumberUtil::getInstance()->isPossibleNumber($proto)) {
+                    // A number belonging to $region's own country code is shown the way
+                    // that region writes it, WITHOUT the country code. E.164 is a storage
+                    // format - Frontend_Contacts_Controller::save() stores
+                    // "+19206145140" - and the number a user typed as (920) 614-5140
+                    // has to come back to them as (920) 614-5140.
+                    $home_country_code = PhoneNumberUtil::getInstance()->getCountryCodeForRegion($region);
+
+                    if ($proto->getCountryCode() === $home_country_code) {
+                        return self::phone((string)$proto->getNationalNumber(), $region);
+                    }
+
                     return PhoneNumberUtil::getInstance()->format($proto, PhoneNumberFormat::INTERNATIONAL);
                 }
             } catch (NumberParseException $e) {
@@ -143,10 +161,24 @@ class Formatters
      * - Optional currency symbol (default: hidden)
      * - Optional decimal places (default: hidden)
      *
+     * The rounding is done by brick/money rather than by number_format(), so the
+     * amount is carried as an exact decimal from end to end: a value that does not
+     * survive a float (a bare integer past 2^53, a string amount with more digits
+     * than a double holds) formats to the digits it was given instead of to the
+     * nearest representable double. The rounding mode is stated rather than
+     * inherited - HalfUp, i.e. half away from zero, which is what number_format
+     * did and what an invoice line expects.
+     *
+     * Presentation stays this application's decision: $symbol is prefixed verbatim
+     * and the group separator is a comma. Money::formatTo($locale) is the other
+     * option and renders a locale's own placement and separators - use it when the
+     * app is genuinely multi-locale, not to reproduce this format.
+     *
      * @param float|string|null $amount Amount to format
      * @param bool $show_symbol Show currency symbol (default: false)
      * @param bool $allow_decimals Show decimal places (default: false)
      * @param string $symbol Currency symbol to use (default: '$')
+     * @param string $currency ISO 4217 code the amount is denominated in (default: 'USD')
      * @return string Formatted currency string
      *
      * @example
@@ -160,20 +192,30 @@ class Formatters
         $amount,
         bool $show_symbol = false,
         bool $allow_decimals = false,
-        string $symbol = '$'
+        string $symbol = '$',
+        string $currency = 'USD'
     ): string {
         if ($amount === null || $amount === '') {
             return '';
         }
 
-        // Convert to numeric
-        $numeric_amount = is_numeric($amount) ? (float)$amount : 0.0;
-
-        // Determine decimal places
+        // Decimal places asked for. CustomContext carries it into the Money, so the
+        // rounding happens once, inside the money type, at the scale being displayed.
         $decimals = $allow_decimals ? 2 : 0;
 
-        // Format with thousands separator and decimals
-        $formatted = number_format($numeric_amount, $decimals, '.', ',');
+        // A non-numeric amount is not an error here - this is a display formatter, and
+        // it renders a zero exactly as it always has.
+        $numeric_amount = is_numeric($amount) ? (string)$amount : '0';
+
+        try {
+            $money = Money::of($numeric_amount, $currency, new CustomContext($decimals), RoundingMode::HalfUp);
+        } catch (MathException $e) {
+            // Reachable only for input is_numeric() accepted and BigDecimal will not
+            // (hexadecimal-ish and INF/NAN spellings). Same zero as above.
+            $money = Money::of('0', $currency, new CustomContext($decimals), RoundingMode::HalfUp);
+        }
+
+        $formatted = self::_group_decimal_string((string)$money->getAmount());
 
         // Add currency symbol if enabled
         if ($show_symbol) {
@@ -181,6 +223,37 @@ class Formatters
         }
 
         return $formatted;
+    }
+
+    /**
+     * Insert thousands separators into a plain decimal string.
+     *
+     * Takes "-1234567.89" to "-1,234,567.89". String in, string out - the digits are
+     * never routed through a float, which is the whole point of formatting the money
+     * amount rather than a cast of it.
+     *
+     * @param string $decimal Decimal string as produced by BigDecimal::__toString()
+     * @return string
+     * @private
+     */
+    private static function _group_decimal_string(string $decimal): string
+    {
+        $sign = '';
+
+        if (str_starts_with($decimal, '-')) {
+            $sign = '-';
+            $decimal = substr($decimal, 1);
+        }
+
+        $fraction = '';
+        $dot = strpos($decimal, '.');
+
+        if ($dot !== false) {
+            $fraction = substr($decimal, $dot);
+            $decimal = substr($decimal, 0, $dot);
+        }
+
+        return $sign . strrev(implode(',', str_split(strrev($decimal), 3))) . $fraction;
     }
 
     /**

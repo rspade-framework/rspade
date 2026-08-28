@@ -183,6 +183,13 @@
                         <a href="<%= Rsx.Route('Contacts_Edit_Action', _contact.id) %>" class="btn btn-primary btn-sm">
                             <i class="bi bi-pencil"></i> Edit Contact
                         </a>
+                        <%-- Visibility follows the DESTINATION's own @auth list, so this link
+                             cannot advertise a page the viewer would be refused. --%>
+                        <% if (Permission.can_access('Contacts_History_Action')) { %>
+                            <a href="<%= Rsx.Route('Contacts_History_Action', _contact.id) %>" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-clock-history"></i> History
+                            </a>
+                        <% } %>
                         <% if (_contact.client_id) { %>
                             <a href="<%= Rsx.Route('Clients_View_Action', _contact.client_id) %>#tab=portal" class="btn btn-outline-secondary btn-sm">
                                 <i class="bi bi-globe"></i> Manage Client Portal

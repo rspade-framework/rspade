@@ -18,8 +18,10 @@ class Formatters {
      *
      * Behavior matches Rsx\Lib\Formatters::phone() and the Phone_Text_Input
      * component:
-     * - International mode (starts with '+'): Parsed with libphonenumber and
-     *   rendered in INTERNATIONAL format when the number is possible; otherwise
+     * - International mode (starts with '+'): Parsed with libphonenumber. A number
+     *   whose country code is region's own is rendered in that region's national
+     *   style (so a stored E.164 value round-trips to what the user typed); any
+     *   other possible number is rendered in INTERNATIONAL format; anything else is
      *   returned unchanged (never throws for a display formatter).
      * - Default US mode (region === 'US'): Progressive formatting as
      *   (XXX) XXX-XXXX. Strips a leading "1" country code, limits to 10 digits,
@@ -41,6 +43,7 @@ class Formatters {
      * Formatters.phone('(555) 123-4567')    // "(555) 123-4567"
      * Formatters.phone('+442071234567')     // "+44 20 7123 4567"
      * Formatters.phone('+44 20 7123 4567')  // "+44 20 7123 4567"
+     * Formatters.phone('+19206145140')      // "(920) 614-5140"  (US is the home region)
      * Formatters.phone('2071234567', 'GB')  // "020 7123 4567"
      */
     static phone(input, region = 'US') {
@@ -59,6 +62,17 @@ class Formatters {
                 // Region is irrelevant when the number carries '+'.
                 const proto = util.parse(str_input, null);
                 if (util.isPossibleNumber(proto)) {
+                    // A number belonging to region's own country code is shown the way
+                    // that region writes it, WITHOUT the country code. E.164 is a storage
+                    // format - Frontend_Contacts_Controller::save() stores
+                    // "+19206145140" - and the number a user typed as (920) 614-5140
+                    // has to come back to them as (920) 614-5140.
+                    const home_country_code = util.getCountryCodeForRegion(region);
+
+                    if (proto.getCountryCode() === home_country_code) {
+                        return Formatters.phone(str(proto.getNationalNumber()), region);
+                    }
+
                     return util.format(proto, libphonenumber.PhoneNumberFormat.INTERNATIONAL);
                 }
             } catch (e) {

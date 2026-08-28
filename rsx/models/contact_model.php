@@ -88,6 +88,12 @@ class Contact_Model extends Rsx_Site_Model_Abstract
     // tab) live-refreshes on edit — including bulk builder writes.
     public static $realtime = true;
 
+    /**
+     * Revision history: a contact's own writes are recorded, AND (via #[Revision_Parent]
+     * on client()) filed under the parent client's history as well.
+     */
+    public static $revisions = true;
+
     public static $enums = [
         'priority' => [
             1 => ['constant' => 'PRIORITY_LOW', 'label' => 'Low', 'badge' => 'bg-secondary'],
@@ -123,6 +129,7 @@ class Contact_Model extends Rsx_Site_Model_Abstract
     #[Relationship]
     #[Ajax_Endpoint_Model_Fetch]
     #[Realtime_Touch]
+    #[Revision_Parent]
     public function client()
     {
         return $this->belongsTo(Client_Model::class, 'client_id');

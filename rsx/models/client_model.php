@@ -121,6 +121,14 @@ class Client_Model extends Rsx_Site_Model_Abstract
     // (flushed on commit) so subscribers (e.g. Clients_View) live-refresh.
     public static $realtime = true;
 
+    /**
+     * Revision history: every committed save()/delete() on a client records a
+     * {field: [before, after]} document, grouped under the transaction for whatever
+     * action produced it. Contacts declare this model as their #[Revision_Parent], so
+     * $client->revisions_including_children() is the whole story of a client.
+     */
+    public static $revisions = true;
+
     public static $enums = [
         'priority' => [
             1 => ['constant' => 'PRIORITY_LOW', 'label' => 'Low', 'badge' => 'bg-secondary'],

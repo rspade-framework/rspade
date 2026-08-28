@@ -5,6 +5,7 @@ namespace Rsx\Models;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
 use App\RSpade\Core\Models\User_Model;
+use Rsx\Lib\Formatters;
 use Rsx\Models\Client_Department_Model;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Contact_Model;
@@ -123,11 +124,16 @@ class Project_Model extends Rsx_Site_Model_Abstract
 
     /**
      * Get formatted budget for display
+     *
+     * Through Formatters::currency(), which carries the amount as an exact decimal
+     * (brick/money) instead of casting the DECIMAL column to a float. The column holds
+     * money; nothing in its path to the screen is allowed to round it on the way.
+     *
      * @return string|null
      */
     public function budget_formatted()
     {
-        return $this->budget ? '$' . number_format($this->budget, 2) : null;
+        return $this->budget ? Formatters::currency($this->budget, show_symbol: true, allow_decimals: true) : null;
     }
 
     /**

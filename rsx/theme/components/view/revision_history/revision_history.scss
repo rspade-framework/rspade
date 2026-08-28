@@ -1,0 +1,165 @@
+// Revision_History - the change timeline of one record, grouped by transaction.
+// Colours are Bootstrap theme tokens only, so the timeline follows light/dark
+// without a single per-theme rule of its own.
+.Revision_History {
+    display: block;
+
+    &__group {
+        border: $border-width solid var(--bs-border-color);
+        border-radius: $border-radius-md;
+        background: var(--bs-body-bg);
+        padding: $spacing-3;
+        margin-bottom: $spacing-3;
+
+        &:last-of-type {
+            margin-bottom: 0;
+        }
+    }
+
+    &__header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: $spacing-3;
+    }
+
+    &__who {
+        display: flex;
+        align-items: baseline;
+        gap: $spacing-2;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-semibold;
+        color: var(--bs-body-color);
+        min-width: 0;
+    }
+
+    &__count {
+        font-size: $font-size-xs;
+        font-weight: $font-weight-normal;
+        color: var(--bs-secondary-color);
+        white-space: nowrap;
+    }
+
+    &__when {
+        flex: 0 0 auto;
+        font-size: $font-size-xs;
+        color: var(--bs-secondary-color);
+        white-space: nowrap;
+    }
+
+    &__meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: $spacing-2;
+        margin-top: $spacing-1;
+        font-size: $font-size-xs;
+        color: var(--bs-secondary-color);
+    }
+
+    &__source {
+        display: inline-block;
+        padding: 0 $spacing-2;
+        border: $border-width solid var(--bs-border-color);
+        border-radius: $border-radius-sm;
+        background: var(--bs-tertiary-bg);
+    }
+
+    &__endpoint {
+        color: var(--bs-secondary-color);
+        word-break: break-all;
+    }
+
+    &__revision {
+        margin-top: $spacing-3;
+        padding-top: $spacing-3;
+        border-top: $border-width solid var(--bs-border-color);
+    }
+
+    &__operation {
+        display: flex;
+        align-items: center;
+        gap: $spacing-2;
+        font-size: $font-size-xs;
+    }
+
+    &__badge {
+        display: inline-block;
+        padding: 0 $spacing-2;
+        border-radius: $border-radius-sm;
+        background: var(--bs-tertiary-bg);
+        color: var(--bs-secondary-color);
+        font-weight: $font-weight-medium;
+    }
+
+    // Created / Updated / Deleted / Restored, in Revision_Model's operation order.
+    // Bootstrap's subtle pairs, not the raw palette: they are redefined per theme,
+    // so the badge stays legible in dark without a second rule.
+    &__badge--op1 { background: var(--bs-success-bg-subtle); color: var(--bs-success-text-emphasis); }
+    &__badge--op2 { background: var(--bs-primary-bg-subtle); color: var(--bs-primary-text-emphasis); }
+    &__badge--op3 { background: var(--bs-danger-bg-subtle); color: var(--bs-danger-text-emphasis); }
+    &__badge--op4 { background: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis); }
+
+    &__record {
+        color: var(--bs-secondary-color);
+    }
+
+    &__nofields {
+        margin-top: $spacing-2;
+        font-size: $font-size-xs;
+        color: var(--bs-secondary-color);
+    }
+
+    &__table {
+        width: 100%;
+        margin-top: $spacing-2;
+        font-size: $font-size-sm;
+        table-layout: fixed;
+
+        th {
+            padding: $spacing-1 $spacing-2;
+            font-size: $font-size-xs;
+            font-weight: $font-weight-semibold;
+            color: var(--bs-secondary-color);
+            border-bottom: $border-width solid var(--bs-border-color);
+            text-align: left;
+        }
+
+        td {
+            padding: $spacing-2;
+            vertical-align: top;
+            border-bottom: $border-width solid var(--bs-border-color);
+            overflow-wrap: anywhere;
+        }
+
+        tr:last-child td {
+            border-bottom: 0;
+        }
+    }
+
+    &__field {
+        width: 24%;
+        color: var(--bs-secondary-color);
+    }
+
+    &__value {
+        color: var(--bs-body-color);
+    }
+
+    &__toggle {
+        display: inline;
+        padding: 0;
+        margin-left: $spacing-1;
+        border: 0;
+        background: none;
+        color: var(--bs-link-color);
+        font-size: $font-size-xs;
+    }
+
+    &__pager {
+        display: flex;
+        justify-content: flex-end;
+        gap: $spacing-2;
+        margin-top: $spacing-3;
+    }
+}

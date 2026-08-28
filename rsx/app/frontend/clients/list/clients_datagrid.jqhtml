@@ -107,6 +107,11 @@
                     <i class="bi bi-download"></i> Export to CSV
                 </a>
             </li>
+            <li>
+                <a class="dropdown-item" href="#" data-action="export_xlsx">
+                    <i class="bi bi-file-earmark-spreadsheet"></i> Export to Excel
+                </a>
+            </li>
             <li><hr class="dropdown-divider" /></li>
         <% } %>
         <li>

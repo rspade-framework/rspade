@@ -89,6 +89,14 @@ class Task_Model extends Rsx_Site_Model_Abstract
     public static $realtime = true;
 
     /**
+     * Revision history: every committed save()/delete() on a task is recorded. No
+     * #[Revision_Parent]: a task's parent is the POLYMORPHIC taskable, and the attribute
+     * is belongsTo-only (a revision has exactly one root, and only a belongsTo names
+     * exactly one parent row).
+     */
+    public static $revisions = true;
+
+    /**
      * A change to this task should also notify subscribers of its polymorphic parent (the
      * parent's task list depends on it). The taskable morphTo resolves the parent model
      * instance (Task / Project / Client / User); withTrashed() so a soft-deleted parent is

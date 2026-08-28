@@ -8,6 +8,9 @@
 namespace Rsx\App\Frontend\Clients;
 
 use Illuminate\Http\Request;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Files\File_Attachment_Model;
@@ -376,6 +379,95 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             'csv' => $csv,
             'filename' => 'clients_export_' . Rsx_Date::today() . '.csv',
             'count' => count($rows),
+        ];
+    }
+
+    /**
+     * Ajax endpoint: export the selected clients as an Excel workbook.
+     *
+     * Same selection resolution and same columns as export_csv() - the difference is the
+     * container. CSV is text a spreadsheet guesses at; xlsx carries the types, so a phone
+     * number stays a phone number and a date is a date instead of whatever the recipient's
+     * locale decides "3/4/25" meant. PhpSpreadsheet writes the workbook.
+     *
+     * The bytes come back base64-encoded in the Ajax envelope, for the reason the CSV comes
+     * back as a string: the transport is XHR and every response is HTTP 200 JSON, so an
+     * Ajax response can never BE a download. The browser side rebuilds the file
+     * (Clients_DataGrid.export_selection_xlsx) and hands it to the user.
+     *
+     * @param Request $request
+     * @param array $params
+     * @return mixed
+     */
+    #[Auth('can_export_data')]
+    #[Ajax_Endpoint]
+    public static function export_xlsx(Request $request, array $params = [])
+    {
+        $query = Clients_DataGrid::build_query_public($params['filter_params'] ?? []);
+
+        $query = Clients_DataGrid::apply_selection($query, 'clients.id', $params);
+
+        if ($query instanceof Error_Response) {
+            return $query;
+        }
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Clients');
+
+        $headers = ['ID', 'Company Name', 'City', 'State', 'Phone', 'Email', 'Website', 'Status', 'Priority', 'Created'];
+
+        $sheet->fromArray($headers, null, 'A1');
+        $sheet->getStyle('A1:J1')->getFont()->setBold(true);
+
+        $row_number = 2;
+        $count = 0;
+
+        foreach (Clients_DataGrid::iterate_selection($query, 'clients.id') as $client) {
+            $sheet->fromArray([
+                $client->id,
+                $client->name,
+                $client->city,
+                $client->state,
+                $client->phone,
+                $client->email,
+                $client->website,
+                $client->status_id__label,
+                $client->priority__label,
+                $client->created_at,
+            ], null, 'A' . $row_number);
+
+            // A phone number is a label, not a quantity - written as an explicit string so
+            // a leading "+" or "0" survives and nothing is read as a formula.
+            $sheet->getCell('E' . $row_number)->setValueExplicit(
+                (string)$client->phone,
+                DataType::TYPE_STRING
+            );
+
+            $row_number++;
+            $count++;
+        }
+
+        foreach (range('A', 'J') as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+
+        // php://memory rather than a temp file: the workbook is handed straight to the
+        // response and never belongs on disk.
+        $handle = fopen('php://memory', 'r+');
+
+        (new Xlsx($spreadsheet))->save($handle);
+
+        rewind($handle);
+        $bytes = stream_get_contents($handle);
+        fclose($handle);
+
+        $spreadsheet->disconnectWorksheets();
+
+        return [
+            'xlsx_base64' => base64_encode($bytes),
+            'filename' => 'clients_export_' . Rsx_Date::today() . '.xlsx',
+            'count' => $count,
         ];
     }
 
