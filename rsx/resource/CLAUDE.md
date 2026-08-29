@@ -137,7 +137,7 @@ components (validation-error integration) - do not mix the two.
 exactly one `<Form_Errors />` where its layout wants the failure feedback),
 `Form_Field`, and the inputs: `Text_Input`, `Select_Input`, `Select_Ajax_Input`,
 `Select_Country_Input`, `Select_State_Input`, `Select_With_Description_Input`,
-`Select_User_Role_Input`, `Checkbox_Input`, `Checkbox_Multiselect_Input`,
+`Checkbox_Input`, `Checkbox_Multiselect_Input`,
 `Hidden_Input`, `Profile_Photo_Input`, `Repeater_Simple_Input`, `Tag_List_Input`,
 `Pin_Input`, `Wysiwyg_Input`.
 

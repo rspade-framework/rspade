@@ -10,7 +10,7 @@ replaying every migration ever written.
 
 ## Who writes them
 
-`php artisan rsx:db:dump_cache`, in development mode only. It backs the live database
+`php artisan rsx:db:rebuild_provision_cache_snapshot`, in development mode only. It backs the live database
 and blob store up, wipes both, migrates from zero, records the result here, and then
 restores the live data.
 

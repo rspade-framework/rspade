@@ -17,7 +17,7 @@
     .pagemodal-card {
         background: var(--bs-body-bg);
         border-radius: $border-radius-lg;
-        box-shadow: 0 10px 40px rgba($black, 0.2);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
         width: 100%;
         max-width: 500px;
     }
@@ -25,7 +25,7 @@
     .pagemodal-header {
         padding: $spacing-xl $spacing-xl $spacing-md;
         text-align: center;
-        border-bottom: $border-width solid $gray-200;
+        border-bottom: $border-width solid var(--bs-border-color);
     }
 
     .pagemodal-header h2 {

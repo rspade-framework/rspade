@@ -12,7 +12,7 @@
         border-radius: $border-radius-full;
         overflow: hidden;
         flex-shrink: 0;
-        color: $white;
+        color: #fff; // contrast ink on the per-person hue set inline above
         font-weight: $font-weight-semibold;
         line-height: 1;
         text-transform: uppercase;

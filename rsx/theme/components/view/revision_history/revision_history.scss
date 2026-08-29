@@ -146,6 +146,13 @@
         color: var(--bs-body-color);
     }
 
+    // A null cell says so in words. An EMPTY STRING renders as nothing, so the two are
+    // told apart at a glance - which is the difference the timeline exists to show.
+    &__null {
+        color: var(--bs-secondary-color);
+        font-style: italic;
+    }
+
     &__toggle {
         display: inline;
         padding: 0;

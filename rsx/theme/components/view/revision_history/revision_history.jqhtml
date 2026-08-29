@@ -13,9 +13,12 @@ rows, which is the whole reason revisions are grouped this way.
 
 Values are rendered through the model's own vocabulary: an enum id becomes its label via
 the generated stub's field__enum_labels(), an _at / _date column goes through
-Rsx_Time / Rsx_Date (JQHTML-DATETIME-01), an is_ column reads Yes/No, and a null renders
-as <Empty_Value>. Nothing is formatted server-side - the endpoint ships the stored values
-under their real field names.
+Rsx_Time / Rsx_Date (JQHTML-DATETIME-01), and an is_ column reads Yes/No. Nothing is
+formatted server-side - the endpoint ships the stored values under their real field names.
+
+NULL AND EMPTY STRING ARE NOT THE SAME CELL. A null renders as a muted italic "(null)";
+an empty string renders as nothing at all. They are different facts about the column, and
+a timeline that painted one for both would hide the difference the reader came for.
 
 Usage:
     <Revision_History $record_type="Client_Model" $record_id=this.args.id />
@@ -97,7 +100,8 @@ See: php artisan rsx:man revisions
                                             <td class="Revision_History__field"><%= this.humanize_field(_field) %></td>
                                             <td class="Revision_History__value">
                                                 <% if (_before === null) { %>
-                                                    <Empty_Value />
+                                                    <span class="Revision_History__null">(null)</span>
+                                                <% } else if (_before === '') { %>
                                                 <% } else { %>
                                                     <%= this.display_text(_before_key, _before) %>
                                                     <% if (this.is_truncatable(_before)) { %>
@@ -107,7 +111,8 @@ See: php artisan rsx:man revisions
                                             </td>
                                             <td class="Revision_History__value">
                                                 <% if (_after === null) { %>
-                                                    <Empty_Value />
+                                                    <span class="Revision_History__null">(null)</span>
+                                                <% } else if (_after === '') { %>
                                                 <% } else { %>
                                                     <%= this.display_text(_after_key, _after) %>
                                                     <% if (this.is_truncatable(_after)) { %>

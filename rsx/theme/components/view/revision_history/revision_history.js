@@ -100,16 +100,27 @@ class Revision_History extends Component {
     // =========================================================================
 
     /**
-     * One stored value as the reader should see it, or null for "no value".
+     * One stored value as the reader should see it.
+     *
+     * NULL AND EMPTY STRING ARE DIFFERENT FACTS and this returns them differently:
+     * null (or an absent value) comes back as null, which the template paints as a
+     * literal "(null)", and an empty string comes back as '', which the template paints
+     * as nothing at all. A history that rendered both the same would say a column was
+     * cleared when it was actually set to a value the database distinguishes - the one
+     * question a change timeline exists to answer.
      *
      * @param {string} record_type The model the value belongs to
      * @param {string} field The column name
      * @param {*} value The stored value
-     * @returns {string|null}
+     * @returns {string|null} null for a null value; '' for an empty string
      */
     format_value(record_type, field, value) {
-        if (value === null || value === undefined || value === '') {
+        if (value === null || value === undefined) {
             return null;
+        }
+
+        if (value === '') {
+            return '';
         }
 
         const enum_label = this.enum_label(record_type, field, value);

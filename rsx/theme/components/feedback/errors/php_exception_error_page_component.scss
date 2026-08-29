@@ -57,7 +57,7 @@
         white-space: nowrap;
         &::before {
             content: ' : ';
-            color: $gray-500;
+            color: var(--bs-secondary-color);
         }
     }
 

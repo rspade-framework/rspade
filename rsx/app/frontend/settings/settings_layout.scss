@@ -43,7 +43,7 @@
             border: $border-width solid var(--bs-border-color-translucent);
             border-radius: $border-radius-lg;
             overflow: hidden;
-            box-shadow: 0 2px 4px rgba($black, 0.075);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.075);
 
             &--signout {
                 padding: $spacing-3;
@@ -79,7 +79,7 @@
             border-left: 3px solid transparent;
 
             &:hover { // @SCSS-ANIM-01-EXCEPTION: anchor tag nav item
-                background: rgba($black, 0.04);
+                background: rgba(0, 0, 0, 0.04);
                 color: var(--bs-body-color);
                 text-decoration: none;
             }
@@ -160,7 +160,7 @@
     // Section is excluded: it now renders as a .card and owns its own chrome.
     .card:not(.View_Section_Abstract) {
         border: $border-width solid var(--bs-border-color-translucent);
-        box-shadow: 0 2px 4px rgba($black, 0.075);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.075);
         margin-bottom: $spacing-lg;
 
         .card-header {
@@ -210,7 +210,7 @@
             margin: 0 auto;
 
             .avatar-initials {
-                color: $white;
+                color: #fff; // contrast ink on the brand-coloured avatar disc
                 font-size: 40px;
                 font-weight: $font-weight-medium;
             }
@@ -371,7 +371,7 @@
     .stats-widget {
         .stat-item {
             padding: $spacing-3 0;
-            border-bottom: $border-width solid $gray-200;
+            border-bottom: $border-width solid var(--bs-border-color);
 
             &:last-child {
                 border-bottom: none;

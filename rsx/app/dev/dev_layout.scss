@@ -23,18 +23,19 @@
             padding: $spacing-sm $spacing-lg;
             height: 57px;
             border-bottom: $border-width solid var(--bs-border-color);
-            background: $gray-900;
+            // Deliberate: the brand bar is dark in both themes; not a token.
+            background: #212529;
             display: flex;
             align-items: center;
 
             a {
                 font-size: $font-size-xl;
                 font-weight: $font-weight-semibold;
-                color: $white;
+                color: #fff; // contrast ink on the dark brand bar
                 text-decoration: none;
 
                 &:hover {
-                    color: $gray-200;
+                    color: #e9ecef; // hover ink on the dark brand bar - stays light in both themes
                 }
             }
         }

@@ -62,7 +62,7 @@
 
         &:hover {
             background: $danger-color;
-            color: $white;
+            color: #fff; // contrast ink on the danger surface
         }
     }
 
@@ -117,7 +117,7 @@
 
         &:hover {
             background: $danger-color;
-            color: $white;
+            color: #fff; // contrast ink on the danger surface
         }
     }
 

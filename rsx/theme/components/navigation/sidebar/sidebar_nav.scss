@@ -50,11 +50,11 @@
 
         &.active {
             background: $primary-color;
-            color: $white;
+            color: #fff; // contrast ink on the brand surface
             font-weight: $font-weight-medium;
 
             i {
-                color: $white;
+                color: #fff;
             }
         }
     }
@@ -94,11 +94,11 @@
 
         &.active {
             background: $primary-color;
-            color: $white;
+            color: #fff; // contrast ink on the brand surface
             font-weight: $font-weight-medium;
 
             i {
-                color: $white;
+                color: #fff;
             }
         }
     }

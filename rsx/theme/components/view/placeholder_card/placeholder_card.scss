@@ -23,7 +23,7 @@
 
     &__icon {
         font-size: $icon-size-lg; // 40px
-        color: $gray-400;
+        color: var(--bs-secondary-color);
         line-height: 1;
     }
 

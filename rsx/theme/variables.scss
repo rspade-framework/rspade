@@ -27,24 +27,11 @@ $info: $info-color;
 $gradient-end-color: #764ba2;
 $primary-gradient: linear-gradient(135deg, $primary-color 0%, $gradient-end-color 100%);
 
-// Neutral Colors (aligned with Bootstrap)
-$white: #ffffff;
-$black: #000000;
-$gray-100: #f8f9fa;
-$gray-200: #e9ecef;
-$gray-300: #dee2e6;
-$gray-400: #ced4da;
-$gray-500: #adb5bd;
-$gray-600: #6c757d;
-$gray-700: #495057;
-$gray-800: #343a40;
-$gray-900: #212529;
-
-// Semantic Color Aliases
-$text-color: $gray-700;
-$text-muted: $gray-600;
-$border-color: $gray-300;
-$background-light: $gray-100;
+// There is deliberately no neutral ramp and no semantic colour alias here. A colour
+// resolved at compile time cannot follow the theme the user picked, so every neutral -
+// surface, border and ink - is a runtime token: var(--bs-body-bg), --bs-tertiary-bg,
+// --bs-secondary-bg, --bs-border-color, --bs-body-color, --bs-secondary-color,
+// --bs-emphasis-color. See rsx/theme/CLAUDE.md and `rsx:man scss` (COLOURS).
 
 // Error/Alert Colors
 $error-bg: #fff3f3;
@@ -289,9 +276,10 @@ $transition-slow: all $transition-duration-slow ease-in-out;
 // ==========================================================================
 
 // @SCSS-ANIM-01-EXCEPTION - Button mixin for clickable elements
-@mixin button-variant($bg-color, $text-color: $white) {
+@mixin button-variant($bg-color, $ink: #fff) {
     background-color: $bg-color;
-    color: $text-color;
+    // Contrast ink on a brand-coloured surface: white in both themes, never a token.
+    color: $ink;
 
     &:hover {
         background-color: darken($bg-color, 10%);

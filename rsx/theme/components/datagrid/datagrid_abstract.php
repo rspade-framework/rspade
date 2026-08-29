@@ -35,6 +35,7 @@ use DB;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\LazyCollection;
+use League\Csv\Writer;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Database\Rsx_Result_Set;
 use App\RSpade\Core\Response\Error_Response;
@@ -221,10 +222,15 @@ abstract class DataGrid_Abstract
     /**
      * Render a header row plus data rows as one RFC4180 CSV string.
      *
-     * Lives here rather than in each controller because every grid's export endpoint needs
-     * exactly this and there is one right way to escape a CSV field. fputcsv over a memory
-     * stream IS the standard escape - quoting, doubled quotes, embedded newlines and commas -
-     * so nothing about it is hand-rolled.
+     * league/csv is the framework's CSV library, reading and writing alike - see
+     * `rsx:man csv_exports`. Nothing here escapes a field by hand: Writer owns quoting,
+     * doubled quotes, embedded newlines and delimiters, and it is the same library an
+     * import reads through, so one implementation defines what a CSV field means in
+     * both directions.
+     *
+     * The stream is php://temp, which keeps a small export in memory and spills a large
+     * one to disk on its own - so a grid with a lot of selected rows does not decide how
+     * much memory the request needs.
      *
      * @param array $headers Column headings
      * @param array $rows List of rows, each a flat list of scalar values
@@ -232,21 +238,12 @@ abstract class DataGrid_Abstract
      */
     public static function build_csv(array $headers, array $rows): string
     {
-        $handle = fopen('php://temp', 'r+');
+        $writer = Writer::from(fopen('php://temp', 'r+'));
 
-        fputcsv($handle, $headers);
+        $writer->insertOne($headers);
+        $writer->insertAll($rows);
 
-        foreach ($rows as $row) {
-            fputcsv($handle, $row);
-        }
-
-        rewind($handle);
-
-        $csv = stream_get_contents($handle);
-
-        fclose($handle);
-
-        return $csv;
+        return $writer->toString();
     }
 
     /**

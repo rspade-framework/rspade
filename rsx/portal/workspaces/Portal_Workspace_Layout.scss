@@ -55,7 +55,7 @@
 
         &.active {
             background-color: $primary-color;
-            color: $white;
+            color: #fff; // contrast ink on the brand surface
             font-weight: $font-weight-semibold;
         }
     }

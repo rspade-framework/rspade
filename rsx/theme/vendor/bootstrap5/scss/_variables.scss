@@ -461,7 +461,7 @@ $stretched-link-z-index:                  1 !default;
 
 // Icon links
 // scss-docs-start icon-link-variables
-$icon-link-gap:               .3780px !default;
+$icon-link-gap:               6px !default;
 $icon-link-underline-offset:  .25em !default;
 $icon-link-icon-size:         1em !default;
 $icon-link-icon-transition:   .2s ease-in-out transform !default;
@@ -662,11 +662,11 @@ $headings-color:              inherit !default;
 // scss-docs-start display-headings
 $display-font-sizes: (
   1: 80px,
-  2: 4.80px,
+  2: 72px,
   3: 64px,
-  4: 3.80px,
+  4: 56px,
   5: 48px,
-  6: 2.80px
+  6: 40px
 ) !default;
 
 $display-font-family: null !default;
@@ -710,13 +710,13 @@ $hr-opacity:                  .25 !default;
 $vr-border-width:             var(--#{$prefix}border-width) !default;
 // scss-docs-end vr-variables
 
-$legend-margin-bottom:        .80px !default;
-$legend-font-size:            1.80px !default;
+$legend-margin-bottom:        8px !default;
+$legend-font-size:            24px !default;
 $legend-font-weight:          null !default;
 
 $dt-font-weight:              $font-weight-bold !default;
 
-$list-inline-padding:         .80px !default;
+$list-inline-padding:         8px !default;
 
 $mark-padding:                .1875em !default;
 $mark-color:                  $body-color !default;
@@ -940,7 +940,7 @@ $form-color-width:                      48px !default;
 $form-check-input-width:                  1em !default;
 $form-check-min-height:                   $font-size-base * $line-height-base !default;
 $form-check-padding-start:                $form-check-input-width + .5em !default;
-$form-check-margin-bottom:                .1280px !default;
+$form-check-margin-bottom:                2px !default;
 $form-check-label-color:                  null !default;
 $form-check-label-cursor:                 null !default;
 $form-check-transition:                   null !default;
@@ -1043,7 +1043,7 @@ $form-select-transition:          $input-transition !default;
 
 // scss-docs-start form-range-variables
 $form-range-track-width:          100% !default;
-$form-range-track-height:         .80px !default;
+$form-range-track-height:         8px !default;
 $form-range-track-cursor:         pointer !default;
 $form-range-track-bg:             var(--#{$prefix}secondary-bg) !default;
 $form-range-track-border-radius:  16px !default;
@@ -1054,7 +1054,7 @@ $form-range-thumb-height:                  $form-range-thumb-width !default;
 $form-range-thumb-bg:                      $component-active-bg !default;
 $form-range-thumb-border:                  0 !default;
 $form-range-thumb-border-radius:           16px !default;
-$form-range-thumb-box-shadow:              0 .16px .280px rgba($black, .1) !default;
+$form-range-thumb-box-shadow:              0 1.6px 4px rgba($black, .1) !default;
 $form-range-thumb-focus-box-shadow:        0 0 0 1px $body-bg, $input-focus-box-shadow !default;
 $form-range-thumb-focus-box-shadow-width:  $input-focus-width !default; // For focus box shadow issue in Edge
 $form-range-thumb-active-bg:               tint-color($component-active-bg, 70%) !default;
@@ -1069,15 +1069,15 @@ $form-file-button-hover-bg:       var(--#{$prefix}secondary-bg) !default;
 // scss-docs-end form-file-variables
 
 // scss-docs-start form-floating-variables
-$form-floating-height:                  add(3.80px, $input-height-border) !default;
+$form-floating-height:                  add(56px, $input-height-border) !default;
 $form-floating-line-height:             1.25 !default;
 $form-floating-padding-x:               $input-padding-x !default;
 $form-floating-padding-y:               16px !default;
-$form-floating-input-padding-t:         1.6280px !default;
-$form-floating-input-padding-b:         .6280px !default;
+$form-floating-input-padding-t:         26px !default;
+$form-floating-input-padding-b:         10px !default;
 $form-floating-label-height:            1.5em !default;
 $form-floating-label-opacity:           .65 !default;
-$form-floating-label-transform:         scale(.85) translateY(-.80px) translateX(.180px) !default;
+$form-floating-label-transform:         scale(.85) translateY(-8px) translateX(2.4px) !default;
 $form-floating-label-disabled-color:    $gray-600 !default;
 $form-floating-transition:              opacity .1s ease-in-out, transform .1s ease-in-out !default;
 // scss-docs-end form-floating-variables
@@ -1180,7 +1180,7 @@ $nav-pills-link-active-color:       $component-active-color !default;
 $nav-pills-link-active-bg:          $component-active-bg !default;
 
 $nav-underline-gap:                 16px !default;
-$nav-underline-border-width:        .1280px !default;
+$nav-underline-border-width:        2px !default;
 $nav-underline-link-active-color:   var(--#{$prefix}emphasis-color) !default;
 // scss-docs-end nav-variables
 
@@ -1365,7 +1365,7 @@ $card-group-margin:                 $grid-gutter-width * .5 !default;
 
 // scss-docs-start accordion-variables
 $accordion-padding-y:                     16px !default;
-$accordion-padding-x:                     1.280px !default;
+$accordion-padding-x:                     20px !default;
 $accordion-color:                         var(--#{$prefix}body-color) !default;
 $accordion-bg:                            var(--#{$prefix}body-bg) !default;
 $accordion-border-width:                  var(--#{$prefix}border-width) !default;
@@ -1389,7 +1389,7 @@ $accordion-button-focus-border-color:     $input-focus-border-color !default; //
 // fusv-enable
 $accordion-button-focus-box-shadow:       $btn-focus-box-shadow !default;
 
-$accordion-icon-width:                    1.280px !default;
+$accordion-icon-width:                    20px !default;
 $accordion-icon-color:                    $body-color !default;
 $accordion-icon-active-color:             $primary-text-emphasis !default;
 $accordion-icon-transition:               transform .2s ease-in-out !default;
@@ -1412,8 +1412,8 @@ $tooltip-padding-y:                 $spacer * .25 !default;
 $tooltip-padding-x:                 $spacer * .5 !default;
 $tooltip-margin:                    null !default; // TODO: remove this in v6
 
-$tooltip-arrow-width:               .128px !default;
-$tooltip-arrow-height:              .64px !default;
+$tooltip-arrow-width:               12.8px !default;
+$tooltip-arrow-height:              6.4px !default;
 // fusv-disable
 $tooltip-arrow-color:               null !default; // Deprecated in Bootstrap 5.2.0 for CSS variables
 // fusv-enable
@@ -1445,7 +1445,7 @@ $popover-box-shadow:                var(--#{$prefix}box-shadow) !default;
 $popover-header-font-size:          $font-size-base !default;
 $popover-header-bg:                 var(--#{$prefix}secondary-bg) !default;
 $popover-header-color:              $headings-color !default;
-$popover-header-padding-y:          .80px !default;
+$popover-header-padding-y:          8px !default;
 $popover-header-padding-x:          $spacer !default;
 
 $popover-body-color:                var(--#{$prefix}body-color) !default;
@@ -1453,7 +1453,7 @@ $popover-body-padding-y:            $spacer !default;
 $popover-body-padding-x:            $spacer !default;
 
 $popover-arrow-width:               16px !default;
-$popover-arrow-height:              .80px !default;
+$popover-arrow-height:              8px !default;
 // scss-docs-end popover-variables
 
 // fusv-disable
@@ -1467,9 +1467,9 @@ $popover-arrow-outer-color:         var(--#{$prefix}border-color-translucent) !d
 
 // scss-docs-start toast-variables
 $toast-max-width:                   350px !default;
-$toast-padding-x:                   .780px !default;
-$toast-padding-y:                   .80px !default;
-$toast-font-size:                   .8780px !default;
+$toast-padding-x:                   12px !default;
+$toast-padding-y:                   8px !default;
+$toast-font-size:                   14px !default;
 $toast-color:                       null !default;
 $toast-background-color:            rgba(var(--#{$prefix}body-bg-rgb), .85) !default;
 $toast-border-width:                var(--#{$prefix}border-width) !default;
@@ -1612,7 +1612,7 @@ $list-group-action-active-bg:       var(--#{$prefix}secondary-bg) !default;
 // Image thumbnails
 
 // scss-docs-start thumbnail-variables
-$thumbnail-padding:                 .280px !default;
+$thumbnail-padding:                 4px !default;
 $thumbnail-bg:                      var(--#{$prefix}body-bg) !default;
 $thumbnail-border-width:            var(--#{$prefix}border-width) !default;
 $thumbnail-border-color:            var(--#{$prefix}border-color) !default;
@@ -1635,7 +1635,7 @@ $figure-caption-color:              var(--#{$prefix}secondary-color) !default;
 $breadcrumb-font-size:              null !default;
 $breadcrumb-padding-y:              0 !default;
 $breadcrumb-padding-x:              0 !default;
-$breadcrumb-item-padding-x:         .80px !default;
+$breadcrumb-item-padding-x:         8px !default;
 $breadcrumb-margin-bottom:          16px !default;
 $breadcrumb-bg:                     null !default;
 $breadcrumb-divider-color:          var(--#{$prefix}secondary-color) !default;
@@ -1665,8 +1665,8 @@ $carousel-indicator-transition:      opacity .6s ease !default;
 
 $carousel-caption-width:             70% !default;
 $carousel-caption-color:             $white !default;
-$carousel-caption-padding-y:         1.280px !default;
-$carousel-caption-spacer:            1.280px !default;
+$carousel-caption-padding-y:         20px !default;
+$carousel-caption-spacer:            20px !default;
 
 $carousel-control-icon-width:        32px !default;
 
@@ -1740,8 +1740,8 @@ $offcanvas-backdrop-opacity:        $modal-backdrop-opacity !default;
 $code-font-size:                    $small-font-size !default;
 $code-color:                        $pink !default;
 
-$kbd-padding-y:                     .18780px !default;
-$kbd-padding-x:                     .3780px !default;
+$kbd-padding-y:                     3px !default;
+$kbd-padding-x:                     6px !default;
 $kbd-font-size:                     $code-font-size !default;
 $kbd-color:                         var(--#{$prefix}body-bg) !default;
 $kbd-bg:                            var(--#{$prefix}body-color) !default;

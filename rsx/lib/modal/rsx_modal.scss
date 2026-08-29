@@ -160,7 +160,7 @@
     z-index: $z-index-modal-backdrop;
     width: 100vw;
     height: 100vh;
-    background-color: rgba($black, 0.5);
+    background-color: rgba(0, 0, 0, 0.5);
 
     // Remove backdrop fade transition
     &.fade {

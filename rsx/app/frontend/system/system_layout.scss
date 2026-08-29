@@ -28,7 +28,7 @@
             border: $border-width solid var(--bs-border-color-translucent);
             border-radius: $border-radius-lg;
             overflow: hidden;
-            box-shadow: 0 2px 4px rgba($black, 0.075);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.075);
         }
 
         &__section {
@@ -60,7 +60,7 @@
             border-left: 3px solid transparent;
 
             &:hover { // @SCSS-ANIM-01-EXCEPTION: anchor tag nav item
-                background: rgba($black, 0.04);
+                background: rgba(0, 0, 0, 0.04);
                 color: var(--bs-body-color);
                 text-decoration: none;
             }

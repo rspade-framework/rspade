@@ -42,6 +42,7 @@
   },
   "search.exclude": {
     "system/vendor/**": true,
+    "**/app/RSpade/resource/reference_app/**": true,
     "**/stubs/**": true,
     "**/bin/**": true,
     "**/resources/**": true,
@@ -66,6 +67,7 @@
   },
   "files.watcherExclude": {
     "**/storage/**": true,
+    "**/app/RSpade/resource/reference_app/**": true,
     "**/public/css/**": true,
     "**/public/js/**": true,
     "**/public/webfonts/**": true,
@@ -168,6 +170,7 @@
 
   "intelephense.files.exclude": [
     "**/vendor/**/{Tests,tests,Test,test}/**",
+    "**/app/RSpade/resource/reference_app/**",
     "**/.git/**",
     "**/node_modules/**",
     "**/*archive*/**",

@@ -203,8 +203,10 @@ cursor back to `id`. It walks the whole set, keyset page at a time; there is no 
 An additive selection with no ids selects NOTHING (`whereIn([])`) - deliberately not shortcut into
 "everything".
 
-**CSV export** - `DataGrid_Abstract::build_csv($headers, $rows)` returns an RFC4180 string
-(`fputcsv` over a memory stream). An Ajax response cannot BE a download, so the endpoint returns
+**CSV export** - `DataGrid_Abstract::build_csv($headers, $rows)` returns an RFC4180 string, written
+through `League\Csv\Writer` over a `php://temp` stream - league/csv is the framework's CSV library
+and no code here escapes a field by hand (`rsx:man csv_exports`). An Ajax response cannot BE a
+download, so the endpoint returns
 `['csv' => ..., 'filename' => ..., 'count' => ...]` and the client calls
 `trigger_file_download(content, filename[, mime_type])` from `rsx/lib/file_download.js`. Menu items for gated actions
 mirror the endpoint's `#[Auth]` in the template (`Permission.has_permission(...)`) so the menu never

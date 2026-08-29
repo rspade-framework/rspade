@@ -19,7 +19,7 @@ $badge-outline-colors: (
     'info': $info-color,
     'warning': $warning-color,
     'danger': $danger-color,
-    'dark': $gray-800,
+    'dark': var(--bs-body-color),
 );
 
 @each $name, $color in $badge-outline-colors {

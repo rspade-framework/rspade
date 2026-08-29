@@ -12,7 +12,7 @@
  * rules below are the only way to make the widget follow the theme.
  *
  * Its own bootstrap5 stylesheet does NOT solve this: that file is written against
- * Bootstrap's COMPILE-TIME SCSS variables ($input-bg, $dropdown-bg, $gray-800), which is
+ * Bootstrap's COMPILE-TIME SCSS variables ($input-bg, $dropdown-bg, the grey ramp), which is
  * the same reason the rest of this template was theme-blind. It only appears to work in
  * projects that build Tom Select from source alongside their own variables; we consume a
  * prebuilt file, so it would be just as fixed as the default one.
