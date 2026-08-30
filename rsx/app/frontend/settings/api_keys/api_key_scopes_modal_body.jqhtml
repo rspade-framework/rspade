@@ -1,0 +1,35 @@
+<%--
+Api_Key_Scopes_Modal_Body - one existing key's scope, read-only.
+
+Shows the canonical rule text and, beside it, the endpoints those rules actually reach -
+resolved by <Api_Scope_Preview> against the real route table, the same panel and the same
+resolver the mint form previews with.
+
+READ-ONLY BY DESIGN. A key is immutable after mint: changing a credential already in service
+would change what it can do under the integration holding it, silently. Narrowing a key means
+revoking it and generating a replacement.
+
+Arguments:
+- $key_id (int, required): the key to describe. The endpoint refuses a key belonging to
+  anybody else exactly as it refuses one that does not exist.
+
+Usage:
+    <Api_Key_Scopes_Modal_Body $key_id=7 />
+--%>
+<Define:Api_Key_Scopes_Modal_Body tag="div">
+    <div class="mb-3">
+        <label class="form-label fw-bold">Key Name</label>
+        <div class="text-muted"><%= this.data.name %></div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label fw-bold">Rules</label>
+        <% if (this.data.unrestricted) { %>
+            <div class="text-muted">Unrestricted - this key carries every permission your account has.</div>
+        <% } else { %>
+            <pre class="Api_Key_Scopes_Modal_Body__rules"><%= this.data.scopes %></pre>
+        <% } %>
+    </div>
+
+    <Api_Scope_Preview $scopes=this.data.scopes />
+</Define:Api_Key_Scopes_Modal_Body>

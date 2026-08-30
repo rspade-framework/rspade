@@ -37,7 +37,8 @@ class Add_Api_Key_Modal extends Modal_Abstract {
         const $container = $('<div>');
         const key_display = $container.component('Api_Key_Created_Modal_Body', {
             name: result.name,
-            api_key: result.key
+            api_key: result.key,
+            scopes: result.scopes
         }).component();
 
         // Wait for component to be ready

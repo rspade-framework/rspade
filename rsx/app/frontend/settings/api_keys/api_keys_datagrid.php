@@ -4,6 +4,7 @@ namespace Rsx\App\Frontend\Settings\ApiKeys;
 
 use Illuminate\Database\Eloquent\Builder;
 use App\RSpade\Core\Api\Api_Key_Model;
+use App\RSpade\Core\Api\Api_Scopes;
 use App\RSpade\Core\Session\Session;
 use Rsx\Theme\Components\Datagrid\DataGrid_Abstract;
 
@@ -122,6 +123,22 @@ class Api_Keys_DataGrid extends DataGrid_Abstract
         foreach ($records as &$record) {
             // Security: Remove sensitive fields from response
             unset($record['key_hash']);
+
+            // Scoping in one column: unrestricted, or how many rules narrow the key. The
+            // COUNT and not the rules - a table cell is not where anyone reads a rule set,
+            // and the question a listing answers is whether the key is narrowed at all. The
+            // rules themselves are one click away, in the view modal.
+            $scopes = $record['scopes'] ?? null;
+            $record['is_scoped'] = !Api_Scopes::is_unrestricted($scopes);
+            $rule_count = $record['is_scoped'] ? count(Api_Scopes::parse((string) $scopes)) : 0;
+            $record['scope_summary'] = $record['is_scoped']
+                ? $rule_count . ' rule' . ($rule_count === 1 ? '' : 's')
+                : 'Unrestricted';
+
+            // The rule text itself is fetched by the view modal (get_key_scopes), which is
+            // also where the endpoint list is resolved - so it does not ride along on every
+            // row of every page.
+            unset($record['scopes']);
 
             // Format last_used_at for display
             // Add status label

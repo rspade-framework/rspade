@@ -23,7 +23,7 @@ Widget interface:
         }
     %>
     <%-- Options render EMPTY (no selected attribute). Value is set via val() after render. --%>
-    <select $sid="input" <% if (this.args.disabled) { %>disabled<% } %>>
+    <select $sid="input" class="form-select" <% if (this.args.disabled) { %>disabled<% } %>>
         <option value=""><%= this.args.placeholder || '' %></option>
         <% if (this.args.options) { %>
             <% for (let opt of this.args.options) { %>

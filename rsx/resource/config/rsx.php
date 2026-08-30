@@ -610,6 +610,49 @@ return [
         // product's short name. Existing keys are unaffected - lookup is by hash of the
         // whole key, never by prefix.
         'key_prefix' => 'rsx_',
+
+        // Named scope presets offered in the Settings > API Keys mint modal.
+        //
+        // PRESETS ARE APPLICATION DATA. The framework never names a scope - exactly as
+        // Auth_Gates never names a permission and leaves the #[Auth_Check] vocabulary to
+        // rsx/permission.php. Framework core does not read this key; only the template's
+        // Frontend_Settings_Api_Keys_Controller does, and only to expand a ticked name into
+        // its rules. Rename them, delete them, add your own - the rule language in
+        // Api_Scopes is the whole contract, and a preset is just a stored rule set with a
+        // label an operator recognises.
+        //
+        // 'rules' is one Grant|Deny METHOD /api/vN/pattern per line (`*` is exactly one
+        // segment, `**` is zero or more and only as the last segment). TICKING SEVERAL
+        // PRESETS IS SET UNION AND IS ORDER-INDEPENDENT: the decision is by pattern
+        // specificity with a Deny winning any tie, never by the order the rules were
+        // concatenated, so no preset can be made stronger by being ticked first.
+        //
+        // Every preset below grants GET /api/v1/me, the identity endpoint a client calls at
+        // setup to check its own key. A scoped key that cannot reach it looks broken to a
+        // well-written integration on its very first call.
+        'scope_presets' => [
+            [
+                'name' => 'Read-only',
+                'description' => 'Every GET endpoint; no writes.',
+                'rules' => "Grant GET /api/v1/**",
+            ],
+            [
+                'name' => 'Contacts & clients',
+                'description' => 'Read and write contacts and clients, including client document attachments.',
+                'rules' => "Grant GET /api/v1/me\n"
+                    . "Grant GET /api/v1/contacts/**\n"
+                    . "Grant POST /api/v1/contacts/**\n"
+                    . "Grant GET /api/v1/clients/**\n"
+                    . "Grant POST /api/v1/clients/**",
+            ],
+            [
+                'name' => 'Files',
+                'description' => 'Upload files and read stored file content. Attaching a file to a record needs that record\'s preset as well.',
+                'rules' => "Grant GET /api/v1/me\n"
+                    . "Grant GET /api/v1/files/**\n"
+                    . "Grant POST /api/v1/files/**",
+            ],
+        ],
     ],
 
     'auth' => [

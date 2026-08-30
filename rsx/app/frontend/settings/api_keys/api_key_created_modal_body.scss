@@ -1,0 +1,18 @@
+.Api_Key_Created_Modal_Body {
+    // The modal body centres its content; rule text is read from a left edge.
+    text-align: left;
+
+    // The canonical rule text, verbatim and unwrapped - it is what the operator would paste
+    // into rsx:api:key:create --scope, so it must be copyable line for line.
+    &__rules {
+        background: var(--bs-tertiary-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: $border-radius-md;
+        color: var(--bs-body-color);
+        font-size: $font-size-xs;
+        margin: 0;
+        padding: $spacing-sm $spacing-md;
+        white-space: pre;
+        overflow-x: auto;
+    }
+}

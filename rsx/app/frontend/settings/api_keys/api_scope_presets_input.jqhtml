@@ -1,0 +1,42 @@
+<%--
+Api_Scope_Presets_Input - the named scope presets, one tickable row each.
+
+A Form_Input_Abstract whose value is an ARRAY OF PRESET NAMES. Names and not rule text:
+create_key re-derives the rules from config by name, so nothing the browser holds can
+widen a preset.
+
+Ticking several presets is set UNION and is order-independent - Api_Scopes decides by
+pattern specificity with a Deny winning any tie - so this list needs no ordering affordance
+and no "which one wins" copy.
+
+Arguments:
+- $options (array, required): [{name, description}, ...] as get_scope_presets() returns.
+- $empty_text (string): shown when the application configures no presets.
+
+Usage:
+    <Api_Scope_Presets_Input $name="presets" $options=this.data.presets />
+--%>
+<Define:Api_Scope_Presets_Input extends="Form_Input_Abstract">
+    <% const options = this.args.options || []; %>
+
+    <%-- The empty notice is TOGGLED rather than branched, and the list container renders
+         unconditionally: a $sid element behind a false condition does not exist on that
+         render, and _set_value() would find nothing to tick. --%>
+    <div class="Api_Scope_Presets_Input__empty <%= options.length ? 'd-none' : '' %>">
+        <%= this.args.empty_text || 'No presets are configured for this application.' %>
+    </div>
+
+    <div $sid="list" class="Api_Scope_Presets_Input__list">
+        <% for (const option of options) { %>
+            <label class="Api_Scope_Presets_Input__row">
+                <input type="checkbox" class="form-check-input Api_Scope_Presets_Input__checkbox" value="<%= option.name %>">
+                <span class="Api_Scope_Presets_Input__text">
+                    <span class="Api_Scope_Presets_Input__name"><%= option.name %></span>
+                    <% if (option.description) { %>
+                        <span class="Api_Scope_Presets_Input__description"><%= option.description %></span>
+                    <% } %>
+                </span>
+            </label>
+        <% } %>
+    </div>
+</Define:Api_Scope_Presets_Input>

@@ -1,0 +1,50 @@
+.Api_Scope_Presets_Input {
+    &__empty {
+        font-size: $font-size-sm;
+        color: var(--bs-secondary-color);
+        padding: $spacing-sm 0;
+    }
+
+    &__list {
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-xs;
+    }
+
+    // A whole row is the hit target, not just the box - the description is part of what the
+    // operator is choosing.
+    &__row {
+        display: flex;
+        align-items: flex-start;
+        gap: $spacing-sm;
+        padding: $spacing-sm;
+        border: 1px solid var(--bs-border-color);
+        border-radius: $border-radius-md;
+        cursor: pointer;
+
+        &:hover {
+            background: var(--bs-tertiary-bg);
+        }
+    }
+
+    &__checkbox {
+        flex: 0 0 auto;
+        margin-top: 2px;
+    }
+
+    &__text {
+        display: flex;
+        flex-direction: column;
+    }
+
+    &__name {
+        font-size: $font-size-sm;
+        font-weight: $font-weight-medium;
+        color: var(--bs-body-color);
+    }
+
+    &__description {
+        font-size: $font-size-xs;
+        color: var(--bs-secondary-color);
+    }
+}

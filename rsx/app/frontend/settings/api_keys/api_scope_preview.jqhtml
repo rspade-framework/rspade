@@ -1,0 +1,55 @@
+<%--
+Api_Scope_Preview - the effective-access panel for one API scope rule set.
+
+Answers "what can a key carrying these rules actually call", by resolving the rule text
+against the real baked API route table (Api_Catalog::resolve_for_scopes) rather than by
+asking the operator to read globs. It is the same panel in both places it is needed: live
+under the mint form as rules are typed, and read-only when viewing an existing key.
+
+Arguments:
+- $scopes (string|null): the rule text to resolve. Null or blank means UNRESTRICTED, which
+  this panel says in words rather than by listing the whole surface as though it had been
+  granted rule by rule.
+- $blank_is_unrestricted (bool, default true): what a blank $scopes MEANS here. False while
+  a mint form is in Scoped mode with nothing chosen yet: an operator who has said "scoped"
+  and written no rule has selected NOTHING, and telling them they have unrestricted access
+  would be the opposite of the truth.
+
+Refreshing: the owner sets `preview.args.scopes` and calls `reload()`. The fetch lives in
+on_load(), so every refresh is one round trip and the panel cannot fetch from a handler.
+
+Usage:
+    <Api_Scope_Preview $sid="preview" $scopes=null />
+--%>
+<Define:Api_Scope_Preview tag="div">
+    <div class="Api_Scope_Preview__title">Effective access</div>
+
+    <% if (this.data.error) { %>
+        <div class="Api_Scope_Preview__error">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <span><%= this.data.error %></span>
+        </div>
+    <% } else if (this.data.unrestricted) { %>
+        <div class="Api_Scope_Preview__note">
+            Unrestricted - this key reaches every endpoint its holder's permissions allow.
+        </div>
+    <% } else if (!this.data.groups.length) { %>
+        <div class="Api_Scope_Preview__note">
+            No endpoints. A key with these rules can call nothing.
+        </div>
+    <% } else { %>
+        <div class="Api_Scope_Preview__groups">
+            <% for (const group of this.data.groups) { %>
+                <div class="Api_Scope_Preview__group">
+                    <div class="Api_Scope_Preview__group_name"><%= group.name %></div>
+                    <% for (const endpoint of group.endpoints) { %>
+                        <div class="Api_Scope_Preview__endpoint">
+                            <span class="Api_Scope_Preview__method Api_Scope_Preview__method--<%= endpoint.method.toLowerCase() %>"><%= endpoint.method %></span>
+                            <span class="Api_Scope_Preview__path"><%= endpoint.pattern %></span>
+                        </div>
+                    <% } %>
+                </div>
+            <% } %>
+        </div>
+    <% } %>
+</Define:Api_Scope_Preview>

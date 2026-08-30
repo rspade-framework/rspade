@@ -8,6 +8,7 @@
 namespace Rsx\App\Login;
 
 use Illuminate\Http\Request;
+use App\RSpade\Core\Auth\Auth_Throttled_Exception;
 use App\RSpade\Core\Auth\RsxAuth;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Login\Login_Redirect;
@@ -49,13 +50,34 @@ class Login_Controller extends Rsx_Controller_Abstract
             ];
 
             // Validate email
-            if (empty($posted_email)) {
-                $error = 'Email address is required';
-            } elseif (!filter_var($posted_email, FILTER_VALIDATE_EMAIL)) {
-                $error = 'Please enter a valid email address';
-            } elseif (empty($request->input('password'))) {
-                $error = 'Password is required';
-            } elseif (RsxAuth::attempt($credentials)) {
+            //
+            // THROTTLE: RsxAuth::attempt() refuses a client IP that has spent its
+            // failure budget by THROWING Auth_Throttled_Exception (rsx:man session,
+            // LOGIN THROTTLE) - a refusal is not a wrong password, so it must not be
+            // reported as one. Catch it around the attempt and show its message; it
+            // is already the user-facing string and deliberately says nothing about
+            // which accounts exist or when to try again.
+            $throttled = null;
+
+            try {
+                $authenticated = false;
+
+                if (empty($posted_email)) {
+                    $error = 'Email address is required';
+                } elseif (!filter_var($posted_email, FILTER_VALIDATE_EMAIL)) {
+                    $error = 'Please enter a valid email address';
+                } elseif (empty($request->input('password'))) {
+                    $error = 'Password is required';
+                } else {
+                    $authenticated = RsxAuth::attempt($credentials);
+                }
+            } catch (Auth_Throttled_Exception $e) {
+                $throttled = $e->getMessage();
+            }
+
+            if ($throttled !== null) {
+                $error = $throttled;
+            } elseif ($authenticated) {
                 // Check if there's an invite code to redirect to
                 $invite_code = $request->input('code');
                 if ($invite_code) {
@@ -84,7 +106,7 @@ class Login_Controller extends Rsx_Controller_Abstract
 
                 // No sites - redirect to unauthorized (will handle logout)
                 return redirect(Rsx::Route('Site_Unauthorized_Controller'));
-            } else {
+            } elseif ($error === null) {
                 $error = 'Invalid email or password. Please try again.';
             }
         }

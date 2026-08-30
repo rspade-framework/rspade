@@ -1,17 +1,23 @@
 <%--
 Add_Api_Key_Modal_Form - Modal form for creating API keys
 
-Collects just the key name; the key itself is generated server-side and shown to the
-user once, after creation.
+Collects the key name and the key's ACCESS: unrestricted (the key carries every permission
+its holder has) or scoped (the key is narrowed to a rule set, and can never reach anything
+outside it).
 
-A template-only component: it has no JS class, because it does not need one. The form
-declares its endpoint on the <Rsx_Form> tag - the single place the endpoint is named -
-and the hosting Modal.form() drives that form's submit(). Validation is the server's,
-and its messages render in <Form_Errors /> and under the field they name.
+The form declares its endpoint on the <Rsx_Form> tag - the single place the endpoint is
+named - and the hosting Modal.form() drives that form's submit(). VALIDATION IS THE
+SERVER'S, including every scope rule: create_key canonicalises the union itself and answers
+a malformed rule under the `scopes` field. The panel below the fields is a PREVIEW, not a
+check - it shows what the rules reach, and it is the same resolver the dispatcher uses.
+
+Keys are immutable after mint: there is no edit form anywhere, because narrowing a
+credential already in service would change its meaning under the integration holding it.
+Revoke and mint a replacement instead.
 --%>
 <Define:Add_Api_Key_Modal_Form>
 
-    <Rsx_Form $controller="Frontend_Settings_Api_Keys_Controller" $method="create_key">
+    <Rsx_Form $sid="form" $controller="Frontend_Settings_Api_Keys_Controller" $method="create_key">
 
         <Form_Errors />
 
@@ -19,6 +25,30 @@ and its messages render in <Form_Errors /> and under the field they name.
             $help="Give your key a descriptive name so you can identify it later.">
             <Text_Input $name="name" $max_length=255 $placeholder="e.g., Production API, CI/CD Integration" $autofocus=true />
         </Form_Field>
+
+        <Form_Field $label="Access" $required=true>
+            <Select_With_Description_Input $sid="access_mode" $name="access_mode" $options=this.data.access_options />
+        </Form_Field>
+
+        <%-- Present on every render and merely hidden while the key is unrestricted: the
+             inputs inside it still serialize, and the server ignores them for an
+             unrestricted key. A branch would destroy the operator's half-written rules
+             every time they looked at the other mode. --%>
+        <div $sid="scoped_section" class="Add_Api_Key_Modal_Form__scoped">
+
+            <Form_Field $label="Presets">
+                <Api_Scope_Presets_Input $sid="presets" $name="presets" $options=this.data.presets />
+            </Form_Field>
+
+            <Form_Field $label="Custom rules"
+                $help="One rule per line: Grant or Deny, a method, and a path pattern - for example Grant POST /api/v1/contacts/*/update. A single star matches exactly one path segment; a double star matches the rest of the path and may only be the last segment. Nothing matched means denied, and a Deny beats a Grant written at the same precision.">
+                <Text_Input $sid="custom_rules" $name="scopes" $type="textarea" $rows=4 $max_length=-1
+                    $placeholder="Grant GET /api/v1/tasks/**" />
+            </Form_Field>
+
+            <Api_Scope_Preview $sid="preview" $scopes="" />
+
+        </div>
 
     </Rsx_Form>
 

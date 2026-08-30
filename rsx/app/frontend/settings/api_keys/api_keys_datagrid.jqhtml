@@ -20,10 +20,11 @@
             <th data-sortby="id" style="width: 80px;">ID</th>
             <th data-sortby="name">Name</th>
             <th>Key</th>
+            <th>Scope</th>
             <th data-sortby="status">Status</th>
             <th data-sortby="created_at">Created</th>
             <th data-sortby="last_used_at">Last Used</th>
-            <th style="width: 100px;">Actions</th>
+            <th style="width: 110px;">Actions</th>
         </tr>
     </Slot:DG_Table_Header>
 
@@ -33,6 +34,15 @@
             <td><%= row.name %></td>
             <td>
                 <code class="bg-light p-1 rounded"><%= row.key_prefix %></code>
+            </td>
+            <%-- Unrestricted, or how many rules narrow the key. The rules themselves are one
+                 click away in the View modal - a table cell is not where a rule set is read. --%>
+            <td>
+                <% if (row.is_scoped) { %>
+                    <span class="badge bg-secondary"><%= row.scope_summary %></span>
+                <% } else { %>
+                    <span class="text-muted"><%= row.scope_summary %></span>
+                <% } %>
             </td>
             <td>
                 <% if (row.status === 'active') { %>
@@ -45,14 +55,19 @@
             </td>
             <td><%= Rsx_Time.format_date(row.created_at) %></td>
             <td><%= row.last_used_at ? Rsx_Time.relative(row.last_used_at) : 'Never' %></td>
+            <%-- An icon-only button group, so these use the outline style rather than the
+                 filled one every other button in the app uses. --%>
             <td>
-                <% if (row.status === 'active') { %>
-                    <button class="btn btn-outline-danger btn-sm" data-action="revoke" data-id="<%= row.id %>" title="Revoke Key">
-                        <i class="bi bi-x-circle"></i>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" data-action="view_scope" data-id="<%= row.id %>" title="View Scope">
+                        <i class="bi bi-eye"></i>
                     </button>
-                <% } else { %>
-                    <span class="text-muted">-</span>
-                <% } %>
+                    <% if (row.status === 'active') { %>
+                        <button class="btn btn-outline-danger" data-action="revoke" data-id="<%= row.id %>" title="Revoke Key">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    <% } %>
+                </div>
             </td>
         </tr>
     </Slot:row>

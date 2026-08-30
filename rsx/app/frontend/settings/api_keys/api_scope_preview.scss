@@ -1,0 +1,83 @@
+.Api_Scope_Preview {
+    // Modal bodies centre their text; a rule list and an endpoint column are read from a
+    // left edge, so this says so wherever the panel is hosted.
+    text-align: left;
+
+    // A recessed panel, so it reads as the CONSEQUENCE of the fields above it rather than
+    // as another field. Colors are runtime tokens - see rsx/theme/CLAUDE.md - so the panel
+    // is correct in dark mode without a rule of its own.
+    background: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: $border-radius-md;
+    padding: $spacing-sm $spacing-md;
+
+    &__title {
+        font-size: $font-size-xs;
+        font-weight: $font-weight-semibold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--bs-secondary-color);
+        margin-bottom: $spacing-sm;
+    }
+
+    &__note {
+        font-size: $font-size-sm;
+        color: var(--bs-secondary-color);
+    }
+
+    &__error {
+        display: flex;
+        align-items: flex-start;
+        gap: $spacing-sm;
+        font-size: $font-size-sm;
+        color: var(--bs-danger);
+    }
+
+    // Capped and scrollable: the unrestricted surface is long, and a preview that pushes the
+    // submit button off the dialog is worse than one that scrolls.
+    &__groups {
+        max-height: 220px;
+        overflow-y: auto;
+    }
+
+    &__group + &__group {
+        margin-top: $spacing-sm;
+    }
+
+    &__group_name {
+        font-size: $font-size-xs;
+        font-weight: $font-weight-semibold;
+        color: var(--bs-emphasis-color);
+        margin-bottom: 2px;
+    }
+
+    &__endpoint {
+        display: flex;
+        align-items: baseline;
+        gap: $spacing-sm;
+        font-size: $font-size-xs;
+        line-height: 1.6;
+    }
+
+    // Fixed width so the paths line up into a column the eye can scan.
+    &__method {
+        flex: 0 0 auto;
+        width: 40px;
+        font-weight: $font-weight-semibold;
+        text-align: right;
+    }
+
+    &__method--get {
+        color: var(--bs-success);
+    }
+
+    &__method--post {
+        color: var(--bs-primary);
+    }
+
+    &__path {
+        font-family: var(--bs-font-monospace);
+        color: var(--bs-body-color);
+        word-break: break-all;
+    }
+}

@@ -8,6 +8,8 @@
 namespace Rsx\Portal\Auth;
 
 use Illuminate\Http\Request;
+use App\RSpade\Core\Auth\Auth_Throttled_Exception;
+use App\RSpade\Core\Auth\Login_Throttle;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Login\Login_Redirect;
 use App\RSpade\Core\Models\Portal_User_Model;
@@ -60,6 +62,26 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
             } elseif (empty($password)) {
                 $error = 'Password is required';
             } else {
+                // BRUTE-FORCE THROTTLE. The portal verifies the password itself rather
+                // than going through RsxAuth::attempt(), so it does the two things
+                // attempt() would have done: refuse a client IP that has spent its
+                // failure budget BEFORE the lookup (no enumeration from a locked-out
+                // address), and count the miss afterwards. Nothing here records to
+                // Login_History - that store is the staff identity's - so the throttle
+                // is fed directly and nothing is double counted.
+                // See rsx:man session, LOGIN THROTTLE.
+                try {
+                    Login_Throttle::require_not_throttled();
+                } catch (Auth_Throttled_Exception $e) {
+                    // The refusal message IS the user-facing string.
+                    return rsx_view('Portal_Login_Index', [
+                        'error' => $e->getMessage(),
+                        'posted_email' => $posted_email,
+                        'message' => $params['message'] ?? null,
+                        'client_id' => $client_id,
+                    ]);
+                }
+
                 // The site this portal serves, declared by Portal_Main::init().
                 // Logins are scoped to it: a portal account is a (site, email) pair.
                 $site_id = Portal_Session::get_site_id();
@@ -88,6 +110,7 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
                         return redirect(static::_post_auth_destination($portal_user, $client_id));
                     }
                 } else {
+                    Login_Throttle::record_failure();
                     $error = 'Invalid email or password. Please try again.';
                 }
             }

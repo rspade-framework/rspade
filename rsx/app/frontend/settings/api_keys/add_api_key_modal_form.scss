@@ -1,0 +1,9 @@
+.Add_Api_Key_Modal_Form {
+    // The scoped fields are one block under the Access selector, separated by a rule so the
+    // dialog reads as "what this key is" then "what it may reach".
+    &__scoped {
+        border-top: 1px solid var(--bs-border-color);
+        padding-top: $spacing-md;
+        margin-top: $spacing-md;
+    }
+}

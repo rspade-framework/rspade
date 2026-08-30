@@ -105,7 +105,7 @@ write NO manual `->where('site_id', ...)`. A cross-site id simply comes back nul
 
 ## Auth & testing
 
-`Authorization: Bearer rsk_...` (mint keys in Settings > API Keys, or from the CLI).
+`Authorization: Bearer rsx_...` (mint keys in Settings > API Keys, or from the CLI).
 External calls in dev must use the `APP_URL` host or loopback (dev hostname guard).
 CLI test - mint a self-expiring key and call the API exactly as an outside client does:
 
