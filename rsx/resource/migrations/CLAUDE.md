@@ -1,54 +1,58 @@
 # Migration Guidelines
 
-## Polymorphic Type References
+## A migration never references application code
 
-When migrating a column to use polymorphic type references, **never query the `_type_refs` table directly**.
+A migration is a **forward-only historical record that must replay cleanly from scratch
+forever**. A model class is **current code** that gets renamed and deleted. The moment a
+migration names one, a from-scratch replay of the whole chain hard-fails at a file nobody
+has touched in a year.
 
-### Wrong Approach
+So a migration contains **no model class, no `Type_Ref_Registry`, no service** - only raw
+SQL and plain PHP. `rsx:check` enforces it as **MIGRATION-MODEL-01**.
 
-```php
-// DON'T DO THIS - IDs are not predictable across environments
-$type_id = DB::table('_type_refs')->where('class_name', 'Contact_Model')->value('id');
-DB::statement("UPDATE my_table SET entity_type = {$type_id} WHERE entity_type = 'Contact_Model'");
-```
+## Polymorphic type references
 
-### Correct Approach
+`Type_Ref_Registry::class_to_id('Foo_Model')` is the usual way this rule gets broken. It
+validates the name against the LIVE MANIFEST, so the day `Foo_Model` is retired every
+replay dies with `Cannot create type ref for 'Foo_Model': Class not found in manifest.`
 
-```php
-use App\RSpade\Core\Database\TypeRefs\Type_Ref_Registry;
-
-// Use the API - it creates the entry if it doesn't exist
-$type_id = Type_Ref_Registry::class_to_id('Contact_Model');
-DB::statement("UPDATE my_table SET entity_type = {$type_id} WHERE entity_type = 'Contact_Model'");
-```
-
-### Why This Matters
-
-1. **IDs are not predictable** - The `_type_refs` table auto-populates on first use. Different environments (dev, staging, prod) may have different IDs for the same class.
-
-2. **Auto-creation** - `class_to_id()` creates the entry if it doesn't exist, ensuring the migration works on fresh installs.
-
-3. **Validation** - The API validates that the class exists and extends `Rsx_Model_Abstract`.
-
-4. **Consistency** - Using the API ensures all code paths go through the same registration logic.
-
-### Example Migration
+Resolve the id with a **get-or-create against `_type_refs`**, using the class-name STRING
+and a hardcoded table name:
 
 ```php
-public function up()
-{
-    // Convert VARCHAR to BIGINT
-    DB::statement("ALTER TABLE activities ADD COLUMN eventable_type_new BIGINT NULL");
+$type_ref_id = function (string $class_name, string $table_name): int {
+    $existing = DB::select("SELECT id FROM _type_refs WHERE class_name = ?", [$class_name]);
+    if (!empty($existing)) {
+        return (int) $existing[0]->id;
+    }
+    DB::statement(
+        "INSERT INTO _type_refs (class_name, table_name, created_at, updated_at) VALUES (?, ?, NOW(3), NOW(3))",
+        [$class_name, $table_name]
+    );
+    return (int) DB::getPdo()->lastInsertId();
+};
 
-    // Migrate existing data using the API
-    $contact_id = Type_Ref_Registry::class_to_id('Contact_Model');
-    $project_id = Type_Ref_Registry::class_to_id('Project_Model');
-
-    DB::statement("UPDATE activities SET eventable_type_new = {$contact_id} WHERE eventable_type = 'Contact_Model'");
-    DB::statement("UPDATE activities SET eventable_type_new = {$project_id} WHERE eventable_type = 'Project_Model'");
-
-    // Swap columns
-    DB::statement("ALTER TABLE activities DROP COLUMN eventable_type");
-    DB::statement("ALTER TABLE activities CHANGE eventable_type_new eventable_type BIGINT NULL");
-}
+$contact_id = $type_ref_id('Contact_Model', 'contacts');
+DB::statement("UPDATE activities SET eventable_type = {$contact_id} WHERE eventable_type = 'Contact_Model'");
 ```
+
+A class-name **string literal is data**, not a symbol: it needs no class to exist, and the
+rule never flags one. Ids are still not hardcoded - the closure resolves or creates the
+row at replay time, so it is correct on a fresh install and in every environment.
+
+## The one exception
+
+Data seeding that genuinely needs model BEHAVIOUR raw SQL cannot reproduce - a file
+pipeline, an encryption cast, a factory with side effects. That migration is knowingly
+coupled to code that may be deleted, and says so in its docblock:
+
+```php
+/**
+ * @MIGRATION-MODEL-01-EXCEPTION <why raw SQL cannot do this>
+ */
+```
+
+The rationale is required; a bare marker is itself a violation. Schema work and type-ref
+lookups are never the exception - convert those.
+
+Details: `php artisan rsx:man migrations`, `php artisan rsx:man polymorphic`.

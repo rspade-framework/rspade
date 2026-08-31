@@ -72,10 +72,9 @@ threads), `invitations/`, `notifications/`, `settings/`.
 |---|---|
 | `rsx/theme/` | The component library (`components/`), SCSS variables, composition tokens, badges, responsive mixins, Bootstrap overrides. |
 | `rsx/lib/` | App utilities: `action_log/`, `notification/`, `modal/`, `topics/`, `analytics/`, `formatters.{php,js}`. |
-| `rsx/services/` | `Rsx_Service_Abstract` background work: `portal_invitation_service.php`, `seeder_service.php`. |
+| `rsx/services/` | `Rsx_Service_Abstract` background work: `portal_invitation_service.php`, `seeder_service.php`. A `#[Task]` here becomes an artisan command by adding `#[Command]` - see `rsx_app:seed`. |
 | `rsx/handlers/` | Event handlers: `File_Upload_Handlers` (the mandatory upload gate), `Portal_File_Access_Handlers`. |
 | `rsx/emails/` | Blade email templates. |
-| `rsx/commands/` | App artisan commands (none shipped). |
 | `rsx/tests/` | The application test suite (`php artisan rsx:test`). |
 | `main.php`, `permission.php`, `portal_main.php`, `portal_permission.php` | The four app hooks: staff dispatch, staff auth, portal dispatch, portal auth. |
 | `rsx/resource/` | Framework-ignored. `config/` (config overrides), `man/` (project man pages), `docs/`, `skills/`, `audits/prelaunch_checklist.md`, `conventions/`, `migrations/` (app-owned migrations). |

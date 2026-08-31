@@ -8,7 +8,6 @@
 namespace Rsx\Tests;
 
 use App\RSpade\Core\Ajax\Ajax;
-use App\RSpade\Core\Auth\Auth_Gates;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
@@ -47,7 +46,6 @@ class Timezone_Settings_Test extends Rsx_Test_Abstract
         }
 
         static::__acting_as_user((int) $user->id);
-        Auth_Gates::reset_memo();
 
         return (int) $user->id;
     }
@@ -55,7 +53,6 @@ class Timezone_Settings_Test extends Rsx_Test_Abstract
     private static function __sign_out(): void
     {
         static::__reset_session();
-        Auth_Gates::reset_memo();
     }
 
     /**

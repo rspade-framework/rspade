@@ -76,7 +76,7 @@
             <td><%= Rsx_Time.format_date(row.created_at) %></td>
             <td>
                 <div class="btn-group btn-group-sm">
-                    <a class="btn btn-outline-primary" href="/contacts/view/<%= row.id %>" title="View">
+                    <a class="btn btn-outline-primary" href="<%= Rsx.Route('Contacts_View_Action', {id: row.id}) %>" title="View">
                         <i class="bi bi-eye"></i>
                     </a>
                 </div>

@@ -317,18 +317,16 @@ return [
     | Content Security Policy
     |--------------------------------------------------------------------------
     |
-    | The framework composes one policy per realm and ships it REPORT-ONLY, with
-    | every external host derived from *.externals.php declarations.
+    | The framework composes one policy per realm and ALWAYS ENFORCES it, with
+    | every external host derived from *.externals.php declarations. An
+    | undeclared resource fails visibly - the browser blocks it, and the refusal
+    | is recorded in storage/logs/csp_violations.log.
     |
-    | Two things an application decides for itself:
-    |
-    | 1. When to stop observing and start enforcing. Run report-only, triage
-    |    storage/logs/csp_violations.log until it stays clean, then flip
-    |    report_only to false.
-    | 2. TRANSITIVE externals - a declared script that loads further scripts of
-    |    its own from origins nothing in our code can name. Those origins have no
-    |    declaration to derive from, so they are listed here. A resource this app
-    |    loads DIRECTLY belongs in a *.externals.php file instead.
+    | The one thing an application declares for itself is TRANSITIVE externals -
+    | a declared script that loads further scripts of its own from origins
+    | nothing in our code can name. Those origins have no declaration to derive
+    | from, so they are listed here. A resource this app loads DIRECTLY belongs
+    | in a *.externals.php file instead.
     |
     | Sources listed here are APPENDED to the framework's policy - they widen it
     | and can never weaken the hardening.
@@ -337,22 +335,20 @@ return [
     |
     */
 
-    // 'csp' => [
-    //     // Stop observing, start blocking (do this once the violation log is clean)
-    //     'report_only' => false,
-    //
-    //     // Google Analytics, the worked example in rsx/lib/analytics/: the script
-    //     // URL itself (www.googletagmanager.com) needs nothing here - it is
-    //     // DECLARED in analytics.externals.php and the policy derives from that.
-    //     // What is listed below is only what gtag.js goes on to fetch and beacon
-    //     // at runtime, from origins no declaration in this tree can enumerate.
-    //     // Uncomment together with the measurement id above.
-    //     'additional_sources' => [
-    //         'script-src' => ['https://www.google-analytics.com'],
-    //         'connect-src' => ['https://www.google-analytics.com', 'https://analytics.google.com'],
-    //         'img-src' => ['https://www.google-analytics.com', 'https://analytics.google.com'],
-    //     ],
-    // ],
+    'csp' => [
+        // Google Analytics, the worked example in rsx/lib/analytics/: the script
+        // URL itself (www.googletagmanager.com) needs nothing here - it is
+        // DECLARED in analytics.externals.php and the policy derives from that.
+        // What is listed below is only what gtag.js goes on to fetch and beacon
+        // at runtime, from origins no declaration in this tree can enumerate.
+        // Uncomment together with the measurement id below; analytics ships off,
+        // so with an empty measurement id nothing here would ever be loaded.
+        // 'additional_sources' => [
+        //     'script-src' => ['https://www.google-analytics.com'],
+        //     'connect-src' => ['https://www.google-analytics.com', 'https://analytics.google.com'],
+        //     'img-src' => ['https://www.google-analytics.com', 'https://analytics.google.com'],
+        // ],
+    ],
 
     /*
     |--------------------------------------------------------------------------

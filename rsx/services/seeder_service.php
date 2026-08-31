@@ -443,7 +443,19 @@ class Seeder_Service extends Rsx_Service_Abstract
         ];
     }
 
+    /**
+     * #[Command] is all it takes to give a task its own artisan command:
+     *
+     *     php artisan rsx_app:seed
+     *
+     * is `php artisan rsx:task:run Seeder_Service seed_all` under a friendlier name, with
+     * the same parameters, the same JSON on stdout and the same exit codes. The narration
+     * below (info() and update_progress()) is written live to STDERR while it runs, so the
+     * value on stdout stays pipeable: `php artisan rsx_app:seed 2>/dev/null | jq`.
+     * See rsx:man task_commands.
+     */
     #[Task('Seed clients, contacts, projects and tasks (full demo dataset)')]
+    #[Command('rsx_app:seed', 'Seed the demo dataset - clients, contacts, projects and tasks')]
     public static function seed_all(Task_Instance $task, array $params = [])
     {
         // Prevent running in production
@@ -451,17 +463,25 @@ class Seeder_Service extends Rsx_Service_Abstract
             throw new \Exception("Cannot run seeders in production environment. Seeders are for development only.");
         }
 
+        $task->info('Seeding the full demo dataset');
+
         // Execute seed_clients task
+        $task->update_progress(0, 'Clients');
         $clients_result = Task::internal('Seeder_Service', 'seed_clients', $params);
 
         // Execute seed_contacts task
+        $task->update_progress(25, 'Contacts');
         $contacts_result = Task::internal('Seeder_Service', 'seed_contacts', $params);
 
         // Execute seed_projects task (needs clients)
+        $task->update_progress(50, 'Projects');
         $projects_result = Task::internal('Seeder_Service', 'seed_projects', $params);
 
         // Execute seed_tasks task (needs projects)
+        $task->update_progress(75, 'Tasks');
         $tasks_result = Task::internal('Seeder_Service', 'seed_tasks', $params);
+
+        $task->update_progress(100, 'Done');
 
         return [
             'message' => 'Successfully seeded all data',

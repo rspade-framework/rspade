@@ -11,6 +11,10 @@ use Rsx\Models\Client_Model;
  * records so the template app ships working data for the Document Preview demo
  * (/dev/document_preview) and the search / text-extraction pipeline.
  *
+ * @MIGRATION-MODEL-01-EXCEPTION - template seed data that must go THROUGH the attachment
+ * pipeline (content-addressed dedup, blob storage, the extraction-index kick); raw SQL cannot
+ * reproduce that behaviour, so this migration is knowingly coupled to the two model classes.
+ *
  * OWNER-DIRECTED DEVIATION FROM THE NO-MODEL-REFS MIGRATION CONVENTION: RSpade migrations are
  * normally self-contained raw SQL with no Model/Service references. This template-app data-seed
  * migration deliberately uses File_Attachment_Model + Client_Model, per owner direction for the
