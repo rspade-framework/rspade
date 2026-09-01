@@ -129,12 +129,20 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
             return response_error(Ajax::ERROR_AUTH_REQUIRED);
         }
 
-        // Generate the key
+        // Generate the key. read_only is the OTHER axis and is nothing to do with the
+        // scopes: it says which VERBS the key may use, where a scope says which PATHS it
+        // may reach. The checkbox serializes '1' or '0' like every other checkbox, and
+        // anything that is not '1' means read+write - a form that arrived garbled must
+        // never accidentally mint the WIDER key, so the narrow value is the one that has
+        // to be stated.
+        $read_only = (string) ($params['read_only'] ?? '0') === '1';
+
         $result = Api_Key_Model::generate(
             user_id: $user->id,
             name: $name,
             environment: 'live',
-            scopes: $scopes
+            scopes: $scopes,
+            read_only: $read_only
         );
 
         return [
@@ -144,6 +152,7 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
             'key_prefix' => $result['model']->key_prefix,
             'created_at' => $result['model']->created_at,
             'scopes' => $result['model']->scopes,
+            'read_only' => (bool) $result['model']->read_only,
         ];
     }
 
@@ -180,8 +189,10 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
      * Ajax endpoint: which endpoints would this scope text actually reach?
      *
      * The live effective-access preview behind the mint modal, and the read-only view of an
-     * existing key's reach. Api_Catalog::resolve_for_scopes() is pure - it takes the TEXT,
-     * not a key - so the same call answers for a scope set that is still being typed.
+     * existing key's reach. 'read_only' narrows the answer by VERB the way the scopes narrow
+     * it by path, so the panel describes the key that would actually be minted.
+     * Api_Catalog::resolve_for_scopes() is pure - it takes the TEXT, not a key - so the same
+     * call answers for a scope set that is still being typed.
      *
      * THIS IS WHERE THE BROWSER ASKS ABOUT MATCHING, AND THE ONLY WAY IT MAY. Api_Scopes is
      * the one implementation of the grammar; a JavaScript twin of it would drift from the
@@ -203,6 +214,10 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
         $scopes = trim((string) ($params['scopes'] ?? ''));
         $scopes = $scopes === '' ? null : $scopes;
 
+        // The verb axis. A read-only key may only GET, so the panel must not list a write
+        // endpoint it would be refused on - Api_Catalog narrows the verbs for us.
+        $read_only = (string) ($params['read_only'] ?? '0') === '1';
+
         // Reading never throws, so a half-written scope is reported rather than raised. The
         // FIRST malformed one is named: the operator fixes them one at a time anyway, and a
         // wall of messages under a textarea is read by nobody.
@@ -211,7 +226,9 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
         return [
             'error' => empty($malformed) ? null : Arr::first($malformed),
             'unrestricted' => Api_Scopes::is_unrestricted($scopes),
-            'groups' => static::_preview_groups(Api_Catalog::resolve_for_scopes(1, $scopes)),
+            'groups' => static::_preview_groups(
+                Api_Catalog::resolve_for_scopes(1, $scopes, false, $read_only)
+            ),
         ];
     }
 
@@ -258,6 +275,7 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
             'name' => $key->name,
             'scopes' => $key->scopes,
             'unrestricted' => $key->is_unrestricted(),
+            'read_only' => (bool) $key->read_only,
         ];
     }
 

@@ -11,6 +11,7 @@ class Api_Key_Scopes_Modal_Body extends Component {
         this.data.name = '';
         this.data.scopes = null;
         this.data.unrestricted = true;
+        this.data.read_only = false;
     }
 
     async on_load() {
@@ -19,5 +20,6 @@ class Api_Key_Scopes_Modal_Body extends Component {
         this.data.name = key.name;
         this.data.scopes = key.scopes;
         this.data.unrestricted = key.unrestricted;
+        this.data.read_only = key.read_only;
     }
 }

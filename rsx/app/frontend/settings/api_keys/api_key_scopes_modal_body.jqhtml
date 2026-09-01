@@ -1,7 +1,8 @@
 <%--
 Api_Key_Scopes_Modal_Body - one existing key's scope, read-only.
 
-Shows the canonical scope text and, beside it, the endpoints those scopes actually reach -
+Shows the key's access (read-only or read + write), the canonical scope text and, beside
+it, the endpoints those scopes actually reach -
 resolved by <Api_Scope_Preview> against the real route table, the same panel and the same
 resolver the mint form previews with.
 
@@ -23,6 +24,15 @@ Usage:
     </div>
 
     <div class="mb-3">
+        <label class="form-label fw-bold">Access</label>
+        <% if (this.data.read_only) { %>
+            <div class="text-muted">Read-only - this key may execute GET requests only.</div>
+        <% } else { %>
+            <div class="text-muted">Read + write - this key may GET and POST.</div>
+        <% } %>
+    </div>
+
+    <div class="mb-3">
         <label class="form-label fw-bold">Scopes</label>
         <% if (this.data.unrestricted) { %>
             <div class="text-muted">Unrestricted - this key carries every permission your account has.</div>
@@ -31,5 +41,5 @@ Usage:
         <% } %>
     </div>
 
-    <Api_Scope_Preview $scopes=this.data.scopes />
+    <Api_Scope_Preview $scopes=this.data.scopes $read_only=this.data.read_only />
 </Define:Api_Key_Scopes_Modal_Body>

@@ -375,8 +375,9 @@ class Api_Key_Scope_Ui_Test extends Rsx_Test_Abstract
 
     /**
      * The preset that was removed with the grammar, kept as a test so it cannot come back by
-     * accident: a scope carries no HTTP method, so "every GET endpoint" is not expressible
-     * and API-GET-PURE-01 is what guarantees a read grant instead.
+     * accident: a scope carries no HTTP method, so "every GET endpoint" is not expressible.
+     * The replacement is the key's own read_only flag (the mint form's "Read-only key"
+     * checkbox), enforced by the dispatcher and covered by Api_Key_Read_Only_Ui_Test.
      */
     public static function test_there_is_no_read_only_preset()
     {

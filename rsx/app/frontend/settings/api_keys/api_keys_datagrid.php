@@ -128,6 +128,12 @@ class Api_Keys_DataGrid extends DataGrid_Abstract
             // COUNT and not the scopes - a table cell is not where anyone reads a scope set,
             // and the question a listing answers is whether the key is narrowed at all. The
             // scopes themselves are one click away, in the view modal.
+            // ACCESS is a separate column from Scope because it answers a separate
+            // question: Access is which VERBS the key may use, Scope is which PATHS it may
+            // reach. A read-only key is refused before its scopes are ever consulted.
+            $record['read_only'] = (bool) ($record['read_only'] ?? false);
+            $record['access_label'] = $record['read_only'] ? 'Read-only' : 'Read + write';
+
             $scopes = $record['scopes'] ?? null;
             $record['is_scoped'] = !Api_Scopes::is_unrestricted($scopes);
             $scope_count = $record['is_scoped'] ? Api_Scopes::count_scopes((string) $scopes) : 0;

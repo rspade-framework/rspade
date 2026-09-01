@@ -13,6 +13,9 @@ Arguments:
 - $scopes (string|null): the scope text to resolve. Null or blank means UNRESTRICTED, which
   this panel says in words rather than by listing the whole surface as though it had been
   granted rule by rule.
+- $read_only (bool, default false): resolve for a READ-ONLY key, which may execute GET
+  requests only. The listing then carries GET verbs alone, and an endpoint with no GET
+  disappears from it - the panel must never offer a call the dispatcher would refuse.
 - $blank_is_unrestricted (bool, default true): what a blank $scopes MEANS here. False while
   a mint form is in Scoped mode with nothing chosen yet: an operator who has said "scoped"
   and written no scope has selected NOTHING, and telling them they have unrestricted access
@@ -34,7 +37,12 @@ Usage:
         </div>
     <% } else if (this.data.unrestricted) { %>
         <div class="Api_Scope_Preview__note">
-            Unrestricted - this key reaches every endpoint its holder's permissions allow.
+            <% if (this.args.read_only) { %>
+                Unrestricted - this key reaches every endpoint its holder's permissions
+                allow, but may only GET them.
+            <% } else { %>
+                Unrestricted - this key reaches every endpoint its holder's permissions allow.
+            <% } %>
         </div>
     <% } else if (!this.data.groups.length) { %>
         <div class="Api_Scope_Preview__note">

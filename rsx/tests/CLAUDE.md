@@ -17,7 +17,8 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 - **UI seams**: `Datagrid_Mass_Actions_Test` (selection modes and CSV export),
   `Revision_History_Test` (the history endpoint's allowlist and its no-enumeration rule),
   `Timezone_Settings_Test`, `Api_Key_Scope_Ui_Test` (presets re-derived by name, so a
-  tampering browser cannot widen a key).
+  tampering browser cannot widen a key), `Api_Key_Read_Only_Ui_Test` (only the literal
+  '1' mints a read-only key, so a garbled form can never mint the wider one).
 - **Portal**: `Portal_Workspaces_Test`, `Portal_Documents_Test`,
   `Portal_Request_Threads_Test`, `Portal_Invitation_Lifecycle_Test`,
   `Portal_Register_Flow_Test`, `Portal_User_Admin_Test`, `Portal_Impersonation_Test`

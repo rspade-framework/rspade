@@ -1,9 +1,17 @@
 <%--
 Add_Api_Key_Modal_Form - Modal form for creating API keys
 
-Collects the key name and the key's ACCESS: unrestricted (the key carries every permission
-its holder has) or scoped (the key is narrowed to a rule set, and can never reach anything
-outside it).
+Collects the key name and the key's ACCESS on two independent axes:
+
+  - READ-ONLY (a verb question): a read-only key may execute GET requests only, and every
+    other verb is refused by the dispatcher before its scopes are even read. It is the
+    replacement for the "Read-only" scope preset that the path-pattern grammar cannot
+    express;
+  - UNRESTRICTED or SCOPED (a path question): unrestricted carries every permission its
+    holder has, scoped narrows the key to a scope set it can never reach outside of.
+
+The two compose - a read-only, scoped key may GET the paths its scopes name and nothing
+else.
 
 The form declares its endpoint on the <Rsx_Form> tag - the single place the endpoint is
 named - and the hosting Modal.form() drives that form's submit(). VALIDATION IS THE
@@ -26,6 +34,22 @@ Revoke and mint a replacement instead.
             $help="Give your key a descriptive name so you can identify it later.">
             <Text_Input $name="name" $max_length=255 $placeholder="e.g., Production API, CI/CD Integration" $autofocus=true />
         </Form_Field>
+
+        <%-- The VERB axis, and it is not a scope. A scope names paths and carries no
+             method, so "every GET endpoint" cannot be written as one - which is why the
+             old Read-only preset was removed rather than rewritten. This checkbox is its
+             replacement, enforced by the dispatcher on the key itself. --%>
+        <div class="mb-3">
+            <Checkbox_Input $sid="read_only" $name="read_only"
+                $label="Read-only key (GET requests only)" />
+            <div class="form-text">
+                A read-only key may only READ. Any request that is not a GET is refused
+                outright, whatever its scopes allow - so a reporting or export integration
+                can hold a credential that cannot change anything. This replaces the old
+                "Read-only" scope preset: a scope names paths and has no way to say
+                "reads only". Like the scopes, it is fixed when the key is created.
+            </div>
+        </div>
 
         <Form_Field $label="Access" $required=true>
             <Select_With_Description_Input $sid="access_mode" $name="access_mode" $options=this.data.access_options />

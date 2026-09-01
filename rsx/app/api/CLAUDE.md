@@ -24,8 +24,12 @@ Each new API version gets its own `vN/` directory. Every endpoint pattern MUST s
 - **Narrow what a key may reach** with scopes on the key rather than a gate here. A scope is
   a bare path pattern (`/api/v1/clients/#/view`), always a grant, and only ever subtracts
   from the holder's live permissions.
-- **Every GET stays side-effect-free** (`API-GET-PURE-01`), so a read-only grant means what
-  it says.
+- **GET is for reads, POST is for writes.** Anything that changes application data goes on
+  POST; incidental bookkeeping a GET does (a log row, a last-used stamp, a counter) is fine.
+  `API-GET-PURE-01` fails the build on a mutating GET handler, and a key minted **read-only**
+  (`_api_keys.read_only`, the Settings > API Keys checkbox, `--read-only`) is refused
+  **403 `read_only_key`** on every non-GET request — two halves of one guarantee, and the
+  flag is only worth anything while every GET here really is a read.
 - **Delete an endpoint** only after checking `/apidocs` and any minted key whose scope names
   its path; a scope pointing at a removed route silently grants nothing.
 

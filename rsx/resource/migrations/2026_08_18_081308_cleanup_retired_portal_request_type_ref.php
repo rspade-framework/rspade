@@ -18,9 +18,11 @@ return new class extends Migration
      * per-environment auto-increments. On a database that never had the debris every
      * statement affects zero rows, which is the intended no-op.
      *
-     * This is the RETIRING A MODEL procedure from rsx:man polymorphic: delete the
-     * referencing rows first, then the registry row (the SQL equivalent of
-     * rsx:type_refs:prune, which a migration cannot invoke).
+     * This is the RETIRING A MODEL procedure from rsx:man polymorphic. NOTE, for anyone
+     * reading this as a pattern: the framework's stance has since narrowed. The
+     * REFERENCING ROWS are what must go; the `_type_refs` row itself is inert and is now
+     * left in place (`php artisan rsx:type_refs:orphans` reports the rows, and there is
+     * no prune command). This migration's registry-row delete stands as executed history.
      *
      * @return void
      */

@@ -20,6 +20,7 @@
             <th data-sortby="id" style="width: 80px;">ID</th>
             <th data-sortby="name">Name</th>
             <th>Key</th>
+            <th>Access</th>
             <th>Scope</th>
             <th data-sortby="status">Status</th>
             <th data-sortby="created_at">Created</th>
@@ -34,6 +35,15 @@
             <td><%= row.name %></td>
             <td>
                 <code class="bg-light p-1 rounded"><%= row.key_prefix %></code>
+            </td>
+            <%-- Which VERBS this key may use. Beside Scope, which is which PATHS it may
+                 reach - two independent narrowings, and a 403 comes from one or the other. --%>
+            <td>
+                <% if (row.read_only) { %>
+                    <span class="badge bg-secondary">Read-only</span>
+                <% } else { %>
+                    <span class="text-muted">Read + write</span>
+                <% } %>
             </td>
             <%-- Unrestricted, or how many scopes narrow the key. The scopes themselves are one
                  click away in the View modal - a table cell is not where a rule set is read. --%>

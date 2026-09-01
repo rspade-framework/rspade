@@ -6,6 +6,7 @@
  * JavaScript responsibilities:
  * - fetch the application's scope presets (on_load - the one Ajax hook);
  * - show or hide the scoped fields as the access mode changes;
+ * - carry the read-only checkbox into the preview, which narrows by verb;
  * - keep the effective-access preview in step with the current union, debounced.
  *
  * The preset SCOPES are held here only to compute the preview's union client-side. What is
@@ -107,6 +108,10 @@ class Add_Api_Key_Modal_Form extends Component {
         // In Scoped mode a blank scope set means "nothing chosen", not "everything" - and
         // create_key refuses to mint it for the same reason.
         preview.args.blank_is_unrestricted = !this._is_scoped();
+
+        // The verb axis rides along, so the panel lists what the key being minted may
+        // actually call: a read-only key's preview has no write endpoints in it.
+        preview.args.read_only = this.sid('read_only').val() === '1';
         preview.reload();
     }
 }

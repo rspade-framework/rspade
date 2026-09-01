@@ -38,7 +38,8 @@ class Add_Api_Key_Modal extends Modal_Abstract {
         const key_display = $container.component('Api_Key_Created_Modal_Body', {
             name: result.name,
             api_key: result.key,
-            scopes: result.scopes
+            scopes: result.scopes,
+            read_only: result.read_only
         }).component();
 
         // Wait for component to be ready

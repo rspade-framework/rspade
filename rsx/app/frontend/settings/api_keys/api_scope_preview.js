@@ -23,6 +23,7 @@ class Api_Scope_Preview extends Component {
     async on_load() {
         const result = await Frontend_Settings_Api_Keys_Controller.preview_scopes({
             scopes: this.args.scopes || '',
+            read_only: this.args.read_only ? '1' : '0',
         });
 
         // A malformed scope comes back as a normal result carrying the validator's message

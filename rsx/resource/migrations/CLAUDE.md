@@ -40,6 +40,10 @@ A class-name **string literal is data**, not a symbol: it needs no class to exis
 rule never flags one. Ids are still not hardcoded - the closure resolves or creates the
 row at replay time, so it is correct on a fresh install and in every environment.
 
+**A table rename is followed into `_type_refs` automatically** - write the plain
+`RENAME TABLE a TO b` (or `ALTER TABLE a RENAME TO b`) and nothing else; the migrate
+pipeline updates `_type_refs.table_name` in the same run and prints the ref it moved.
+
 ## The one exception
 
 Data seeding that genuinely needs model BEHAVIOUR raw SQL cannot reproduce - a file
