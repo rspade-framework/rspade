@@ -13,12 +13,19 @@
             <Card_Widget>
                 <Section $title="Mail Configuration">
                     <View_Fields>
-                        <View_Field $label="Mail Driver"><%= _c.mail_driver %></View_Field>
+                        <View_Field $label="Delivery">
+                            <Status_Badge $label=_c.delivery_label $badge=_c.delivery_badge />
+                            <span class="text-muted ms-2"><%= _c.delivery_description %></span>
+                        </View_Field>
                         <View_Field $label="From Address"><%= _c.from_address %></View_Field>
-                        <View_Field $label="SMTP Host"><%= _c.smtp_host %></View_Field>
+                        <View_Field $label="Transport"><%= _c.transport_driver %></View_Field>
                         <View_Field $label="From Name"><%= _c.from_name %></View_Field>
-                        <View_Field $label="SMTP Port"><%= _c.smtp_port %></View_Field>
-                        <View_Field $label="Max Retries"><%= _c.retry_max %></View_Field>
+                        <View_Field $label="Transport Target"><%= _c.transport_target %></View_Field>
+                        <View_Field $label="Retry Policy">
+                            <%= _c.retry_attempts %> attempts, <%= _c.retry_delay_minutes %> min apart
+                        </View_Field>
+                        <View_Field $label="Retention"><%= _c.retention_days %> days</View_Field>
+                        <View_Field $label="Stale After"><%= _c.stale_after_days %> days</View_Field>
                     </View_Fields>
                 </Section>
 
@@ -34,17 +41,9 @@
                             <% } %>
                         </View_Field>
                         <% if (_c.is_dev_site) { %>
-                            <View_Field $label="Delivery Suppressed">
-                                <% if (_c.dev_suppressed) { %>
-                                    <Status_Badge $label="Yes" $badge="bg-danger" />
-                                    <span class="text-muted ms-2">Emails render but are not sent</span>
-                                <% } else { %>
-                                    <Status_Badge $label="No" $badge="bg-secondary" />
-                                <% } %>
-                            </View_Field>
                             <View_Field $label="Catchall Address">
                                 <% if (_c.dev_catchall) { %><%= _c.dev_catchall %><% } else { %>
-                                    <span class="text-muted">Not set - non-whitelisted emails queue but do not deliver</span>
+                                    <span class="text-muted">Not set - non-whitelisted recipients are recorded Suppressed</span>
                                 <% } %>
                             </View_Field>
                             <% if (_c.dev_address_whitelist) { %>
@@ -77,6 +76,10 @@
                     <Kpi_Cell $tooltip="Emails blocked by recipient preferences">
                         <Slot:label>Blocked</Slot:label>
                         <Slot:value><%= _c.stats.blocked %></Slot:value>
+                    </Kpi_Cell>
+                    <Kpi_Cell $tooltip="Recorded but deliberately not delivered">
+                        <Slot:label>Suppressed</Slot:label>
+                        <Slot:value><%= _c.stats.suppressed %></Slot:value>
                     </Kpi_Cell>
                 </Sidebar_Kpi_Group>
 

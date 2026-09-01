@@ -14,6 +14,7 @@ use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
 use App\RSpade\Core\Turnstile\Rsx_Turnstile;
 use App\RSpade\Lib\Flash\Flash_Alert;
+use Rsx\Emails\Portal_Password_Reset_Email;
 use Rsx\Models\Portal_Password_Reset_Model;
 
 /**
@@ -65,17 +66,9 @@ class Portal_Password_Reset_Controller extends Rsx_Controller_Abstract
                     $reset = Portal_Password_Reset_Model::create_for_user($portal_user);
 
                     // Send password reset email
-                    \App\RSpade\Core\Mail\Rsx_Mail::send(
-                        $portal_user->email,
-                        'Reset Your Password',
-                        'Portal_Password_Reset_Email',
-                        [
-                            'app_name' => config('rsx.name', 'RSpade'),
-                            'reset_url' => $reset->get_reset_url(),
-                            'expiry_hours' => config('rsx.portal.password_reset_expiry_hours', 1),
-                        ],
-                        \App\RSpade\Core\Mail\Rsx_Mail::TRANSACTIONAL
-                    );
+                    (new Portal_Password_Reset_Email($portal_user, $reset->get_reset_url()))
+                        ->to($portal_user)
+                        ->send();
 
                     $success = true;
                 } else {

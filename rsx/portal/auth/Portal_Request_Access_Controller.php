@@ -14,6 +14,7 @@ use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
 use App\RSpade\Core\Turnstile\Rsx_Turnstile;
+use Rsx\Emails\Portal_Invitation_Email;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Portal_Invitation_Model;
 
@@ -93,16 +94,11 @@ class Portal_Request_Access_Controller extends Rsx_Controller_Abstract
         $client = Client_Model::find((int) $invitation->get_metadata('client_id'));
         $portal_name = $client ? $client->name : $brand;
 
-        Rsx_Mail::send(
-            $invitation->email,
-            "You're Invited to the {$portal_name} Portal",
-            'Portal_Invitation_Email',
-            [
-                'app_name' => $brand,
-                'registration_url' => $invitation->get_invitation_url(),
-                'expiry_days' => config('rsx.portal.invitation_expiry_days', 7),
-            ],
-            Rsx_Mail::TRANSACTIONAL
-        );
+        (new Portal_Invitation_Email(
+            $invitation->get_invitation_url(),
+            $portal_name,
+            false,
+            $brand
+        ))->to($invitation->email)->send();
     }
 }

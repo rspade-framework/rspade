@@ -1,4 +1,34 @@
-# DataGrid
+# rsx/theme/components/datagrid — the paginated table engine
+
+## WHAT IS HERE
+
+- `datagrid_abstract.php` — the server half: query building, sort validation, pagination
+  math and the selection helpers. A grid extends it and implements `build_query()`.
+- `datagrid_abstract.js` — ALL grid state: page, sort, order, filter, custom filters,
+  selection. It never calls Ajax itself.
+- `datagrid_abstract.jqhtml` / `.scss` — the card, `<thead>` and footer shell, plus the
+  slots a concrete grid fills.
+- `datagrid_body.{jqhtml,js}` — the `<tbody>`, and the ONLY component that talks to the
+  server.
+- `pagination_controls.jqhtml`, `pagination_info.jqhtml` — the footer widgets.
+
+## HOW TO CUSTOMIZE
+
+- **A grid of your own is three co-located files** (`<thing>_datagrid.{php,js,jqhtml}`)
+  extending these abstracts — not an edit to them. Worked example:
+  `rsx/app/frontend/clients/list/clients_datagrid.{php,js,jqhtml}`.
+- **Restyle every grid at once** in `datagrid_abstract.scss` (single `.DataGrid_Abstract`
+  wrap, BEM children with the exact PascalCase prefix). A page-scoped override of grid
+  chrome is the anti-pattern this shared abstract exists to prevent.
+- **Never move the Ajax call out of `DataGrid_Body`.** The parent owning state and the
+  child owning the single request is what keeps one grid from firing two fetches per page.
+- The `$sid` names, the `Slot:DG_*` slot names and the `data-sortby` / `data-action` /
+  `data-href` attributes are the contract between these files and every concrete grid —
+  renaming one silently breaks every grid in the app.
+- The whole directory is app code and may be replaced wholesale; the framework has no
+  DataGrid.
+
+## HOW IT IS USED
 
 Paginated, sortable, filterable tables with cross-page selection and mass actions.
 

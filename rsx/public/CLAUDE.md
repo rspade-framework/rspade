@@ -30,11 +30,15 @@ Files in this directory are exposed at the root of your domain:
 ## Common Use Cases
 
 - Favicon files
+- `robots.txt`
 - Sitemap files (sitemap.xml)
 - Static images and media
 - Public documents (PDFs, etc.)
 - Font files
 - Icons
+
+Anything a browser or a crawler must fetch by a fixed, unprefixed URL belongs here;
+anything the application serves through a route or a controller does not.
 
 ## Framework Integration
 

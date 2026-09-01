@@ -20,7 +20,7 @@
 <p style="font-size: 13px; color: #868e96;">
     You may need to create an account or log in to view this content.
     @if(!empty($expires_at))
-        This link expires on {{ $expires_at }}.
+        This link expires on {{ \App\RSpade\Core\Time\Rsx_Time::format_datetime_with_tz($expires_at) }}.
     @endif
 </p>
 

@@ -428,10 +428,49 @@ Modals automatically manage state:
 │   └── user_form.js
 └── users_controller.php
 
-/rsx/theme/components/modal/
-├── modal_abstract.js       # Base class for modal classes
-└── CLAUDE.md               # This documentation
+/rsx/lib/modal/                 # the modal engine itself - application code
+├── modal.js                # the static Modal facade: queue, backdrop, body scroll lock
+├── modal_abstract.js       # base class for modal classes
+├── rsx_modal.js            # the dialog component: sizing, show/close, focus
+├── rsx_modal.jqhtml        # its markup
+├── rsx_modal.scss          # its look, including the backdrop transition
+└── CLAUDE.md               # this documentation
 ```
+
+## Animation
+
+The entrance animation is DECIDED PER DIALOG in `Modal._process_queue()`: a dialog
+animates only on a desktop viewport (>= 1000px) AND when more than a second has
+passed since the last modal closed. Sequential dialogs and mobile therefore appear
+instantly - the queue never makes the user watch the same fly-in twice in a row.
+`show()` passes that decision down as the `animate` internal option.
+
+`Rsx_Modal._fade_in(animate)` is where both paths live. The animated path sets the
+dialog to `translate(0, -50px)` at zero opacity, forces a reflow, then adds `.show`
+and lets the CSS transition in `rsx_modal.scss` carry it to its resting position. The
+instant path suppresses the transition (`transition: none`), paints, and restores it
+so the NEXT dialog can animate.
+
+### Changing it
+
+- **The motion itself** - the transform, the easing, the duration - is CSS, in
+  `rsx_modal.scss`. Change it there first; the JS only toggles classes and inline
+  starting values.
+- **When a dialog animates** is the viewport/recency rule in `_process_queue()`.
+- **The closing animation** is `Rsx_Modal.close()`, which currently hides the dialog
+  and resolves immediately. To fade it out, drive the opacity, `await sleep(ms)` for
+  the transition, then hide and remove - and keep the JS duration equal to the CSS
+  one, or the dialog is removed mid-fade.
+- **The backdrop** fades on its own, through `.modal-backdrop.fade` in
+  `rsx_modal.scss`; `Modal._show_backdrop()` / `_hide_backdrop()` are the seams if it
+  must be waited on.
+- **Auto-focus** happens in `Rsx_Modal._focus_first_input()` on the next frame. If
+  you add a long entrance animation, focus lands while the dialog is still moving;
+  delay it to match.
+
+Whatever you change, change it in one place per concern: durations that disagree
+between the SCSS and the JS produce a dialog that is removed before it finishes
+animating, or one that sits still for the tail of a wait.
 
 ## Common Issues
 

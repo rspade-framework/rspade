@@ -15,6 +15,7 @@ use App\RSpade\Core\Mail\Rsx_Mail;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Rsx;
+use Rsx\Emails\Portal_Request_Reply_Email;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Portal_Request_Document_Model;
 use Rsx\Models\Portal_Request_Thread_Model;
@@ -305,20 +306,14 @@ class Portal_Request_Threads_Controller extends Rsx_Controller_Abstract
             'thread_id' => (int) $thread->id,
         ]));
 
-        Rsx_Mail::send(
-            $staff->email,
-            'Client reply on "' . $thread->title . '"',
-            'Portal_Request_Reply_Email',
-            [
-                'staff_name' => trim((string) ($staff->name ?? '')) ?: $staff->email,
-                'client_name' => $client ? $client->name : 'A client',
-                'replier_name' => $portal_user->email,
-                'thread_title' => $thread->title,
-                'message' => $snippet,
-                'view_url' => $view_url,
-            ],
-            Rsx_Mail::TRANSACTIONAL
-        );
+        (new Portal_Request_Reply_Email(
+            trim((string) ($staff->name ?? '')) ?: $staff->email,
+            $client ? $client->name : 'A client',
+            $portal_user->email,
+            $thread->title,
+            $snippet,
+            $view_url
+        ))->to($staff->email)->send();
     }
 
     /**

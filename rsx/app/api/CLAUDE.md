@@ -1,10 +1,10 @@
-# RSX External REST API Module
+# rsx/app/api — the external REST surface
 
 External, bearer-authenticated REST endpoints for this app's data. This is the
 template app's API surface (`/api/vN/...`); the runtime, auth, validation, logging and
 docs live in framework core (`App\RSpade\Core\Api`).
 
-## What lives here
+## WHAT IS HERE
 
 - `v1/contacts_api_controller.php` - contacts CRUD (`Contacts_Api_Controller`).
 - `v1/clients_api_controller.php` - clients CRUD + document attachments (`Clients_Api_Controller`).
@@ -12,6 +12,21 @@ docs live in framework core (`App\RSpade\Core\Api`).
 
 Each new API version gets its own `vN/` directory. Every endpoint pattern MUST start
 `/api/vN/` (N = one or more digits) - the manifest scan throws otherwise.
+
+## HOW TO CUSTOMIZE
+
+- **Add an endpoint**: a static method on an existing `vN/` controller with
+  `#[Api_Endpoint]` and one `#[Api_Param]` per accepted parameter. Add the `@api-response`
+  docblock tag — the `/apidocs` console renders it, and an endpoint nobody can read is an
+  endpoint nobody integrates with.
+- **Add a version**: a new `vN/` directory. Never change the shape of an existing `vN`
+  response — an external consumer cannot be redeployed with you.
+- **Narrow what a key may reach** with scope rules on the key rather than a gate here; the
+  rules only ever subtract from the holder's live permissions.
+- **Every GET stays side-effect-free** (`API-GET-PURE-01`), so a read-only grant means what
+  it says.
+- **Delete an endpoint** only after checking `/apidocs` and any minted key whose scope names
+  its path; a scope rule pointing at a removed route silently grants nothing.
 
 ## Endpoint pattern
 

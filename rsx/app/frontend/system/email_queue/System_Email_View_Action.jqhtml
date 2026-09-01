@@ -37,15 +37,29 @@
                     </Slot:meta>
                 </Entity_Header>
 
-                <% if (_e.error) { %>
+                <%-- last_error carries the REASON the row ended where it did. On a
+                     Suppressed row nothing went wrong, so it must not read as an alarm. --%>
+                <% if (_e.last_error && _e.status_id === Email_Queue_Model.STATUS_SUPPRESSED) { %>
+                    <p class="text-muted small px-3 pt-3 mb-0">Not delivered: <%= _e.last_error %></p>
+                <% } else if (_e.last_error) { %>
                     <Callout $variant="danger" $icon="bi bi-exclamation-triangle">
                         <Slot:title>Delivery error</Slot:title>
-                        <Slot:body><%= _e.error %></Slot:body>
+                        <Slot:body><%= _e.last_error %></Slot:body>
                     </Callout>
                 <% } %>
 
                 <Section $title="Message Preview" $flush=true>
-                    <iframe $sid="preview-frame" class="System_Email_View_Action__preview-frame"></iframe>
+                    <% if (this.data.is_rendered) { %>
+                        <iframe $sid="preview-frame" class="System_Email_View_Action__preview-frame"></iframe>
+                    <% } else { %>
+                        <%-- The stored body, or nothing. This never re-renders the
+                             template: that would show today's markup against
+                             yesterday's data, which is not the email anybody sent. --%>
+                        <Empty_State $icon="bi bi-hourglass-split">
+                            <Slot:title>Not rendered yet</Slot:title>
+                            <Slot:body>This email has not been through the message builder. The body is recorded when the queue drains.</Slot:body>
+                        </Empty_State>
+                    <% } %>
                 </Section>
             </Card_Widget>
         </Slot:main>
@@ -59,10 +73,13 @@
                             <span class="d-block text-muted small">Original: <%= _e.dev_original_to %></span>
                         <% } %>
                     </View_Field>
-                    <View_Field $label="Template" $inline=true>
-                        <% if (_e.template) { %><%= _e.template %><% } else { %><Empty_Value /><% } %>
+                    <View_Field $label="Email" $inline=true>
+                        <% if (_e.email_class) { %><%= _e.email_class %><% } else { %><Empty_Value /><% } %>
                     </View_Field>
-                    <View_Field $label="Retries" $inline=true><%= _e.retry_count || 0 %></View_Field>
+                    <View_Field $label="Attempts" $inline=true><%= _e.attempt_count || 0 %></View_Field>
+                    <% if (_e.next_attempt_at) { %>
+                        <View_Field $label="Next attempt" $inline=true><%= Rsx_Time.format_datetime(_e.next_attempt_at) %></View_Field>
+                    <% } %>
                     <View_Field $label="Created" $inline=true><%= Rsx_Time.relative(_e.created_at) %></View_Field>
                 </View_Fields>
 

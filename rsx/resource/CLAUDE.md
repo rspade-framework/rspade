@@ -20,11 +20,18 @@ starting point - delete what you remove, rewrite what you change.
 `rsx/resource/skills/<name>/SKILL.md`; the framework links it into `.claude/skills/`
 automatically (see `rsx/resource/skills/CLAUDE.md`). **The routing rule:** always-on
 facts here, task-triggered how-to depth in a skill, contracts in `rsx/resource/man/`.
+This application ships seven of its own: `crud-patterns`, `form-components`, `modals`,
+`semantic-components`, `theme`, `portal-app`, `action-log-and-notifications`.
 
 **KEEP THIS FILE CURRENT.** It is only worth reading if it is true. **LLM: whenever
 an implemented change alters a convention recorded here, or is complex enough that
 the next session would want it written down, SUGGEST an edit to this file** - name
 the section and the wording, and let the developer decide.
+
+The same obligation runs the other way through the tree: every `CLAUDE.md` and every
+skill under `rsx/` is LIVING DOCUMENTATION of the directory it sits in, updated in
+the same pass as the change that dated it - see the framework's LIVING DOCUMENTATION
+rule (`rsx:man template_app`, LIVING DOCUMENTATION, for the full statement).
 
 ---
 
@@ -70,14 +77,60 @@ threads), `invitations/`, `notifications/`, `settings/`.
 
 | Path | Contents |
 |---|---|
-| `rsx/theme/` | The component library (`components/`), SCSS variables, composition tokens, badges, responsive mixins, Bootstrap overrides. |
+| `rsx/theme/` | The component library (`components/`), SCSS variables, composition tokens, badges, responsive mixins, Bootstrap overrides. Each component group carries its own `CLAUDE.md`. |
 | `rsx/lib/` | App utilities: `action_log/`, `notification/`, `modal/`, `topics/`, `analytics/`, `formatters.{php,js}`. |
 | `rsx/services/` | `Rsx_Service_Abstract` background work: `portal_invitation_service.php`, `seeder_service.php`. A `#[Task]` here becomes an artisan command by adding `#[Command]` - see `rsx_app:seed`. |
 | `rsx/handlers/` | Event handlers: `File_Upload_Handlers` (the mandatory upload gate), `Portal_File_Access_Handlers`. |
-| `rsx/emails/` | Blade email templates. |
+| `rsx/emails/` | Email classes (`X_Email extends Rsx_Email_Abstract`) beside their blade templates and `email.scss`. |
 | `rsx/tests/` | The application test suite (`php artisan rsx:test`). |
-| `main.php`, `permission.php`, `portal_main.php`, `portal_permission.php` | The four app hooks: staff dispatch, staff auth, portal dispatch, portal auth. |
 | `rsx/resource/` | Framework-ignored. `config/` (config overrides), `man/` (project man pages), `docs/`, `skills/`, `audits/prelaunch_checklist.md`, `conventions/`, `migrations/` (app-owned migrations). |
+
+---
+
+## THE FOUR HOOKS
+
+Four files sit at the root of `rsx/`. They are the application's entry points into the
+framework's request lifecycle and its authorization vocabulary - small files, edited
+rarely, and load-bearing every time.
+
+**`main.php`** (`Main extends Main_Abstract`) - the STAFF request lifecycle. `init()`
+runs once per process, before anything asks a question of the session, and is where
+this application DECLARES ITS SITE (`Session::set_site_id(1)` - mono-site; a
+multi-tenant app resolves the site from the host or the signed-in user here instead).
+`pre_dispatch()` runs before every staff route and is where cross-cutting request work
+lives (this app checks that the signed-in identity actually belongs to the current
+site and bounces it to `Site_Unauthorized_Controller` otherwise); `unhandled_route()`
+is the 404 hook. Edit `init()` when tenancy changes; edit `pre_dispatch()` for an
+interstitial, a redirect or per-request setup.
+
+**`permission.php`** (`Permission extends Permission_Abstract`) - the STAFF gate
+vocabulary. Every `#[Auth_Check]` method here is a name that `#[Auth('...')]` /
+`@auth('...')` may use, and this file is the LIST OF RECORD for them (the AUTH CHECKS
+table below mirrors it). Edit it whenever a gate is added, renamed or removed - a
+one-line body over `has_permission()` / `has_role()`, never a role id or permission
+constant spelled at a call site.
+
+**`portal_main.php`** (`Portal_Main extends Portal_Main_Abstract`) - the PORTAL
+request lifecycle, the exact mirror of `main.php` for `rsx/portal/`. Its `init()` is
+the earliest application code in a portal request, which is why the portal's own site
+declaration lives there (`Portal_Session::set_site_id(...)`); the framework resolves
+no portal site and `get_site_id()` throws if nothing declared one. Its
+`pre_dispatch()` stamps portal activity on the member clients. Edit it when portal
+tenancy changes or the portal needs per-request work.
+
+**`portal_permission.php`** (`Portal_Permission extends Portal_Permission_Abstract`) -
+the PORTAL authorization facade. It defines no `#[Auth_Check]` of its own: portal
+surfaces gate on the framework's `public` / `is_logged_in` in the portal realm, and
+every per-client rule is a RECORD-level predicate called inline in the endpoint body
+after the gates pass (`has_client_access()`, `can_collaborate()`, `client_role()`,
+`accessible_client_ids()`, `is_read_only()`). Edit it when the membership model
+changes or a new record-level predicate is needed.
+
+**The rule that governs both `pre_dispatch()` hooks: they perform NO authorization.**
+The declarative `#[Auth]` gates are evaluated by the dispatcher BEFORE the hook runs,
+so a check written here is both too late and invisible to `can_access()`. `pre_dispatch()`
+is for other middleware concerns - tenant setup, interstitials, redirects. See
+`rsx:man auth_gates` and `rsx:man portal`.
 
 ---
 

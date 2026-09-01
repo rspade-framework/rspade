@@ -10,6 +10,7 @@ class System_Email_View_Action extends Spa_Action {
     on_create() {
         this.data.email = null;
         this.data.preview_html = '';
+        this.data.is_rendered = false;
         this.data.error_data = null;
         this.data.loading = true;
     }
@@ -22,6 +23,7 @@ class System_Email_View_Action extends Spa_Action {
             ]);
             this.data.email = email;
             this.data.preview_html = preview.html;
+            this.data.is_rendered = preview.is_rendered;
         } catch (e) {
             this.data.error_data = e;
         }

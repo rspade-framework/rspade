@@ -1,9 +1,14 @@
 ---
 name: action-log-and-notifications
-description: Recording activity and notifying users in this application - Action_Log::record() with related entities and metadata, Action_Log_Renderer, the Feed_Row activity tabs via Activity_Feed.decorate(), Notification::send() / get_unread_count() / get_for_dropdown() with Notification_Renderer, and the separate realtime Portal_Notification_Model::emit() for portal users. Use when asked to "log an action", "record who did what", "show activity history", "notify a user", "unread count", when adding a TYPE_* to Action_Log_Model or Notification_Model, or when a notification vanishes on fetch.
+description: "Recording activity and notifying users in this application - Action_Log::record() with related entities and metadata, Action_Log_Renderer, the Feed_Row activity tabs via Activity_Feed.decorate(), Notification::send() / get_unread_count() / get_for_dropdown() with Notification_Renderer, and the separate realtime Portal_Notification_Model::emit() for portal users. Use when asked to \"log an action\", \"record who did what\", \"show activity history\", \"notify a user\", \"unread count\", when adding a TYPE_* to Action_Log_Model or Notification_Model, or when a notification vanishes on fetch."
 ---
 
 # Action log and notifications
+
+> **Living skill.** This skill ships with the template application and is yours. It describes
+> the CURRENT state of `rsx/lib/action_log/` and `rsx/lib/notification/`; the directory files
+> `rsx/lib/action_log/CLAUDE.md` and `rsx/lib/notification/CLAUDE.md` are its companions.
+> When this feature changes, update this skill and those files in the same pass.
 
 Two app-owned primitives, deliberately separate. **Contracts:**
 `php artisan rsx:man action_log` and `php artisan rsx:man notification` - read them for

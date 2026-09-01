@@ -24,6 +24,8 @@ use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Time\Rsx_Date;
 use App\RSpade\Lib\Flash\Flash_Alert;
 use Rsx\App\Frontend\Clients\List\Clients_DataGrid;
+use Rsx\Emails\Portal_Invitation_Email;
+use Rsx\Emails\Portal_Shared_Content_Email;
 use Rsx\Lib\ActionLog\Action_Log;
 use Rsx\Lib\Portal_Demo_Autoshare;
 use Rsx\Models\Action_Log_Model;
@@ -993,17 +995,9 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      */
     private static function _send_new_account_invite_email(string $email, Client_Model $client, Portal_Invitation_Model $invitation): void
     {
-        \App\RSpade\Core\Mail\Rsx_Mail::send(
-            $email,
-            'You\'re Invited to the ' . $client->name . ' Portal',
-            'Portal_Invitation_Email',
-            [
-                'app_name' => config('rsx.name', 'RSpade'),
-                'registration_url' => $invitation->get_invitation_url(),
-                'expiry_days' => config('rsx.portal.invitation_expiry_days', 7),
-            ],
-            \App\RSpade\Core\Mail\Rsx_Mail::TRANSACTIONAL
-        );
+        (new Portal_Invitation_Email($invitation->get_invitation_url(), $client->name))
+            ->to($email)
+            ->send();
     }
 
     /**
@@ -1015,19 +1009,11 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      */
     private static function _send_existing_account_invite_email(string $email, Client_Model $client): void
     {
-        \App\RSpade\Core\Mail\Rsx_Mail::send(
-            $email,
-            'You\'ve Been Invited to ' . $client->name . '\'s Portal',
-            'Portal_Invitation_Email',
-            [
-                'app_name' => config('rsx.name', 'RSpade'),
-                'registration_url' => rsx_absolute_url(\App\RSpade\Core\Portal\Rsx_Portal::Route('Portal_Login_Controller')),
-                'expiry_days' => config('rsx.portal.invitation_expiry_days', 7),
-                'existing_account' => true,
-                'client_name' => $client->name,
-            ],
-            \App\RSpade\Core\Mail\Rsx_Mail::TRANSACTIONAL
-        );
+        (new Portal_Invitation_Email(
+            rsx_absolute_url(\App\RSpade\Core\Portal\Rsx_Portal::Route('Portal_Login_Controller')),
+            $client->name,
+            true
+        ))->to($email)->send();
     }
 
     /**
@@ -1767,19 +1753,11 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
     {
         $view_url = rsx_absolute_url(Rsx_Portal::Route('Portal_Workspace_Documents_Action', ['id' => $client->id]));
 
-        \App\RSpade\Core\Mail\Rsx_Mail::send(
-            $email,
-            $client->name . ' shared a document with you',
-            'Portal_Shared_Content_Email',
-            [
-                'shared_by_name' => $client->name,
-                'app_name' => config('rsx.name', 'RSpade'),
-                'message' => $message !== '' ? $message : ('Document: ' . $attachment->file_name),
-                'view_url' => $view_url,
-                'expires_at' => null,
-            ],
-            \App\RSpade\Core\Mail\Rsx_Mail::TRANSACTIONAL
-        );
+        (new Portal_Shared_Content_Email(
+            $client->name,
+            $message !== '' ? $message : ('Document: ' . $attachment->file_name),
+            $view_url
+        ))->to($email)->send();
     }
 
     // =====================================================================

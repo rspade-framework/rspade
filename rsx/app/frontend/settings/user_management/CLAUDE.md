@@ -1,3 +1,32 @@
+# rsx/app/frontend/settings/user_management — managing site users
+
+## WHAT IS HERE
+
+Three SPA actions under `Settings_Layout` and one controller
+(`Frontend_Settings_User_Management_Controller`, gated `can_manage_users` at class level):
+
+- `list/` — `Settings_User_Management_Index_Action` and `Users_DataGrid` over `User_Model`,
+  with the add-user and send-invite modals.
+- `view/` — `Settings_User_Management_View_Action` (`/frontend/settings/user_management/:id`),
+  the edit-user modal, and resend-invitation.
+- `api_keys/` — `Settings_User_Management_Api_Keys_Action`, an administrator's view of
+  another user's API keys, with revoke.
+- `add_user/`, `edit_user/`, `send_invite/` — the modal bodies those screens open.
+
+`export_csv` carries an additional `#[Auth('can_export_data')]` — the one per-method gate in
+the tree.
+
+## HOW TO CUSTOMIZE
+
+- The privacy rule below is the load-bearing convention here; keep it when adding a column
+  or a field to any of these screens.
+- New screens follow the settings ladder: `../CLAUDE.md` for the two `Settings_Layout` edits
+  a new sub-feature needs.
+- Note the gate asymmetry to resolve before launch: `Settings_User_Management_Api_Keys_Action`
+  declares `can_manage_users` without `is_logged_in`, unlike every sibling.
+
+---
+
 # User Management - Privacy Principle
 
 **CRITICAL**: User management screens display `users` table data only, never `login_users` table data.
@@ -17,27 +46,11 @@ The `login_users` table contains authentication information private to the user 
 - Expose authentication-specific fields to administrators
 
 ---
+---
 
-# Page Data Pattern
+# Page data
 
-The user management view page uses `@rsx_page_data` to pass the user ID to JavaScript for modal interactions.
-
-## Implementation
-
-**In Blade view** (`frontend_settings_user_management_view.blade.php`):
-```blade
-@rsx_page_data(['user_id' => $user->id])
-```
-
-**In JavaScript** (`frontend_settings_user_management_view.js`):
-```javascript
-const user_id = window.rsxapp.page_data?.user_id;
-```
-
-## Why This Pattern
-
-- **Clean separation**: User ID needed by JavaScript (resend invite button) without cluttering DOM with data attributes
-- **Type-safe access**: Data available immediately when JavaScript loads
-- **Centralized**: All page data defined in one place at top of view file
-
-This pattern is used throughout user management for passing record IDs and other page-specific data to JavaScript functionality.
+These screens are SPA actions, not Blade pages: a record id arrives as a route parameter in
+`this.args` (`/frontend/settings/user_management/:id`), and there is no `@rsx_page_data` in
+this tree. Reach for `@rsx_page_data` only on a server-rendered page, where it is the way to
+hand a value to that page's static JavaScript.

@@ -1,4 +1,42 @@
-# Form Input Components
+# rsx/theme/components/inputs — the form input roster
+
+## WHAT IS HERE
+
+One subdirectory per input family; every input extends the framework's
+`Form_Input_Abstract` and owns exactly one named value.
+
+- `text/` — `Text_Input` (the `$max_length` rule below is its), plus the subclasses
+  `Phone_Text_Input` (libphonenumber, E.164) and `Currency_Input`;
+  `phone_libphonenumber_bundle.php` declares the phone vendor bundle.
+- `select/` — `Select_Input` (TomSelect) and its own SCSS, `Select_Ajax_Input`,
+  `Select_Country_Input`, `Select_State_Input`, `Select_With_Description_Input`;
+  `tom_select_bundle.php` declares the vendor bundle.
+- `checkbox/` — `Checkbox_Input` (configurable checked/unchecked values).
+- `checkbox_multiselect_input/` — `Checkbox_Multiselect_Input`, a set of checkboxes as one
+  array value.
+- `tag_list/` — `Tag_List_Input`, free-form tags.
+- `repeater/` — `Repeater_Simple_Input`, a repeating row of sub-values.
+- `pin/` — `Pin_Input`, a fixed-length code entry.
+- `photo/` — `Profile_Photo_Input`, an upload that stores a file-attachment id.
+- `wysiwyg/` — `Wysiwyg_Input`, async-initialised rich text.
+- `hidden/` — `Hidden_Input`.
+
+## HOW TO CUSTOMIZE
+
+- **Adding an input** is a new subdirectory here implementing the contract below; then
+  add its row to the table in the app skill `form-components`, and to the reference table
+  in this file if it demonstrates something new.
+- **Restyle** in the input's own SCSS, single-class wrapped with its exact component-name
+  BEM prefix. `select_input.scss` is the worked example of the hard case — a prebuilt
+  third-party stylesheet re-pointed rule by rule onto the theme's runtime colour tokens.
+- **A variant is a subclass, not a fork.** `Phone_Text_Input` and `Currency_Input` extend
+  `Text_Input`; copying the file is how two inputs drift apart.
+- **Never implement `val()`**, never add a client-side required/format/length check, and
+  never rename the `$name` flow — the input stamps `data-name`, `Form_Field` reads it.
+- A vendor library an input needs is declared in a `*_bundle.php` beside it, never
+  hand-injected as a script tag.
+- Any input the fork does not use may be deleted; the framework requires none of them.
+
 
 ## Overview
 

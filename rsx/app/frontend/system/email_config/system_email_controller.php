@@ -6,7 +6,6 @@ namespace Rsx\App\Frontend\System\EmailConfig;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
-use App\RSpade\Core\Mail\Rsx_Mail;
 use App\RSpade\Core\Models\Email_Queue_Model;
 use App\RSpade\Core\Models\Email_Recipient_Model;
 
@@ -25,25 +24,46 @@ class System_Email_Controller extends Rsx_Controller_Abstract
         $sent = Email_Queue_Model::where('status_id', Email_Queue_Model::STATUS_SENT)->count();
         $failed = Email_Queue_Model::where('status_id', Email_Queue_Model::STATUS_FAILED)->count();
         $blocked = Email_Queue_Model::where('status_id', Email_Queue_Model::STATUS_BLOCKED)->count();
+        $suppressed = Email_Queue_Model::where('status_id', Email_Queue_Model::STATUS_SUPPRESSED)->count();
+
+        // The master switch, four-valued (aiosmtpd | live | suppressed | disabled).
+        // Asked of the transport rather than read from config so an unrecognised value
+        // throws here instead of being rendered as "not live".
+        $mode = \App\RSpade\Core\Mail\Rsx_Mail_Transport::delivery_mode();
+
+        $delivery_display = [
+            'aiosmtpd' => ['Development catcher', 'bg-info', 'Captured on this box at 127.0.0.1:1025 and delivered to nobody'],
+            'live' => ['Live', 'bg-success', 'Messages are handed to the transport'],
+            'suppressed' => ['Suppressed', 'bg-dark', 'Messages render and are recorded, never sent'],
+            'disabled' => ['Disabled', 'bg-secondary', 'The queue is frozen - messages stay pending until delivery is re-enabled'],
+        ][$mode];
 
         return [
-            'mail_driver' => config('mail.default', 'smtp'),
-            'smtp_host' => config('mail.mailers.smtp.host', '-'),
-            'smtp_port' => config('mail.mailers.smtp.port', '-'),
-            'from_address' => config('rsx.mail.from_address', config('mail.from.address', '-')),
+            'delivery' => $mode,
+            'delivery_label' => $delivery_display[0],
+            'delivery_badge' => $delivery_display[1],
+            'delivery_description' => $delivery_display[2],
+            // What the transport ACTUALLY is: in aiosmtpd mode the rsx.mail.transport
+            // block is ignored entirely, so reading it here would print a lie.
+            'transport_driver' => $mode === 'aiosmtpd' ? 'smtp' : config('rsx.mail.transport.driver'),
+            'transport_target' => \App\RSpade\Core\Mail\Rsx_Mail_Transport::describe(),
+            'from_address' => config('rsx.mail.from_address'),
             'from_name' => config('rsx.mail.from_name') ?: config('rsx.name', '-'),
             'is_dev_site' => \App\RSpade\Core\Rsx::is_dev_site(),
-            'dev_catchall' => env('EMAIL_DEV_CATCHALL_ADDRESS'),
-            'dev_suppressed' => Rsx_Mail::is_delivery_suppressed(),
-            'dev_address_whitelist' => env('EMAIL_DEV_EMAIL_ADDRESS_WHITELIST', ''),
-            'dev_domain_whitelist' => env('EMAIL_DEV_EMAIL_DOMAIN_WHITELIST', ''),
-            'retry_max' => config('rsx.mail.retry_max', 6),
+            'dev_catchall' => config('rsx.mail.dev_site.catchall_address'),
+            'dev_address_whitelist' => config('rsx.mail.dev_site.address_whitelist', ''),
+            'dev_domain_whitelist' => config('rsx.mail.dev_site.domain_whitelist', ''),
+            'retry_attempts' => config('rsx.mail.retry.attempts'),
+            'retry_delay_minutes' => config('rsx.mail.retry.delay_minutes'),
+            'retention_days' => config('rsx.mail.retention_days'),
+            'stale_after_days' => config('rsx.mail.stale_after_days'),
             'stats' => [
                 'pending' => $pending,
                 'sent' => $sent,
                 'failed' => $failed,
                 'blocked' => $blocked,
-                'total' => $pending + $sent + $failed + $blocked,
+                'suppressed' => $suppressed,
+                'total' => $pending + $sent + $failed + $blocked + $suppressed,
             ],
         ];
     }
@@ -83,15 +103,16 @@ class System_Email_Controller extends Rsx_Controller_Abstract
                 'to_address' => $record->to_address,
                 'dev_original_to' => $record->dev_original_to,
                 'subject' => $record->subject,
-                'template' => $record->template,
+                'email_class' => $record->email_class,
                 'category_id' => $record->category_id,
                 'category_id__label' => $record->category_id__label,
                 'category_id__badge' => $record->category_id__badge,
                 'status_id' => $record->status_id,
                 'status_id__label' => $record->status_id__label,
                 'status_id__badge' => $record->status_id__badge,
-                'retry_count' => $record->retry_count,
-                'error' => $record->error,
+                'attempt_count' => $record->attempt_count,
+                'last_error' => $record->last_error,
+                'next_attempt_at' => $record->next_attempt_at,
                 'sent_at' => $record->sent_at,
                 'created_at' => $record->created_at,
             ];
@@ -106,7 +127,12 @@ class System_Email_Controller extends Rsx_Controller_Abstract
     }
 
     /**
-     * Get rendered HTML for an email (preview)
+     * The stored rendered body of one queued email.
+     *
+     * It shows what was (or will be) SENT, so it reads the row and renders nothing:
+     * re-rendering here would show today's template with today's config against
+     * yesterday's data, which is exactly the email nobody sent. A row that has not
+     * been through the builder yet says so.
      */
     #[Ajax_Endpoint]
     public static function queue_preview(Request $request, array $params = [])
@@ -121,23 +147,9 @@ class System_Email_Controller extends Rsx_Controller_Abstract
             return response_error(Ajax::ERROR_NOT_FOUND, 'Email not found');
         }
 
-        // If not yet rendered, try to render now
-        $html = $email->rendered_html;
-        if (!$html && $email->template) {
-            try {
-                $data = $email->template_data ?? [];
-                $data['subject'] = $email->subject;
-                if ($email->category_id !== Email_Queue_Model::CATEGORY_TRANSACTIONAL) {
-                    $data['unsubscribe_url'] = Rsx_Mail::unsubscribe_url($email->to_address, $email->category_id);
-                }
-                $html = rsx_view($email->template, $data)->render();
-            } catch (\Exception $e) {
-                $html = '<p>Error rendering template: ' . htmlspecialchars($e->getMessage()) . '</p>';
-            }
-        }
-
         return [
-            'html' => $html ?: '<p>No rendered content available.</p>',
+            'html' => $email->rendered_html,
+            'is_rendered' => $email->rendered_html !== null && $email->rendered_html !== '',
             'subject' => $email->subject,
             'to_address' => $email->to_address,
             'dev_original_to' => $email->dev_original_to,
@@ -166,15 +178,16 @@ class System_Email_Controller extends Rsx_Controller_Abstract
             'to_name' => $record->to_name,
             'dev_original_to' => $record->dev_original_to,
             'subject' => $record->subject,
-            'template' => $record->template,
+            'email_class' => $record->email_class,
             'category_id' => $record->category_id,
             'category_id__label' => $record->category_id__label,
             'category_id__badge' => $record->category_id__badge,
             'status_id' => $record->status_id,
             'status_id__label' => $record->status_id__label,
             'status_id__badge' => $record->status_id__badge,
-            'retry_count' => $record->retry_count,
-            'error' => $record->error,
+            'attempt_count' => $record->attempt_count,
+            'last_error' => $record->last_error,
+            'next_attempt_at' => $record->next_attempt_at,
             'sent_at' => $record->sent_at,
             'created_at' => $record->created_at,
         ];
@@ -197,9 +210,9 @@ class System_Email_Controller extends Rsx_Controller_Abstract
         }
 
         $email->status_id = Email_Queue_Model::STATUS_PENDING;
-        $email->retry_count = 0;
-        $email->retry_at = null;
-        $email->error = null;
+        $email->attempt_count = 0;
+        $email->next_attempt_at = null;
+        $email->last_error = null;
         $email->save();
 
         return ['message' => 'Email re-queued for delivery'];

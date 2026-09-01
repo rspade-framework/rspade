@@ -33,7 +33,7 @@
                                     <th>Subject</th>
                                     <th>Category</th>
                                     <th>Status</th>
-                                    <th>Retries</th>
+                                    <th>Attempts</th>
                                     <th>Date</th>
                                     <th></th>
                                 </tr>
@@ -54,11 +54,14 @@
                                     </td>
                                     <td>
                                         <Status_Badge $label=row.status_id__label $badge=row.status_id__badge />
-                                        <% if (row.error) { %>
-                                            <span class="d-block text-danger small"><%= row.error.substring(0, 60) %><%= row.error.length > 60 ? '...' : '' %></span>
+                                        <%-- last_error carries the REASON, which for a
+                                             Suppressed row is not an error at all. --%>
+                                        <% if (row.last_error) { %>
+                                            <% const _note_class = row.status_id === Email_Queue_Model.STATUS_SUPPRESSED ? 'text-muted' : 'text-danger'; %>
+                                            <span class="d-block <%= _note_class %> small"><%= row.last_error.substring(0, 60) %><%= row.last_error.length > 60 ? '...' : '' %></span>
                                         <% } %>
                                     </td>
-                                    <td><%= row.retry_count %></td>
+                                    <td><%= row.attempt_count %></td>
                                     <td>
                                         <% if (row.sent_at) { %>
                                             <%= Rsx_Time.relative(row.sent_at) %>

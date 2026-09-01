@@ -24,3 +24,7 @@ The bullets below are EXAMPLES showing the shape - replace them with your own.
 - [ ] (example) Verify all app email templates render and their links resolve.
 - [ ] (example) Confirm seed/demo data is removed or clearly marked before
   production.
+- [ ] (example) Walk the living documentation: every `CLAUDE.md` under `rsx/`
+  and every skill in `rsx/resource/skills/` still describes its directory as it
+  is today (the framework entry LIVING DOCUMENTATION CURRENCY drives this - list
+  the files, read each against its directory, fix the file and never the code).

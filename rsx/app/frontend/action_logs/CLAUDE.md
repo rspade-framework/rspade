@@ -1,12 +1,15 @@
-# Action Logs Module
+# rsx/app/frontend/action_logs — browsing the action log
 
-View-only CRUD module for displaying user action history.
+## WHAT IS HERE
 
-## Features
+A read-only feature over `Action_Log_Model`: a datagrid of every recorded entry and a
+detail page for one of them. There is no create, edit or delete — the log is append-only,
+written by `Action_Log::record()` from the feature controllers, never from here.
+`action_logs_controller.php` exposes `datagrid_fetch` and nothing else.
 
-- DataGrid with action log entries
-- Detail view page for individual actions
-- No create/edit/delete functionality (append-only)
+This is the BROWSE surface. The per-record activity tabs on the entity view pages are a
+different presentation of the same data, mounted as `Feed_Row` — see
+`rsx/lib/action_log/CLAUDE.md`.
 
 ## Directory Structure
 
@@ -39,3 +42,15 @@ action_logs/
 ## Documentation
 
 See `/rsx/resource/man/action_log.txt` for full documentation.
+
+## HOW TO CUSTOMIZE
+
+- **Add a column or filter**: `list/action_logs_datagrid.php` (`$sortable_columns` and
+  `build_query()`) plus the matching `<th data-sortby>` in the template — sortability is
+  opt-in in both places or it silently falls back to the default.
+- **Change what an entry SAYS**: that is the renderer in `rsx/lib/action_log/`, not this
+  feature. This feature only displays what the renderer returns.
+- **Gate it** if the log should not be readable by everyone: the natural check is
+  `can_view_user_activity`, already defined in `rsx/permission.php`.
+- Delete the whole feature with the rest of the action-log subsystem if the application
+  does not need a narrative history.

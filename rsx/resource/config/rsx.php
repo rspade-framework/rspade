@@ -571,33 +571,28 @@ return [
     | Email System
     |--------------------------------------------------------------------------
     |
-    | Queue-based email delivery with automatic dev site safety gating.
-    | All emails are queued — never sent inline.
+    | Everything about outbound mail - the delivery mode, the transport, the
+    | retry policy, retention and the dev-site recipient gating - is framework
+    | config (system/config/rsx.php 'mail'), driven by .env. This app tier is
+    | for what is genuinely YOURS: how your email looks.
     |
-    | Dev site detection is automatic via Rsx::is_dev_site() (hostname-based).
-    | On dev sites, emails are gated through catchall/whitelist rules defined
-    | in .env (not in this config file):
+    | The three dev-site keys live in .env:
     |
     |   EMAIL_DEV_CATCHALL_ADDRESS=dev@example.com
-    |   EMAIL_DEV_SUPPRESS_EMAIL_DELIVERY=false
     |   EMAIL_DEV_EMAIL_ADDRESS_WHITELIST=safe@example.com,other@example.com
     |   EMAIL_DEV_EMAIL_DOMAIN_WHITELIST=example.com,trusted.org
+    |
+    | See: php artisan rsx:man email
     |
     */
 
     'mail' => [
-        // Retry configuration for failed sends
-        'retry_max' => 6,
-        'retry_backoff_minutes' => [2, 4, 8, 15, 30, 60],
-
-        // Default from address (falls back to Laravel MAIL_FROM_ADDRESS)
-        'from_address' => env('MAIL_FROM_ADDRESS', 'noreply@example.com'),
-
-        // Default from name (null = uses rsx.name)
-        'from_name' => null,
-
-        // Secret for signing unsubscribe URLs (null = auto-derived from APP_KEY)
-        'unsubscribe_secret' => null,
+        // Branding the email layout renders. logo_url is an absolute URL or a
+        // public asset path; footer_text replaces the default copyright line.
+        'branding' => [
+            'logo_url' => null,
+            'footer_text' => null,
+        ],
     ],
 
     'api' => [

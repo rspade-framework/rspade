@@ -13,6 +13,7 @@ use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Time\Rsx_Date;
 use App\RSpade\Lib\Flash\Flash_Alert;
 use Rsx\App\Frontend\Settings\UserManagement\List\Users_DataGrid;
+use Rsx\Emails\User_Invitation_Email;
 
 /**
  */
@@ -107,20 +108,9 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         $user->save();
 
         // Send invitation email
-        $invite_url = url(Rsx::Route('Accept_Invite_Controller::index', ['code' => $user->invite_code]));
+        $invite_url = rsx_absolute_url(Rsx::Route('Accept_Invite_Controller::index', ['code' => $user->invite_code]));
 
-        \App\RSpade\Core\Mail\Rsx_Mail::send(
-            $user->email,
-            'You\'re Invited to ' . config('rsx.name', 'RSpade'),
-            'User_Invitation_Email',
-            [
-                'app_name' => config('rsx.name', 'RSpade'),
-                'name' => trim($user->first_name . ' ' . $user->last_name),
-                'invite_url' => $invite_url,
-                'expiry_days' => config('rsx.auth.invite_expiration_days', 7),
-            ],
-            \App\RSpade\Core\Mail\Rsx_Mail::TRANSACTIONAL
-        );
+        (new User_Invitation_Email($user, $invite_url))->to($user)->send();
 
         Flash_Alert::success('User created and invitation sent');
 
@@ -422,20 +412,9 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         );
         $user->save();
 
-        $invite_url = url(Rsx::Route('Accept_Invite_Controller::index', ['code' => $user->invite_code]));
+        $invite_url = rsx_absolute_url(Rsx::Route('Accept_Invite_Controller::index', ['code' => $user->invite_code]));
 
-        \App\RSpade\Core\Mail\Rsx_Mail::send(
-            $user->email,
-            'You\'re Invited to ' . config('rsx.name', 'RSpade'),
-            'User_Invitation_Email',
-            [
-                'app_name' => config('rsx.name', 'RSpade'),
-                'name' => trim($user->first_name . ' ' . $user->last_name),
-                'invite_url' => $invite_url,
-                'expiry_days' => config('rsx.auth.invite_expiration_days', 7),
-            ],
-            \App\RSpade\Core\Mail\Rsx_Mail::TRANSACTIONAL
-        );
+        (new User_Invitation_Email($user, $invite_url))->to($user)->send();
 
         return [
             'message' => 'Invitation sent successfully',
