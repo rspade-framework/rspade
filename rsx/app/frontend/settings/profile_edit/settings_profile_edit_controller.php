@@ -4,7 +4,6 @@
 namespace Rsx\App\Frontend\Settings\ProfileEdit;
 
 use Illuminate\Http\Request;
-use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Models\User_Profile_Model;
 use App\RSpade\Core\Rsx;

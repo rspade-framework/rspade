@@ -8,7 +8,6 @@
 namespace Rsx\Tests;
 
 use App\RSpade\Core\Models\User_Model;
-use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
 use Rsx\Models\Action_Log_Model;
 use Rsx\Models\Action_Log_Related_Model;

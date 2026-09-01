@@ -10,7 +10,6 @@ namespace Rsx;
 
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Permission\Permission_Abstract;
-use App\RSpade\Core\Rsx;
 
 /**
  * Permission helper class for RSX applications - the staff realm's gate vocabulary

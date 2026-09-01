@@ -11,8 +11,6 @@ use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Files\File_Attachment_Model;
-use App\RSpade\Core\Mail\Rsx_Mail;
-use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Rsx;
 use Rsx\Emails\Portal_Request_Reply_Email;

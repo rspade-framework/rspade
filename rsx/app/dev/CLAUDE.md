@@ -4,7 +4,14 @@
 always false, so no identity in any mode reaches it. It is a worked reference, not a running
 feature. Two halves share one bundle: Blade pages under `Dev_Layout` (index, ACL tester,
 flash alerts, attachments, modals) and SPA actions under `Dev_Spa_Layout` (SPA test, an
-uncaught-exception page, ORM timing, document preview, attachment thumbnail). The modals and
+uncaught-exception page, ORM timing, document preview, attachment thumbnail). The document
+preview page demonstrates BOTH preview components against one attachment - `Document_Preview`
+for the picture and `Document_Text_Preview` for the extracted text - and its Reset Extraction /
+Extract Now buttons make the async extraction observable: the text panel falls back to
+`(Extracting Text...)` and swaps back over a realtime frame, with no reload. Its Fit toggle
+demonstrates `Document_Preview`'s `$fit` arg against a deliberately BOUNDED host (800px x 70vh):
+`width` (the default) overflows the host vertically and scrolls, `contain` fits the whole page
+inside it. Changing the toggle re-mounts the component, because `$fit` is read in `on_create`. The modals and
 flash pages are the fullest exercises; `modals/test_modal_form.jqhtml` and
 `pin_verification_form.jqhtml` are the canonical "a modal is chrome around a form" examples.
 

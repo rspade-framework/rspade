@@ -12,14 +12,11 @@ _rsx_helper.php
 # Volatile storage. Relocated out of the framework-owned system/ zone to the project
 # root (see system/bin/environment_updates/030_relocate_storage.sh); everything under it
 # is per-environment runtime data - the file-attachment blob store, thumbnail and
-# rendition caches, logs, locks, db snapshots, build artifacts. The ONE exception is the
-# CDN asset cache, a tracked build input. Mirrors the block system/.gitignore carried for
-# the old location. (The relocation marker is per-environment state, so /storage/* covers
-# it deliberately.)
+# rendition caches, logs, locks, db snapshots, build artifacts. ALL of it is ignored: the
+# mirrored external assets, the one tracked build input that once lived here, are stored
+# in rsx/resource/.cdn-cache/ (see App\RSpade\Core\Bundle\Cdn_Cache). (The relocation
+# marker is per-environment state, so /storage/* covers it deliberately.)
 /storage/*
-!/storage/rsx-build/
-/storage/rsx-build/*
-!/storage/rsx-build/cdn-cache/
 
 # Test database snapshot (developer-specific, created locally)
 /system/app/RSpade/tests/_lib/test_db_snapshot.sql

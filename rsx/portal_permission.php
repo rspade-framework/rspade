@@ -7,7 +7,6 @@
 
 namespace Rsx;
 
-use App\RSpade\Core\Manifest\Manifest;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Portal\Portal_Permission_Abstract;
 use App\RSpade\Core\Portal\Portal_Session;

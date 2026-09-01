@@ -2,8 +2,14 @@
  * Dev_Document_Preview_Action - demo page for the Document_Preview component.
  *
  * Picks an attachment, renders it through Document_Preview, drives pagination via the component's
- * set_page()/'page_changed'/'preview_loaded' events, and shows the extracted text (from the search
- * extraction pipeline) in a read-only textarea below.
+ * set_page()/'page_changed'/'preview_loaded' events, and shows the SAME attachment's extracted text
+ * through Document_Preview's sibling component, Document_Text_Preview. The Fit toggle beside the
+ * pagination controls demonstrates the $fit arg against a bounded-height host (800px x 70vh):
+ * "width" overflows the host vertically and scrolls, "contain" fits the whole page inside it.
+ *
+ * The two buttons beside the text make the async extraction observable: Reset Extraction pushes the
+ * blob back to un-indexed (no worker), Extract Now runs the pass inline. Neither reloads the page -
+ * the notice swaps to the text over the realtime frame the pass emits.
  */
 @route('/dev/document_preview')
 @layout('Dev_Spa_Layout')
@@ -14,7 +20,7 @@ class Dev_Document_Preview_Action extends Spa_Action {
         this.data.loading = true;
         this.data.error = null;
         this.data.attachments = [];
-        this.state = { current_id: null, page: 1, pages: 0 };
+        this.state = { current_id: null, page: 1, pages: 0, fit: 'width' };
     }
 
     async on_load() {
@@ -40,8 +46,26 @@ class Dev_Document_Preview_Action extends Spa_Action {
             that._load_attachment(id);
         });
 
+        // The $fit toggle re-mounts the preview: $fit is read in on_create, so changing it is a
+        // new component, exactly as changing the attachment is.
+        this.$sid('fit').off('change.dp').on('change.dp', function () {
+            that.state.fit = str($(this).val());
+            if (that.state.current_id) {
+                that._load_attachment(that.state.current_id);
+            }
+        });
+
         this.$sid('prev').off('click.dp').on('click.dp', () => that._nav(-1));
         this.$sid('next').off('click.dp').on('click.dp', () => that._nav(1));
+
+        this.$sid('reset_extraction').off('click.dp').on('click.dp', async () => {
+            if (!that.state.current_id) return;
+            await Dev_Document_Preview_Controller.reset_extraction({ attachment_id: that.state.current_id });
+        });
+        this.$sid('run_extraction').off('click.dp').on('click.dp', async () => {
+            if (!that.state.current_id) return;
+            await Dev_Document_Preview_Controller.run_extraction({ attachment_id: that.state.current_id });
+        });
     }
 
     // -- Preview lifecycle ---------------------------------------------------
@@ -56,8 +80,9 @@ class Dev_Document_Preview_Action extends Spa_Action {
         this.$sid('indicator').text('No document loaded');
         this.$sid('prev').prop('disabled', true);
         this.$sid('next').prop('disabled', true);
-        this.$sid('text').val('');
-        this.$sid('status').text('Extraction status: --');
+        this.$sid('text_host').html('');
+        this.$sid('reset_extraction').prop('disabled', true);
+        this.$sid('run_extraction').prop('disabled', true);
     }
 
     _load_attachment(id) {
@@ -69,7 +94,7 @@ class Dev_Document_Preview_Action extends Spa_Action {
         // Fresh mount each time - .component() destroys any prior Document_Preview (and its viewer).
         this.$sid('preview_host').html('<div style="width:100%;height:100%;"></div>');
         const $mount = this.$sid('preview_host').children().first();
-        $mount.component('Document_Preview', { attachment_id: id, page: 1 });
+        $mount.component('Document_Preview', { attachment_id: id, page: 1, fit: this.state.fit });
 
         const preview = $mount.component();
 
@@ -83,21 +108,13 @@ class Dev_Document_Preview_Action extends Spa_Action {
             that._update_indicator();
         });
 
-        this._update_indicator();
-        this._load_text(id);
-    }
+        // Fresh mount each time - .component() destroys any prior Document_Text_Preview.
+        this.$sid('text_host').html('<div style="width:100%;height:100%;"></div>');
+        this.$sid('text_host').children().first().component('Document_Text_Preview', { attachment_id: id });
+        this.$sid('reset_extraction').prop('disabled', false);
+        this.$sid('run_extraction').prop('disabled', false);
 
-    async _load_text(id) {
-        const that = this;
-        this.$sid('status').text('Extraction status: loading...');
-        try {
-            const res = await Dev_Document_Preview_Controller.get_extracted_text({ attachment_id: id });
-            if (that.state.current_id !== id) return; // selection changed mid-flight
-            that.$sid('text').val(res.text || '');
-            that.$sid('status').text('Extraction status: ' + res.status);
-        } catch (e) {
-            that.$sid('status').text('Extraction status: error (' + (e.message || str(e)) + ')');
-        }
+        this._update_indicator();
     }
 
     _nav(delta) {

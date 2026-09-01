@@ -1,4 +1,3 @@
-/* CDN Source: https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js */
 /**
 * Tom Select v2.4.3
 * Licensed under the Apache License, Version 2.0 (the "License");

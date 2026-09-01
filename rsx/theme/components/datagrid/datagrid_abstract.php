@@ -38,7 +38,6 @@ use Illuminate\Support\LazyCollection;
 use League\Csv\Writer;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Database\Rsx_Result_Set;
-use App\RSpade\Core\Response\Error_Response;
 
 abstract class DataGrid_Abstract
 {

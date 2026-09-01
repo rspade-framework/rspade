@@ -10,7 +10,6 @@ namespace Rsx\App\Login\Signup;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Rsx;
