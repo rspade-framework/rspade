@@ -608,40 +608,53 @@ return [
         // Auth_Gates never names a permission and leaves the #[Auth_Check] vocabulary to
         // rsx/permission.php. Framework core does not read this key; only the template's
         // Frontend_Settings_Api_Keys_Controller does, and only to expand a ticked name into
-        // its rules. Rename them, delete them, add your own - the rule language in
-        // Api_Scopes is the whole contract, and a preset is just a stored rule set with a
-        // label an operator recognises.
+        // its scopes. Rename them, delete them, add your own - the grammar in Api_Scopes is
+        // the whole contract, and a preset is just a stored scope set with a label an
+        // operator recognises.
         //
-        // 'rules' is one Grant|Deny METHOD /api/vN/pattern per line (`*` is exactly one
-        // segment, `**` is zero or more and only as the last segment). TICKING SEVERAL
-        // PRESETS IS SET UNION AND IS ORDER-INDEPENDENT: the decision is by pattern
-        // specificity with a Deny winning any tie, never by the order the rules were
-        // concatenated, so no preset can be made stronger by being ticked first.
+        // 'scopes' is one bare path pattern per line, each a GRANT. `?` is one segment of any
+        // shape, `#` is one all-digits segment, and `*` is the last segment only and covers
+        // the prefix itself plus everything below it. TICKING SEVERAL PRESETS IS SET UNION
+        // AND IS ORDER-INDEPENDENT: every scope grants, nothing denies, so no preset can be
+        // made stronger or weaker by being ticked first.
         //
-        // Every preset below grants GET /api/v1/me, the identity endpoint a client calls at
+        // THERE IS NO READ-ONLY PRESET, because a scope carries no HTTP method and cannot
+        // express one. Read-only is guaranteed instead by API-GET-PURE-01, which forbids a
+        // GET endpoint from writing - and a preset naming only the read paths of a resource
+        // is how you hand out a narrow key.
+        //
+        // Every preset below grants /api/v1/me, the identity endpoint a client calls at
         // setup to check its own key. A scoped key that cannot reach it looks broken to a
         // well-written integration on its very first call.
         'scope_presets' => [
             [
-                'name' => 'Read-only',
-                'description' => 'Every GET endpoint; no writes.',
-                'rules' => "Grant GET /api/v1/**",
+                'name' => 'Everything in v1',
+                'description' => 'Every endpoint of API version 1, including ones added later.',
+                'scopes' => "/api/v1/*",
+            ],
+            [
+                'name' => 'Any version',
+                'description' => 'Every endpoint of every API version, including versions that do not exist yet.',
+                'scopes' => "/api/?/*",
             ],
             [
                 'name' => 'Contacts & clients',
-                'description' => 'Read and write contacts and clients, including client document attachments.',
-                'rules' => "Grant GET /api/v1/me\n"
-                    . "Grant GET /api/v1/contacts/**\n"
-                    . "Grant POST /api/v1/contacts/**\n"
-                    . "Grant GET /api/v1/clients/**\n"
-                    . "Grant POST /api/v1/clients/**",
+                'description' => 'Contacts and clients, including their document attachments.',
+                'scopes' => "/api/v1/me\n"
+                    . "/api/v1/contacts/*\n"
+                    . "/api/v1/clients/*",
+            ],
+            [
+                'name' => 'Tasks',
+                'description' => 'Tasks and their document attachments.',
+                'scopes' => "/api/v1/me\n"
+                    . "/api/v1/tasks/*",
             ],
             [
                 'name' => 'Files',
                 'description' => 'Upload files and read stored file content. Attaching a file to a record needs that record\'s preset as well.',
-                'rules' => "Grant GET /api/v1/me\n"
-                    . "Grant GET /api/v1/files/**\n"
-                    . "Grant POST /api/v1/files/**",
+                'scopes' => "/api/v1/me\n"
+                    . "/api/v1/files/*",
             ],
         ],
     ],

@@ -7,9 +7,10 @@ outside it).
 
 The form declares its endpoint on the <Rsx_Form> tag - the single place the endpoint is
 named - and the hosting Modal.form() drives that form's submit(). VALIDATION IS THE
-SERVER'S, including every scope rule: create_key canonicalises the union itself and answers
-a malformed rule under the `scopes` field. The panel below the fields is a PREVIEW, not a
-check - it shows what the rules reach, and it is the same resolver the dispatcher uses.
+SERVER'S, including every scope: create_key hands the union to Api_Scopes and answers a
+malformed scope under the `scopes` field, in the framework validator's own words. The panel
+below the fields is a PREVIEW, not a check - it shows what the scopes reach, and it asks the
+server, which is the same implementation the dispatcher matches with.
 
 Keys are immutable after mint: there is no edit form anywhere, because narrowing a
 credential already in service would change its meaning under the integration holding it.
@@ -32,7 +33,7 @@ Revoke and mint a replacement instead.
 
         <%-- Present on every render and merely hidden while the key is unrestricted: the
              inputs inside it still serialize, and the server ignores them for an
-             unrestricted key. A branch would destroy the operator's half-written rules
+             unrestricted key. A branch would destroy the operator's half-written scopes
              every time they looked at the other mode. --%>
         <div $sid="scoped_section" class="Add_Api_Key_Modal_Form__scoped">
 
@@ -40,11 +41,53 @@ Revoke and mint a replacement instead.
                 <Api_Scope_Presets_Input $sid="presets" $name="presets" $options=this.data.presets />
             </Form_Field>
 
-            <Form_Field $label="Custom rules"
-                $help="One rule per line: Grant or Deny, a method, and a path pattern - for example Grant POST /api/v1/contacts/*/update. A single star matches exactly one path segment; a double star matches the rest of the path and may only be the last segment. Nothing matched means denied, and a Deny beats a Grant written at the same precision.">
-                <Text_Input $sid="custom_rules" $name="scopes" $type="textarea" $rows=4 $max_length=-1
-                    $placeholder="Grant GET /api/v1/tasks/**" />
+            <Form_Field $label="Custom scopes"
+                $help="One path pattern per line. Each one is a GRANT - there is no way to write a denial, because a key with any scope at all can reach nothing else.">
+                <Text_Input $sid="custom_scopes" $name="scopes" $type="textarea" $rows=4 $max_length=-1
+                    $placeholder="/api/v1/tasks/*" />
             </Form_Field>
+
+            <%-- The whole grammar, in the one place somebody is typing it. Written out rather
+                 than linked: an operator narrowing a credential is not going to leave the
+                 dialog to read a man page, and a scope they guess wrong at is a key that
+                 quietly reaches more or less than they meant. --%>
+            <div class="Add_Api_Key_Modal_Form__grammar">
+                <div class="Add_Api_Key_Modal_Form__grammar_title">How a scope is written</div>
+                <ul>
+                    <li>A scope is a path, starting <code>/api/</code> then a version:
+                        <code>/api/v1/clients/42/view</code>.</li>
+                    <li><code>?</code> stands for exactly one segment of any kind:
+                        <code>/api/v1/clients/?/view</code>. It is allowed as the version too
+                        (<code>/api/?/clients</code>), for a key that should follow the API
+                        into its next version.</li>
+                    <li><code>#</code> stands for exactly one segment of digits:
+                        <code>/api/v1/clients/#/view</code> reaches client 42 and not client
+                        "settings".</li>
+                    <li><code>*</code> stands for the rest of the path and may only be the
+                        LAST segment. It covers the prefix itself as well as everything below
+                        it: <code>/api/v1/clients/*</code> reaches
+                        <code>/api/v1/clients</code> and
+                        <code>/api/v1/clients/42/attachments</code> alike.</li>
+                    <li>Each wildcard is a WHOLE segment. <code>/api/v1/cli*</code>,
+                        <code>/api/v1/?_id</code> and <code>/api/v1/x#</code> are rejected -
+                        they would look like patterns and match nothing.</li>
+                    <li>A trailing slash means nothing on either side, and a query string is
+                        never part of the match: <code>/api/v1/clients</code>,
+                        <code>/api/v1/clients/</code> and
+                        <code>/api/v1/clients?page=2</code> are one and the same path.</li>
+                    <li>Everything else is matched literally, letter for letter.</li>
+                </ul>
+                <div class="Add_Api_Key_Modal_Form__grammar_title">How they are applied</div>
+                <ul>
+                    <li>Every scope GRANTS. The moment a key has one, everything it does not
+                        name is refused - so there is nothing to write a denial for.</li>
+                    <li>A scope never widens the key beyond what your account may do. It can
+                        only take away.</li>
+                    <li>A scope that does not follow the rules above is refused here. One that
+                        somehow reaches the key anyway is ignored for matching and STILL
+                        counts, so such a key can call nothing at all.</li>
+                </ul>
+            </div>
 
             <Api_Scope_Preview $sid="preview" $scopes="" />
 

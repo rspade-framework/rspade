@@ -10,6 +10,7 @@ namespace Rsx\Tests;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Api\Api_Key_Model;
+use App\RSpade\Core\Api\Api_Scopes;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
@@ -18,17 +19,20 @@ use Rsx\App\Frontend\Settings\ApiKeys\Frontend_Settings_Api_Keys_Controller;
 /**
  * The APP-OWNED half of API key scoping: the Settings > API Keys endpoints.
  *
- * The framework owns the rule language, the dispatcher check and the intersection invariant
+ * The framework owns the scope grammar, the dispatcher check and the intersection invariant
  * (Api_Scopes, framework-tested). What this template owns is the mint form's contract, and
  * these are the properties that make it safe rather than merely convenient:
  *
  *   - the access mode is answered EXPLICITLY - an unrecognised value is refused, because
  *     treating it as unrestricted would silently mint the widest key there is;
- *   - the stored rules are re-derived from CONFIG BY NAME, so a browser that edits the rule
- *     text it was shown cannot widen the key it mints;
+ *   - the stored scopes are re-derived from CONFIG BY NAME, so a browser that edits the
+ *     scope text it was shown cannot widen the key it mints;
  *   - an unknown preset name is refused, not skipped - skipping would mint a key narrower
  *     than the operator ticked, discovered weeks later as a 403;
- *   - a malformed rule is a per-field form error naming the line, never a minted key;
+ *   - a malformed scope is a per-field form error carrying the framework validator's own
+ *     message, never a minted key;
+ *   - every configured preset satisfies the grammar, so a ticked preset can never be the
+ *     thing that fails the mint;
  *   - get_key_scopes answers for the CURRENT USER'S key only, and a key belonging to
  *     somebody else is indistinguishable from one that does not exist.
  *
@@ -96,7 +100,7 @@ class Api_Key_Scope_Ui_Test extends Rsx_Test_Abstract
         $result = static::__create(['name' => 'Unrestricted key', 'access_mode' => 'unrestricted']);
 
         static::__assert_array_has_key('key', $result, 'An unrestricted mint returns the plaintext key');
-        static::__assert_null($result['scopes'], 'No rules means NULL - the key keeps its holder\'s full authority');
+        static::__assert_null($result['scopes'], 'No scopes means NULL - the key keeps its holder\'s full authority');
 
         $model = Api_Key_Model::find($result['id']);
         static::__assert_true($model->is_unrestricted(), 'The stored key reads back as unrestricted');
@@ -107,32 +111,32 @@ class Api_Key_Scope_Ui_Test extends Rsx_Test_Abstract
         static::__enable_api_access();
 
         $result = static::__create([
-            'name' => 'Read-only key',
+            'name' => 'Everything key',
             'access_mode' => 'scoped',
-            // The NAME only. The browser sends no rule text for a preset, and this is what
+            // The NAME only. The browser sends no scope text for a preset, and this is what
             // stops an edited payload from widening the key.
-            'presets' => ['Read-only'],
+            'presets' => ['Everything in v1'],
             'scopes' => '',
         ]);
 
-        static::__assert_equals('Grant GET /api/v1/**', $result['scopes'], 'The preset expanded to its configured rules');
+        static::__assert_equals('/api/v1/*', $result['scopes'], 'The preset expanded to its configured scopes');
     }
 
-    public static function test_presets_and_custom_rules_are_unioned_and_canonicalised()
+    public static function test_presets_and_custom_scopes_are_unioned_and_normalized()
     {
         static::__enable_api_access();
 
         $result = static::__create([
             'name' => 'Union key',
             'access_mode' => 'scoped',
-            'presets' => ['Read-only'],
-            // Lower case keyword and method, and a duplicate of the preset's own rule:
-            // canonicalise() capitalises both and collapses the duplicate.
-            'scopes' => "grant get /api/v1/**\ndeny post /api/v1/contacts/*/delete",
+            'presets' => ['Everything in v1'],
+            // A duplicate of the preset's own scope, plus one carrying a trailing slash:
+            // canonicalize() normalizes both and collapses the duplicate.
+            'scopes' => "/api/v1/*\n/api/v1/clients/#/view/",
         ]);
 
         static::__assert_equals(
-            "Grant GET /api/v1/**\nDeny POST /api/v1/contacts/*/delete",
+            "/api/v1/*\n/api/v1/clients/#/view",
             $result['scopes'],
             'The union is canonical, and an exact duplicate appears once'
         );
@@ -155,7 +159,7 @@ class Api_Key_Scope_Ui_Test extends Rsx_Test_Abstract
         $result = static::__create([
             'name' => 'Bad preset',
             'access_mode' => 'scoped',
-            'presets' => ['Read-only', 'No Such Preset'],
+            'presets' => ['Everything in v1', 'No Such Preset'],
             'scopes' => '',
         ]);
 
@@ -175,72 +179,87 @@ class Api_Key_Scope_Ui_Test extends Rsx_Test_Abstract
             'scopes' => '   ',
         ]);
 
-        static::__assert_array_has_key('scopes', static::__form_errors($result), 'A scoped key needs at least one rule');
+        static::__assert_array_has_key('scopes', static::__form_errors($result), 'A scoped key needs at least one scope');
     }
 
-    public static function test_a_malformed_custom_rule_reports_the_line_and_mints_nothing()
+    public static function test_a_malformed_custom_scope_reports_the_rule_and_mints_nothing()
     {
         static::__enable_api_access();
 
         $before = Api_Key_Model::where('user_id', self::USER_ID)->count();
 
         $result = static::__create([
-            'name' => 'Broken rule',
+            'name' => 'Broken scope',
             'access_mode' => 'scoped',
             'presets' => [],
-            'scopes' => 'Grant SNARF /api/v1/contacts/**',
+            'scopes' => '/api/v1/contacts*',
         ]);
 
         $errors = static::__form_errors($result);
-        static::__assert_array_has_key('scopes', $errors, 'The parser message lands under the scopes field');
-        static::__assert_contains('SNARF', $errors['scopes'], 'The message names the offending token verbatim');
+        static::__assert_array_has_key('scopes', $errors, 'The validator message lands under the scopes field');
+        static::__assert_contains('a wildcard must be a whole segment', $errors['scopes'], 'It names the rule that was broken');
+        static::__assert_contains('/api/v1/contacts*', $errors['scopes'], 'And quotes the offending scope verbatim');
 
         static::__assert_equals(
             $before,
             Api_Key_Model::where('user_id', self::USER_ID)->count(),
-            'A rule set that cannot be read never becomes a credential'
+            'A scope set that cannot be read never becomes a credential'
         );
+    }
+
+    public static function test_the_old_rule_language_is_refused_as_a_form_error()
+    {
+        static::__enable_api_access();
+
+        $result = static::__create([
+            'name' => 'Old syntax',
+            'access_mode' => 'scoped',
+            'presets' => [],
+            'scopes' => 'Grant GET /api/v1/contacts/**',
+        ]);
+
+        $errors = static::__form_errors($result);
+        static::__assert_contains('/api/<version>/', $errors['scopes'], 'The old grammar is not a path');
     }
 
     // ============================================================================
     // PREVIEW
     // ============================================================================
 
-    public static function test_preview_narrows_the_catalogue_to_the_rules()
+    public static function test_preview_narrows_the_catalogue_to_the_scopes()
     {
         static::__enable_api_access();
 
         $result = Frontend_Settings_Api_Keys_Controller::preview_scopes(
             new Request(),
-            ['scopes' => 'Grant GET /api/v1/contacts/**']
+            ['scopes' => '/api/v1/contacts/*']
         );
 
-        static::__assert_null($result['error'], 'A well-formed rule set previews without an error');
-        static::__assert_false($result['unrestricted'], 'A rule set is not unrestricted');
+        static::__assert_null($result['error'], 'A well-formed scope set previews without an error');
+        static::__assert_false($result['unrestricted'], 'A scope set is not unrestricted');
         static::__assert_not_empty($result['groups'], 'The contacts endpoints are reachable');
 
         foreach ($result['groups'] as $group) {
             foreach ($group['endpoints'] as $endpoint) {
-                static::__assert_equals('GET', $endpoint['method'], 'Only the granted verb survives');
-                static::__assert_contains('/api/v1/contacts', $endpoint['pattern'], 'Only the granted subtree survives');
+                static::__assert_contains('/api/v1/contacts', $endpoint['pattern'], 'Only the named subtree survives');
             }
         }
     }
 
-    public static function test_preview_reports_a_malformed_rule_as_a_normal_answer()
+    public static function test_preview_reports_a_malformed_scope_as_a_normal_answer()
     {
         static::__enable_api_access();
 
-        // The operator is mid-keystroke: half-written rules are this panel's expected state,
-        // not a failed request.
+        // The operator is mid-keystroke: half-written scopes are this panel's expected
+        // state, not a failed request.
         $result = Frontend_Settings_Api_Keys_Controller::preview_scopes(
             new Request(),
-            ['scopes' => 'Grant GET contacts']
+            ['scopes' => 'contacts']
         );
 
-        static::__assert_not_null($result['error'], 'The parser message is returned');
-        static::__assert_contains('/api/vN/', $result['error'], 'And it says what is wrong with the pattern');
-        static::__assert_empty($result['groups'], 'Nothing is claimed reachable while the rules do not parse');
+        static::__assert_not_null($result['error'], 'The validator message is returned');
+        static::__assert_contains('/api/<version>/', $result['error'], 'And it says what is wrong with the scope');
+        static::__assert_empty($result['groups'], 'Nothing is claimed reachable while the scope is unreadable');
     }
 
     public static function test_blank_scopes_preview_as_unrestricted()
@@ -249,7 +268,7 @@ class Api_Key_Scope_Ui_Test extends Rsx_Test_Abstract
 
         $result = Frontend_Settings_Api_Keys_Controller::preview_scopes(new Request(), ['scopes' => '']);
 
-        static::__assert_true($result['unrestricted'], 'No rules is the full surface, exactly as a NULL column is');
+        static::__assert_true($result['unrestricted'], 'No scopes is the full surface, exactly as a NULL column is');
     }
 
     // ============================================================================
@@ -263,14 +282,14 @@ class Api_Key_Scope_Ui_Test extends Rsx_Test_Abstract
         $created = static::__create([
             'name' => 'Viewable key',
             'access_mode' => 'scoped',
-            'presets' => ['Read-only'],
+            'presets' => ['Everything in v1'],
             'scopes' => '',
         ]);
 
         $result = Frontend_Settings_Api_Keys_Controller::get_key_scopes(new Request(), ['id' => $created['id']]);
 
         static::__assert_equals('Viewable key', $result['name']);
-        static::__assert_equals('Grant GET /api/v1/**', $result['scopes']);
+        static::__assert_equals('/api/v1/*', $result['scopes']);
         static::__assert_false($result['unrestricted']);
     }
 
@@ -309,7 +328,7 @@ class Api_Key_Scope_Ui_Test extends Rsx_Test_Abstract
     // PRESETS
     // ============================================================================
 
-    public static function test_presets_ship_their_rules_so_the_preview_can_union_them()
+    public static function test_presets_ship_their_scopes_so_the_preview_can_union_them()
     {
         static::__enable_api_access();
 
@@ -320,7 +339,53 @@ class Api_Key_Scope_Ui_Test extends Rsx_Test_Abstract
         foreach ($result['presets'] as $preset) {
             static::__assert_array_has_key('name', $preset);
             static::__assert_array_has_key('description', $preset);
-            static::__assert_array_has_key('rules', $preset);
+            static::__assert_array_has_key('scopes', $preset);
+        }
+    }
+
+    /**
+     * EVERY CONFIGURED PRESET MUST SATISFY THE GRAMMAR.
+     *
+     * A preset is the one scope set an operator does not type, so a broken one fails the
+     * mint at the moment somebody trusted the UI most - and it would look like their fault.
+     * This is the test that fails when a scope is added to config by hand.
+     */
+    public static function test_every_configured_preset_validates()
+    {
+        $presets = config('rsx.api.scope_presets', []);
+
+        static::__assert_not_empty($presets, 'The template configures presets');
+
+        foreach ($presets as $preset) {
+            $text = $preset['scopes'] ?? '';
+
+            static::__assert_not_empty($text, $preset['name'] . ' carries scope text');
+
+            // Throws Api_Scope_Validation_Exception on the first bad scope, which fails the
+            // test with the validator's own message naming the preset's offending line.
+            $canonical = Api_Scopes::canonicalize($text);
+
+            static::__assert_not_null($canonical, $preset['name'] . ' canonicalizes to a scope set');
+            static::__assert_empty(
+                Api_Scopes::parse_all($canonical)['malformed'],
+                $preset['name'] . ' has no malformed scope'
+            );
+        }
+    }
+
+    /**
+     * The preset that was removed with the grammar, kept as a test so it cannot come back by
+     * accident: a scope carries no HTTP method, so "every GET endpoint" is not expressible
+     * and API-GET-PURE-01 is what guarantees a read grant instead.
+     */
+    public static function test_there_is_no_read_only_preset()
+    {
+        foreach (config('rsx.api.scope_presets', []) as $preset) {
+            static::__assert_not_equals(
+                'Read-only',
+                $preset['name'],
+                'A method-based preset cannot be expressed in the scope grammar'
+            );
         }
     }
 }

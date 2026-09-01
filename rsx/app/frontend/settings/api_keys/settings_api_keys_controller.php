@@ -3,9 +3,11 @@
 namespace Rsx\App\Frontend\Settings\ApiKeys;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Api\Api_Catalog;
 use App\RSpade\Core\Api\Api_Key_Model;
+use App\RSpade\Core\Api\Api_Scope_Validation_Exception;
 use App\RSpade\Core\Api\Api_Scopes;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Session\Session;
@@ -71,10 +73,10 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
             return response_form_error('Please correct the errors below.', $errors);
         }
 
-        // THE SCOPE RULES ARE BUILT HERE, FROM NAMES - never from rule text the browser
+        // THE SCOPES ARE BUILT HERE, FROM NAMES - never from scope text the browser
         // computed. The preview panel unions the same presets client-side so the operator
         // can see the result, but what is stored is re-derived from config on the server:
-        // a ticked preset is a NAME, and the browser cannot widen it by editing the rules
+        // a ticked preset is a NAME, and the browser cannot widen it by editing the scopes
         // it was shown.
         $access_mode = $params['access_mode'] ?? '';
         $scopes = null;
@@ -100,24 +102,25 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
                 );
             }
 
-            // Union: presets first, then whatever the operator typed. Order carries no
-            // meaning - Api_Scopes decides by specificity - so this is only about producing
-            // one readable canonical text.
+            // Union: presets first, then whatever the operator typed. Every scope is a
+            // grant and order carries no meaning, so this is only about producing one
+            // readable canonical text.
             $text = trim($preset_rules . "\n" . trim((string) ($params['scopes'] ?? '')));
 
             if ($text === '') {
                 return response_form_error(
                     'Please correct the errors below.',
-                    ['scopes' => 'A scoped key needs at least one rule. Tick a preset, write a rule, or choose Unrestricted.']
+                    ['scopes' => 'A scoped key needs at least one scope. Tick a preset, write a scope, or choose Unrestricted.']
                 );
             }
 
             try {
-                $scopes = Api_Scopes::canonicalise($text);
-            } catch (\InvalidArgumentException $e) {
-                // The parser's own message names the offending line verbatim, which is more
-                // use to whoever typed it than anything this endpoint could reword.
-                return response_form_error('Please correct the errors below.', ['scopes' => $e->getMessage()]);
+                $scopes = Api_Scopes::canonicalize($text);
+            } catch (Api_Scope_Validation_Exception $e) {
+                // The framework validator's own message names the rule that was broken and
+                // the offending scope verbatim, which is more use to whoever typed it than
+                // anything this endpoint could reword.
+                return response_form_error($e->getMessage(), ['scopes' => $e->getMessage()]);
             }
         }
 
@@ -147,10 +150,10 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
     /**
      * Ajax endpoint: the app's named scope presets, for the mint modal.
      *
-     * Ships the RULES as well as the label, because the preview panel unions the ticked
+     * Ships the SCOPES as well as the label, because the preview panel unions the ticked
      * presets with the operator's own text client-side before asking preview_scopes() what
      * that union reaches. Nothing here is a secret - it is a config array describing this
-     * app's own public API surface - and create_key re-derives the rules from the NAMES, so
+     * app's own public API surface - and create_key re-derives the scopes from the NAMES, so
      * a browser that edits them changes nothing.
      */
     #[Ajax_Endpoint]
@@ -166,7 +169,7 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
             $presets[] = [
                 'name' => $preset['name'],
                 'description' => $preset['description'] ?? '',
-                'rules' => $preset['rules'] ?? '',
+                'scopes' => $preset['scopes'] ?? '',
             ];
         }
 
@@ -174,15 +177,21 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
     }
 
     /**
-     * Ajax endpoint: which endpoints would this rule text actually reach?
+     * Ajax endpoint: which endpoints would this scope text actually reach?
      *
      * The live effective-access preview behind the mint modal, and the read-only view of an
      * existing key's reach. Api_Catalog::resolve_for_scopes() is pure - it takes the TEXT,
-     * not a key - so the same call answers for a rule set that is still being typed.
+     * not a key - so the same call answers for a scope set that is still being typed.
      *
-     * A MALFORMED RULE IS A NORMAL ANSWER HERE, not a failure: the operator is mid-keystroke
+     * THIS IS WHERE THE BROWSER ASKS ABOUT MATCHING, AND THE ONLY WAY IT MAY. Api_Scopes is
+     * the one implementation of the grammar; a JavaScript twin of it would drift from the
+     * dispatcher's answer and the drift would show up as a key that previews one thing and
+     * does another. The panel therefore renders whatever this endpoint says and computes
+     * nothing itself.
+     *
+     * A MALFORMED SCOPE IS A NORMAL ANSWER HERE, not a failure: the operator is mid-keystroke
      * and the panel's job is to say what is wrong with what they have written so far. The
-     * parser message is returned as 'error' and the panel renders it.
+     * validator's message is returned as 'error' and the panel renders it.
      */
     #[Ajax_Endpoint]
     public static function preview_scopes(Request $request, array $params = [])
@@ -192,26 +201,30 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
         }
 
         $scopes = trim((string) ($params['scopes'] ?? ''));
+        $scopes = $scopes === '' ? null : $scopes;
 
-        try {
-            $groups = Api_Catalog::resolve_for_scopes(1, $scopes === '' ? null : $scopes);
-        } catch (\InvalidArgumentException $e) {
-            return ['error' => $e->getMessage(), 'unrestricted' => false, 'groups' => []];
-        }
+        // Reading never throws, so a half-written scope is reported rather than raised. The
+        // FIRST malformed one is named: the operator fixes them one at a time anyway, and a
+        // wall of messages under a textarea is read by nobody.
+        $malformed = Api_Scopes::parse_all($scopes)['malformed'];
 
         return [
-            'error' => null,
-            'unrestricted' => Api_Scopes::is_unrestricted($scopes === '' ? null : $scopes),
-            'groups' => static::_preview_groups($groups),
+            'error' => empty($malformed) ? null : Arr::first($malformed),
+            'unrestricted' => Api_Scopes::is_unrestricted($scopes),
+            'groups' => static::_preview_groups(Api_Catalog::resolve_for_scopes(1, $scopes)),
         ];
     }
 
     /**
-     * Ajax endpoint: one key's scope rules and the endpoints they reach.
+     * Ajax endpoint: one key's scopes and the endpoints they reach.
      *
      * KEYS ARE IMMUTABLE AFTER MINT - there is no edit endpoint, and narrowing a key means
      * revoking it and minting a replacement, so that a credential already in service can
      * never change meaning under the integration holding it. This is the read side only.
+     *
+     * EVERY WRITE GOES THROUGH THE FRAMEWORK. This controller never touches _api_keys itself:
+     * it mints with Api_Key_Model::generate() and reads through the model, so the scope
+     * grammar is validated in exactly one place.
      *
      * The ownership rule lives in this body rather than in the #[Auth] gate: a gate answers
      * "may this user manage API keys at all", and "is this key theirs" depends on the row.
@@ -237,7 +250,7 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
             return response_error(Ajax::ERROR_NOT_FOUND, 'API key not found');
         }
 
-        // The RULES only. The endpoint list the view modal shows beside them is resolved by
+        // The SCOPES only. The endpoint list the view modal shows beside them is resolved by
         // <Api_Scope_Preview>, through preview_scopes(), exactly as it is under the mint
         // form - one resolver, one rendering, whether the rule set exists yet or not.
         return [
@@ -305,7 +318,7 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
     }
 
     /**
-     * The rule text for a set of preset NAMES, or null when one of them is not configured.
+     * The scope text for a set of preset NAMES, or null when one of them is not configured.
      *
      * An unknown name is refused rather than skipped: silently dropping it would mint a key
      * narrower than the operator ticked, and they would find out from a 403 weeks later.
@@ -314,7 +327,7 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
     {
         $by_name = [];
         foreach (static::_scope_presets() as $preset) {
-            $by_name[$preset['name']] = $preset['rules'] ?? '';
+            $by_name[$preset['name']] = $preset['scopes'] ?? '';
         }
 
         $lines = [];
@@ -330,7 +343,8 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
 
     /**
      * Flatten Api_Catalog's grouped catalogue to what the preview component renders:
-     * a resource name and its METHOD + path lines, nothing else.
+     * a resource name and its METHOD + path lines, nothing else. A scope carries no method,
+     * so every verb a reachable endpoint declares is listed.
      */
     private static function _preview_groups(array $groups): array
     {

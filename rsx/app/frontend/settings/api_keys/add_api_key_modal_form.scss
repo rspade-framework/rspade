@@ -6,4 +6,27 @@
         padding-top: $spacing-md;
         margin-top: $spacing-md;
     }
+
+    // The grammar reference, sitting under the scope box it explains. Muted and small: it is
+    // reference material an operator scans, never the subject of the dialog.
+    &__grammar {
+        margin-bottom: $spacing-md;
+        font-size: $font-size-sm;
+        color: var(--bs-secondary-color);
+
+        ul {
+            margin-bottom: $spacing-sm;
+            padding-left: 18px;
+        }
+
+        code {
+            color: var(--bs-body-color);
+        }
+    }
+
+    &__grammar_title {
+        font-weight: 600;
+        color: var(--bs-body-color);
+        margin-bottom: 4px;
+    }
 }

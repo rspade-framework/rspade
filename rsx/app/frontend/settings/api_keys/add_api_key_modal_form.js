@@ -8,9 +8,9 @@
  * - show or hide the scoped fields as the access mode changes;
  * - keep the effective-access preview in step with the current union, debounced.
  *
- * The preset RULES are held here only to compute the preview's union client-side. What is
+ * The preset SCOPES are held here only to compute the preview's union client-side. What is
  * submitted is the list of preset NAMES, and create_key expands them from config - so the
- * rules in this object are display data, and editing them in a console changes nothing.
+ * scopes in this object are display data, and editing them in a console changes nothing.
  */
 class Add_Api_Key_Modal_Form extends Component {
     on_create() {
@@ -25,11 +25,11 @@ class Add_Api_Key_Modal_Form extends Component {
             {
                 value: 'scoped',
                 label: 'Scoped',
-                description: 'The key reaches only the endpoints the rules below grant. It can never exceed this user\'s permissions either way.',
+                description: 'The key reaches only the endpoints the scopes below grant. It can never exceed this user\'s permissions either way.',
             },
         ];
 
-        // The stdlib debounce - a keystroke in the rules box should not be one round trip.
+        // The stdlib debounce - a keystroke in the scopes box should not be one round trip.
         // The DELAY is a UI cadence, not a bound on any operation: nothing is cancelled or
         // failed when it elapses, the preview simply refreshes.
         this._refresh_preview = debounce(() => this._resolve_preview(), 250);
@@ -69,8 +69,9 @@ class Add_Api_Key_Modal_Form extends Component {
     }
 
     /**
-     * The rule text the current selection amounts to: the ticked presets' rules, then
-     * whatever was typed. Order is presentational only - Api_Scopes decides by specificity.
+     * The scope text the current selection amounts to: the ticked presets' scopes, then
+     * whatever was typed. Order is presentational only - every scope is a grant, and the
+     * union is what the server stores.
      */
     _scope_text() {
         if (!this._is_scoped()) {
@@ -82,12 +83,12 @@ class Add_Api_Key_Modal_Form extends Component {
         for (const name of this.sid('presets').val()) {
             for (const preset of this.data.presets) {
                 if (preset.name === name) {
-                    lines.push(preset.rules);
+                    lines.push(preset.scopes);
                 }
             }
         }
 
-        const custom = str(this.sid('custom_rules').val()).trim();
+        const custom = str(this.sid('custom_scopes').val()).trim();
         if (custom !== '') {
             lines.push(custom);
         }
@@ -103,7 +104,7 @@ class Add_Api_Key_Modal_Form extends Component {
         const preview = this.sid('preview');
         preview.args.scopes = this._scope_text();
 
-        // In Scoped mode a blank rule set means "nothing chosen", not "everything" - and
+        // In Scoped mode a blank scope set means "nothing chosen", not "everything" - and
         // create_key refuses to mint it for the same reason.
         preview.args.blank_is_unrestricted = !this._is_scoped();
         preview.reload();

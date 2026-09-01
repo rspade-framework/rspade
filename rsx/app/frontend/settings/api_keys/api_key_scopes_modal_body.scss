@@ -4,7 +4,7 @@
 
     // Verbatim and unwrapped: this is the text an operator would paste into
     // rsx:api:key:create --scope to mint the same key again.
-    &__rules {
+    &__scopes {
         background: var(--bs-tertiary-bg);
         border: 1px solid var(--bs-border-color);
         border-radius: $border-radius-md;

@@ -4,7 +4,7 @@
  * See api_key_scopes_modal_body.jqhtml for the argument contract.
  *
  * JavaScript responsibilities:
- * - fetch the key's rules in on_load(), so the template renders once with them in hand.
+ * - fetch the key's scopes in on_load(), so the template renders once with them in hand.
  */
 class Api_Key_Scopes_Modal_Body extends Component {
     on_create() {

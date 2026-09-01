@@ -21,12 +21,13 @@ Each new API version gets its own `vN/` directory. Every endpoint pattern MUST s
   endpoint nobody integrates with.
 - **Add a version**: a new `vN/` directory. Never change the shape of an existing `vN`
   response — an external consumer cannot be redeployed with you.
-- **Narrow what a key may reach** with scope rules on the key rather than a gate here; the
-  rules only ever subtract from the holder's live permissions.
+- **Narrow what a key may reach** with scopes on the key rather than a gate here. A scope is
+  a bare path pattern (`/api/v1/clients/#/view`), always a grant, and only ever subtracts
+  from the holder's live permissions.
 - **Every GET stays side-effect-free** (`API-GET-PURE-01`), so a read-only grant means what
   it says.
 - **Delete an endpoint** only after checking `/apidocs` and any minted key whose scope names
-  its path; a scope rule pointing at a removed route silently grants nothing.
+  its path; a scope pointing at a removed route silently grants nothing.
 
 ## Endpoint pattern
 

@@ -7,7 +7,7 @@ The full key is only shown this one time - it cannot be retrieved later.
 Arguments:
 - $name (string, required): The key name
 - $api_key (string, required): The full plaintext API key
-- $scopes (string|null): The key's canonical scope rules; null means unrestricted
+- $scopes (string|null): The key's canonical scopes; null means unrestricted
 
 Usage:
     <Api_Key_Created_Modal_Body $name="Production API" $api_key="rsx_live_abc123..." />
@@ -16,7 +16,7 @@ Layout:
 - Warning about one-time display
 - Key name display
 - Copyable text input with copy button
-- The key's scope: the word Unrestricted, or the canonical rules verbatim
+- The key's scope: the word Unrestricted, or the canonical scopes verbatim
 
 The scope is shown HERE and not only in the grid because this is the moment the operator
 can still act on it - the key is immutable after mint, so a rule set that turned out wrong
@@ -50,7 +50,7 @@ means revoking this key and generating another.
         <% if (!this.args.scopes) { %>
             <div class="text-muted">Unrestricted - this key carries every permission your account has.</div>
         <% } else { %>
-            <pre class="Api_Key_Created_Modal_Body__rules"><%= this.args.scopes %></pre>
+            <pre class="Api_Key_Created_Modal_Body__scopes"><%= this.args.scopes %></pre>
         <% } %>
     </div>
 </Define:Api_Key_Created_Modal_Body>

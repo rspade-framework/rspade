@@ -1,18 +1,21 @@
 <%--
-Api_Scope_Preview - the effective-access panel for one API scope rule set.
+Api_Scope_Preview - the effective-access panel for one API scope set.
 
-Answers "what can a key carrying these rules actually call", by resolving the rule text
-against the real baked API route table (Api_Catalog::resolve_for_scopes) rather than by
-asking the operator to read globs. It is the same panel in both places it is needed: live
-under the mint form as rules are typed, and read-only when viewing an existing key.
+Answers "what can a key carrying these scopes actually call", by asking the SERVER to
+resolve the scope text against the real baked API route table
+(Api_Catalog::resolve_for_scopes) rather than by asking the operator to read patterns. The
+matching lives in Api_Scopes and nowhere else - this component computes nothing, so what it
+shows and what the dispatcher does cannot drift apart. It is the same panel in both places
+it is needed: live under the mint form as scopes are typed, and read-only when viewing an
+existing key.
 
 Arguments:
-- $scopes (string|null): the rule text to resolve. Null or blank means UNRESTRICTED, which
+- $scopes (string|null): the scope text to resolve. Null or blank means UNRESTRICTED, which
   this panel says in words rather than by listing the whole surface as though it had been
   granted rule by rule.
 - $blank_is_unrestricted (bool, default true): what a blank $scopes MEANS here. False while
   a mint form is in Scoped mode with nothing chosen yet: an operator who has said "scoped"
-  and written no rule has selected NOTHING, and telling them they have unrestricted access
+  and written no scope has selected NOTHING, and telling them they have unrestricted access
   would be the opposite of the truth.
 
 Refreshing: the owner sets `preview.args.scopes` and calls `reload()`. The fetch lives in
@@ -35,7 +38,7 @@ Usage:
         </div>
     <% } else if (!this.data.groups.length) { %>
         <div class="Api_Scope_Preview__note">
-            No endpoints. A key with these rules can call nothing.
+            No endpoints. A key with these scopes can call nothing.
         </div>
     <% } else { %>
         <div class="Api_Scope_Preview__groups">

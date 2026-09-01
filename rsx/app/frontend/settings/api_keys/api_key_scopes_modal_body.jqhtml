@@ -1,7 +1,7 @@
 <%--
 Api_Key_Scopes_Modal_Body - one existing key's scope, read-only.
 
-Shows the canonical rule text and, beside it, the endpoints those rules actually reach -
+Shows the canonical scope text and, beside it, the endpoints those scopes actually reach -
 resolved by <Api_Scope_Preview> against the real route table, the same panel and the same
 resolver the mint form previews with.
 
@@ -23,11 +23,11 @@ Usage:
     </div>
 
     <div class="mb-3">
-        <label class="form-label fw-bold">Rules</label>
+        <label class="form-label fw-bold">Scopes</label>
         <% if (this.data.unrestricted) { %>
             <div class="text-muted">Unrestricted - this key carries every permission your account has.</div>
         <% } else { %>
-            <pre class="Api_Key_Scopes_Modal_Body__rules"><%= this.data.scopes %></pre>
+            <pre class="Api_Key_Scopes_Modal_Body__scopes"><%= this.data.scopes %></pre>
         <% } %>
     </div>
 

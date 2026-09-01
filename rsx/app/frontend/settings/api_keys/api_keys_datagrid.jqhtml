@@ -35,7 +35,7 @@
             <td>
                 <code class="bg-light p-1 rounded"><%= row.key_prefix %></code>
             </td>
-            <%-- Unrestricted, or how many rules narrow the key. The rules themselves are one
+            <%-- Unrestricted, or how many scopes narrow the key. The scopes themselves are one
                  click away in the View modal - a table cell is not where a rule set is read. --%>
             <td>
                 <% if (row.is_scoped) { %>

@@ -25,13 +25,13 @@ class Api_Scope_Preview extends Component {
             scopes: this.args.scopes || '',
         });
 
-        // A malformed rule comes back as a normal result carrying the parser's message -
-        // the operator is mid-keystroke, and half-written rules are the expected state of
+        // A malformed scope comes back as a normal result carrying the validator's message
+        // - the operator is mid-keystroke, and half-written scopes are the expected state of
         // this panel, not a failure of the request.
         this.data.error = result.error;
         this.data.groups = result.groups;
 
-        // Blank rules are unrestricted to Api_Scopes, and to a saved key. They are NOT
+        // Blank scopes are unrestricted to Api_Scopes, and to a saved key. They are NOT
         // unrestricted to a form whose mode says "scoped" - see $blank_is_unrestricted.
         this.data.unrestricted = result.unrestricted && this.args.blank_is_unrestricted !== false;
     }

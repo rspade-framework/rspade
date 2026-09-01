@@ -1,13 +1,13 @@
 <%--
 Api_Scope_Presets_Input - the named scope presets, one tickable row each.
 
-A Form_Input_Abstract whose value is an ARRAY OF PRESET NAMES. Names and not rule text:
-create_key re-derives the rules from config by name, so nothing the browser holds can
+A Form_Input_Abstract whose value is an ARRAY OF PRESET NAMES. Names and not scope text:
+create_key re-derives the scopes from config by name, so nothing the browser holds can
 widen a preset.
 
-Ticking several presets is set UNION and is order-independent - Api_Scopes decides by
-pattern specificity with a Deny winning any tie - so this list needs no ordering affordance
-and no "which one wins" copy.
+Ticking several presets is set UNION and is order-independent - every scope is a grant and
+none of them denies anything - so this list needs no ordering affordance and no "which one
+wins" copy.
 
 Arguments:
 - $options (array, required): [{name, description}, ...] as get_scope_presets() returns.
