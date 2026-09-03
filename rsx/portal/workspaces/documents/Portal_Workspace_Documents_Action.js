@@ -29,10 +29,15 @@ class Portal_Workspace_Documents_Action extends Spa_Action {
 
     async on_load() {
         try {
-            // Membership gate + workspace header (fails closed for a non-member).
-            await Portal_Workspaces_Controller.get({ id: this.args.id });
-
-            const result = await Portal_Documents_Controller.list({ client_id: this.args.id });
+            // Both calls key off this.args.id and BOTH enforce the membership gate
+            // themselves (Portal_Permission::has_client_access, fail-closed), so the
+            // header lookup is not a precondition for the list - it is an independent
+            // fetch whose result is simply discarded here. Neither is optional: a
+            // non-member must see the error, so neither branch carries a .catch().
+            const [, result] = await Promise.all([
+                Portal_Workspaces_Controller.get({ id: this.args.id }),
+                Portal_Documents_Controller.list({ client_id: this.args.id }),
+            ]);
             this.data.documents = result.documents;
         } catch (e) {
             this.data.error_data = e;

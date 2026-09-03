@@ -1,3 +1,20 @@
+<%--
+Clients_View_Action - the client detail page shell (a table of contents)
+
+Every visible seam of this page is one named region in this directory:
+    Clients_View_Tab_Overview    - the Overview tab body
+    Clients_View_Tab_Contacts    - the Contacts tab body
+    Clients_View_Tab_Projects    - the Projects tab body
+    Clients_View_Tab_Activity    - the Activity tab body
+    Clients_Portal_Panel         - the Portal tab body (self-loading, see below)
+    Clients_View_Sidebar         - the entity sidebar, with its own action handlers
+
+DATA: the action loads every EAGER payload in one parallel batch and passes it
+down, because the tab bar and the sidebar KPIs both render the counts before any
+tab is opened. Only Clients_Portal_Panel self-loads - it is genuinely LAZY (the
+tab exists only for a portal-enabled client and may never be opened) and it owns
+its own realtime posture accordingly.
+--%>
 <Define:Clients_View_Action>
 <% if (this.data.loading) { %>
     <Page_Scaffold>
@@ -63,181 +80,19 @@
 
                 <Tab_Panels $sid="panels">
                     <Tab_Panel $key="overview">
-                        <Section $title="Basic Information">
-                            <View_Fields>
-                                <View_Field $label="Website">
-                                    <% if (_client.website) { %>
-                                        <External_Link $href="<%= _client.website %>" />
-                                    <% } else { %>
-                                        <Empty_Value />
-                                    <% } %>
-                                </View_Field>
-                                <View_Field $label="Email">
-                                    <% if (_client.email) { %>
-                                        <a href="mailto:<%= _client.email %>"><%= _client.email %></a>
-                                    <% } else { %>
-                                        <Empty_Value />
-                                    <% } %>
-                                </View_Field>
-                                <View_Field $label="Phone">
-                                    <% if (_client.phone) { %><%= _client.phone %><% } else { %><Empty_Value /><% } %>
-                                </View_Field>
-                                <View_Field $label="Fax">
-                                    <% if (_client.fax) { %><%= _client.fax %><% } else { %><Empty_Value /><% } %>
-                                </View_Field>
-                            </View_Fields>
-                        </Section>
-
-                        <% if (_client.address_street || _client.city || _client.state || _client.zip || _client.address_country) { %>
-                        <Section $title="Address">
-                            <% if (_client.address_street) { %><div><%= _client.address_street %></div><% } %>
-                            <% if (_client.city || _client.region_name || _client.zip) { %>
-                                <div><%= _client.city %><% if (_client.city && _client.region_name) { %>, <% } %><%= _client.region_name %> <%= _client.zip %></div>
-                            <% } %>
-                            <% if (_client.address_country) { %><div><%= _client.country_name %></div><% } %>
-                        </Section>
-                        <% } %>
-
-                        <% if (_client.industry || _client.company_size || _client.established_year || _client.revenue_range) { %>
-                        <Section $title="Business Details">
-                            <View_Fields>
-                                <View_Field $label="Industry">
-                                    <% if (_client.industry) { %><%= _client.industry %><% } else { %><Empty_Value /><% } %>
-                                </View_Field>
-                                <View_Field $label="Company Size">
-                                    <% if (_client.company_size) { %><%= _client.company_size %><% } else { %><Empty_Value /><% } %>
-                                </View_Field>
-                                <View_Field $label="Established Year">
-                                    <% if (_client.established_year) { %><%= _client.established_year %><% } else { %><Empty_Value /><% } %>
-                                </View_Field>
-                                <View_Field $label="Revenue Range">
-                                    <% if (_client.revenue_range) { %><%= _client.revenue_range %><% } else { %><Empty_Value /><% } %>
-                                </View_Field>
-                            </View_Fields>
-                        </Section>
-                        <% } %>
-
-                        <% if (_client.facebook_url || _client.twitter_handle || _client.linkedin_url || _client.instagram_handle) { %>
-                        <Section $title="Social Media">
-                            <View_Fields>
-                                <% if (_client.facebook_url) { %>
-                                <View_Field $label="Facebook" $icon="bi bi-facebook">
-                                    <a href="<%= _client.facebook_url %>" target="_blank" rel="noopener"><%= _client.facebook_url %></a>
-                                </View_Field>
-                                <% } %>
-                                <% if (_client.twitter_handle) { %>
-                                <View_Field $label="Twitter" $icon="bi bi-twitter">
-                                    <a href="https://twitter.com/<%= _client.twitter_handle %>" target="_blank" rel="noopener">@<%= _client.twitter_handle %></a>
-                                </View_Field>
-                                <% } %>
-                                <% if (_client.linkedin_url) { %>
-                                <View_Field $label="LinkedIn" $icon="bi bi-linkedin">
-                                    <a href="<%= _client.linkedin_url %>" target="_blank" rel="noopener"><%= _client.linkedin_url %></a>
-                                </View_Field>
-                                <% } %>
-                                <% if (_client.instagram_handle) { %>
-                                <View_Field $label="Instagram" $icon="bi bi-instagram">
-                                    <a href="https://instagram.com/<%= _client.instagram_handle %>" target="_blank" rel="noopener">@<%= _client.instagram_handle %></a>
-                                </View_Field>
-                                <% } %>
-                            </View_Fields>
-                        </Section>
-                        <% } %>
-
-                        <% if (_client.notes) { %>
-                        <Section $title="Internal Notes">
-                            <%br= _client.notes %>
-                        </Section>
-                        <% } %>
+                        <Clients_View_Tab_Overview $client=_client />
                     </Tab_Panel>
 
                     <Tab_Panel $key="contacts">
-                        <Section $title="Contacts" $count=_contacts.length $flush=true>
-                            <Slot:actions>
-                                <a href="<%= Rsx.Route('Contacts_Edit_Action') %>?client_id=<%= _client.id %>" class="btn btn-primary btn-sm">
-                                    <i class="bi bi-person-plus"></i> Add Contact
-                                </a>
-                            </Slot:actions>
-                            <Slot:body>
-                                <% if (_contacts.length === 0) { %>
-                                    <Empty_State $icon="bi bi-person-lines-fill">
-                                        <Slot:title>No contacts yet</Slot:title>
-                                        <Slot:body>Contacts linked to this client will appear here.</Slot:body>
-                                    </Empty_State>
-                                <% } else { %>
-                                    <Record_Table>
-                                        <thead>
-                                            <tr><th>Name</th><th>Title</th><th>Email</th><th>Phone</th></tr>
-                                        </thead>
-                                        <tbody>
-                                            <% for (const contact of _contacts) { %>
-                                            <tr data-href="<%= Rsx.Route('Contacts_View_Action', contact.id) %>">
-                                                <td><%= contact.full_name %></td>
-                                                <td><% if (contact.title) { %><%= contact.title %><% } else { %><Empty_Value /><% } %></td>
-                                                <td><% if (contact.email) { %><%= contact.email %><% } else { %><Empty_Value /><% } %></td>
-                                                <td><% if (contact.phone_work || contact.phone_cell) { %><%= contact.phone_work || contact.phone_cell %><% } else { %><Empty_Value /><% } %></td>
-                                            </tr>
-                                            <% } %>
-                                        </tbody>
-                                    </Record_Table>
-                                <% } %>
-                            </Slot:body>
-                        </Section>
+                        <Clients_View_Tab_Contacts $client_id=_client.id $contacts=_contacts />
                     </Tab_Panel>
 
                     <Tab_Panel $key="projects">
-                        <Section $title="Projects" $count=_projects.length $flush=true>
-                            <Slot:actions>
-                                <a href="<%= Rsx.Route('Projects_Edit_Action') %>?client_id=<%= _client.id %>" class="btn btn-primary btn-sm">
-                                    <i class="bi bi-folder-plus"></i> Add Project
-                                </a>
-                            </Slot:actions>
-                            <Slot:body>
-                                <% if (_projects.length === 0) { %>
-                                    <Empty_State $icon="bi bi-folder">
-                                        <Slot:title>No projects yet</Slot:title>
-                                        <Slot:body>Projects created for this client will appear here.</Slot:body>
-                                    </Empty_State>
-                                <% } else { %>
-                                    <Record_Table>
-                                        <thead>
-                                            <tr><th>Name</th><th>Status</th><th>Priority</th><th>Due Date</th></tr>
-                                        </thead>
-                                        <tbody>
-                                            <% for (const project of _projects) { %>
-                                            <tr data-href="<%= Rsx.Route('Projects_View_Action', project.id) %>">
-                                                <td><%= project.name %></td>
-                                                <td><Status_Badge $label=project.status__label $badge=project.status__badge /></td>
-                                                <td>
-                                                    <% const _ppri = (project.priority__badge || 'bg-secondary').replace('bg-', 'badge-outline-'); %>
-                                                    <span class="badge <%= _ppri %>"><%= project.priority__label %></span>
-                                                </td>
-                                                <td><% if (project.due_date) { %><%= Rsx_Date.format(project.due_date) %><% } else { %><Empty_Value /><% } %></td>
-                                            </tr>
-                                            <% } %>
-                                        </tbody>
-                                    </Record_Table>
-                                <% } %>
-                            </Slot:body>
-                        </Section>
+                        <Clients_View_Tab_Projects $client_id=_client.id $projects=_projects />
                     </Tab_Panel>
 
                     <Tab_Panel $key="activity">
-                        <Section $title="Activity" $count=_activity.length $flush=true>
-                            <% if (_activity.length === 0) { %>
-                                <Empty_State $icon="bi bi-activity">
-                                    <Slot:title>No activity yet</Slot:title>
-                                    <Slot:body>Changes to this client will appear here.</Slot:body>
-                                </Empty_State>
-                            <% } else { %>
-                                <% for (const a of _activity) { %>
-                                    <Feed_Row $icon=a.icon $variant=a.variant>
-                                        <Slot:body><%!= a.html %></Slot:body>
-                                        <Slot:time><%= Rsx_Time.relative(a.created_at) %></Slot:time>
-                                    </Feed_Row>
-                                <% } %>
-                            <% } %>
-                        </Section>
+                        <Clients_View_Tab_Activity $activity=_activity />
                     </Tab_Panel>
 
                     <% if (_client.portal_enabled) { %>
@@ -250,98 +105,11 @@
         </Slot:main>
 
         <Slot:sidebar>
-            <Detail_Sidebar>
-                <Sidebar_Kpi_Group>
-                    <Kpi_Cell $clickable=true $tab="contacts" $tooltip="Contacts linked to this client">
-                        <Slot:label>Contacts</Slot:label>
-                        <Slot:value><%= _contacts.length %></Slot:value>
-                    </Kpi_Cell>
-                    <Kpi_Cell $clickable=true $tab="projects" $tooltip="Projects for this client">
-                        <Slot:label>Projects</Slot:label>
-                        <Slot:value><%= _projects.length %></Slot:value>
-                    </Kpi_Cell>
-                    <Kpi_Cell $clickable=true $tab="activity" $tooltip="Recorded activity for this client">
-                        <Slot:label>Activity</Slot:label>
-                        <Slot:value><%= _activity.length %></Slot:value>
-                    </Kpi_Cell>
-                    <% if (_client.portal_enabled) { %>
-                    <Kpi_Cell $clickable=true $tab="portal" $tooltip="Active portal members">
-                        <Slot:label>Portal</Slot:label>
-                        <Slot:value><%= _client.portal_member_count %></Slot:value>
-                    </Kpi_Cell>
-                    <% } %>
-                </Sidebar_Kpi_Group>
-
-                <View_Fields>
-                    <View_Field $label="Client ID" $inline=true><%= _client.client_id_formatted %></View_Field>
-                    <View_Field $label="Preferred Contact" $inline=true>
-                        <% if (_client.preferred_contact_method) { %><%= ucwords(_client.preferred_contact_method) %><% } else { %><Empty_Value /><% } %>
-                    </View_Field>
-                    <View_Field $label="Newsletter" $inline=true>
-                        <% if (_client.newsletter_opt_in) { %>Subscribed<% } else { %>Not subscribed<% } %>
-                    </View_Field>
-                    <View_Field $label="Created" $inline=true><%= Rsx_Time.format_date(_client.created_at) %></View_Field>
-                    <View_Field $label="Updated" $inline=true><%= Rsx_Time.format_date(_client.updated_at) %></View_Field>
-                </View_Fields>
-
-                <% if (!_client.deleted_at) { %>
-                <View_Fields>
-                    <View_Field $label="Client Portal" $inline=true>
-                        <% if (_client.portal_enabled) { %>
-                            <Status_Badge $label="Active" $badge="bg-success" />
-                        <% } else { %>
-                            <span class="text-muted">Not enabled</span>
-                        <% } %>
-                    </View_Field>
-                    <% if (_client.portal_enabled && _client.portal_last_activity_at) { %>
-                    <View_Field $label="Portal Activity" $inline=true><%= Rsx_Time.relative(_client.portal_last_activity_at) %></View_Field>
-                    <% } %>
-                </View_Fields>
-                <% } %>
-
-                <% if (_client.deleted_at) { %>
-                    <div class="d-grid">
-                        <button $sid="restore-client" type="button" class="btn btn-success btn-sm">
-                            <i class="bi bi-arrow-counterclockwise"></i> Restore Client
-                        </button>
-                    </div>
-                <% } else { %>
-                    <div class="d-grid gap-2">
-                        <a href="<%= Rsx.Route('Clients_Edit_Action', _client.id) %>" class="btn btn-primary btn-sm">
-                            <i class="bi bi-pencil"></i> Edit Client
-                        </a>
-                        <% if (!_client.portal_enabled) { %>
-                            <button $sid="enable-portal" type="button" class="btn btn-outline-secondary btn-sm">
-                                <i class="bi bi-globe"></i> Enable Portal
-                            </button>
-                        <% } %>
-                    </div>
-                    <div class="d-flex justify-content-end">
-                        <Action_Menu $label="More client actions">
-                            <% if (_client.portal_enabled) { %>
-                                <button $sid="disable-portal" type="button" class="dropdown-item">
-                                    <i class="bi bi-slash-circle"></i> Disable Portal
-                                </button>
-                            <% } %>
-                            <button $sid="delete-client" type="button" class="dropdown-item text-danger">
-                                <i class="bi bi-trash"></i> Delete Client
-                            </button>
-                        </Action_Menu>
-                    </div>
-                <% } %>
-
-                <%-- Outside the deleted/live branch on purpose: the history of a deleted
-                     client is exactly when somebody wants to read it. Visibility follows the
-                     DESTINATION's own @auth list, so this link cannot advertise a page the
-                     viewer would be refused. --%>
-                <% if (Permission.can_access('Clients_History_Action')) { %>
-                    <div class="d-grid">
-                        <a href="<%= Rsx.Route('Clients_History_Action', _client.id) %>" class="btn btn-outline-secondary btn-sm">
-                            <i class="bi bi-clock-history"></i> History
-                        </a>
-                    </div>
-                <% } %>
-            </Detail_Sidebar>
+            <Clients_View_Sidebar $sid="sidebar"
+                $client=_client
+                $contacts_count=_contacts.length
+                $projects_count=_projects.length
+                $activity_count=_activity.length />
         </Slot:sidebar>
     </Page_Scaffold>
 <% } %>

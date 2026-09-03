@@ -39,7 +39,14 @@ class System_Email_Queue_Action extends Spa_Action {
     }
 
     on_ready() {
-        this.$.on('click', '[data-resend]', async (e) => {
+        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
+        // render() while on_ready() re-fires on each one, so one .off('.seq') here
+        // clears this component's prior binds before they are re-attached. A one-shot
+        // instance flag would be wrong in both directions - flags die with the
+        // instance, handlers live on the element.
+        this.$.off('.seq');
+
+        this.$.on('click.seq', '[data-resend]', async (e) => {
             const id = $(e.currentTarget).data('resend');
             if (!await Modal.confirm('Resend Email', 'Re-queue this email for delivery?')) return;
             await System_Email_Controller.queue_resend({id});
@@ -60,7 +67,7 @@ class System_Email_Queue_Action extends Spa_Action {
             }
         });
 
-        this.$.on('change', '[data-status-filter]', (e) => {
+        this.$.on('change.seq', '[data-status-filter]', (e) => {
             this.state.status_filter = $(e.currentTarget).val();
             this.data.page = 1;
             this._fetch();

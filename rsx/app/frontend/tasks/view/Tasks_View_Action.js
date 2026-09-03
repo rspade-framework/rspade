@@ -35,12 +35,16 @@ class Tasks_View_Action extends Spa_Action {
 
     async on_load() {
         try {
-            this.data.task = await Task_Model.fetch(this.args.id);
-
-            const [subtasks_result, activity_result] = await Promise.all([
-                Frontend_Tasks_Controller.task_subtasks({ id: this.args.id }),
-                Frontend_Tasks_Controller.task_activity({ id: this.args.id }),
+            // One parallel batch: every call keys off this.args.id, so none of them
+            // depends on another's RESULT. The task is FATAL - the page IS this record -
+            // and carries no .catch(); the two side lists are non-fatal and degrade to
+            // empty so a failing tab cannot blank the record.
+            const [task, subtasks_result, activity_result] = await Promise.all([
+                Task_Model.fetch(this.args.id),
+                Frontend_Tasks_Controller.task_subtasks({ id: this.args.id }).catch(() => ({ subtasks: [] })),
+                Frontend_Tasks_Controller.task_activity({ id: this.args.id }).catch(() => ({ activity: [] })),
             ]);
+            this.data.task = task;
             this.data.subtasks = subtasks_result.subtasks;
             // Decorate each activity entry with its Feed_Row icon/variant (shared map).
             this.data.activity = activity_result.activity.map(a => ({ ...a, ...Activity_Feed.decorate(a.type_id) }));
@@ -71,8 +75,15 @@ class Tasks_View_Action extends Spa_Action {
     }
 
     on_ready() {
+        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
+        // render() while on_ready() re-fires on each one, so one .off('.tva') here
+        // clears this component's prior binds before they are re-attached. A one-shot
+        // instance flag would be wrong in both directions - flags die with the
+        // instance, handlers live on the element.
+        this.$.off('.tva');
+
         // KPI cells that jump to a tab (Kpi_Cell $clickable $tab).
-        this.$.on('click', '.Kpi_Cell--clickable', (e) => {
+        this.$.on('click.tva', '.Kpi_Cell--clickable', (e) => {
             const tab = $(e.currentTarget).attr('data-kpi-tab');
             const tab_bar = this.sid('tabs');
             if (tab && tab_bar) tab_bar.activate(tab);

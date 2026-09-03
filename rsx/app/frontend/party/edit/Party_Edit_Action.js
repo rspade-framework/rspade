@@ -48,6 +48,8 @@ class Party_Edit_Action extends Spa_Action {
                 legal_name: '', tax_identifier: '', industry: '', employee_count: '',
             };
 
+            // GENUINE DEPENDENCY - stays sequential: WHICH detail accessor to call is
+            // decided by party.type_id, which only exists once the party has arrived.
             if (party.type_id === Party_Model.TYPE_PERSON) {
                 const d = await party.party_person();
                 if (d) {

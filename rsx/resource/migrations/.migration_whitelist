@@ -136,6 +136,11 @@
             "created_at": "2026-08-18T08:13:08+00:00",
             "created_by": "root",
             "command": "php artisan make:migration:safe cleanup_retired_portal_request_type_ref"
+        },
+        "2026_09_02_133139_add_is_2fa_required_to_users.php": {
+            "created_at": "2026-09-02T13:31:39+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_is_2fa_required_to_users"
         }
     }
 }

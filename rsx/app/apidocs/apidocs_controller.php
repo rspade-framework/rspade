@@ -7,13 +7,16 @@ use App\RSpade\Core\Api\Rsx_Api_Docs;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Errors\Error_Screens;
 use App\RSpade\Core\Session\Session;
-use Rsx\App\Apidocs\Apidocs_Bundle;
 
 /**
  * Apidocs_Controller - this template application's API reference console.
  *
- * THE WHOLE INTEGRATION IS THE TWO METHODS BELOW. The console is a framework feature, but
- * the framework declares no route for it and no visibility setting: the application chooses
+ * THE WHOLE INTEGRATION IS THE TWO METHODS BELOW, AND ALL THEY DO IS GATE. The console -
+ * its markup, its components, its styles and its bundle - is framework property; an
+ * application declares a route, decides who may reach it, and calls one function, with the
+ * simplicity of phpinfo(). There is nothing here to customize, subclass or keep a copy of.
+ *
+ * The framework declares no route for it and no visibility setting: the application chooses
  * the path, and the #[Auth] gate on that route is the access control. Point it somewhere
  * else, gate it behind your own permission check, or do not declare it at all and the
  * console does not exist on your install.
@@ -55,7 +58,7 @@ class Apidocs_Controller extends Rsx_Controller_Abstract
             return Error_Screens::unauthorized($request);
         }
 
-        return Rsx_Api_Docs::page($request, Apidocs_Bundle::class, restrict_to_key: false);
+        return Rsx_Api_Docs::page(restrict_to_key: false);
     }
 
     /**

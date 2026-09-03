@@ -1,0 +1,50 @@
+<%--
+Clients_View_Tab_Contacts - the Clients_View Contacts tab body
+
+$client_id - the owning client's id, for the Add Contact link (required)
+$contacts - the client's contacts (required; supplied EAGER by Clients_View_Action,
+            because the tab bar and the sidebar KPI both show this count)
+
+A page REGION, not vocabulary. Pure display - no on_load(), no handlers, no SCSS:
+row navigation is Record_Table's own delegated data-href behaviour.
+
+Usage:
+    <Tab_Panel $key="contacts">
+        <Clients_View_Tab_Contacts $client_id=_client.id $contacts=_contacts />
+    </Tab_Panel>
+--%>
+<Define:Clients_View_Tab_Contacts>
+    <% const _contacts = this.args.contacts; %>
+
+    <Section $title="Contacts" $count=_contacts.length $flush=true>
+        <Slot:actions>
+            <a href="<%= Rsx.Route('Contacts_Edit_Action') %>?client_id=<%= this.args.client_id %>" class="btn btn-primary btn-sm">
+                <i class="bi bi-person-plus"></i> Add Contact
+            </a>
+        </Slot:actions>
+        <Slot:body>
+            <% if (_contacts.length === 0) { %>
+                <Empty_State $icon="bi bi-person-lines-fill">
+                    <Slot:title>No contacts yet</Slot:title>
+                    <Slot:body>Contacts linked to this client will appear here.</Slot:body>
+                </Empty_State>
+            <% } else { %>
+                <Record_Table>
+                    <thead>
+                        <tr><th>Name</th><th>Title</th><th>Email</th><th>Phone</th></tr>
+                    </thead>
+                    <tbody>
+                        <% for (const contact of _contacts) { %>
+                        <tr data-href="<%= Rsx.Route('Contacts_View_Action', contact.id) %>">
+                            <td><%= contact.full_name %></td>
+                            <td><% if (contact.title) { %><%= contact.title %><% } else { %><Empty_Value /><% } %></td>
+                            <td><% if (contact.email) { %><%= contact.email %><% } else { %><Empty_Value /><% } %></td>
+                            <td><% if (contact.phone_work || contact.phone_cell) { %><%= contact.phone_work || contact.phone_cell %><% } else { %><Empty_Value /><% } %></td>
+                        </tr>
+                        <% } %>
+                    </tbody>
+                </Record_Table>
+            <% } %>
+        </Slot:body>
+    </Section>
+</Define:Clients_View_Tab_Contacts>

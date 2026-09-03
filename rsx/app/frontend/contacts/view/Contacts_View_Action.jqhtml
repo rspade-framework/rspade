@@ -195,7 +195,7 @@
                                 <i class="bi bi-globe"></i> Manage Client Portal
                             </a>
                             <% if (_contact.portal_user_id) { %>
-                                <button $sid="view_as_client" type="button" class="btn btn-outline-secondary btn-sm" @click=this.view_as_client>
+                                <button $sid="view_as_client" @click=this.view_as_client type="button" class="btn btn-outline-secondary btn-sm">
                                     <i class="bi bi-eye"></i> View as Client (read-only)
                                 </button>
                             <% } %>

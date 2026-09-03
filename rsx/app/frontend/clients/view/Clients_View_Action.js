@@ -41,36 +41,38 @@ class Clients_View_Action extends Spa_Action {
 
     async on_load() {
         try {
-            // The client record is loaded in two steps, because this screen serves deleted
-            // clients too (it is where they are restored from). The ORM fetch serves
-            // non-deleted records only, so a soft-deleted client reads as not-found there;
-            // the deleted-record endpoint is asked next - gated on the server for exactly
-            // that situation (the same gate as the restore it leads to), which is why that
-            // lookup is a named endpoint and not a widened ORM fetch. A client that is
-            // neither live nor deleted-and-visible keeps the original not-found error, and
-            // any other error propagates untouched. The steps live inline because on_load()
-            // may touch nothing but this.args and this.data.
-            let not_found_error = null;
-
-            try {
-                this.data.client = await Client_Model.fetch(this.args.id);
-            } catch (e) {
-                if (e.code !== Ajax.ERROR_NOT_FOUND) throw e;
-                not_found_error = e;
-            }
-
-            if (not_found_error) {
+            // ONE parallel batch. Every call keys off this.args.id, so nothing here
+            // depends on another call's RESULT - the deleted-record retry below is a
+            // RECOVERY, not a dependency, and rides inside the client's own promise.
+            //
+            // The client record is resolved in two steps, because this screen serves
+            // deleted clients too (it is where they are restored from). The ORM fetch
+            // serves non-deleted records only, so a soft-deleted client reads as
+            // not-found there; the deleted-record endpoint is asked next - gated on the
+            // server for exactly that situation (the same gate as the restore it leads
+            // to), which is why that lookup is a named endpoint and not a widened ORM
+            // fetch. A client that is neither live nor deleted-and-visible keeps the
+            // original not-found error, and any other error propagates untouched. The
+            // steps live inline because on_load() may touch nothing but this.args and
+            // this.data.
+            //
+            // The client is FATAL - the page IS this record - so its .catch() RECOVERS
+            // or re-throws, it never degrades to a default. The three side lists ARE
+            // non-fatal and degrade to empty: a failing tab must not blank the record.
+            const client_promise = Client_Model.fetch(this.args.id).catch(async (not_found_error) => {
+                if (not_found_error.code !== Ajax.ERROR_NOT_FOUND) throw not_found_error;
                 const deleted_result = await Frontend_Clients_Controller.fetch_deleted({id: this.args.id});
                 if (!deleted_result.client) throw not_found_error;
+                return deleted_result.client;
+            });
 
-                this.data.client = deleted_result.client;
-            }
-
-            const [contacts_result, projects_result, activity_result] = await Promise.all([
-                Frontend_Clients_Controller.client_contacts({id: this.args.id}),
-                Frontend_Clients_Controller.client_projects({id: this.args.id}),
-                Frontend_Clients_Controller.client_activity({id: this.args.id}),
+            const [client, contacts_result, projects_result, activity_result] = await Promise.all([
+                client_promise,
+                Frontend_Clients_Controller.client_contacts({id: this.args.id}).catch(() => ({contacts: []})),
+                Frontend_Clients_Controller.client_projects({id: this.args.id}).catch(() => ({projects: []})),
+                Frontend_Clients_Controller.client_activity({id: this.args.id}).catch(() => ({activity: []})),
             ]);
+            this.data.client = client;
             this.data.contacts = contacts_result.contacts;
             this.data.projects = projects_result.projects;
             // Decorate each activity entry with its Feed_Row icon/variant (shared map).
@@ -101,44 +103,30 @@ class Clients_View_Action extends Spa_Action {
     }
 
     on_ready() {
-        // KPI cells that jump to a tab (Kpi_Cell $clickable $tab).
-        this.$.on('click', '.Kpi_Cell--clickable', (e) => {
+        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
+        // render() while on_ready() re-fires on each one, so one .off('.cva') here
+        // clears this page's prior binds before they are re-attached. A one-shot
+        // instance flag would be wrong in both directions - flags die with the
+        // instance, handlers live on the element.
+        this.$.off('.cva');
+
+        // KPI cells that jump to a tab (Kpi_Cell $clickable $tab). This stays on the
+        // SHELL because it crosses regions: the cells live in Clients_View_Sidebar and
+        // the Tab_Bar they drive lives in the main column.
+        this.$.on('click.cva', '.Kpi_Cell--clickable', (e) => {
             const tab = $(e.currentTarget).attr('data-kpi-tab');
             const tab_bar = this.sid('tabs');
             if (tab && tab_bar) tab_bar.activate(tab);
         });
 
-        if (this.$sid('enable-portal').exists()) {
-            this.$sid('enable-portal').click(async () => {
-                await Frontend_Clients_Controller.toggle_portal({id: this.args.id, enabled: true});
-                this.reload();
-            });
-        }
-
-        if (this.$sid('disable-portal').exists()) {
-            this.$sid('disable-portal').click(async () => {
-                const confirmed = await Modal.confirm('Disable Portal', 'Are you sure you want to disable the portal for this client?\n\nExisting portal members will lose access.', 'Disable', 'Cancel');
-                if (!confirmed) return;
-                await Frontend_Clients_Controller.toggle_portal({id: this.args.id, enabled: false});
-                this.reload();
-            });
-        }
-
-        if (this.$sid('delete-client').exists()) {
-            this.$sid('delete-client').click(async () => {
-                const confirmed = await Modal.confirm('Delete Client', 'Are you sure you want to delete this client?\n\nThis can be undone by restoring the client afterward.', 'Delete', 'Cancel');
-                if (!confirmed) return;
-                await Frontend_Clients_Controller.delete({id: this.args.id});
-                Spa.dispatch(Rsx.Route('Clients_Index_Action'));
-            });
-        }
-
-        if (this.$sid('restore-client').exists()) {
-            this.$sid('restore-client').click(async () => {
-                await Frontend_Clients_Controller.restore({id: this.args.id});
-                this.reload();
-            });
-        }
+        // The sidebar owns its own record actions and announces a mutation; repainting
+        // the page is the shell's call, so the one fetch of the record stays here.
+        // A COMPONENT event, not a DOM one: no namespace and no .off() exist for these,
+        // and none is needed - a parent render destroys the sidebar, so every on_ready()
+        // registers against a brand-new instance that has fired nothing yet. Absent in
+        // the loading/error branches, where no sidebar is rendered.
+        const sidebar = this.sid('sidebar');
+        if (sidebar) sidebar.on('client_changed', () => this.reload());
     }
 
     // Action buttons for the page header (Back / Edit)

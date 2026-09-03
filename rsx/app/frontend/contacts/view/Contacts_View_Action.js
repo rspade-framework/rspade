@@ -40,12 +40,16 @@ class Contacts_View_Action extends Spa_Action {
 
     async on_load() {
         try {
-            this.data.contact = await Contact_Model.fetch(this.args.id);
-
-            const [projects_result, activity_result] = await Promise.all([
-                Frontend_Contacts_Controller.contact_projects({id: this.args.id}),
-                Frontend_Contacts_Controller.contact_activity({id: this.args.id}),
+            // One parallel batch: every call keys off this.args.id, so none of them
+            // depends on another's RESULT. The contact is FATAL - the page IS this
+            // record - and carries no .catch(); the two side lists are non-fatal and
+            // degrade to empty so a failing tab cannot blank the record.
+            const [contact, projects_result, activity_result] = await Promise.all([
+                Contact_Model.fetch(this.args.id),
+                Frontend_Contacts_Controller.contact_projects({id: this.args.id}).catch(() => ({projects: []})),
+                Frontend_Contacts_Controller.contact_activity({id: this.args.id}).catch(() => ({activity: []})),
             ]);
+            this.data.contact = contact;
             this.data.projects = projects_result.projects;
             // Decorate each activity entry with its Feed_Row icon/variant (shared map).
             this.data.activity = activity_result.activity.map(a => ({...a, ...Activity_Feed.decorate(a.type_id)}));
@@ -78,8 +82,12 @@ class Contacts_View_Action extends Spa_Action {
     }
 
     on_ready() {
+        // Delegated on the component root, NAMESPACED AND IDEMPOTENT: this.$ survives
+        // every render() while on_ready() re-fires on each one, so a bare .on() would
+        // stack a second handler per repaint. The .off('.ns').on('.ns') pair needs no
+        // one-shot flag - flags live on the instance, handlers live on the element.
         // KPI cells that jump to a tab (Kpi_Cell $clickable $tab).
-        this.$.on('click', '.Kpi_Cell--clickable', (e) => {
+        this.$.off('click.contacts_view').on('click.contacts_view', '.Kpi_Cell--clickable', (e) => {
             const tab = $(e.currentTarget).attr('data-kpi-tab');
             const tab_bar = this.sid('tabs');
             if (tab && tab_bar) tab_bar.activate(tab);

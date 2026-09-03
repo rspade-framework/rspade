@@ -45,10 +45,17 @@ class Clients_Request_Thread_Action extends Spa_Action {
     }
 
     on_ready() {
+        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
+        // render() while on_ready() re-fires on each one, so one .off('.crta') here
+        // clears this component's prior binds before they are re-attached. A one-shot
+        // instance flag would be wrong in both directions - flags die with the
+        // instance, handlers live on the element.
+        this.$.off('.crta');
+
         if (!this.data.thread) return;
 
         // Open a document detail modal from any chip / sidebar card.
-        this.$.on('click', '[data-document]', async (e) => {
+        this.$.on('click.crta', '[data-document]', async (e) => {
             const id = int($(e.currentTarget).data('document'));
             const document = this._find_document(id);
             if (!document) return;

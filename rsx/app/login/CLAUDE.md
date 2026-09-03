@@ -7,7 +7,9 @@ controller is class-level `#[Auth('public')]` with a written justification in it
 
 | Rung | Class / file | Route | What it does |
 |---|---|---|---|
-| Login | `Login_Controller` (`login_controller.php`) | `/login` GET+POST | Turnstile, then `RsxAuth::attempt()`. On success: an invite `code` goes to accept-invite; more than one enabled `User_Model` goes to site selection; exactly one sets the site and lands on the dashboard; none goes to site-unauthorized. |
+| Login | `Login_Controller` (`login_controller.php`) | `/login` GET+POST | Turnstile, then `RsxAuth::attempt($credentials, record: false, touch_last_login: false)` - the PASSWORD stage only. A failure records `STATUS_FAILED_PASSWORD` itself. On success: a second factor issues the challenge, otherwise `RsxAuth::login()` + `record_success()` and `__post_login_destination()`. |
+| 2FA challenge | `Login_Controller::verify` + `verify_2fa` | `/login/verify` GET + an `#[Ajax_Endpoint]` | The screen hosting `<Two_Factor_Challenge>`, and the endpoint it posts to. Nothing pending redirects back to `/login`. |
+| 2FA setup | `Login_Controller::two_factor_setup` | `/login/two_factor_setup` GET | The forced-enrollment interstitial, the one method-level `#[Auth('is_logged_in')]` in this module. |
 | Logout | `Login_Controller::logout` | `/logout` | `RsxAuth::logout()` then `Login_Redirect::consume($default)`. |
 | Signup | `Signup_Controller` (`signup/`) | `/signup` GET + an `#[Ajax_Endpoint]` `submit` | Gated by `config('rsx.auth.signup_mode')` (`invite_only` by default, also `disabled` / open). Creates the `Login_User_Model`. |
 | Accept invite | `Accept_Invite_Controller` (`accept_invite/`) | `/accept-invite`, `/accept-invite/create-account`, `/accept-invite/success` | Six states (invalid, expired, email mismatch, already accepted, not logged in, logged in) plus the create-account form for an invitee with no login account. |
@@ -23,17 +25,50 @@ first, then bootstrap5, `rsx/theme/components`, `rsx/lib`, then this whole direc
 
 **Turnstile.** `<Turnstile_Input />` sits in `login_index.blade.php` and
 `signup/signup_index.blade.php`; the endpoint answers it as the FIRST statement of the POST
-branch — `Rsx_Turnstile::validate($request)` in `login_controller.php:44`, and the two-arg
+branch — `Rsx_Turnstile::validate($request)` in `login_controller.php:68`, and the two-arg
 `validate($request, $params)` in `signup_controller.php:141` because a batched sub-call
 carries the field in `$params`. The field always submits (sentinel `inactive` while the
 feature is off), so validating it is not optional.
 
-**The throttle.** `login_controller.php:74` catches `Auth_Throttled_Exception` around the
+**The throttle.** `login_controller.php` catches `Auth_Throttled_Exception` around the
 whole attempt and surfaces `$e->getMessage()` verbatim ahead of the wrong-password branch,
 so a lockout is never reported as bad credentials. `RsxAuth::attempt()` throws it as its
-own first statement; nothing here counts failures itself.
+own first statement, and `verify_2fa` catches the same exception from
+`Rsx_Two_Factor::verify_challenge()` and answers it as an `ERROR_VALIDATION` the challenge
+component renders inline. Nothing here counts failures itself: `Login_History::record_failure()`
+is what feeds the throttle, and it is called once per failed password.
 
-**`Login_Redirect`.** One call site: `login_controller.php:169`, `consume($default)` on
+**Two-factor authentication.** The login is TWO STAGES. `index()` verifies the password with
+BOTH the recording and the `last_login` stamp suppressed, so a recorded SUCCESS always means
+full authentication; if `Rsx_Two_Factor::is_enabled($login_user)` it calls `begin_challenge()`
+(which parks the pending identity and LOGS THE SESSION BACK OUT) and redirects to
+`/login/verify`. `verify_2fa` calls `Rsx_Two_Factor::verify_challenge($params)` - which signs
+the identity in, stamps `last_login` and writes the success row - and answers
+`{redirect: <url>}`, which the component follows with `window.location`.
+
+**There is no Turnstile on `verify_2fa`, deliberately.** `<Two_Factor_Challenge>` posts
+`{code}` or `{assertion}` and renders no widget, so there is no `__turnstile` field; the
+framework's completeness guard fires only when a token WAS submitted. The endpoint is not
+unguarded - it answers only from the challenge parked on the caller's own session, and
+`verify_challenge()` spends the brute-force budget as its first statement.
+
+**The invite code rides the session across the challenge.** The component's contract carries
+no query string and no extra fields, so `index()` parks the code under
+`Login_Controller::INVITE_CODE_KEY` with the challenge's own expiry and `verify_2fa` consumes
+it once. Both paths then call the ONE destination function, `__post_login_destination()` -
+invite, site selector, dashboard, or site-unauthorized - because a destination computed twice
+drifts.
+
+**The forced-enrollment interstitial.** `users.is_2fa_required` is an APP column (added by
+`rsx/resource/migrations/2026_09_02_133139_add_is_2fa_required_to_users.php`, set from the
+edit-user modal). `Rsx\Main::pre_dispatch()` bounces a flagged identity with no factor to
+`/login/two_factor_setup`, exempting impersonation and `Session::TYPE_PLAYWRIGHT` (rsx:debug's
+dev-auth logs in without a challenge and must not bounce). The handler-prefix check there
+covers `Rsx\App\Frontend` only, so this module is outside it and there is no loop.
+`login_two_factor_setup.js` mounts the chosen framework enrollment component and sends the user
+to `/` on `enrolled`/`registered`.
+
+**`Login_Redirect`.** One call site: `login_controller.php:281`, `consume($default)` on
 logout. Login itself does not round-trip the parameter — see HOW TO CUSTOMIZE.
 
 **`RSPADE_LOGIN_AUTOFILL`.** `login_index.blade.php:20` reads
@@ -45,7 +80,8 @@ default and the secure state.
 **The Blade page guard.** A static `on_app_ready()` fires for every page in the bundle, so
 it must guard first: `login_layout.js` is `if (!$('.Login_Layout').exists()) return;` and
 then the anti-FOUC reveal paired with the `.preload` rule in `login_layout.scss`. Every
-Blade page's JS in this module needs that guard.
+Blade page's JS in this module needs that guard. `login_two_factor_setup.js` is the second
+one: `if (!$('.Login_Two_Factor_Setup').exists()) return;`.
 
 ## HOW TO CUSTOMIZE
 
@@ -55,6 +91,12 @@ Blade page's JS in this module needs that guard.
   narrows the card; `signup/signup_index.scss` is an empty placeholder.
 - **Add a rung**: a controller with `#[Auth('public')]` and a justification, a blade
   extending `Login_Layout`, and Turnstile validated first in any POST branch.
+- **Change where a signed-in user lands**: `__post_login_destination()` in
+  `login_controller.php`, and nowhere else - both the password-only path and the second-factor
+  endpoint read it.
+- **Change the forced-2FA policy**: the flag is `users.is_2fa_required` and the interception is
+  in `rsx/main.php`. Requiring it for a whole role instead of per user is a change to that one
+  condition.
 - **Wire `?redirect=` through login.** The framework captures it onto `/login`, but the
   form does not re-emit `{!! Login_Redirect::hidden_input() !!}` and the success branches
   hard-code their destinations, so only `/logout` honours it. The portal login blade shows
@@ -73,4 +115,4 @@ Blade page's JS in this module needs that guard.
 `rsx/main.php` (`pre_dispatch` bounces a bad site membership here) · `rsx/permission.php` ·
 `rsx/portal/CLAUDE.md` (the portal's own auth ladder) · skills `rspade:session-auth`,
 `rspade:turnstile`, `rspade:blade-views`, `rspade:auth-gates` · `rsx:man session`,
-`rsx:man turnstile`, `rsx:man auth_gates`
+`rsx:man turnstile`, `rsx:man auth_gates`, `rsx:man two_factor`

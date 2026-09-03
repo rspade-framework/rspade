@@ -24,6 +24,13 @@ class Portal_Settings_Action extends Spa_Action {
     }
 
     on_ready() {
+        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
+        // render() while on_ready() re-fires on each one, so one .off('.psa') here
+        // clears this component's prior binds before they are re-attached. A one-shot
+        // instance flag would be wrong in both directions - flags die with the
+        // instance, handlers live on the element.
+        this.$.off('.psa');
+
         // Change password form
         if (this.$sid('password-form').exists()) {
             this.$sid('password-form').on('submit', async (e) => {
@@ -56,7 +63,7 @@ class Portal_Settings_Action extends Spa_Action {
         }
 
         // Terminate session
-        this.$.on('click', '[data-terminate-session]', async (e) => {
+        this.$.on('click.psa', '[data-terminate-session]', async (e) => {
             const session_id = $(e.currentTarget).data('terminate-session');
             if (!await Modal.confirm('Terminate Session', 'End this session? The device will be logged out.')) return;
             await Portal_Settings_Controller.terminate_session({session_id});

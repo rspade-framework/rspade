@@ -53,6 +53,11 @@ waits behind, never a placeholder standing in for the form.
       <Checkbox_Input $name="is_api_access_enabled" $label="Allow API access" />
     </Form_Field>
 
+    <Form_Field $label="Two-Factor Authentication"
+      $help="When on, this user must set up two-factor authentication before they can use the app.">
+      <Checkbox_Input $name="is_2fa_required" $label="Require two-factor authentication" />
+    </Form_Field>
+
   </Rsx_Form>
 
 </Define:Edit_User_Modal_Form>

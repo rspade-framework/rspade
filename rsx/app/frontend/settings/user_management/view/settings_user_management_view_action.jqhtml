@@ -109,6 +109,20 @@
                                 <Status_Badge $label="Disabled" $badge="bg-danger" />
                             <% } %>
                         </View_Field>
+                        <View_Field $label="Two-Factor">
+                            <%-- Two different questions, both shown: whether an administrator
+                                 REQUIRES a second factor on this account, and whether the
+                                 account actually has one. A "Required" badge alone would not
+                                 say whether the user has done it yet. --%>
+                            <% if (_u.is_2fa_enrolled) { %>
+                                <Status_Badge $label="Enabled" $badge="bg-success" />
+                            <% } else { %>
+                                <Status_Badge $label="Not Enabled" $badge="bg-secondary" />
+                            <% } %>
+                            <% if (_u.is_2fa_required) { %>
+                                <span class="badge badge-outline-primary">Required</span>
+                            <% } %>
+                        </View_Field>
                         <View_Field $label="API Keys">
                             <%-- Always a link, including at zero: an admin arriving to check
                                  whether a user has keys should not have to already know the

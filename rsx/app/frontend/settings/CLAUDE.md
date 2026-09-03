@@ -11,7 +11,7 @@ this tree nests inside, plus one directory per sub-feature:
 | `profile_display/` | `Settings_Profile_Display_Action` | `.../profile_display` | `is_logged_in` | Read-only own profile. |
 | `profile_edit/` | `Settings_Profile_Edit_Action` | `.../profile_edit` | `is_logged_in` | Own-profile form; email disabled; `$max_length` from `Model.field_length()`. |
 | `user_settings/` | `Settings_User_Settings_Action` | `.../user_settings` | `is_logged_in` | Timezone + theme, saved through the framework's `Rsx_Timezone_Controller` / `Rsx_Dark_Mode_Controller`. |
-| `password_security/` | `Settings_Password_Security_Action` | `.../password_security` | `is_logged_in` | Change password + active sessions. **Both endpoints are TODO stubs and the session list is hardcoded sample data.** |
+| `password_security/` | `Settings_Password_Security_Action` | `.../password_security` | `is_logged_in` | Change password, **two-factor authentication (real)**, active sessions. The 2FA section loads from the framework's `Rsx_Two_Factor_Controller`; the two local endpoints are still TODO stubs and the session list is hardcoded sample data. |
 | `api_keys/` | `Settings_Api_Keys_Action` | `.../api_keys` | `is_logged_in` | Own API keys datagrid + create / scope-preview / revoke modals. |
 | `user_management/` | `Settings_User_Management_Index_Action`, `..._View_Action`, `..._Api_Keys_Action` | `.../user_management[/:id[/api_keys]]` | `can_manage_users` | Users datagrid, one-user view, another user's keys. Own `CLAUDE.md`. |
 | `group_management/` | `Settings_Group_Management_Index_Action`, `..._View_Action` | `.../group_management[/:id]` | `is_logged_in`, `can_manage_users` | `User_Group_Model` datagrid + add/edit/delete modals. |
@@ -54,7 +54,11 @@ the same seam `Frontend_Spa_Layout` uses, described in `../CLAUDE.md`.
   a stale `NAV_CONFIG` entry is harmless but a stale anchor renders a dead link.
 - **The stubs above are yours to finish or remove.** Password change, session revocation,
   user settings `update` and site settings `update` all return success without doing the
-  work; the mock session list is sample data, not a bug to route around.
+  work; the mock session list is sample data, not a bug to route around. The two-factor
+  section on that page is NOT a stub - it is the framework's own endpoints and enrollment
+  components, and `settings_password_security_action.js` is the worked example of hosting
+  `<Totp_Enrollment>` / `<Passkey_Register>` in a modal and reloading on their completion
+  event.
 - Gate widths differ deliberately-looking but are worth a review before launch: Site
   Settings and Portal Users sit under the Administration heading yet gate only on
   `is_logged_in`, so `can_access()` shows them to every signed-in user.

@@ -20,7 +20,10 @@ class Dev_Orm_Action extends Spa_Action {
 
     async on_load() {
         try {
-            // Fetch one record from each model
+            // DELIBERATELY SERIAL, against the Promise.all() default: this dev page's
+            // whole product is the PER-MODEL round-trip time below. Overlapping the
+            // three fetches would make every reported number the batch's wall time
+            // rather than that model's, which is the one thing this page measures.
             const start_client = performance.now();
             this.data.results.client = await Client_Model.fetch(1);
             this.data.fetch_times.client = (performance.now() - start_client).toFixed(2);

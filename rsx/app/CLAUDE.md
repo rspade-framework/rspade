@@ -2,14 +2,15 @@
 
 ## WHAT IS HERE
 
-One directory per staff module, each with its own asset bundle, plus one loose file.
+One directory per staff module, each with its own asset bundle (except `apidocs/`, which
+has no assets of its own), plus one loose file.
 
 | Module | What it is | Status |
 |---|---|---|
 | `frontend/` | The main authenticated SPA — one bootstrap controller, one persistent layout, and a feature directory per screen. Own `CLAUDE.md`. | The application. |
 | `login/` | The server-rendered auth ladder: login, signup, invite acceptance, site selection, site-unauthorized. Own `CLAUDE.md`. | Live, public by declaration. |
 | `api/` | The external bearer REST surface under `/api/vN/`. Own `CLAUDE.md`. | Live. |
-| `apidocs/` | Two methods mounting the framework's API reference console and its OpenAPI document. Gate is `public`, with `Session::has_api_access()` decided in the body. | Live. |
+| `apidocs/` | A CONTROLLER AND NOTHING ELSE: two methods mounting the framework's API reference console and its OpenAPI document. The console, including its bundle, is framework property - `Rsx_Api_Docs::page()` renders the whole page. Gate is `public`, with `Session::has_api_access()` decided in the body. | Live. |
 | `root/` | Cross-site root console (dashboard, sites, email), gated `is_root_admin`. Own `CLAUDE.md`. | **Every page is a placeholder.** |
 | `backend/` | A minimal Blade admin shell. Own `CLAUDE.md`. | **Skeleton — deletable.** |
 | `dev/` | The framework showcase: modals, flash alerts, ACL, ORM, SPA, attachments, document preview. Own `CLAUDE.md`. | **Ships `#[Auth('closed')]` — reachable by nobody. Deletable.** |

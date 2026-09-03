@@ -9,3 +9,8 @@ Follows `rsx/app/frontend/clients/CLAUDE.md` and the app skill `crud-patterns`: 
 - **`?client_id=` mode**: arriving from a client repoints the breadcrumb and Back link and swaps the client picker for a `Hidden_Input`.
 - **Portal-adjacent without owning the portal**: the view sidebar links to the client's portal tab and, for a contact with a portal user, offers `View as Client (read-only)` through `begin_portal_impersonation` (`#[Auth('can_impersonate')]`).
 - The Projects tab does not live-update: `Project_Model` touches the client, not the contact.
+- **The `View as Client` button is the app's worked example of definer-scoped slot content.**
+  It is rendered inside content handed to `Detail_Sidebar`, wired with a plain
+  `@click=this.view_as_client` — content handed to a child resolves against the template
+  that wrote it (expressions, `$sid` ids and handler expressions alike), so the action's
+  method runs with the action's `this.args.id`.

@@ -35,10 +35,15 @@ class Portal_Request_Thread_Action extends Spa_Action {
 
     async on_load() {
         try {
-            // Membership gate + workspace header (fails closed for a non-member).
-            await Portal_Workspaces_Controller.get({ id: this.args.id });
-
-            const result = await Portal_Request_Threads_Controller.get({ id: this.args.thread_id });
+            // The two calls take DIFFERENT ids (workspace vs thread) and neither
+            // argument comes from the other's result, so they are independent. Both
+            // enforce the membership gate themselves (Portal_Permission::
+            // has_client_access, fail-closed); the workspace lookup's result is
+            // discarded here. Neither is optional, so neither carries a .catch().
+            const [, result] = await Promise.all([
+                Portal_Workspaces_Controller.get({ id: this.args.id }),
+                Portal_Request_Threads_Controller.get({ id: this.args.thread_id }),
+            ]);
             this.data.thread = result.thread;
             this.data.timeline = result.timeline;
             this.data.participants = result.participants;

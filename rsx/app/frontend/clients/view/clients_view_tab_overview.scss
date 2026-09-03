@@ -1,0 +1,11 @@
+// Clients_View_Tab_Overview - block rhythm only.
+//
+// The region now stands between Tab_Panel and the Sections it stacks, so it takes
+// over Tab_Panel's container role for them (R1: the container owns the gaps, the
+// sections carry no outer margins). Same token, one level down. The sibling tab
+// regions render a single Section each and need no rule at all.
+.Clients_View_Tab_Overview {
+    display: flex;
+    flex-direction: column;
+    gap: var(--block-gap);
+}

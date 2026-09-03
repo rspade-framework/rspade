@@ -20,6 +20,8 @@ class Settings_User_Management_View_Action extends Spa_Action {
             last_name: '',
             phone: '',
             is_enabled: true,
+            is_2fa_required: false,
+            is_2fa_enrolled: false,
             role_id__label: '',
             invitation_status: null,
             created_at: null,

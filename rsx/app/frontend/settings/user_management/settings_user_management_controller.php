@@ -7,10 +7,12 @@ use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Api\Api_Key_Model;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Models\User_Model;
+use App\RSpade\Core\Realtime\Realtime;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Time\Rsx_Date;
+use App\RSpade\Core\TwoFactor\Rsx_Two_Factor;
 use App\RSpade\Lib\Flash\Flash_Alert;
 use Rsx\App\Frontend\Settings\UserManagement\List\Users_DataGrid;
 use Rsx\Emails\User_Invitation_Email;
@@ -263,6 +265,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             'phone' => $user->phone,
             'role_id' => $user->role_id,
             'is_api_access_enabled' => (bool) $user->is_api_access_enabled,
+            'is_2fa_required' => (bool) $user->is_2fa_required,
         ];
     }
 
@@ -346,7 +349,22 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         $user->phone = $params['phone'] ?? null;
         $user->role_id = $role_id;
         $user->is_api_access_enabled = !empty($params['is_api_access_enabled']) ? 1 : 0;
+
+        // An absent checkbox means OFF: every input serializes on every submit, so a key that
+        // did not arrive is an unticked box, not an untouched field.
+        $was_2fa_required = (bool) $user->is_2fa_required;
+        $user->is_2fa_required = !empty($params['is_2fa_required']) ? 1 : 0;
+        $flag_changed = $was_2fa_required !== (bool) $user->is_2fa_required;
+
         $user->save();
+
+        // Turning the requirement ON must reach the user's open tabs NOW, not at their next
+        // full page load: pre_dispatch() bounces them to the setup interstitial, and a tab
+        // sitting on an SPA screen would otherwise never ask. Pushed only on a CONFIRMED
+        // change - a save that left the flag alone is not news.
+        if ($flag_changed) {
+            Realtime::push_user_refresh((int) $user->site_id, (int) $user->id);
+        }
 
         // Flash success message for display after redirect
         Flash_Alert::success('User updated successfully');
@@ -487,6 +505,13 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         $api_active_key_count = (clone $api_keys)->count();
         $api_last_used_at = (clone $api_keys)->max('last_used_at');
 
+        // Whether the identity actually HAS a second factor, which is a different question
+        // from whether an administrator requires one. A site user with no login identity
+        // (an invitation that was never accepted) cannot have enrolled anything.
+        $is_2fa_enrolled = $user->login_user_id
+            ? Rsx_Two_Factor::is_enabled((int) $user->login_user_id)
+            : false;
+
         return [
             'id' => $user->id,
             'email' => $user->email,
@@ -495,6 +520,8 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             'phone' => $user->phone,
             'is_enabled' => $user->is_enabled,
             'is_api_access_enabled' => (bool) $user->is_api_access_enabled,
+            'is_2fa_required' => (bool) $user->is_2fa_required,
+            'is_2fa_enrolled' => $is_2fa_enrolled,
             'api_active_key_count' => $api_active_key_count,
             'api_last_used_at' => $api_last_used_at,
             'role_id' => $user->role_id,

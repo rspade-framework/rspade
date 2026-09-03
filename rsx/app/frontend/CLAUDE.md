@@ -52,6 +52,26 @@ new feature, and copy its structure rather than inventing one.
 - Data loads in `on_load()` (never in an event handler; call `this.reload()`).
   View actions use the three-state pattern: `<Loading_Spinner>` →
   `<Universal_Error_Page_Component>` → content.
+- **Independent calls in one `on_load()` share ONE `Promise.all`.** Every NON-FATAL
+  branch carries its own `.catch(() => <sane default>)` so a failing sidebar list
+  cannot blank the record the page exists to show; the page's SUBJECT record is
+  fatal and stays uncaught. Sequence only when the second call's ARGUMENTS come
+  from the first's result — the test is the arguments, never the result — and say
+  so in a comment where it is not obvious (`party/edit/`, `projects/edit/`).
+  `dev/orm/` is the one deliberate exception, and it says why in place.
+- **Delegated handlers are namespaced and idempotent**: one `this.$.off('.ns')` at
+  the top of `on_ready()`, then `this.$.on('click.ns', selector, ...)`. Never guard
+  a bind with a `this._wired`-style flag — the flag dies with the instance while
+  the handler lives on the element, so it double-binds on a parent repaint and
+  suppresses a rebind the surviving root element needed.
+- **Content handed to another component still resolves against its definer** (a
+  `<Slot:>` body included): expressions, `$sid` ids and `@click=this.method` all run
+  against the template that wrote them. Write handlers directly; a `Spa.action()`
+  detour from inside a slot body is never needed.
+- **A view template past ~325 lines is decomposed into regions.** The worked example
+  is `clients/view/`: the action template becomes a table of contents, each visible
+  seam becomes a region component flat in the same directory, and a region takes its
+  markup AND its handlers with it. See `clients/CLAUDE.md`.
 - Page/action SCSS should be near-empty. A page's look lives in the components it
   composes.
 

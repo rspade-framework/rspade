@@ -1,0 +1,53 @@
+<%--
+Clients_View_Tab_Projects - the Clients_View Projects tab body
+
+$client_id - the owning client's id, for the Add Project link (required)
+$projects - the client's projects (required; supplied EAGER by Clients_View_Action,
+            because the tab bar and the sidebar KPI both show this count)
+
+A page REGION, not vocabulary. Pure display - no on_load(), no handlers, no SCSS:
+row navigation is Record_Table's own delegated data-href behaviour.
+
+Usage:
+    <Tab_Panel $key="projects">
+        <Clients_View_Tab_Projects $client_id=_client.id $projects=_projects />
+    </Tab_Panel>
+--%>
+<Define:Clients_View_Tab_Projects>
+    <% const _projects = this.args.projects; %>
+
+    <Section $title="Projects" $count=_projects.length $flush=true>
+        <Slot:actions>
+            <a href="<%= Rsx.Route('Projects_Edit_Action') %>?client_id=<%= this.args.client_id %>" class="btn btn-primary btn-sm">
+                <i class="bi bi-folder-plus"></i> Add Project
+            </a>
+        </Slot:actions>
+        <Slot:body>
+            <% if (_projects.length === 0) { %>
+                <Empty_State $icon="bi bi-folder">
+                    <Slot:title>No projects yet</Slot:title>
+                    <Slot:body>Projects created for this client will appear here.</Slot:body>
+                </Empty_State>
+            <% } else { %>
+                <Record_Table>
+                    <thead>
+                        <tr><th>Name</th><th>Status</th><th>Priority</th><th>Due Date</th></tr>
+                    </thead>
+                    <tbody>
+                        <% for (const project of _projects) { %>
+                        <tr data-href="<%= Rsx.Route('Projects_View_Action', project.id) %>">
+                            <td><%= project.name %></td>
+                            <td><Status_Badge $label=project.status__label $badge=project.status__badge /></td>
+                            <td>
+                                <% const _ppri = (project.priority__badge || 'bg-secondary').replace('bg-', 'badge-outline-'); %>
+                                <span class="badge <%= _ppri %>"><%= project.priority__label %></span>
+                            </td>
+                            <td><% if (project.due_date) { %><%= Rsx_Date.format(project.due_date) %><% } else { %><Empty_Value /><% } %></td>
+                        </tr>
+                        <% } %>
+                    </tbody>
+                </Record_Table>
+            <% } %>
+        </Slot:body>
+    </Section>
+</Define:Clients_View_Tab_Projects>

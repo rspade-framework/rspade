@@ -7,8 +7,15 @@ class Api_Keys_DataGrid extends DataGrid_Abstract {
     on_ready() {
         super.on_ready();
 
+        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
+        // render() while on_ready() re-fires on each one, so one .off('.akdg') here
+        // clears this component's prior binds before they are re-attached. A one-shot
+        // instance flag would be wrong in both directions - flags die with the
+        // instance, handlers live on the element.
+        this.$.off('.akdg');
+
         // Handle view-scope button clicks
-        this.$.on('click', '[data-action="view_scope"]', async (e) => {
+        this.$.on('click.akdg', '[data-action="view_scope"]', async (e) => {
             e.preventDefault();
             e.stopPropagation();
 
@@ -18,7 +25,7 @@ class Api_Keys_DataGrid extends DataGrid_Abstract {
         });
 
         // Handle revoke button clicks
-        this.$.on('click', '[data-action="revoke"]', async (e) => {
+        this.$.on('click.akdg', '[data-action="revoke"]', async (e) => {
             e.preventDefault();
             e.stopPropagation();
 

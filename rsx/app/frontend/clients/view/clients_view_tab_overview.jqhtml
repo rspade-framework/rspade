@@ -1,0 +1,104 @@
+<%--
+Clients_View_Tab_Overview - the Clients_View Overview tab body
+
+$client - the client record (required; supplied EAGER by Clients_View_Action)
+
+A page REGION, not vocabulary: it exists only to give the Clients_View shell one
+named line per visible seam. Pure display - no on_load(), no handlers, no SCSS.
+Every section below self-hides when its fields are all empty.
+
+Usage:
+    <Tab_Panel $key="overview">
+        <Clients_View_Tab_Overview $client=_client />
+    </Tab_Panel>
+--%>
+<Define:Clients_View_Tab_Overview>
+    <% const _client = this.args.client; %>
+
+    <Section $title="Basic Information">
+        <View_Fields>
+            <View_Field $label="Website">
+                <% if (_client.website) { %>
+                    <External_Link $href="<%= _client.website %>" />
+                <% } else { %>
+                    <Empty_Value />
+                <% } %>
+            </View_Field>
+            <View_Field $label="Email">
+                <% if (_client.email) { %>
+                    <a href="mailto:<%= _client.email %>"><%= _client.email %></a>
+                <% } else { %>
+                    <Empty_Value />
+                <% } %>
+            </View_Field>
+            <View_Field $label="Phone">
+                <% if (_client.phone) { %><%= _client.phone %><% } else { %><Empty_Value /><% } %>
+            </View_Field>
+            <View_Field $label="Fax">
+                <% if (_client.fax) { %><%= _client.fax %><% } else { %><Empty_Value /><% } %>
+            </View_Field>
+        </View_Fields>
+    </Section>
+
+    <% if (_client.address_street || _client.city || _client.state || _client.zip || _client.address_country) { %>
+    <Section $title="Address">
+        <% if (_client.address_street) { %><div><%= _client.address_street %></div><% } %>
+        <% if (_client.city || _client.region_name || _client.zip) { %>
+            <div><%= _client.city %><% if (_client.city && _client.region_name) { %>, <% } %><%= _client.region_name %> <%= _client.zip %></div>
+        <% } %>
+        <% if (_client.address_country) { %><div><%= _client.country_name %></div><% } %>
+    </Section>
+    <% } %>
+
+    <% if (_client.industry || _client.company_size || _client.established_year || _client.revenue_range) { %>
+    <Section $title="Business Details">
+        <View_Fields>
+            <View_Field $label="Industry">
+                <% if (_client.industry) { %><%= _client.industry %><% } else { %><Empty_Value /><% } %>
+            </View_Field>
+            <View_Field $label="Company Size">
+                <% if (_client.company_size) { %><%= _client.company_size %><% } else { %><Empty_Value /><% } %>
+            </View_Field>
+            <View_Field $label="Established Year">
+                <% if (_client.established_year) { %><%= _client.established_year %><% } else { %><Empty_Value /><% } %>
+            </View_Field>
+            <View_Field $label="Revenue Range">
+                <% if (_client.revenue_range) { %><%= _client.revenue_range %><% } else { %><Empty_Value /><% } %>
+            </View_Field>
+        </View_Fields>
+    </Section>
+    <% } %>
+
+    <% if (_client.facebook_url || _client.twitter_handle || _client.linkedin_url || _client.instagram_handle) { %>
+    <Section $title="Social Media">
+        <View_Fields>
+            <% if (_client.facebook_url) { %>
+            <View_Field $label="Facebook" $icon="bi bi-facebook">
+                <a href="<%= _client.facebook_url %>" target="_blank" rel="noopener"><%= _client.facebook_url %></a>
+            </View_Field>
+            <% } %>
+            <% if (_client.twitter_handle) { %>
+            <View_Field $label="Twitter" $icon="bi bi-twitter">
+                <a href="https://twitter.com/<%= _client.twitter_handle %>" target="_blank" rel="noopener">@<%= _client.twitter_handle %></a>
+            </View_Field>
+            <% } %>
+            <% if (_client.linkedin_url) { %>
+            <View_Field $label="LinkedIn" $icon="bi bi-linkedin">
+                <a href="<%= _client.linkedin_url %>" target="_blank" rel="noopener"><%= _client.linkedin_url %></a>
+            </View_Field>
+            <% } %>
+            <% if (_client.instagram_handle) { %>
+            <View_Field $label="Instagram" $icon="bi bi-instagram">
+                <a href="https://instagram.com/<%= _client.instagram_handle %>" target="_blank" rel="noopener">@<%= _client.instagram_handle %></a>
+            </View_Field>
+            <% } %>
+        </View_Fields>
+    </Section>
+    <% } %>
+
+    <% if (_client.notes) { %>
+    <Section $title="Internal Notes">
+        <%br= _client.notes %>
+    </Section>
+    <% } %>
+</Define:Clients_View_Tab_Overview>

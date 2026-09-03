@@ -16,6 +16,25 @@ Three SPA actions under `Settings_Layout` and one controller
 `export_csv` carries an additional `#[Auth('can_export_data')]` — the one per-method gate in
 the tree.
 
+## TWO-FACTOR
+
+`users.is_2fa_required` is this application's own policy column (the framework decides only
+whether an identity HAS a factor). It is edited from the checkbox in
+`edit_user/edit_user_modal_form.jqhtml`, written by `save_user()` with the
+checkbox-absent-means-off idiom, and read by `Rsx\Main::pre_dispatch()`, which bounces a
+flagged identity with no factor to `/login/two_factor_setup`.
+
+**`save_user()` pushes a realtime user refresh on a CONFIRMED change of the flag** - and only
+then. Without it, a user sitting on an SPA screen would keep working until their next full
+page load, because `pre_dispatch()` runs on document requests and an SPA does not make them.
+
+The view page shows a **Two-Factor** row carrying two different facts: whether the account has
+a factor (`is_2fa_enrolled`, from `Rsx_Two_Factor::is_enabled()` on the `login_user_id`) and
+whether an administrator requires one (`is_2fa_required`). Enrollment state is the one
+authentication fact these screens show, and it is shown because a "Required" badge with no
+answer to "have they done it?" tells an administrator nothing actionable - see the privacy
+principle below, which it is a deliberate, narrow exception to.
+
 ## HOW TO CUSTOMIZE
 
 - The privacy rule below is the load-bearing convention here; keep it when adding a column

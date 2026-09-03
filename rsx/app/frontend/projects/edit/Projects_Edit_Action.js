@@ -88,8 +88,10 @@ class Projects_Edit_Action extends Spa_Action {
                 };
             }
 
-            // Load the multi-select option lists (users always; contacts scoped to the
-            // known client) plus the current pivot selections for prefill on edit.
+            // GENUINE DEPENDENCY - stays sequential: this call's client_id ARGUMENT
+            // comes from the project fetched above, so it cannot join a Promise.all()
+            // with it. Loads the multi-select option lists (users always; contacts
+            // scoped to the known client) plus the current pivot selections.
             const client_id = this.data.form_data.client_id || this.args.client_id || 0;
             const options = await Frontend_Projects_Controller.project_form_options({
                 client_id: client_id || 0,

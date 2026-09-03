@@ -32,6 +32,14 @@ it, and a denial renders `Universal_Error_Page_Component` in the tab body. The l
 header load uses the same endpoint and simply leaves the header blank on failure, so the
 error is stated once.
 
+**That gate call runs IN PARALLEL with the tab's own load, not before it.** Each tab action
+puts both under one `Promise.all`, because the workspace lookup is not a PRECONDITION for
+the tab payload - the arguments are independent, and each endpoint enforces
+`Portal_Permission::has_client_access()` for itself, fail-closed. Neither branch carries a
+`.catch()`: a non-member must see the error, so both stay fatal and the batch rejects into
+`this.data.error_data`. Sequencing them would only buy a second serial round-trip; it would
+buy no safety, because the second endpoint was never trusting the first.
+
 **The read-only guard is per mutating endpoint.** Every Ajax call is a POST, reads included,
 so a blanket block would break the portal. `Portal_Request_Threads_Controller::reply()`
 shows the shape — `if (Portal_Permission::is_read_only()) { ... }` as its first act — and
@@ -44,7 +52,8 @@ enforcement.
 - **Add a tab**: a directory with its action (three decorators as above, `scaffolded = true`
   if it composes `<Page_Scaffold>`), a pill in `Portal_Workspace_Layout.jqhtml`, and a
   `NAV_CONFIG` row. Load through `Portal_Workspaces_Controller.get()` so the membership gate
-  comes for free.
+  comes for free - alongside the tab's own fetch in one `Promise.all`, per above, and give
+  the tab's endpoint its own `has_client_access()` check rather than leaning on that call.
 - **Every new write endpoint gets its own `is_read_only()` refusal.** Nothing adds it for
   you, and staff impersonation is read-only by application policy, not framework policy.
 - **Never hand-scope a query by `site_id`** — the portal's site is declared in

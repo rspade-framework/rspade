@@ -38,7 +38,14 @@ class System_Email_Recipients_Action extends Spa_Action {
     }
 
     on_ready() {
-        this.$.on('change', '[data-toggle-block]', async (e) => {
+        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
+        // render() while on_ready() re-fires on each one, so one .off('.ser') here
+        // clears this component's prior binds before they are re-attached. A one-shot
+        // instance flag would be wrong in both directions - flags die with the
+        // instance, handlers live on the element.
+        this.$.off('.ser');
+
+        this.$.on('change.ser', '[data-toggle-block]', async (e) => {
             const $el = $(e.currentTarget);
             const id = $el.data('toggle-block');
             const field = $el.data('field');

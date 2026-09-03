@@ -56,6 +56,11 @@ class Main extends Main_Abstract
      * Called before any route dispatch. If a non-null value is returned,
      * dispatch is halted and that value is returned as the response.
      *
+     * Two interceptions live here, both scoped to the frontend SPA module: a signed-in
+     * identity with no membership on the current site goes to the site-unauthorized screen,
+     * and one an administrator has flagged is_2fa_required with no second factor enrolled
+     * goes to the forced-enrollment interstitial.
+     *
      * @param Request $request The current request
      * @param array $params Combined GET values and URL parameters
      * @return mixed|null Return null to continue, or a response to halt dispatch
@@ -86,6 +91,32 @@ class Main extends Main_Abstract
                 if (!$user) {
                     // User is not authorized for this site
                     return redirect(\Rsx::Route('Site_Unauthorized_Controller'));
+                }
+
+                // ADMINISTRATOR-REQUIRED SECOND FACTOR.
+                //
+                // users.is_2fa_required is this application's own policy (the framework
+                // decides only whether an identity HAS a factor), and the whole point of a
+                // requirement is that the app is unusable until it is met - so the check
+                // sits here, ahead of every frontend screen, rather than on a page the user
+                // can decline to visit. The handler prefix above already excludes the login
+                // module, so the interstitial itself is reachable and there is no loop.
+                //
+                // TWO EXEMPTIONS, both deliberate:
+                //   - IMPERSONATION: the impersonator has already authenticated as
+                //     themselves, and they cannot enroll a factor for their victim anyway -
+                //     the framework refuses every enrollment path while impersonating.
+                //   - TYPE_PLAYWRIGHT: rsx:debug's dev-auth declares an identity without a
+                //     password or a challenge, so a harness run would bounce into the
+                //     interstitial and every frontend page would become untestable for a
+                //     flagged user. A real browser session is never this type.
+                if (
+                    $user->is_2fa_required
+                    && !\App\RSpade\Core\TwoFactor\Rsx_Two_Factor::is_enabled((int) $login_user_id)
+                    && !Session::is_impersonating()
+                    && Session::get_session()->type_id !== Session::TYPE_PLAYWRIGHT
+                ) {
+                    return redirect(\Rsx::Route('Login_Controller::two_factor_setup'));
                 }
             }
         }

@@ -9,9 +9,16 @@ class Party_DataGrid extends DataGrid_Abstract {
     on_ready() {
         super.on_ready();
 
+        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
+        // render() while on_ready() re-fires on each one, so one .off('.pdg') here
+        // clears this component's prior binds before they are re-attached. A one-shot
+        // instance flag would be wrong in both directions - flags die with the
+        // instance, handlers live on the element.
+        this.$.off('.pdg');
+
         this._bind_quick_filter('type_filter', 'type_id');
 
-        this.$.on('click', '[data-action="delete"]', async (e) => {
+        this.$.on('click.pdg', '[data-action="delete"]', async (e) => {
             e.preventDefault();
             e.stopPropagation();
 

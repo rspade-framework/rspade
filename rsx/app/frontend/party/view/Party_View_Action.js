@@ -37,13 +37,18 @@ class Party_View_Action extends Spa_Action {
 
     async on_load() {
         try {
+            // One parallel batch: both calls key off this.args.id. The party is FATAL -
+            // the page IS this record - and carries no .catch(); the activity feed is
+            // non-fatal and degrades to empty.
             const [party, activity_result] = await Promise.all([
                 Party_Model.fetch(this.args.id),
-                Frontend_Party_Controller.party_activity({id: this.args.id}),
+                Frontend_Party_Controller.party_activity({id: this.args.id}).catch(() => ({activity: []})),
             ]);
             this.data.party = party;
 
-            // Resolve the type-specific detail from the embedded payload (no network call).
+            // GENUINE DEPENDENCY: which detail accessor to call is decided by
+            // party.type_id, so this await cannot join the batch above. It resolves the
+            // type-specific detail from the embedded payload (no network call).
             if (party.type_id === Party_Model.TYPE_PERSON) {
                 this.data.detail = await party.party_person();
             } else if (party.type_id === Party_Model.TYPE_COMPANY) {
@@ -62,8 +67,15 @@ class Party_View_Action extends Spa_Action {
     }
 
     on_ready() {
+        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
+        // render() while on_ready() re-fires on each one, so one .off('.pav') here
+        // clears this component's prior binds before they are re-attached. A one-shot
+        // instance flag would be wrong in both directions - flags die with the
+        // instance, handlers live on the element.
+        this.$.off('.pav');
+
         // KPI cells that jump to a tab (Kpi_Cell $clickable $tab).
-        this.$.on('click', '.Kpi_Cell--clickable', (e) => {
+        this.$.on('click.pav', '.Kpi_Cell--clickable', (e) => {
             const tab = $(e.currentTarget).attr('data-kpi-tab');
             const tab_bar = this.sid('tabs');
             if (tab && tab_bar) tab_bar.activate(tab);

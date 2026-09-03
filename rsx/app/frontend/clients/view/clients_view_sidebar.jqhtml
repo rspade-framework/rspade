@@ -1,0 +1,122 @@
+<%--
+Clients_View_Sidebar - the Clients_View entity sidebar (KPIs, facts, record actions)
+
+$client - the client record (required; supplied EAGER by Clients_View_Action)
+$contacts_count - Contacts KPI value (required)
+$projects_count - Projects KPI value (required)
+$activity_count - Activity KPI value (required)
+
+A page REGION, not vocabulary. It owns its markup AND the handlers for that markup
+(enable/disable portal, delete, restore) - a split that left the shell reaching in
+by $sid would not be a seam. Record-changing actions fire 'client_changed' and the
+owning action reloads; the region never repaints the page itself.
+
+The KPI cells only EXPOSE data-kpi-tab; activating the tab is the shell's job,
+because the Tab_Bar they drive lives in the shell's other column.
+
+Fires:
+    client_changed - the client record was mutated; the owner should reload()
+
+Usage:
+    <Slot:sidebar>
+        <Clients_View_Sidebar $sid="sidebar" $client=_client
+            $contacts_count=_contacts.length $projects_count=_projects.length
+            $activity_count=_activity.length />
+    </Slot:sidebar>
+--%>
+<Define:Clients_View_Sidebar>
+    <% const _client = this.args.client; %>
+
+    <Detail_Sidebar>
+        <Sidebar_Kpi_Group>
+            <Kpi_Cell $clickable=true $tab="contacts" $tooltip="Contacts linked to this client">
+                <Slot:label>Contacts</Slot:label>
+                <Slot:value><%= this.args.contacts_count %></Slot:value>
+            </Kpi_Cell>
+            <Kpi_Cell $clickable=true $tab="projects" $tooltip="Projects for this client">
+                <Slot:label>Projects</Slot:label>
+                <Slot:value><%= this.args.projects_count %></Slot:value>
+            </Kpi_Cell>
+            <Kpi_Cell $clickable=true $tab="activity" $tooltip="Recorded activity for this client">
+                <Slot:label>Activity</Slot:label>
+                <Slot:value><%= this.args.activity_count %></Slot:value>
+            </Kpi_Cell>
+            <% if (_client.portal_enabled) { %>
+            <Kpi_Cell $clickable=true $tab="portal" $tooltip="Active portal members">
+                <Slot:label>Portal</Slot:label>
+                <Slot:value><%= _client.portal_member_count %></Slot:value>
+            </Kpi_Cell>
+            <% } %>
+        </Sidebar_Kpi_Group>
+
+        <View_Fields>
+            <View_Field $label="Client ID" $inline=true><%= _client.client_id_formatted %></View_Field>
+            <View_Field $label="Preferred Contact" $inline=true>
+                <% if (_client.preferred_contact_method) { %><%= ucwords(_client.preferred_contact_method) %><% } else { %><Empty_Value /><% } %>
+            </View_Field>
+            <View_Field $label="Newsletter" $inline=true>
+                <% if (_client.newsletter_opt_in) { %>Subscribed<% } else { %>Not subscribed<% } %>
+            </View_Field>
+            <View_Field $label="Created" $inline=true><%= Rsx_Time.format_date(_client.created_at) %></View_Field>
+            <View_Field $label="Updated" $inline=true><%= Rsx_Time.format_date(_client.updated_at) %></View_Field>
+        </View_Fields>
+
+        <% if (!_client.deleted_at) { %>
+        <View_Fields>
+            <View_Field $label="Client Portal" $inline=true>
+                <% if (_client.portal_enabled) { %>
+                    <Status_Badge $label="Active" $badge="bg-success" />
+                <% } else { %>
+                    <span class="text-muted">Not enabled</span>
+                <% } %>
+            </View_Field>
+            <% if (_client.portal_enabled && _client.portal_last_activity_at) { %>
+            <View_Field $label="Portal Activity" $inline=true><%= Rsx_Time.relative(_client.portal_last_activity_at) %></View_Field>
+            <% } %>
+        </View_Fields>
+        <% } %>
+
+        <% if (_client.deleted_at) { %>
+            <div class="d-grid">
+                <button $sid="restore-client" type="button" class="btn btn-success btn-sm">
+                    <i class="bi bi-arrow-counterclockwise"></i> Restore Client
+                </button>
+            </div>
+        <% } else { %>
+            <div class="d-grid gap-2">
+                <a href="<%= Rsx.Route('Clients_Edit_Action', _client.id) %>" class="btn btn-primary btn-sm">
+                    <i class="bi bi-pencil"></i> Edit Client
+                </a>
+                <% if (!_client.portal_enabled) { %>
+                    <button $sid="enable-portal" type="button" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-globe"></i> Enable Portal
+                    </button>
+                <% } %>
+            </div>
+            <div class="d-flex justify-content-end">
+                <Action_Menu $label="More client actions">
+                    <% if (_client.portal_enabled) { %>
+                        <button $sid="disable-portal" type="button" class="dropdown-item">
+                            <i class="bi bi-slash-circle"></i> Disable Portal
+                        </button>
+                    <% } %>
+                    <button $sid="delete-client" type="button" class="dropdown-item text-danger">
+                        <i class="bi bi-trash"></i> Delete Client
+                    </button>
+                </Action_Menu>
+            </div>
+        <% } %>
+
+        <%-- Outside the deleted/live branch on purpose: the history of a deleted
+             client is exactly when somebody wants to read it. Visibility follows the
+             DESTINATION's own @auth list, so this link cannot advertise a page the
+             viewer would be refused. --%>
+        <% if (Permission.can_access('Clients_History_Action')) { %>
+            <div class="d-grid">
+                <a href="<%= Rsx.Route('Clients_History_Action', _client.id) %>" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-clock-history"></i> History
+                </a>
+            </div>
+        <% } %>
+    </Detail_Sidebar>
+</Define:Clients_View_Sidebar>

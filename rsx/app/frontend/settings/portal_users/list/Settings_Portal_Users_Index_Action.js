@@ -20,16 +20,23 @@ class Settings_Portal_Users_Index_Action extends Spa_Action {
     scaffolded = true;
 
     on_ready() {
+        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
+        // render() while on_ready() re-fires on each one, so one .off('.spui') here
+        // clears this component's prior binds before they are re-attached. A one-shot
+        // instance flag would be wrong in both directions - flags die with the
+        // instance, handlers live on the element.
+        this.$.off('.spui');
+
         const grid = () => this.sid('portal_users_datagrid');
 
         // Suspend
-        this.$.on('click', '[data-portal-action="suspend"]', async (e) => {
+        this.$.on('click.spui', '[data-portal-action="suspend"]', async (e) => {
             const portal_user_id = int($(e.currentTarget).data('portal-user'));
             if (await Portal_User_Admin_Actions.suspend(portal_user_id)) grid().reload();
         });
 
         // Reactivate
-        this.$.on('click', '[data-portal-action="reactivate"]', async (e) => {
+        this.$.on('click.spui', '[data-portal-action="reactivate"]', async (e) => {
             const portal_user_id = int($(e.currentTarget).data('portal-user'));
             if (await Portal_User_Admin_Actions.reactivate(portal_user_id)) grid().reload();
         });

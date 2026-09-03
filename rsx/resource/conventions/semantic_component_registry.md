@@ -710,6 +710,56 @@ Scope-qualify every future "extinct" claim. Counts are occurrences unless noted.
 | `container-fluid` page wrappers | (new) | -13 | **Batch H: 1 removed** (Reports `container-fluid py-4`). **Batch G: 12 removed** - the 5 datagrid list wrappers + the 4 edit forms + Action_Logs_View + 2 profile pages each dropped a hand-rolled `<div class="container-fluid py-4">` (list wrappers) / `<div class="container-fluid py-4">` (forms/views); page padding now belongs to `Page_Scaffold`. |
 | hand-rolled tab-toggle JS | 0 | 0 | **Batch I: the LAST raw tab UI is gone** - Clients_Portal's Bootstrap `nav nav-tabs` + its hand-rolled `_restore_tab_from_hash()` hash-toggle JS died when the page was folded into the Clients_View "Portal" tab (stacked `Section`s under the semantic `Tab_Bar`). No raw/Bootstrap tab UI remains on any view page. |
 
+## jqhtml-patterns sweep (2026-09-02) - PAGE REGIONS, and why no `Card_Grid`
+
+### Page REGIONS are not vocabulary
+
+`Clients_View_Action` crossed the ~325-line decomposition trigger and became the app's
+worked example of the region shape. **A region is a VISIBLE SEAM of one page**, not a
+reusable widget: it lives flat beside its page in `view/`, is named after its page
+(snake_case file, PascalCase `<Define>`, `_tab_<name>` for a tab body), and it never
+migrates to `rsx/theme/`. It is deliberately NOT a registry component - the registry is
+the app's shared vocabulary, and a region has exactly one consumer by construction. If a
+second page ever wants one, that is the signal it was vocabulary all along and it gets
+promoted to `rsx/theme/components/` with a row of its own.
+
+| Region | Files | Why it exists |
+|---|---|---|
+| `Clients_View_Tab_Overview` | `.jqhtml` + `.scss` | The five-Section Overview body. Its `.scss` is 4 lines of `--block-gap` rhythm: the region now stands between `Tab_Panel` and the Sections it stacks, so it inherits `Tab_Panel`'s container role (R1, same token one level down). |
+| `Clients_View_Tab_Contacts` | `.jqhtml` | Single flush Section + `Record_Table`. No behaviour, no style. |
+| `Clients_View_Tab_Projects` | `.jqhtml` | Same shape. |
+| `Clients_View_Tab_Activity` | `.jqhtml` | Single flush Section + `Feed_Row` stack. |
+| `Clients_View_Sidebar` | `.jqhtml` + `.js` | The entity sidebar WITH its record actions. Markup and handlers move together - a split leaving the shell reaching in by `$sid()` is not a seam. Fires `client_changed`; the shell reloads. |
+
+Rules the example fixes: data is loaded EAGER by the action in one `Promise.all` and passed
+down (the tab bar and the KPIs render all four counts before any tab opens); only
+`Clients_Portal_Panel` self-loads, being genuinely LAZY. Cross-region interactions stay on
+the shell (the `.Kpi_Cell--clickable` delegate: cells in the sidebar, `Tab_Bar` in the main
+column). Total lines rose ~348 -> ~390 across six files - **the win is the shell, not the
+count.**
+
+### `Card_Grid` - EVALUATED AND DECLINED
+
+The proposed generic `Card_Grid` (`$columns` 2|3|4, container-relative) **was not built.**
+The evidence bar is two or more hand-rolled sites with the same shape; there are none. The
+N-column card layout is already owned by three shipped components with live consumers -
+`Stat_Group` (4-up, 2 consumers), `Widget_Grid` (2-up, 1), `Sidebar_Kpi_Group` (2-up, 11) -
+so a fourth generic one would be a duplicate implementation, not an extraction.
+
+The container-relative RECIPE was still worth recording and is now in
+`php artisan rsx:man responsive` (SCSS MIXINS): a component placed at variable CONTAINER
+widths prefers `repeat(auto-fit, minmax(max(<readable px>, <even 1/N share>), 1fr))` over
+viewport breakpoints - the share holds the count at N while N fits, the px floor steps
+N -> N-1 -> ... -> 1 as the container narrows.
+
+**OPEN, not done:** `Stat_Group` and `Widget_Grid` both ask the VIEWPORT (`@include tablet`
+/ `@include mobile`) while sitting inside a container the page sizes, which is exactly the
+mismatch that paragraph names. Converting them to the container-relative recipe is a real
+visual-behaviour change on Dashboard and Reports and was left for a decision, not taken
+unasked.
+
+---
+
 ### Batch K - final residue sweep (authoritative current counts; every count is 0 on converted surfaces or explicitly qualified)
 
 Counts are live greps over `rsx/app` + `rsx/portal` templates (excl. `resource/archive`, `resource/research`). "Converted-page defects" is the number of stragglers found on a converted view page and NOT fixed - the target is 0 for every row.
@@ -747,7 +797,7 @@ Status: `-` not started, `R` researched, `G` gated, `C` converted.
 | Action_Logs_Index (list) | R | G | C (Batch G) |
 | Action_Logs_View | R | G | C (Batch G) |
 | Clients_Index (list) | R | G | C (Batch G) |
-| Clients_View (archetype) | R | G | C (tab-alignment Batch 2 - Activity tab appended after Projects/before Portal + Activity KPI cell; client_activity) |
+| Clients_View (archetype) | R | G | C (jqhtml-patterns sweep - DECOMPOSED into 5 flat REGION components in `view/`: 4 `_tab_*` bodies + `Clients_View_Sidebar` (own `.js`); shell 348 -> 116 lines. Prior: tab-alignment Batch 2 - Activity tab appended after Projects/before Portal + Activity KPI cell; client_activity) |
 | Clients_Edit | R | G | C (Batch G - shell + 12 `$max_length` + `id` hidden-field fix) |
 | Clients_Portal (retire per D3) | R | G | RETIRED (Batch I - folded into Clients_View "Portal" tab; route `/clients/portal/:id` deleted -> 404) |
 | Clients_Request_Thread | R | G | C (Batch I - route migrated to `/clients/view/:id/request/:thread_id`) |

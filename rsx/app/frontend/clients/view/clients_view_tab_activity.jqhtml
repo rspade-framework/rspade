@@ -1,0 +1,34 @@
+<%--
+Clients_View_Tab_Activity - the Clients_View Activity tab body
+
+$activity - decorated activity entries (required; supplied EAGER by
+            Clients_View_Action, already carrying the Feed_Row icon/variant from
+            Activity_Feed.decorate(), because the tab bar and the sidebar KPI
+            both show this count)
+
+A page REGION, not vocabulary. Pure display - no on_load(), no handlers, no SCSS.
+
+Usage:
+    <Tab_Panel $key="activity">
+        <Clients_View_Tab_Activity $activity=_activity />
+    </Tab_Panel>
+--%>
+<Define:Clients_View_Tab_Activity>
+    <% const _activity = this.args.activity; %>
+
+    <Section $title="Activity" $count=_activity.length $flush=true>
+        <% if (_activity.length === 0) { %>
+            <Empty_State $icon="bi bi-activity">
+                <Slot:title>No activity yet</Slot:title>
+                <Slot:body>Changes to this client will appear here.</Slot:body>
+            </Empty_State>
+        <% } else { %>
+            <% for (const a of _activity) { %>
+                <Feed_Row $icon=a.icon $variant=a.variant>
+                    <Slot:body><%!= a.html %></Slot:body>
+                    <Slot:time><%= Rsx_Time.relative(a.created_at) %></Slot:time>
+                </Feed_Row>
+            <% } %>
+        <% } %>
+    </Section>
+</Define:Clients_View_Tab_Activity>

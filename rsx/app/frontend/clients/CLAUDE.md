@@ -10,6 +10,13 @@ clients/
 ├── clients_controller.php      Frontend_Clients_Controller - Ajax endpoints ONLY
 ├── list/                       Clients_Index_Action + clients_datagrid.{php,js,jqhtml}
 ├── view/                       Clients_View_Action  (tabs, sidebar, KPIs)
+│   │                           + its five REGION components, flat in the same
+│   │                           directory (see "The view page is decomposed")
+│   ├── clients_view_tab_overview.{jqhtml,scss}
+│   ├── clients_view_tab_contacts.jqhtml
+│   ├── clients_view_tab_projects.jqhtml
+│   ├── clients_view_tab_activity.jqhtml
+│   └── clients_view_sidebar.{jqhtml,js}
 ├── edit/                       Clients_Edit_Action  (ONE action, dual @route)
 ├── history/                    Clients_History_Action (revision timeline)
 └── portal/                     the client-portal panel - unique to this feature
@@ -44,6 +51,32 @@ otherwise. Its distinctive move is the deleted-record fallback — a `NOT_FOUND`
 `Client_Model.fetch()` retries through `fetch_deleted`, so a soft-deleted client still
 renders and can be restored. Tabs are a `Tab_Bar` with hash persistence; the sidebar's
 `Kpi_Cell`s are `$clickable` and jump to their tab.
+
+**The view page is decomposed into REGIONS**, and it is the worked example of that shape.
+`Clients_View_Action.jqhtml` is a shell that reads as a table of contents: one named line
+per visible seam, with the region components sitting flat beside it in `view/` (snake_case
+file, PascalCase `<Define>`, `_tab_<name>` for a tab body). The rules it demonstrates:
+
+- **Markup and its handlers move together.** `Clients_View_Sidebar` carries its own
+  `.js` with the enable/disable-portal, delete and restore handlers, because a split that
+  left the shell reaching into the region by `$sid()` would not be a seam at all. When a
+  region MUTATES the record it fires a component event (`client_changed`) and the shell
+  decides to `reload()` — the one fetch of the record stays in one place.
+- **Data is loaded EAGER by the action, in one parallel batch, and passed down.** Every
+  tab body takes its payload as an arg, because the tab bar and the sidebar KPIs render
+  all four counts before any tab is opened. Only `Clients_Portal_Panel` self-loads: it is
+  genuinely LAZY (the tab exists only for a portal-enabled client and may never be opened)
+  and owns its own realtime posture.
+- **A region gets a `.js` or `.scss` only where behaviour or style exists.** Four of the
+  five have neither. `clients_view_tab_overview.scss` exists for one reason: that region
+  now stands between `Tab_Panel` and the Sections it stacks, so it inherits `Tab_Panel`'s
+  container role for them (R1 — the container owns the gaps, same `--block-gap` token, one
+  level down). Its single-Section siblings need no rule.
+- **A cross-region interaction stays on the shell.** The `.Kpi_Cell--clickable` delegate
+  lives in the action because the cells are in the sidebar and the `Tab_Bar` they drive is
+  in the main column.
+
+Total lines went UP (~348 -> ~390 across six files); the win is the shell, not the count.
 
 **Realtime**: `this.subscribe(Client_Model, id, () => this.refresh())` in `on_create()`.
 `refresh()`, never `reload()` — the server saying something changed must not destroy the
@@ -99,6 +132,21 @@ hardcoded path (`URL-HARDCODE-01`), an interpolated one included.
   on it.
 - Page SCSS stays near-empty. If you are writing page-level CSS or repeating markup, the
   answer is a theme component — `rsx/theme/components/CLAUDE.md`.
+- **Decompose a view template that passes ~325 lines** into regions the way `view/` does
+  above. A region is a VISIBLE seam of that page, not a reusable widget: it lives beside
+  its page, it is named after its page, and it never migrates to `rsx/theme/`. If two pages
+  want the same region, that is the signal it was vocabulary all along — promote it to
+  `rsx/theme/components/` instead.
+- **A parallel `on_load()` is the default.** Independent calls go under one `Promise.all`;
+  every NON-FATAL branch carries its own `.catch(() => <sane default>)` while the record
+  the page IS about stays uncaught. Sequence only when the second call's ARGUMENTS come
+  from the first call's result — say so in a comment when it is not obvious.
+- **Bind delegated handlers namespaced and idempotent** — one `this.$.off('.ns')` at the
+  top of `on_ready()`, then `this.$.on('click.ns', ...)`. Never a `if (!this._wired)`
+  flag: the flag dies with the instance, the handler lives on the element.
+- **Content you hand to a child still resolves against this template** (a `<Slot:>` body
+  included) - expressions, `$sid` ids and `@click=this.method` alike, so handlers are
+  written directly where the markup is.
 
 ## RELATED
 

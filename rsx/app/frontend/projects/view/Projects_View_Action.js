@@ -40,14 +40,18 @@ class Projects_View_Action extends Spa_Action {
 
     async on_load() {
         try {
-            this.data.project = await Project_Model.fetch(this.args.id);
-
-            const [tasks_result, subprojects_result, people_result, activity_result] = await Promise.all([
-                Frontend_Projects_Controller.project_tasks({id: this.args.id}),
-                Frontend_Projects_Controller.project_subprojects({id: this.args.id}),
-                Frontend_Projects_Controller.project_people({id: this.args.id}),
-                Frontend_Projects_Controller.project_activity({id: this.args.id}),
+            // One parallel batch: every call keys off this.args.id, so none of them
+            // depends on another's RESULT. The project is FATAL - the page IS this
+            // record - and carries no .catch(); the four side lists are non-fatal and
+            // degrade to empty so a failing tab cannot blank the record.
+            const [project, tasks_result, subprojects_result, people_result, activity_result] = await Promise.all([
+                Project_Model.fetch(this.args.id),
+                Frontend_Projects_Controller.project_tasks({id: this.args.id}).catch(() => ({tasks: []})),
+                Frontend_Projects_Controller.project_subprojects({id: this.args.id}).catch(() => ({subprojects: []})),
+                Frontend_Projects_Controller.project_people({id: this.args.id}).catch(() => ({contacts: [], users: []})),
+                Frontend_Projects_Controller.project_activity({id: this.args.id}).catch(() => ({activity: []})),
             ]);
+            this.data.project = project;
             this.data.tasks = tasks_result.tasks;
             this.data.subprojects = subprojects_result.subprojects;
             this.data.contacts = people_result.contacts;
@@ -82,8 +86,15 @@ class Projects_View_Action extends Spa_Action {
     }
 
     on_ready() {
+        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
+        // render() while on_ready() re-fires on each one, so one .off('.pva') here
+        // clears this component's prior binds before they are re-attached. A one-shot
+        // instance flag would be wrong in both directions - flags die with the
+        // instance, handlers live on the element.
+        this.$.off('.pva');
+
         // KPI cells that jump to a tab (Kpi_Cell $clickable $tab).
-        this.$.on('click', '.Kpi_Cell--clickable', (e) => {
+        this.$.on('click.pva', '.Kpi_Cell--clickable', (e) => {
             const tab = $(e.currentTarget).attr('data-kpi-tab');
             const tab_bar = this.sid('tabs');
             if (tab && tab_bar) tab_bar.activate(tab);
