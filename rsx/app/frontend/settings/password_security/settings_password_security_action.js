@@ -8,6 +8,11 @@
  * reload() after every change, so what the screen shows is always what the server holds.
  * The active-sessions list is still static sample data (see the settings CLAUDE.md).
  *
+ * CONNECTED ACCOUNTS is the same shape one subsystem over: the roster of live providers is
+ * read from window.rsxapp.sso, which the server exported with the page, and the identity's
+ * own connections come from the framework's Rsx_Sso_Controller in the same on_load(). The
+ * section does not render at all when no provider is switched on.
+ *
  * ENROLLMENT IS THE FRAMEWORK'S COMPONENTS, hosted in a modal: <Totp_Enrollment> and
  * <Passkey_Register> own their whole ceremony including the one-time recovery-code reveal,
  * and this page listens for the single event each fires when the user is finished.
@@ -31,6 +36,15 @@ class Settings_Password_Security_Action extends Spa_Action {
         // null until the load answers: "not loaded yet" and "nothing enrolled" render
         // differently, and an empty object would make them indistinguishable.
         this.data.two_factor = null;
+
+        // FEDERATED SIGN-IN, taken once. Which providers this install offers cannot change
+        // while the page is open - a provider is switched on in config, which is a new
+        // document away - so the roster is read here rather than fetched. The CONNECTIONS
+        // are a different thing entirely and are loaded in on_load(); null until they land,
+        // because "not loaded yet" and "nothing connected" render differently.
+        this.data.sso_enabled = Rsx_Sso.is_enabled();
+        this.data.sso_providers = Rsx_Sso.enabled_providers();
+        this.data.sso_identities = null;
 
         this.state = {
             // Taken once: whether this browser can run a passkey ceremony does not change
@@ -58,7 +72,61 @@ class Settings_Password_Security_Action extends Spa_Action {
     }
 
     async on_load() {
-        this.data.two_factor = await Rsx_Two_Factor_Controller.credentials_list();
+        // TWO INDEPENDENT SERVER CALLS, ONE await. Neither reads the other's result, so
+        // sequencing them would only make the page slower. The connections are not asked
+        // for at all when no provider is live: the section that would show them is not
+        // rendered, and an endpoint whose answer nothing reads is a call not worth making.
+        const [two_factor, sso_identities] = await Promise.all([
+            Rsx_Two_Factor_Controller.credentials_list(),
+            this.data.sso_enabled ? Rsx_Sso_Controller.identities_list() : Promise.resolve([]),
+        ]);
+
+        this.data.two_factor = two_factor;
+        this.data.sso_identities = sso_identities;
+    }
+
+    /**
+     * This identity's connection to one provider, or null.
+     *
+     * @param {string} provider_key
+     * @returns {object|null}
+     */
+    sso_identity_for(provider_key) {
+        for (const identity of this.data.sso_identities || []) {
+            if (identity.provider_key === provider_key) {
+                return identity;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Connections to providers this install no longer offers.
+     *
+     * Switching a provider off deletes nothing, so a user can hold a connection to one that
+     * has no button any more. It is still theirs and it must still be removable - a row the
+     * screen simply omitted would leave them unable to disconnect something that is really
+     * there.
+     *
+     * @returns {Array}
+     */
+    sso_orphan_identities() {
+        const live = this.data.sso_providers.map(provider => provider.key);
+
+        return (this.data.sso_identities || [])
+            .filter(identity => !live.includes(identity.provider_key))
+            .map(identity => {
+                // A dormant provider has no configured label any more, so the server let
+                // the raw key stand in ('microsoft'). Title-case it for the row heading.
+                if (identity.provider_label === identity.provider_key) {
+                    identity = clone(identity);
+                    identity.provider_label = identity.provider_key.charAt(0).toUpperCase()
+                        + identity.provider_key.slice(1);
+                }
+
+                return identity;
+            });
     }
 
     on_ready() {
@@ -86,6 +154,54 @@ class Settings_Password_Security_Action extends Spa_Action {
         this.$.on('click.sps', '[data-action="regenerate_codes"]', async function () {
             await that._regenerate_codes();
         });
+
+        this.$.on('click.sps', '[data-action="sso_connect"]', async function () {
+            await that._sso_connect(str($(this).data('provider')));
+        });
+
+        this.$.on('click.sps', '[data-action="sso_disconnect"]', async function () {
+            await that._sso_disconnect(int($(this).data('id')));
+        });
+    }
+
+    /**
+     * Connect one more provider account.
+     *
+     * THE ENDPOINT HANDS BACK A URL AND THE PAGE NAVIGATES ITSELF. A redirect answered to an
+     * Ajax call would be followed by the transport, not by the browser, and the callback that
+     * follows has to be a TOP-LEVEL navigation - that is what carries the SameSite=Lax cookie
+     * holding the parked ceremony. There is nothing after this line: the document is leaving.
+     *
+     * @param {string} provider_key
+     */
+    async _sso_connect(provider_key) {
+        const result = await Rsx_Sso_Controller.link_begin({ provider: provider_key });
+
+        window.location = result.url;
+    }
+
+    /**
+     * Disconnect one provider account.
+     *
+     * The confirmation says what it costs, because for an account created through an
+     * invitation with no password of its own, this connection may be the only way in.
+     *
+     * @param {number} identity_id
+     */
+    async _sso_disconnect(identity_id) {
+        const confirmed = await Modal.confirm(
+            'Disconnect Account',
+            'Are you sure you want to disconnect this sign-in method?\n\nYou will need your password, or another connected account, to sign in next time.',
+            'Disconnect'
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        await Rsx_Sso_Controller.identity_unlink({ id: identity_id });
+
+        this.reload();
     }
 
     /**

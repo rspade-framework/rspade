@@ -11,7 +11,7 @@ this tree nests inside, plus one directory per sub-feature:
 | `profile_display/` | `Settings_Profile_Display_Action` | `.../profile_display` | `is_logged_in` | Read-only own profile. |
 | `profile_edit/` | `Settings_Profile_Edit_Action` | `.../profile_edit` | `is_logged_in` | Own-profile form; email disabled; `$max_length` from `Model.field_length()`. |
 | `user_settings/` | `Settings_User_Settings_Action` | `.../user_settings` | `is_logged_in` | Timezone + theme, saved through the framework's `Rsx_Timezone_Controller` / `Rsx_Dark_Mode_Controller`. |
-| `password_security/` | `Settings_Password_Security_Action` | `.../password_security` | `is_logged_in` | Change password, **two-factor authentication (real)**, active sessions. The 2FA section loads from the framework's `Rsx_Two_Factor_Controller`; the two local endpoints are still TODO stubs and the session list is hardcoded sample data. |
+| `password_security/` | `Settings_Password_Security_Action` | `.../password_security` | `is_logged_in` | Change password, **two-factor authentication (real)**, **connected accounts (real)**, active sessions. Both real sections load from framework controllers (`Rsx_Two_Factor_Controller`, `Rsx_Sso_Controller`) in one `Promise.all`; the two local endpoints are still TODO stubs and the session list is hardcoded sample data. |
 | `api_keys/` | `Settings_Api_Keys_Action` | `.../api_keys` | `is_logged_in` | Own API keys datagrid + create / scope-preview / revoke modals. |
 | `user_management/` | `Settings_User_Management_Index_Action`, `..._View_Action`, `..._Api_Keys_Action` | `.../user_management[/:id[/api_keys]]` | `can_manage_users` | Users datagrid, one-user view, another user's keys. Own `CLAUDE.md`. |
 | `group_management/` | `Settings_Group_Management_Index_Action`, `..._View_Action` | `.../group_management[/:id]` | `is_logged_in`, `can_manage_users` | `User_Group_Model` datagrid + add/edit/delete modals. |
@@ -40,6 +40,17 @@ The sidebar hides what the user cannot reach: the API Keys link asks
 `Permission.has_api_access()`, and each Administration link asks
 `Permission.can_access('<Action>')`, with the heading itself dropped when nothing survives.
 
+**Connected Accounts is absent, not empty, when no provider is switched on.**
+`window.rsxapp.sso` is omitted entirely in that case, so `Rsx_Sso.is_enabled()` is read once
+in `on_create()` (the roster cannot change while the page is open) and the whole `<Section>`
+is skipped. With providers live it renders one row per provider — Connect
+(`Rsx_Sso_Controller.link_begin()`, then `window.location = result.url`, because the callback
+must be a top-level navigation) or Disconnect (`Modal.confirm` →
+`Rsx_Sso_Controller.identity_unlink()` → `reload()`) — plus a disconnect-only row for a
+connection whose provider has since been switched off, since switching one off deletes
+nothing and the user must still be able to remove it. The one SCSS rule on this page sizes
+the inline brand marks, which arrive as SVG with no intrinsic dimensions.
+
 `scaffolded = true` on the ACTION (not the layout) makes `on_action()` stamp
 `settings-content--scaffolded` so a `Page_Scaffold`-composing page owns its own padding —
 the same seam `Frontend_Spa_Layout` uses, described in `../CLAUDE.md`.
@@ -58,7 +69,10 @@ the same seam `Frontend_Spa_Layout` uses, described in `../CLAUDE.md`.
   section on that page is NOT a stub - it is the framework's own endpoints and enrollment
   components, and `settings_password_security_action.js` is the worked example of hosting
   `<Totp_Enrollment>` / `<Passkey_Register>` in a modal and reloading on their completion
-  event.
+  event, and Connected Accounts is the worked example of driving the SSO settings endpoints.
+- **Change what Connected Accounts offers**: the roster is `config('rsx.sso.providers')`,
+  not this page — the section renders whatever is switched on. Account POLICY (what a
+  provider identity may do) lives in `rsx/handlers/Sso_Handlers.php`.
 - Gate widths differ deliberately-looking but are worth a review before launch: Site
   Settings and Portal Users sit under the Administration heading yet gate only on
   `is_logged_in`, so `can_access()` shows them to every signed-in user.
@@ -67,4 +81,4 @@ the same seam `Frontend_Spa_Layout` uses, described in `../CLAUDE.md`.
 
 `../CLAUDE.md` · `user_management/CLAUDE.md` · `../system/CLAUDE.md` (the sibling
 sublayout) · app skills `crud-patterns`, `form-components` · `rsx:man spa`,
-`rsx:man auth_gates` · skills `rspade:spa`, `rspade:auth-gates`
+`rsx:man auth_gates`, `rsx:man sso` · skills `rspade:spa`, `rspade:auth-gates`

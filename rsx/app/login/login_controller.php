@@ -35,7 +35,7 @@ use Rsx\App\Login\Invite_Helper;
  * password with recording and the last_login stamp BOTH suppressed, so a recorded
  * SUCCESS always means full authentication; whether a second step follows is
  * Rsx_Two_Factor::is_enabled(). Where the user lands afterwards is one function -
- * __post_login_destination() - reached from both the password-only path and the
+ * post_login_destination() - reached from both the password-only path and the
  * challenge, because a destination that is computed twice drifts.
  *
  * See: php artisan rsx:man session (APP RECIPE - TWO-FACTOR), rsx:man two_factor
@@ -136,7 +136,7 @@ class Login_Controller extends Rsx_Controller_Abstract
                 RsxAuth::login($login_user);
                 Login_History::record_success((int) $login_user->id, $posted_email);
 
-                return redirect(static::__post_login_destination((int) $login_user->id, $invite_code));
+                return redirect(static::post_login_destination((int) $login_user->id, $invite_code));
             } elseif ($error === null) {
                 $error = 'Invalid email or password. Please try again.';
             }
@@ -214,7 +214,7 @@ class Login_Controller extends Rsx_Controller_Abstract
         // verify_challenge() has signed the identity in, stamped last_login and written the
         // success row. All that is left is where to send them.
         return [
-            'redirect' => static::__post_login_destination(
+            'redirect' => static::post_login_destination(
                 (int) $login_user->id,
                 static::__consume_invite_code()
             ),
@@ -288,10 +288,15 @@ class Login_Controller extends Rsx_Controller_Abstract
     /**
      * Where a fully authenticated identity goes, as a URL.
      *
-     * ONE function, two callers: the password-only path returns redirect() of it, and the
+     * ONE function, THREE callers: the password-only path returns redirect() of it, the
      * second-factor endpoint hands the same string to the challenge component, which follows
-     * it with window.location. It is a URL rather than a RedirectResponse because one of the
-     * two callers is an Ajax endpoint that cannot return a response object.
+     * it with window.location, and the federated sign-in reaches it from outside this class
+     * through Rsx\Handlers\Sso_Handlers. It is a URL rather than a RedirectResponse because
+     * two of the three callers cannot return a response object.
+     *
+     * PUBLIC FOR THAT THIRD CALLER, and for no other reason. A destination computed twice
+     * drifts, and "signing in with Google skips the site picker" is the shape that drift
+     * takes - a bug nobody reports, because the user assumes it was meant.
      *
      * The flash alerts are raised here, so the message a user sees does not depend on which
      * of the two paths they took.
@@ -300,7 +305,7 @@ class Login_Controller extends Rsx_Controller_Abstract
      * @param string|null $invite_code The invite code the login form carried, if any.
      * @return string
      */
-    private static function __post_login_destination(int $login_user_id, ?string $invite_code): string
+    public static function post_login_destination(int $login_user_id, ?string $invite_code): string
     {
         // An invite in flight wins: the account setup is what the user came to finish.
         if ($invite_code) {

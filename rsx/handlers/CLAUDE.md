@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Three classes, each a plain `public static` class in `Rsx\Handlers` discovered by the
+Four classes, each a plain `public static` class in `Rsx\Handlers` discovered by the
 manifest from its `#[OnEvent]` attributes. There is no registration step.
 
 - **`File_Upload_Handlers`** — `#[OnEvent('file.upload.authorize', priority: 10)]`. Returns
@@ -14,6 +14,15 @@ manifest from its `#[OnEvent]` attributes. There is no registration step.
   `{user, login_user, site_id, source}` it promotes the founder to `ROLE_ROOT_ADMIN` **only
   if no role was chosen**, creates the site's `Administrators` `User_Group_Model` with
   `deletion_protection` on, and attaches the founder to it.
+- **`Sso_Handlers`** — the four federated-sign-in hooks. `sso.identity.unlinked` is the
+  policy decision: a **verified** provider email matching a `login_users` row is connected
+  and signed in through `Rsx_Sso::consume_pending_and_login()`; otherwise an **open
+  invitation** to that address sends the browser to `/accept-invite?code=...` with the
+  identity still pending; otherwise it declines and the framework fails closed. The other
+  three are wiring — `sso.login.authorize` permits (it MIRRORS the password door, which
+  enforces only a live `login_users` row), `sso.two_factor.verify_url` returns
+  `Rsx::Route('Login_Controller::verify')`, and `sso.login.destination` delegates to
+  `Login_Controller::post_login_destination()`.
 - **`Portal_File_Access_Handlers`** — `#[OnEvent('file.thumbnail.authorize')]` and
   `#[OnEvent('file.download.authorize')]`, both priority 10, both delegating to one
   fail-closed `_authorize()`. Staff pass outright; a portal user passes only for a client
@@ -34,6 +43,16 @@ fail-closed rather than relying on absence.
 
 **Handlers run inline, in the request.** Anything slow belongs in `Task::dispatch()`.
 
+**An unverified provider email is never matched to an account.** A provider that lets a user
+type any address into a profile hands over a CLAIM, not a fact, so matching one would let
+anybody who can name your address at such a provider sign in as you — no password, no
+notification. `Sso_Handlers::match_verified_email_or_open_invitation()` reads
+`email_verified` for exactly that reason, and the invitation branch grants nothing on its own
+(the connection is written by `Accept_Invite_Controller`, only when the addresses match).
+The other three policy modes an application can implement there — auto-provision,
+invite-only-strict, finish-registration — are named in the method's docblock and written out
+in `php artisan rsx:man sso`.
+
 `user.initial.created` is a handler and not a migration on purpose: a migration runs once per
 database at a fixed point in history, while this event also fires for the first-run setup
 screen and for the test-suite baseline seed, so a test may rely on the group existing.
@@ -43,6 +62,11 @@ screen and for the test-suite baseline seed, so a test may rely on the group exi
 - **Tighten the upload gate** by editing `File_Upload_Handlers::require_authentication` —
   a size or extension policy belongs there, where it runs before any byte is stored. Never
   delete the handler to "open uploads"; that closes them instead, loudly.
+- **Change the SSO account policy** by rewriting
+  `Sso_Handlers::match_verified_email_or_open_invitation()` — it is one method and one
+  decision. Adding an account-state rule (suspended, pending approval) goes in
+  `Sso_Handlers::authorize_login()` **and** in `Login_Controller::index()`, in the same
+  change: a check that exists on one door only leaves the other one open.
 - **Change what the founder gets** in `Initial_User_Handlers` — extra rows for the first
   account go here, never in a migration keyed to user id 1.
 - **Add a handler**: a new class or method in this directory with `#[OnEvent('name')]`.
@@ -52,5 +76,6 @@ screen and for the test-suite baseline seed, so a test may rely on the group exi
 
 ## RELATED
 
-`rsx/services/CLAUDE.md` · skills `rspade:event-hooks`, `rspade:file-attachments`,
-`rspade:portal-core` · `rsx:man event_hooks`, `rsx:man file_upload`, `rsx:man initial_user`
+`rsx/services/CLAUDE.md` · `rsx/app/login/CLAUDE.md` (the ladder `Sso_Handlers` routes
+into) · skills `rspade:event-hooks`, `rspade:file-attachments`, `rspade:portal-core` ·
+`rsx:man event_hooks`, `rsx:man file_upload`, `rsx:man initial_user`, `rsx:man sso`

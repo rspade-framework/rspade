@@ -3,6 +3,7 @@
 namespace Rsx\App\Login\AcceptInvite;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
@@ -10,6 +11,8 @@ use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
+use App\RSpade\Core\Sso\Rsx_Sso;
+use App\RSpade\Core\Sso\Sso_Failed_Exception;
 use App\RSpade\Lib\Flash\Flash_Alert;
 use Rsx\App\Login\Invite_Helper;
 
@@ -25,6 +28,18 @@ use Rsx\App\Login\Invite_Helper;
  * inline Session::is_logged_in() checks below are FLOW logic (which state of the
  * page to render, or which account to attach the invitation to), not gates - the
  * invitation code is the authorization for this surface.
+ *
+ * THIS IS ALSO THE SIGN-UP END OF FEDERATED SIGN-IN. An invitee who presses "Continue with
+ * Google" on the login page has no account yet, so Rsx\Handlers\Sso_Handlers cannot sign
+ * them in - it finds the open invitation to the address the provider asserted and sends the
+ * browser HERE, with the provider identity still parked as PENDING. create_account_submit()
+ * connects it to the account it creates, and that connection is what makes the password
+ * optional on that one submit: the provider IS the credential.
+ *
+ * THE MATCH IS ON THE INVITATION'S ADDRESS AND NOTHING ELSE (__matching_pending_identity).
+ * A pending identity for some other address is left alone rather than attached to whatever
+ * account happens to be under construction - that would connect a stranger's Google account
+ * to an invitee's new account, which is a sign-in for the stranger.
  */
 #[Auth('public')]
 class Accept_Invite_Controller extends Rsx_Controller_Abstract
@@ -153,6 +168,11 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
         return rsx_view('Create_Account', [
             'invite_code' => $invite_code,
             'invitation' => $invitation,
+            // Null unless a provider identity is parked for THIS invitation's address, in
+            // which case the page says so and stops asking for a password it does not need.
+            // The submit re-computes it - a page rendered inside the pending window and
+            // submitted outside it must fall back to requiring one.
+            'sso_identity' => static::__matching_pending_identity($invitation->email),
         ]);
     }
 
@@ -221,9 +241,25 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
             $errors['last_name'] = 'Last name is required';
         }
 
-        // Password validation
-        if (empty($password)) {
-            $errors['password'] = 'Password is required';
+        // A parked provider identity for THIS invitation's address, or null. Re-computed
+        // here and never trusted from the form: the pending window is short, and a page
+        // rendered inside it and submitted outside it must ask for a password after all.
+        $sso_identity = isset($invitation)
+            ? static::__matching_pending_identity($invitation->email)
+            : null;
+
+        // Password validation.
+        //
+        // BLANK IS STILL A VALUE - the field is always submitted, and '' is what a user who
+        // typed nothing sends. What changes in the SSO branch is what '' MEANS: with a
+        // provider identity about to become this account's credential, an empty password is
+        // a deliberate "I do not want one", and with no identity it is the missing required
+        // field it has always been. A password that IS typed is validated identically either
+        // way - the option is to skip it, never to weaken it.
+        if ($password === '') {
+            if ($sso_identity === null) {
+                $errors['password'] = 'Password is required';
+            }
         } elseif (strlen($password) < 8) {
             $errors['password'] = 'Password must be at least 8 characters';
         }
@@ -247,15 +283,8 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
 
         $invitation = $final_validation['invitation'];
 
-        // Create login_user record
-        $login_user = new Login_User_Model();
-        $login_user->email = $email;
-        $login_user->password = Hash::make($password);
-        $login_user->is_verified = 0; // Unverified until email confirmation
-        $login_user->is_activated = 1; // Activated by default
-        $login_user->save();
-
-        // Find the user record from the invitation (bypassing site scope since we're not logged in yet)
+        // Read before write: the invitation's user row is looked up FIRST, so a broken
+        // invitation is refused before an account exists rather than after one does.
         $user = User_Model::without_site_scope(function () use ($invitation) {
             return User_Model::where('invite_code', $invitation->invite_code)
                 ->where('site_id', $invitation->site_id)
@@ -266,19 +295,69 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
             return response_error(Ajax::ERROR_FATAL, 'User record not found for this invitation. Please contact support.');
         }
 
-        // Update user record with login info and name (bypassing site scope)
-        User_Model::without_site_scope(function () use ($user, $login_user, $first_name, $last_name) {
-            $user->login_user_id = $login_user->id;
-            $user->first_name = $first_name;
-            $user->last_name = $last_name;
-            $user->invite_accepted_at = now();
-            $user->save();
-        });
+        // THE ACCOUNT AND ITS CREDENTIAL ARE CREATED TOGETHER OR NOT AT ALL.
+        //
+        // The transaction is here for the SSO branch: an account created with no password,
+        // whose provider connection then failed to write, is an account nobody can ever sign
+        // in to - and it would hold the invited address, so the invitee could not even try
+        // again. Rolling back is the only outcome that leaves the user somewhere they can
+        // act. Rsx_Sso::link_pending() refuses a provider account that was connected to
+        // somebody else in the meantime, which is the failure this guards against.
 
-        // Link invitation to new user and mark as accepted
-        $invitation->login_user_id = $login_user->id;
-        $invitation->invite_accepted_at = now();
-        $invitation->save();
+        $login_user = null;
+
+        try {
+            DB::transaction(function () use (
+                &$login_user,
+                $user,
+                $email,
+                $password,
+                $first_name,
+                $last_name,
+                $invitation,
+                $sso_identity
+            ) {
+                // Create login_user record
+                $login_user = new Login_User_Model();
+                $login_user->email = $email;
+                // An empty password in the SSO branch is stored as an UNUSABLE hash rather
+                // than as a null or an empty string: every password path in the framework
+                // runs Hash::check() against this column, and a hash of a value nobody knows
+                // fails all of them. The account signs in with its provider until the user
+                // sets a password of their own.
+                $login_user->password = Hash::make($password === '' ? random_hash(64) : $password);
+                $login_user->is_verified = 0; // Unverified until email confirmation
+                $login_user->is_activated = 1; // Activated by default
+                $login_user->save();
+
+                // The provider connection, while the identity is still pending. It is the
+                // credential for a password-less account, so it is written INSIDE the
+                // transaction that creates the account.
+                if ($sso_identity !== null) {
+                    Rsx_Sso::link_pending($login_user);
+                }
+
+                // Update user record with login info and name (bypassing site scope)
+                User_Model::without_site_scope(function () use ($user, $login_user, $first_name, $last_name) {
+                    $user->login_user_id = $login_user->id;
+                    $user->first_name = $first_name;
+                    $user->last_name = $last_name;
+                    $user->invite_accepted_at = now();
+                    $user->save();
+                });
+
+                // Link invitation to new user and mark as accepted
+                $invitation->login_user_id = $login_user->id;
+                $invitation->invite_accepted_at = now();
+                $invitation->save();
+            });
+        } catch (Sso_Failed_Exception $e) {
+            // The pending identity expired between validation and here, or the provider
+            // account was connected elsewhere. The message is user-safe by contract, and the
+            // account was never created - so the invitation is still open and the user can
+            // sign up again, with or without the provider.
+            return response_form_error($e->getMessage());
+        }
 
         // TODO: In the future, this will redirect to a "verify your email" page
         // For now, auto-login the user and redirect to success page
@@ -290,6 +369,55 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
         // Return redirect to success page
         return [
             'redirect' => Rsx::Route('Accept_Invite_Controller::success'),
+        ];
+    }
+
+    /**
+     * The parked provider identity for one address, or null.
+     *
+     * THE ADDRESS IS THE WHOLE MATCH, compared the way Invite_Helper compares one -
+     * case-insensitively, trimmed - because "Person@example.com" from a provider and
+     * "person@example.com" on an invitation are one person, and an address that differs by
+     * anything else is a different person entirely. A mismatch is not an error and not a
+     * warning: the pending identity simply stays parked and this flow ignores it.
+     *
+     * What comes back is display metadata: the provider's label for the page to name, and
+     * the address it asserted. It confers nothing - the connection is written by
+     * Rsx_Sso::link_pending() and only inside create_account_submit's transaction.
+     *
+     * @param string $email The invitation's address.
+     * @return array|null {provider_key, provider_label, email}
+     */
+    private static function __matching_pending_identity(string $email): ?array
+    {
+        $pending = Rsx_Sso::pending();
+
+        if ($pending === null) {
+            return null;
+        }
+
+        // X can return no address at all, and Facebook can withhold one. Nothing to match.
+        $pending_email = isset($pending['email']) ? trim((string) $pending['email']) : '';
+
+        if ($pending_email === '' || strtolower($pending_email) !== strtolower(trim($email))) {
+            return null;
+        }
+
+        $provider_key = (string) $pending['provider_key'];
+        $provider_label = $provider_key;
+
+        foreach (Rsx_Sso::enabled_providers() as $provider) {
+            if ($provider['key'] === $provider_key) {
+                $provider_label = $provider['label'];
+
+                break;
+            }
+        }
+
+        return [
+            'provider_key' => $provider_key,
+            'provider_label' => $provider_label,
+            'email' => $pending_email,
         ];
     }
 

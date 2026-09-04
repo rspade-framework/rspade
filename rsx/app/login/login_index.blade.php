@@ -104,6 +104,17 @@
             </button>
         </div>
 
+        {{-- FEDERATED SIGN-IN. The divider is THIS page's, not the component's: the
+             buttons component renders nothing at all when no provider is switched on,
+             so a page that wants an "or" rule above them has to ask the same question
+             the component asks - Rsx_Sso::is_enabled(). Both halves sit inside one @if
+             for exactly that reason. --}}
+        @if (Rsx_Sso::is_enabled())
+            <div class="login-divider"><span>or</span></div>
+
+            <Sso_Buttons />
+        @endif
+
         <div class="mt-3 text-center">
             <small class="text-muted">
                 Don't have an account? <a href="{{ Rsx::Route('Signup_Controller') }}">Sign up</a>

@@ -5,4 +5,23 @@
     .pagemodal-card {
         max-width: 400px;
     }
+
+    // The "or" rule between the password form and the federated sign-in buttons.
+    // Rendered only when Rsx_Sso::is_enabled(), so these rules are dormant on an
+    // install with no provider switched on.
+    .login-divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 20px 0;
+        color: var(--bs-secondary-color);
+        font-size: $font-size-sm;
+
+        &::before,
+        &::after {
+            content: '';
+            flex: 1 1 auto;
+            border-top: 1px solid var(--bs-border-color);
+        }
+    }
 }
