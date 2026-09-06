@@ -220,4 +220,6 @@ EXAMPLES
         </div>
 
 SEE ALSO
-    scss, bundle_api, jqhtml
+    rsx:man scss
+    rsx:man bundle_api
+    rsx:man jqhtml

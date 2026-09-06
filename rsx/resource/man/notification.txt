@@ -293,4 +293,6 @@ FILES
     /system/app/RSpade/Core/Throttle/Rsx_Throttle.php  Rate limiting
 
 SEE ALSO
-    action_log(3), enum(3), model_fetch(3)
+    rsx:man action_log
+    rsx:man enums
+    rsx:man model_fetch

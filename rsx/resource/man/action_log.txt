@@ -211,4 +211,6 @@ FILES
     /rsx/app/frontend/action_logs/             CRUD module
 
 SEE ALSO
-    crud(3), model_fetch(3), enum(3)
+    rsx:man crud
+    rsx:man model_fetch
+    rsx:man enums

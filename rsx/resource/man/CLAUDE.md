@@ -52,6 +52,13 @@ SEE ALSO
     Related man pages, files, or external docs
 ```
 
+SEE ALSO carries one reference per line: `rsx:man topic - description`, or the
+compact `topic - description` the heading disambiguates; a skill is
+`skill rspade:name - description`; paths and artisan commands stay spelled as
+themselves. In prose a man page is named `rsx:man topic` - never `topic(7)` or
+`topic.txt`. The VS Code extension resolves those spellings into a highlight and
+a go-to-definition, so any other shape is a reference nobody can follow.
+
 ## Writing Style
 
 - **Terse**: Say only what needs to be said
