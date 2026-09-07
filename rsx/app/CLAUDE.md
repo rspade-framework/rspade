@@ -11,7 +11,6 @@ has no assets of its own), plus one loose file.
 | `login/` | The server-rendered auth ladder: login, signup, invite acceptance, site selection, site-unauthorized. Own `CLAUDE.md`. | Live, public by declaration. |
 | `api/` | The external bearer REST surface under `/api/vN/`. Own `CLAUDE.md`. | Live. |
 | `apidocs/` | A CONTROLLER AND NOTHING ELSE: two methods mounting the framework's API reference console and its OpenAPI document. The console, including its bundle, is framework property - `Rsx_Api_Docs::page()` renders the whole page. Gate is `public`, with `Session::has_api_access()` decided in the body. | Live. |
-| `root/` | Cross-site root console (dashboard, sites, email), gated `is_root_admin`. Own `CLAUDE.md`. | **Every page is a placeholder.** |
 | `backend/` | A minimal Blade admin shell. Own `CLAUDE.md`. | **Skeleton — deletable.** |
 | `dev/` | The framework showcase: modals, flash alerts, ACL, ORM, SPA, attachments, document preview. Own `CLAUDE.md`. | **Ships `#[Auth('closed')]` — reachable by nobody. Deletable.** |
 | `ssr_test/` | The server-render smoke page and its session-cookie probes. Own `CLAUDE.md`. | **Harness — deletable.** |
@@ -19,7 +18,7 @@ has no assets of its own), plus one loose file.
 
 Only the API-keys settings screen links out of `frontend/` into another module (a button
 to `Apidocs_Controller`, which is why `frontend_bundle.php` includes `rsx/app/apidocs`).
-`/root`, `/admin`, `/dev` and `/ssr-test` are URL-only: no nav entry points at any of them.
+`/admin`, `/dev` and `/ssr-test` are URL-only: no nav entry points at any of them.
 
 ## HOW IT IS USED
 

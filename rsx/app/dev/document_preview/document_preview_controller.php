@@ -25,28 +25,115 @@ use App\RSpade\Core\Search\Search_Index_Model;
 class Dev_Document_Preview_Controller extends Rsx_Controller_Abstract
 {
     /**
-     * The 50 most recent attachments, newest first, for the demo picker.
+     * The 50 attachments for the demo picker: newest first, or - when the page passes a
+     * query - the best full-text matches first, ranked by Search_Index_Model::search_ranked().
      *
      * @param Request $request
-     * @param array $params
+     * @param array $params Optional query: full-text search over the extracted text.
      * @return array
      */
     #[Ajax_Endpoint]
     public static function list_attachments(Request $request, array $params = [])
     {
+        $query = trim((string) ($params['query'] ?? ''));
+
+        if ($query !== '') {
+            return ['attachments' => static::__ranked_attachments($query), 'ranked' => true];
+        }
+
         $rows = File_Attachment_Model::orderBy('id', 'desc')
             ->limit(50)
             ->get(['id', 'key', 'file_name', 'mime_type']);
 
         return [
             'attachments' => $rows->map(function ($a) {
-                return [
-                    'id' => $a->id,
-                    'key' => $a->key,
-                    'file_name' => $a->file_name,
-                    'mime_type' => $a->mime_type,
-                ];
+                return static::__picker_row($a, null);
             })->all(),
+            'ranked' => false,
+        ];
+    }
+
+    /**
+     * Relevance of every blob whose extracted text matches $query, best first, as
+     * storage_id => relevance.
+     *
+     * A storage_id map rather than an attachment builder ON PURPOSE: relevance belongs to the
+     * DEDUPLICATED blob, and one blob can back several attachments, so handing back a builder
+     * would force the score through a join it does not belong to. The caller looks each of its
+     * own rows up and sorts them itself.
+     *
+     * This is the app-side sibling of File_Attachment_Model::search_text(): search_text()
+     * filters ("does this match?"), this ranks ("which matches best?"). Nothing here writes
+     * SQL - the MATCH...AGAINST and the mode mapping stay framework property.
+     *
+     * @param string $query
+     * @param string $mode 'BOOLEAN' or 'NATURAL LANGUAGE'.
+     * @return array<int, float> storage_id => relevance, ordered best first.
+     */
+    public static function search_text_ranked(string $query, string $mode = 'BOOLEAN'): array
+    {
+        $rows = Search_Index_Model::search_ranked($query, $mode)
+            ->where('indexable_type', 'File_Storage_Model')
+            ->where('status_id', Search_Index_Model::STATUS_EXTRACTED)
+            ->limit(50)
+            ->get();
+
+        $map = [];
+        foreach ($rows as $row) {
+            $map[(int) $row->indexable_id] = (float) $row->relevance;
+        }
+
+        return $map;
+    }
+
+    /**
+     * The picker rows for a full-text query, ordered by their blob's relevance.
+     *
+     * @param string $query
+     * @return array
+     */
+    private static function __ranked_attachments(string $query): array
+    {
+        $ranked = static::search_text_ranked($query);
+
+        if (empty($ranked)) {
+            return [];
+        }
+
+        $rows = File_Attachment_Model::whereIn('file_storage_id', array_keys($ranked))
+            ->limit(50)
+            ->get(['id', 'key', 'file_name', 'mime_type', 'file_storage_id'])
+            ->all();
+
+        // The score lives on the blob; sort the attachments by the score of the blob each one
+        // references. Ties keep whatever order the query returned - this is a demo picker.
+        usort($rows, function ($a, $b) use ($ranked) {
+            return ($ranked[(int) $b->file_storage_id] ?? 0.0) <=> ($ranked[(int) $a->file_storage_id] ?? 0.0);
+        });
+
+        $out = [];
+        foreach ($rows as $attachment) {
+            $out[] = static::__picker_row($attachment, $ranked[(int) $attachment->file_storage_id] ?? null);
+        }
+
+        return $out;
+    }
+
+    /**
+     * One picker row.
+     *
+     * @param File_Attachment_Model $attachment
+     * @param float|null $relevance
+     * @return array
+     */
+    private static function __picker_row(File_Attachment_Model $attachment, $relevance): array
+    {
+        return [
+            'id' => $attachment->id,
+            'key' => $attachment->key,
+            'file_name' => $attachment->file_name,
+            'mime_type' => $attachment->mime_type,
+            'relevance' => $relevance === null ? null : round((float) $relevance, 4),
         ];
     }
 

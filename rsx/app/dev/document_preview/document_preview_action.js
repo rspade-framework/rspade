@@ -7,6 +7,10 @@
  * pagination controls demonstrates the $fit arg against a bounded-height host (800px x 70vh):
  * "width" overflows the host vertically and scrolls, "contain" fits the whole page inside it.
  *
+ * The search box above the picker demonstrates Search_Index_Model::search_ranked(): with a query
+ * present the picker is ordered by full-text relevance (best first) instead of by id, and each
+ * option shows the raw score - the score orders results and means nothing on its own scale.
+ *
  * The two buttons beside the text make the async extraction observable: Reset Extraction pushes the
  * blob back to un-indexed (no worker), Extract Now runs the pass inline. Neither reloads the page -
  * the notice swaps to the text over the realtime frame the pass emits.
@@ -20,13 +24,18 @@ class Dev_Document_Preview_Action extends Spa_Action {
         this.data.loading = true;
         this.data.error = null;
         this.data.attachments = [];
-        this.state = { current_id: null, page: 1, pages: 0, fit: 'width' };
+        this.data.ranked = false;
+        this.state = { current_id: null, page: 1, pages: 0, fit: 'width', query: '' };
     }
 
     async on_load() {
         try {
-            const res = await Dev_Document_Preview_Controller.list_attachments();
+            // The query lives in this.state so a re-run of on_load (via reload()) picks it up -
+            // an empty query lists the newest attachments, a non-empty one ranks them by
+            // relevance through Search_Index_Model::search_ranked().
+            const res = await Dev_Document_Preview_Controller.list_attachments({ query: this.state.query });
             this.data.attachments = res.attachments || [];
+            this.data.ranked = !!res.ranked;
         } catch (e) {
             this.data.error = e.message || str(e);
         }
@@ -36,6 +45,27 @@ class Dev_Document_Preview_Action extends Spa_Action {
     on_ready() {
         const that = this;
         if (this.data.error) return;
+
+        // Search is applied on Enter (or Clear), not per keystroke: applying it re-runs on_load,
+        // and a reload() rebuilds the whole page including this input.
+        this.$sid('search').val(this.state.query);
+        this.$sid('search').off('keydown.dp').on('keydown.dp', function (e) {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            that.state.query = str($(this).val()).trim();
+            that.reload();
+        });
+        this.$sid('search_clear').off('click.dp').on('click.dp', () => {
+            if (!that.state.query) return;
+            that.state.query = '';
+            that.reload();
+        });
+
+        if (this.data.ranked) {
+            this.$sid('search_note').text('Ranked by extracted-text relevance, best first - ' + count(this.data.attachments) + ' match(es).');
+        } else {
+            this.$sid('search_note').text('Newest first. Type a full-text query and press Enter to rank by relevance.');
+        }
 
         this.$sid('select').off('change.dp').on('change.dp', function () {
             const id = int($(this).val());

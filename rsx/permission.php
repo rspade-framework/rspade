@@ -52,7 +52,6 @@ use App\RSpade\Core\Permission\Permission_Abstract;
  *   can_export_data           PERM_DATA_EXPORT
  *   can_use_api               PERM_API_ACCESS
  *   can_impersonate           ROLE_MANAGER floor ("View as Client")
- *   is_root_admin             ROLE_ROOT_ADMIN floor
  */
 class Permission extends Permission_Abstract
 {
@@ -164,15 +163,4 @@ class Permission extends Permission_Abstract
         return static::has_role(User_Model::ROLE_MANAGER);
     }
 
-    /**
-     * Cross-site administration: the root console.
-     *
-     * Wraps the User_Model::ROLE_ROOT_ADMIN floor ("at least" - developers and
-     * root admins pass, site owners and below do not).
-     */
-    #[Auth_Check]
-    public static function is_root_admin(): bool
-    {
-        return static::has_role(User_Model::ROLE_ROOT_ADMIN);
-    }
 }

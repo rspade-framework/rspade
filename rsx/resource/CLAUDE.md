@@ -276,7 +276,6 @@ appear in `#[Auth('...')]` / `@auth('...')`.
 | `can_export_data` | `PERM_DATA_EXPORT` - downloads, report extracts. |
 | `can_use_api` | `PERM_API_ACCESS`. Defined but deliberately NOT applied to the template's `#[Api_Endpoint]` surfaces (pre-existing keys would break); name it on your own endpoints. |
 | `can_impersonate` | Role floor `ROLE_MANAGER` - may start "View as Client". |
-| `is_root_admin` | Role floor `ROLE_ROOT_ADMIN` - the cross-site root console. |
 | `closed` | Framework built-in: always false. Gates `rsx/app/dev/`, which ships unreachable. The counterpart to `public`. |
 
 Plus the framework-supplied `public` and `is_logged_in`.

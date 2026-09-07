@@ -20,6 +20,16 @@ Two files per request, same basename, `<YYYY_MM_DD>_<slug>`:
   (`system/` paths and line numbers), root cause, proposed change, verification
   performed downstream, documentation affected, compatibility.
 
+## Testing while drafting
+
+Never run a full test suite to draft a request - not `rsx:test` over the whole
+application, and not `rsx:test --framework` on a box that carries the framework
+tests. It takes a very long time and the framework environment runs its entire
+suite when it integrates the request. Run the group(s) for the subsystem you
+touched (`rsx:test --group=<concern>`), or none at all and say so. The full suite
+is an integrity check for an administrator verifying a deployment, not part of any
+request-drafting protocol.
+
 ## Housekeeping
 
 These files are **yours**. The maintainer keeps and archives their own copy, so

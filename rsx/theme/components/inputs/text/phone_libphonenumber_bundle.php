@@ -11,7 +11,7 @@
  * produce identical international/national formatting.
  *
  * Co-located with phone_text_input.js so it is auto-discovered by every Module
- * Bundle that ships the component: Frontend_Bundle / Portal_Bundle / Root_Bundle /
+ * Bundle that ships the component: Frontend_Bundle / Portal_Bundle /
  * Dev_Bundle (scan `rsx/theme`) and Login_Bundle (scans `rsx/theme/components`).
  *
  * The global is a CommonJS default export (module.exports = phonenumbers namespace),

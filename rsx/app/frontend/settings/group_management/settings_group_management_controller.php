@@ -45,8 +45,14 @@ class Frontend_Settings_Group_Management_Controller extends Rsx_Controller_Abstr
         $name = trim($params['name'] ?? '');
         if (empty($name)) {
             $errors['name'] = 'Group name is required';
-        } elseif (strlen($name) > 100) {
-            $errors['name'] = 'Group name cannot exceed 100 characters';
+        } else {
+            // The COLUMN is the length rule - the same number the form's $max_length binds
+            // (the Text_Input in this feature's modal form). A literal here would be a
+            // copy of the schema that an ALTER TABLE silently leaves behind.
+            $max_length = User_Group_Model::field_length('name');
+            if (strlen($name) > $max_length) {
+                $errors['name'] = "Group name cannot exceed {$max_length} characters";
+            }
         }
 
         // Return validation errors if any
@@ -149,8 +155,14 @@ class Frontend_Settings_Group_Management_Controller extends Rsx_Controller_Abstr
         $name = trim($params['name'] ?? '');
         if (empty($name)) {
             $errors['name'] = 'Group name is required';
-        } elseif (strlen($name) > 100) {
-            $errors['name'] = 'Group name cannot exceed 100 characters';
+        } else {
+            // The COLUMN is the length rule - the same number the form's $max_length binds
+            // (the Text_Input in this feature's modal form). A literal here would be a
+            // copy of the schema that an ALTER TABLE silently leaves behind.
+            $max_length = User_Group_Model::field_length('name');
+            if (strlen($name) > $max_length) {
+                $errors['name'] = "Group name cannot exceed {$max_length} characters";
+            }
         }
 
         // Return validation errors if any

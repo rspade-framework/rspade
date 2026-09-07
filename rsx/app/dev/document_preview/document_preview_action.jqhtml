@@ -15,13 +15,24 @@
     <% } else { %>
         <div class="row mt-3">
             <div class="col-12 col-desktop-8">
+                <%-- Full-text search over the extracted text. Empty = newest first; a query
+                     ranks the picker by Search_Index_Model::search_ranked() relevance. --%>
+                <div class="mb-3">
+                    <label class="form-label small" for="dev-dp-search">Search Extracted Text</label>
+                    <div class="d-flex gap-2">
+                        <input $sid="search" id="dev-dp-search" type="text" class="form-control" placeholder="e.g. +contract -draft">
+                        <button $sid="search_clear" class="btn btn-outline-secondary">Clear</button>
+                    </div>
+                    <div $sid="search_note" class="form-text"></div>
+                </div>
+
                 <%-- Attachment picker --%>
                 <div class="mb-3">
                     <label class="form-label small">Attachment</label>
                     <select $sid="select" class="form-select">
                         <option value="">-- Select an attachment --</option>
                         <% for (const a of this.data.attachments) { %>
-                            <option value="<%= a.id %>"><%= a.file_name %> (<%= a.mime_type || 'unknown' %>) [#<%= a.id %>]</option>
+                            <option value="<%= a.id %>"><%= a.file_name %> (<%= a.mime_type || 'unknown' %>) [#<%= a.id %>]<% if (a.relevance !== null && a.relevance !== undefined) { %> - score <%= a.relevance %><% } %></option>
                         <% } %>
                     </select>
                 </div>

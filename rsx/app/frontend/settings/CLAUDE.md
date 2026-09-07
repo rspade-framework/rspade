@@ -51,6 +51,10 @@ connection whose provider has since been switched off, since switching one off d
 nothing and the user must still be able to remove it. The one SCSS rule on this page sizes
 the inline brand marks, which arrive as SVG with no intrinsic dimensions.
 
+`group_management`'s add/edit endpoints show the length-rule convention: the server asks
+`User_Group_Model::field_length('name')` rather than restating the schema's 100, which is the
+same number the modal form's `$max_length` binds. Copy that shape for any length check here.
+
 `scaffolded = true` on the ACTION (not the layout) makes `on_action()` stamp
 `settings-content--scaffolded` so a `Page_Scaffold`-composing page owns its own padding —
 the same seam `Frontend_Spa_Layout` uses, described in `../CLAUDE.md`.
