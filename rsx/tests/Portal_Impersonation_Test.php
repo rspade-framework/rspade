@@ -39,11 +39,6 @@ class Portal_Impersonation_Test extends Rsx_Test_Abstract
         static::__acting_as_site(self::SITE_ID);
     }
 
-    public static function teardown(): void
-    {
-        Portal_Session::reset();
-    }
-
     private static function __make_portal_user(?int $contact_id = null): Portal_User_Model
     {
         $user = new Portal_User_Model();

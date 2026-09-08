@@ -39,11 +39,6 @@ class Portal_Register_Flow_Test extends Rsx_Test_Abstract
         static::__acting_as_site(self::SITE_ID);
     }
 
-    public static function teardown(): void
-    {
-        Portal_Session::reset();
-    }
-
     /**
      * Called at the top of every test: the runner resets the portal facade's statics
      * after EACH test (setup() runs once per class), so the site declaration and the

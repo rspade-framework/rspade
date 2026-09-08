@@ -1036,7 +1036,7 @@ jqhtml/js/scss, 3 stub controllers, the `Invoices_Demo` source) + the Invoices n
 `/invoices/:id` all 404 (verified); the sidebar renders with no Invoices entry (verified via an
 authenticated `rsx:debug` render - Financial -> Reports only, 0 console errors, layout bundle
 compiles). Live-code residue grep (`Invoices_|/invoices`) is zero except: the auto-regenerated
-`system/storage/rsx-build/manifest_data.php` build artifact (rebuilds JIT), the SANCTIONED
+`storage/rsx-build/manifest_index.php` build artifact (rebuilds JIT), the SANCTIONED
 money-line/alert doc-comment examples in `stat_row.jqhtml`/`callout.jqhtml` (kept - they illustrate
 the component CONCEPT, not the deleted pages; rewording would blunt the canonical example), and
 `ViewErrors.php`'s unrelated `invoice.print.blade.php` filename-convention example. Registry:

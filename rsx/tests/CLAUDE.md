@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Twenty test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Twenty-four test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -23,7 +23,14 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   `Portal_Request_Threads_Test`, `Portal_Invitation_Lifecycle_Test`,
   `Portal_Register_Flow_Test`, `Portal_User_Admin_Test`, `Portal_Impersonation_Test`
   (the per-endpoint read-only guard — every Ajax call is a POST, so a blanket POST block
-  would break the portal), `Announcement_Test`.
+  would break the portal), `Portal_Client_Authorization_Test` (the permission facade
+  beneath those screens — membership, role, `accessible_client_ids()`, the shared-item and
+  wrong-site denials), `Portal_Notifications_Test` (the notification endpoints return only
+  the caller's own feed, and `clients.portal_last_activity_at` is stamped),
+  `Announcement_Test`.
+- **Founder wiring**: `Initial_User_Handler_Test` — this application's
+  `user.initial.created` handlers, asserted both on an account the test creates and on the
+  committed test baseline.
 - **External API**: `Client_Attachments_Api_Test` — the app-owned half of file attachment
   (claim once, ownership re-verified on delete, retention and share revocation).
 

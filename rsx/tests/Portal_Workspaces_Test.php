@@ -208,7 +208,6 @@ class Portal_Workspaces_Test extends Rsx_Test_Abstract
 
     public static function teardown(): void
     {
-        Portal_Session::reset();
         static::__reset_session();
     }
 }
