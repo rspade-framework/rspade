@@ -14,6 +14,11 @@ manifest from its `#[OnEvent]` attributes. There is no registration step.
   `{user, login_user, site_id, source}` it promotes the founder to `ROLE_ROOT_ADMIN` **only
   if no role was chosen**, creates the site's `Administrators` `User_Group_Model` with
   `deletion_protection` on, and attaches the founder to it.
+- **`User_Profile_Url_Handlers`** — `#[OnEvent('user.view_profile_url')]` (resolve). Where
+  this application shows a staff user: the viewer's own profile page for their own record,
+  the user-management detail screen for anyone else, each resolved through
+  `Auth_Gates::accessible_route()` so the link exists exactly when the viewer may follow it;
+  null in the portal realm. With no answer `<Record_Author>` renders plain text.
 - **`Sso_Handlers`** — the four federated-sign-in hooks. `sso.identity.unlinked` is the
   policy decision: a **verified** provider email matching a `login_users` row is connected
   and signed in through `Rsx_Sso::consume_pending_and_login()`; otherwise an **open

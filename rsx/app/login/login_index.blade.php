@@ -96,7 +96,7 @@
                 type="password" value="{{ $default_password }}">
         </div>
 
-        <Turnstile_Input />
+        <div class="mb-3 d-flex justify-content-center"><Turnstile_Input /></div>
 
         <div class="d-grid">
             <button class="btn btn-primary" id="btn-submit" type="submit">

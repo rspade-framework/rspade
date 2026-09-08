@@ -23,6 +23,13 @@ the grouping is for readers only):
   `Announcement_Model`.
 - **Misc** — `User_Group_Model`, `Demo_Product_Model` (a fixture; delete it with the demo
   data).
+- **No framework-model override ships here.** Every core model is an abstract base
+  carrying its whole implementation plus a three-line concrete; an application that needs
+  to change one writes `class User_Model extends User_Model_Abstract` in this directory and
+  declares only what changes (copying the framework file is refused at manifest build; see
+  `rsx:man class_override`). This template needs none: the one framework answer only an
+  application can give - where a staff user's profile screen is - is a resolve hook,
+  `user.view_profile_url`, answered in `rsx/handlers/User_Profile_Url_Handlers.php`.
 
 `Project_Model.js` is the one JS file here — a client-side model stub, not an ORM class.
 

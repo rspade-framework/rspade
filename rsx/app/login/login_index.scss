@@ -2,10 +2,6 @@
 // All styles must be wrapped in the view's RSX ID class
 
 .Login_Index {
-    .pagemodal-card {
-        max-width: 400px;
-    }
-
     // The "or" rule between the password form and the federated sign-in buttons.
     // Rendered only when Rsx_Sso::is_enabled(), so these rules are dormant on an
     // install with no provider switched on.

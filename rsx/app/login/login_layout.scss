@@ -1,69 +1,67 @@
+// Login_Layout - the auth ladder's page chrome.
+//
+// LAYOUT ONLY. The card, its border, its radius and every colour on this page come from
+// the theme's Bootstrap build (.card, .card-header, .card-body) exactly as they do on the
+// authenticated frontend, so the auth pages follow light and dark with no palette of
+// their own. Nothing here names a colour that is not a runtime token.
 .Login_Layout {
+    // Anti-FOUC: the reveal is login_layout.js, which drops .preload at app-ready.
     &.preload {
-        .pagemodal-container > * {
+        .Login_Layout__viewport > * {
             display: none !important;
         }
     }
-    /* Page modal layout - centered card with scroll */
-    .pagemodal-container {
+
+    .Login_Layout__viewport {
         min-height: 100vh;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 10vh 10vw;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 10vh $spacing-lg;
+        background: var(--bs-tertiary-bg);
     }
 
-    .pagemodal-card {
-        background: var(--bs-body-bg);
-        border-radius: $border-radius-lg;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    .Login_Layout__card {
         width: 100%;
         max-width: 500px;
     }
 
-    .pagemodal-header {
-        padding: $spacing-xl $spacing-xl $spacing-md;
+    .Login_Layout__header {
+        padding: $spacing-lg $spacing-xl;
         text-align: center;
-        border-bottom: $border-width solid var(--bs-border-color);
     }
 
-    .pagemodal-header h2 {
-        margin: 0 0 $spacing-sm;
-        font-size: 28px;
-        font-weight: $font-weight-semibold;
-        color: var(--bs-body-color);
-    }
-
-    .pagemodal-header p {
+    .Login_Layout__title {
         margin: 0;
-        color: var(--bs-secondary-color);
-        font-size: 15px;
+        font-size: $font-size-2xl;
+        font-weight: $font-weight-semibold;
+        color: var(--bs-emphasis-color);
     }
 
-    .pagemodal-body {
+    .Login_Layout__subtitle {
+        margin: $spacing-xs 0 0;
+        color: var(--bs-secondary-color);
+        font-size: $font-size-sm;
+    }
+
+    .Login_Layout__body {
         padding: $spacing-xl;
     }
 
-    /* Responsive adjustments */
     @include mobile {
-        .pagemodal-container {
-            padding: 5vh 5vw;
+        .Login_Layout__viewport {
+            padding: $spacing-lg $spacing-md;
         }
 
-        .pagemodal-card {
+        .Login_Layout__card {
             max-width: 100%;
         }
 
-        .pagemodal-header {
-            padding: $spacing-lg $spacing-lg $spacing-md;
+        .Login_Layout__header {
+            padding: $spacing-md $spacing-lg;
         }
 
-        .pagemodal-header h2 {
-            font-size: $font-size-2xl;
-        }
-
-        .pagemodal-body {
+        .Login_Layout__body {
             padding: $spacing-lg;
         }
     }

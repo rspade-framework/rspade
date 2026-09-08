@@ -26,10 +26,35 @@ framework's (`/_sso/...`), and this application's policy lives in
 
 `invite_helper.php` (`Invite_Helper`) is the shared validator — **an invitation is a
 `User_Model` row** carrying `invite_code` / `invite_expires_at` / `invite_accepted_at`, not
-a separate table. `login_bundle.php` is the module bundle (theme variables and responsive
-first, then bootstrap5, `rsx/theme/components`, `rsx/lib`, then this whole directory).
+a separate table. `login_bundle.php` is the module bundle, and it carries the SAME theme set as
+`Frontend_Bundle`: `rsx/theme/variables.scss`, `rsx/theme/responsive.scss`,
+`Bootstrap5_Src_Bundle`, the whole `rsx/theme` tree (composition tokens, layout, badges
+and the component library, not just `components/`), `rsx/lib`, then this directory. That
+is what makes the auth ladder look like the staff application rather than like a separate
+product.
 
 ## HOW IT IS USED
+
+**The layout is the staff theme's Bootstrap, and nothing else.**
+`login_layout.blade.php` centres one Bootstrap `.card` (`.card-header` / `.card-body`) on
+a `var(--bs-tertiary-bg)` page; `login_layout.scss` holds ONLY the centring, the 500px
+card width, the header/body padding and the mobile adjustment, all under `.Login_Layout`
+in BEM (`.Login_Layout__viewport`, `__card`, `__header`, `__title`, `__subtitle`,
+`__body`). There is no login-only palette: every colour on these pages is a runtime token
+the theme already defines, so the auth ladder follows light and dark exactly as the
+dashboard does. A page under this layout writes ordinary Bootstrap markup - `.alert`,
+`.form-control`, `.btn-primary`, `.d-grid` - and gets the frontend's own look for free.
+
+**Light and dark are resolved by the framework, not by this module.**
+`rsx_body_class()` and `rsx_body_attributes()` on the `<body>` tag are the whole
+mechanism, the same pair `Spa_App.blade.php` uses for the authenticated shell:
+`Rsx_Dark_Mode` paints an explicit light/dark preference server-side in the first bytes of
+HTML, and `data-bs-theme` comes from `config('rsx.theme.dark_mode.attributes')`. An
+anonymous visitor has no stored preference, so the configured default applies - AUTO by
+default, which means the body carries `rsx-theme-auto` with no theme, and
+`Rsx_Dark_Mode.js` resolves `prefers-color-scheme` at boot and keeps following it. A
+visitor who signs in and then returns to a login page sees their own stored choice,
+because the same class answers for both. Nothing about the mode lives in this directory.
 
 **Turnstile.** `<Turnstile_Input />` sits in `login_index.blade.php` and
 `signup/signup_index.blade.php`; the endpoint answers it as the FIRST statement of the POST
@@ -109,10 +134,12 @@ one: `if (!$('.Login_Two_Factor_Setup').exists()) return;`.
 
 ## HOW TO CUSTOMIZE
 
-- **Rebrand**: `login_layout.blade.php` is the card shell every blade extends;
-  `login_layout.scss` holds the centred card and the hardcoded brand gradient — the one
-  literal colour pair in the module, and the first thing to change. `login_index.scss` only
-  narrows the card; `signup/signup_index.scss` is an empty placeholder.
+- **Rebrand**: recolouring is the THEME's job, not this module's - change
+  `rsx/theme/variables.scss` or the Bootstrap build and the auth pages follow with the rest
+  of the app. `login_layout.blade.php` is the card shell every blade extends and
+  `login_layout.scss` its geometry (card width, padding, centring); a brand background on
+  the sign-in page goes on `.Login_Layout__viewport`, in tokens. `login_index.scss` holds
+  only the SSO "or" divider; `signup/signup_index.scss` is an empty placeholder.
 - **Add a rung**: a controller with `#[Auth('public')]` and a justification, a blade
   extending `Login_Layout`, and Turnstile validated first in any POST branch.
 - **Change where a signed-in user lands**: `post_login_destination()` in

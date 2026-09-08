@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Twenty-four test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Twenty-six test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -28,6 +28,14 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   wrong-site denials), `Portal_Notifications_Test` (the notification endpoints return only
   the caller's own feed, and `clients.portal_last_activity_at` is stamped),
   `Announcement_Test`.
+- **Two-factor**: `Two_Factor_Login_Verify_Test` — this application's
+  `Login_Controller::verify_2fa`, the endpoint `<Two_Factor_Challenge>` is pointed at.
+  The framework deliberately ships no verification endpoint (the post-login destination is
+  application logic), so the contract it must satisfy — one argument shape in, `{redirect}`
+  out, every failure a user-safe `ERROR_VALIDATION` — is pinned here.
+- **Migration state**: `Sample_Document_Import_Test` — the `import_sample_documents`
+  migration in `rsx/resource/migrations` seeds the two sample attachments and links them to
+  the first client when one exists (`$requires_db_reset`, transactions off).
 - **Founder wiring**: `Initial_User_Handler_Test` — this application's
   `user.initial.created` handlers, asserted both on an account the test creates and on the
   committed test baseline.

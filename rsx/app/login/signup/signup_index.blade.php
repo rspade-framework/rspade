@@ -60,7 +60,7 @@
             <Text_Input $name="password_confirm" $type="password" />
         </Form_Field>
 
-        <Turnstile_Input />
+        <div class="mb-3 d-flex justify-content-center"><Turnstile_Input /></div>
 
         <div class="d-grid mt-4">
             <button class="btn btn-primary" type="submit">
