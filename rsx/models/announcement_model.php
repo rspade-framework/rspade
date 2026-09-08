@@ -73,11 +73,35 @@ class Announcement_Model extends Rsx_Site_Model_Abstract
     public static $enums = [];
 
     /**
+     * DERIVED PROPERTY - a computed value that must reach JavaScript.
+     *
+     * $appends is the route: Eloquent serializes the name through its getXAttribute()
+     * accessor inside parent::toArray(), which Rsx_Model_Abstract::toArray() calls first, so
+     * the value rides every payload this model produces - fetch(), a relationship, a list -
+     * and the generated Base_Announcement_Model.js declares it. Hand-adding the key inside
+     * fetch() would put it on exactly one payload and on none of the others.
+     *
+     * @var array
+     */
+    protected $appends = ['is_published'];
+
+    /**
      * Is this announcement published (broadcast) yet? An unpublished row is a draft.
      */
     public function is_published(): bool
     {
         return !empty($this->published_at);
+    }
+
+    /**
+     * Accessor for the appended `is_published` property. Delegates to the public method of
+     * the same name - the method is the definition, the property is only its serialization.
+     *
+     * @return bool
+     */
+    public function getIsPublishedAttribute(): bool
+    {
+        return $this->is_published();
     }
 
     /**
@@ -185,9 +209,8 @@ class Announcement_Model extends Rsx_Site_Model_Abstract
             return false;
         }
 
-        $data = $announcement->toArray();
-        $data['is_published'] = $announcement->is_published();
-
-        return $data;
+        // No hand-added keys: is_published is a declared derived property ($appends above),
+        // so toArray() already carries it.
+        return $announcement->toArray();
     }
 }

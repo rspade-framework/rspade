@@ -176,6 +176,19 @@ class Action_Log_Model extends Rsx_Site_Model_Abstract
     ];
 
     /**
+     * DERIVED PROPERTIES - computed values that must reach JavaScript.
+     *
+     * $appends is the route: Eloquent serializes each name through its getXAttribute()
+     * accessor inside parent::toArray(), which Rsx_Model_Abstract::toArray() calls first, so
+     * these ride every payload this model produces - fetch(), a relationship, a list - and the
+     * generated Base_Action_Log_Model.js declares each one. Hand-adding the keys inside fetch()
+     * would put them on exactly one payload and on none of the others.
+     *
+     * @var array
+     */
+    protected $appends = ['render', 'actor_display', 'subject_display'];
+
+    /**
      * Render the action log entry using the renderer from enum
      *
      * @return string HTML string with hyperlinks
@@ -184,6 +197,16 @@ class Action_Log_Model extends Rsx_Site_Model_Abstract
     {
         $renderer = $this->type_id__renderer;
         return call_user_func($renderer, $this);
+    }
+
+    /**
+     * Accessor for the appended `render` property. Delegates - never re-implements.
+     *
+     * @return string
+     */
+    public function getRenderAttribute(): string
+    {
+        return $this->render();
     }
 
     /**
@@ -222,6 +245,16 @@ class Action_Log_Model extends Rsx_Site_Model_Abstract
     }
 
     /**
+     * Accessor for the appended `actor_display` property. Delegates - never re-implements.
+     *
+     * @return string
+     */
+    public function getActorDisplayAttribute(): string
+    {
+        return $this->actor_display();
+    }
+
+    /**
      * Get display name for the subject
      *
      * @return string
@@ -233,6 +266,16 @@ class Action_Log_Model extends Rsx_Site_Model_Abstract
             return '(deleted)';
         }
         return $subject->name ?? $subject->title ?? "#{$subject->id}";
+    }
+
+    /**
+     * Accessor for the appended `subject_display` property. Delegates - never re-implements.
+     *
+     * @return string
+     */
+    public function getSubjectDisplayAttribute(): string
+    {
+        return $this->subject_display();
     }
 
     /**
@@ -269,14 +312,8 @@ class Action_Log_Model extends Rsx_Site_Model_Abstract
             return false;
         }
 
-        $data = $log->toArray();
-
-        // Add rendered action text and computed display values
-        // Keys must match method names per PHP-ALIAS-01
-        $data['render'] = $log->render();
-        $data['actor_display'] = $log->actor_display();
-        $data['subject_display'] = $log->subject_display();
-
-        return $data;
+        // No hand-added keys: render, actor_display and subject_display are declared derived
+        // properties ($appends above), so toArray() already carries them.
+        return $log->toArray();
     }
 }

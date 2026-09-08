@@ -106,12 +106,37 @@ class Party_Model extends Rsx_Site_Model_Abstract
     ];
 
     /**
+     * DERIVED PROPERTY - a computed value that must reach JavaScript.
+     *
+     * $appends is the route: Eloquent serializes each name through its getXAttribute()
+     * accessor inside parent::toArray(), which Rsx_Model_Abstract::toArray() calls first, so
+     * the value rides every payload this model produces - fetch(), a relationship, a list -
+     * and the generated Base_Party_Model.js declares it as a derived property. Hand-adding the
+     * key inside fetch() would put it on exactly one payload and on none of the others.
+     *
+     * @var array
+     */
+    protected $appends = ['party_id_formatted'];
+
+    /**
      * Get formatted party ID for display
      * @return string
      */
     public function party_id_formatted()
     {
         return '#PA' . str_pad($this->id, 3, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Accessor for the appended `party_id_formatted` property. Delegates to the public method
+     * of the same name - the method is the definition, the property is only its serialization,
+     * so the two can never disagree.
+     *
+     * @return string
+     */
+    public function getPartyIdFormattedAttribute(): string
+    {
+        return $this->party_id_formatted();
     }
 
     /**
@@ -128,9 +153,8 @@ class Party_Model extends Rsx_Site_Model_Abstract
             return false;
         }
 
-        $data = $party->toArray();
-        $data['party_id_formatted'] = $party->party_id_formatted();
-
-        return $data;
+        // No hand-added keys: party_id_formatted is a declared derived property ($appends
+        // above), so toArray() already carries it.
+        return $party->toArray();
     }
 }

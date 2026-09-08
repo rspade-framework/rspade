@@ -61,6 +61,23 @@ the grouping is for readers only):
   BEM-style `status_id__label` names are the API.
 - **`portal_fetch()` needs `portal_can_read()`**, fail-closed. Enforced by
   `PORTAL-MODEL-FETCH-01`.
+- **A computed value that must reach JS is `$appends` + a `getXAttribute()` accessor
+  delegating to the public method** — Eloquent serializes it inside `toArray()`, so it
+  rides every payload, and the JS stub declares it. Hand-adding the key inside `fetch()`
+  puts it on that one payload and on no other, so **no `fetch()` here does that**: every
+  body is security plus a bare `toArray()`. The declarations are `party_model.php`
+  (`party_id_formatted`), `client_model.php` (`country_name`, `client_id_formatted`,
+  `region_name`, `portal_member_count`), `contact_model.php` (`contact_id_formatted`,
+  `full_name`, `portal_user_id`), `project_model.php` (`project_id_formatted`,
+  `budget_formatted`), `action_log_model.php` (`render`, `actor_display`,
+  `subject_display`), `notification_model.php` (`render`, `is_read`),
+  `announcement_model.php` (`is_published`) and `user_group_model.php` (`member_count`,
+  `can_delete`). A derivation that READS A ROW (`portal_user_id`, `member_count`,
+  `portal_member_count`, `country_name`, `region_name`) says so in its docblock: it is
+  still declared once, and a caller wanting a wide list selects columns rather than
+  serializing. `client_model.php::to_fetch_array()` keeps `get_created_by_author`
+  hand-added on purpose — it resolves a realm-gated profile URL for one viewer, which a
+  list payload must not ask per row.
 - **Mark growth**: `public static $unbounded = true;` on any model whose row count
   grows with customer activity. `DB-UNBOUNDED-01` lints against it.
 - **Enums** are integer columns with a `$enums` map on the model. Run

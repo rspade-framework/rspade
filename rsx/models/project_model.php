@@ -114,12 +114,36 @@ class Project_Model extends Rsx_Site_Model_Abstract
     ];
 
     /**
+     * DERIVED PROPERTIES - computed values that must reach JavaScript.
+     *
+     * $appends is the route: Eloquent serializes each name through its getXAttribute()
+     * accessor inside parent::toArray(), which Rsx_Model_Abstract::toArray() calls first, so
+     * these ride every payload this model produces - fetch(), a relationship, a list - and the
+     * generated Base_Project_Model.js declares each one. Hand-adding the keys inside fetch()
+     * would put them on exactly one payload and on none of the others.
+     *
+     * @var array
+     */
+    protected $appends = ['project_id_formatted', 'budget_formatted'];
+
+    /**
      * Get formatted project ID for display
      * @return string
      */
     public function project_id_formatted()
     {
         return '#PR' . str_pad($this->id, 3, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Accessor for the appended `project_id_formatted` property. Delegates - never
+     * re-implements: the method is the definition, the property is only its serialization.
+     *
+     * @return string
+     */
+    public function getProjectIdFormattedAttribute(): string
+    {
+        return $this->project_id_formatted();
     }
 
     /**
@@ -134,6 +158,16 @@ class Project_Model extends Rsx_Site_Model_Abstract
     public function budget_formatted()
     {
         return $this->budget ? Formatters::currency($this->budget, show_symbol: true, allow_decimals: true) : null;
+    }
+
+    /**
+     * Accessor for the appended `budget_formatted` property. Delegates - never re-implements.
+     *
+     * @return string|null
+     */
+    public function getBudgetFormattedAttribute()
+    {
+        return $this->budget_formatted();
     }
 
     /**
@@ -289,13 +323,8 @@ class Project_Model extends Rsx_Site_Model_Abstract
             return false;
         }
 
-        // Start with model's toArray() to get __MODEL and base data
-        $data = $project->toArray();
-
-        // Augment with model methods (key must match method name)
-        $data['project_id_formatted'] = $project->project_id_formatted();
-        $data['budget_formatted'] = $project->budget_formatted();
-
-        return $data;
+        // No hand-added keys: project_id_formatted and budget_formatted are declared derived
+        // properties ($appends above), so toArray() already carries them.
+        return $project->toArray();
     }
 }

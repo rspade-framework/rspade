@@ -60,6 +60,24 @@ class User_Group_Model extends Rsx_Site_Model_Abstract
     }
 
     /**
+     * DERIVED PROPERTIES - computed values that must reach JavaScript.
+     *
+     * $appends is the route: Eloquent serializes each name through its getXAttribute()
+     * accessor inside parent::toArray(), which Rsx_Model_Abstract::toArray() calls first, so
+     * these ride every payload this model produces - fetch(), a relationship, a list - and the
+     * generated Base_User_Group_Model.js declares each one. Hand-adding the keys inside
+     * fetch() would put them on exactly one payload and on none of the others.
+     *
+     * member_count COUNTS ROWS to answer, so a payload carrying many groups pays a count per
+     * record. It is declared here anyway because the alternative - each surface recomputing it
+     * - is how the answers drift; a caller that needs a wide list without it selects the
+     * columns it wants rather than serializing.
+     *
+     * @var array
+     */
+    protected $appends = ['member_count', 'can_delete'];
+
+    /**
      * Get member count
      * @return int
      */
@@ -69,12 +87,33 @@ class User_Group_Model extends Rsx_Site_Model_Abstract
     }
 
     /**
+     * Accessor for the appended `member_count` property. Delegates - never re-implements.
+     *
+     * @return int
+     */
+    public function getMemberCountAttribute(): int
+    {
+        return $this->member_count();
+    }
+
+    /**
      * Check if this group can be deleted
      * @return bool
      */
     public function can_delete(): bool
     {
         return !$this->deletion_protection;
+    }
+
+    /**
+     * Accessor for the appended `can_delete` property. Delegates - never re-implements: the
+     * method is the definition, the property is only its serialization.
+     *
+     * @return bool
+     */
+    public function getCanDeleteAttribute(): bool
+    {
+        return $this->can_delete();
     }
 
     /**
@@ -89,13 +128,8 @@ class User_Group_Model extends Rsx_Site_Model_Abstract
             return false;
         }
 
-        // Start with model's toArray() to get __MODEL and base data
-        $data = $group->toArray();
-
-        // Augment with model methods (key must match method name)
-        $data['member_count'] = $group->member_count();
-        $data['can_delete'] = $group->can_delete();
-
-        return $data;
+        // No hand-added keys: member_count and can_delete are declared derived properties
+        // ($appends above), so toArray() already carries them.
+        return $group->toArray();
     }
 }

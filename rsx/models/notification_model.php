@@ -110,6 +110,19 @@ class Notification_Model extends Rsx_Site_Model_Abstract
     ];
 
     /**
+     * DERIVED PROPERTIES - computed values that must reach JavaScript.
+     *
+     * $appends is the route: Eloquent serializes each name through its getXAttribute()
+     * accessor inside parent::toArray(), which Rsx_Model_Abstract::toArray() calls first, so
+     * these ride every payload this model produces - fetch(), a relationship, a list - and the
+     * generated Base_Notification_Model.js declares each one. Hand-adding the keys inside
+     * fetch() would put them on exactly one payload and on none of the others.
+     *
+     * @var array
+     */
+    protected $appends = ['render', 'is_read'];
+
+    /**
      * Render the notification using the renderer from enum
      *
      * @return array ['text' => string, 'url' => string|null, 'image_url' => string|null]
@@ -118,6 +131,16 @@ class Notification_Model extends Rsx_Site_Model_Abstract
     {
         $renderer = $this->type_id__renderer;
         return call_user_func($renderer, $this);
+    }
+
+    /**
+     * Accessor for the appended `render` property. Delegates - never re-implements.
+     *
+     * @return array
+     */
+    public function getRenderAttribute(): array
+    {
+        return $this->render();
     }
 
     /**
@@ -159,6 +182,17 @@ class Notification_Model extends Rsx_Site_Model_Abstract
     public function is_read(): bool
     {
         return $this->read_at !== null;
+    }
+
+    /**
+     * Accessor for the appended `is_read` property. Delegates - never re-implements: the
+     * method is the definition, the property is only its serialization.
+     *
+     * @return bool
+     */
+    public function getIsReadAttribute(): bool
+    {
+        return $this->is_read();
     }
 
     /**
@@ -228,12 +262,8 @@ class Notification_Model extends Rsx_Site_Model_Abstract
             return false;
         }
 
-        $data = $notification->toArray();
-
-        // Add rendered notification data
-        $data['render'] = $notification->render();
-        $data['is_read'] = $notification->is_read();
-
-        return $data;
+        // No hand-added keys: render and is_read are declared derived properties ($appends
+        // above), so toArray() already carries them.
+        return $notification->toArray();
     }
 }
