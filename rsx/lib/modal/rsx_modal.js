@@ -18,7 +18,11 @@ class Rsx_Modal extends Component {
             result_promise: null,
             resolve_fn: null,
             skip_backdrop: false,
-            icon: null
+            icon: null,
+            // Set while an Enter-driven accept is in flight, so key auto-repeat cannot
+            // fire the default button's async callback a second time. Cleared when the
+            // callback settles (the dialog stayed open) or when the modal closes.
+            accepting: false
         };
 
         // Store reference to bootstrap modal instance
@@ -56,6 +60,56 @@ class Rsx_Modal extends Component {
             }
         });
 
+        // ENTER ACCEPTS THE DIALOG - it activates the default button, whatever that button
+        // does. One rule covers every dialog: alert and danger acknowledge, confirm confirms,
+        // prompt and select answer, and a Modal.form() dialog submits - because its default
+        // button is the footer button whose callback drives the hosted <Rsx_Form>'s submit()
+        // and then closes with the result. So the modal never needs to know a form is there,
+        // and the form's own pipeline still owns validation and error rendering.
+        //
+        // WHY THIS LIVES HERE AND NOT IN Rsx_Form. Rsx_Form binds the form element's own
+        // submit event, which catches the browser's implicit submission (Enter in a text
+        // input) on a PAGE form. In a modal that path reaches submit() but bypasses the
+        // modal entirely - Modal.form()'s only completion path is its button callback - so
+        // the record would save while the dialog stayed open and on_success never ran.
+        // preventDefault() below is what stops implicit submission from firing at all, so
+        // exactly one submission path runs and it is the one that closes the dialog.
+        $(document).on('keydown.rsx_modal_' + this._cid, function (e) {
+            if (e.key !== 'Enter' || !that.state.is_visible) {
+                return;
+            }
+
+            // Mid-composition Enter commits an IME candidate (CJK and friends). It is not
+            // the user accepting the dialog.
+            if (e.originalEvent && (e.originalEvent.isComposing || e.originalEvent.keyCode === 229)) {
+                return;
+            }
+
+            // Enter already belongs to the focused control: a textarea takes a newline, a
+            // select opens/commits natively, and a focused button or link is activated by
+            // Enter - stealing it for a DIFFERENT button would be wrong.
+            const $target = $(e.target);
+            if ($target.is('textarea, select, button, a, [contenteditable], [contenteditable] *')) {
+                return;
+            }
+
+            const $default = that._default_button();
+            if (!$default.exists() || $default.prop('disabled')) {
+                return;
+            }
+
+            // Stop the browser's implicit submission before it starts (see above), and stop
+            // key auto-repeat from firing an async callback many times over - the modal's
+            // button callback has no re-entrancy guard of its own.
+            e.preventDefault();
+            if (that.state.accepting) {
+                return;
+            }
+            that.state.accepting = true;
+
+            $default.trigger('click');
+        });
+
         // Set up resize handler
         this._resize_handler = debounce(() => {
             if (that.state.is_visible) {
@@ -76,7 +130,7 @@ class Rsx_Modal extends Component {
         const skip_backdrop = internal_options.skip_backdrop || false;
         const should_animate = internal_options.animate || false;
 
-        console.log('[Rsx_Modal] show() called with options:', options);
+        console_debug('MODAL', 'show() called with options:', options);
 
         // Store options
         this.state.title = options.title || '';
@@ -200,14 +254,26 @@ class Rsx_Modal extends Component {
                 .addClass(button_def.class || 'btn-secondary')
                 .text(button_def.label || 'Button');
 
+            // The ACCEPT button of this dialog, marked in the DOM so the Enter handler can
+            // find it. Every dialog the Modal API builds already declares `default: true`
+            // on exactly one button; this is what makes that declaration mean something.
+            if (button_def.default) {
+                $button.attr('data-modal-default', '1');
+            }
+
             $button.on('click', async function () {
                 let result = button_def.value;
                 let had_callback = false;
 
-                // If button has a callback, call it and use return value as result
-                if (button_def.callback && typeof button_def.callback === 'function') {
-                    had_callback = true;
-                    result = await button_def.callback();
+                try {
+                    // If button has a callback, call it and use return value as result
+                    if (button_def.callback && typeof button_def.callback === 'function') {
+                        had_callback = true;
+                        result = await button_def.callback();
+                    }
+                } finally {
+                    // Whatever happened, another Enter is allowed once this settles.
+                    that.state.accepting = false;
                 }
 
                 // If callback returned false, keep modal open (but not if just button value is false)
@@ -221,6 +287,15 @@ class Rsx_Modal extends Component {
 
             $footer.append($button);
         }
+    }
+
+    /**
+     * The dialog's accept button - the one its declaration marked `default: true`.
+     * Empty when the dialog has no buttons at all (Modal.loading), in which case Enter
+     * has nothing to press and does nothing.
+     */
+    _default_button() {
+        return this.$sid('footer').find('[data-modal-default]').first();
     }
 
     /**
@@ -346,6 +421,7 @@ class Rsx_Modal extends Component {
 
         // Mark as not visible
         this.state.is_visible = false;
+        this.state.accepting = false;
 
         // Remove event listeners
         $(document).off('keydown.rsx_modal_' + this._cid);

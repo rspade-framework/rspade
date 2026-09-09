@@ -110,6 +110,16 @@ const picked = await Modal.show({
 **`return null` CLOSES the dialog.** Only a literal `false` holds it open. A callback
 that returns `null` "to keep the modal open" discards whatever the user had entered.
 
+## The Enter key
+
+**Enter accepts the open dialog** - it activates the button declared `default: true`, whatever that button does. Every dialog this library builds declares it on exactly one button, so one rule covers all of them: `alert`/`error` acknowledge, `confirm` confirms, `prompt`/`select` answer, and `Modal.form()` submits, because its default button is the footer button whose callback drives the hosted `<Rsx_Form>`. The modal never inspects its own contents. A custom `Modal.show({buttons})` gets the behavior by marking its accept button - **an accept button with no `default: true` means Enter does nothing in that dialog.**
+
+Ignored when the focus is in a `textarea`, `select`, `contenteditable`, or on a button/link (Enter already belongs to that control); during an IME composition; when there is no default button (`Modal.unclosable`); or when it is disabled. Key auto-repeat cannot fire an async callback twice - `state.accepting` guards it.
+
+**`preventDefault()` in that handler is load-bearing, not politeness.** `<Rsx_Form>` binds the form element's own submit event so that Enter on a PAGE form submits instead of navigating. Inside a modal that path would reach `submit()` while bypassing the modal - `Modal.form()`'s button callback is its ONLY completion path - so the record would save while the dialog stayed open and `on_success` never ran. Suppressing the browser's implicit submission leaves exactly one submission path: the one that closes the dialog.
+
+Implementation: `rsx_modal.js` `on_ready()` (the handler), `_set_buttons()` (`data-modal-default`), `_default_button()`. Covered by `rsx/tests/playwright/modal_enter_accepts.js`.
+
 ## Modal Classes
 
 For complex modals or modals called from multiple places, create dedicated modal classes:

@@ -36,6 +36,14 @@ Also available: `Modal.show(options)` (custom buttons), `Modal.form(options)`, `
 
 **Basic dialogs take positional arguments, NOT an options object** (only `Modal.show()` / `Modal.form()` / `Modal.custom()` take an options object).
 
+## The Enter key
+
+**Enter accepts the open dialog** - it activates the button declared `default: true`, whatever that button does. Every dialog the API builds declares it on exactly one button, so one rule covers all of them: `alert`/`error` acknowledge, `confirm` confirms, `prompt`/`select` answer, and `Modal.form()` submits (its default button is the footer button whose callback drives the hosted `<Rsx_Form>`). The modal never inspects its own contents, and a custom `Modal.show()` gets the behavior for free by marking its accept button.
+
+Ignored when the focus is in a `textarea`, `select`, `contenteditable`, or on a button/link; during an IME composition; when there is no default button (`Modal.unclosable`); or when it is disabled.
+
+The handler calls `preventDefault()`, which is load-bearing: `<Rsx_Form>` binds the form element's own submit event so Enter on a PAGE form submits instead of navigating, and inside a modal that path would reach `submit()` while bypassing the modal - saving the record but leaving the dialog open with `on_success` never run. Suppressing implicit submission leaves exactly one submission path: the one that closes the dialog.
+
 **1 arg = body only (default title). 2+ args = first arg is TITLE, second is BODY.** This applies to `alert()`, `confirm()` and `prompt()`. Easy to get backwards - the title shifts to arg 1 when you add a second argument.
 
 ```javascript

@@ -68,6 +68,30 @@ most tests pin `USER_ID = 1` / `SITE_ID = 1` and call `static::__acting_as_site(
 **These files sit directly in `rsx/tests/`, so none of them belongs to a `--group`** — a
 group is a concern subdirectory, matched exactly on the directory name.
 
+## BROWSER TESTS (`playwright/`)
+
+`rsx/tests/playwright/` holds standalone node scripts, NOT PHP test classes. They are not
+discovered or run by `rsx:test` — a playwright script drives the ordinary web server in
+another process, against the developer database, so it is run directly:
+
+```
+node rsx/tests/playwright/modal_enter_accepts.js
+```
+
+Each mints its own dev-auth headers through `system/bin/dev-auth.js`, exits 0 on pass and 1
+on failure, and prints `PASS:`/`FAIL:` lines.
+
+- `modal_enter_accepts.js` — Enter activates the open dialog's `default: true` button.
+  Covers the four cases the behavior has to get right: a simple dialog answers, a
+  `Modal.form()` dialog submits *through the modal's own callback* (so `on_success` runs and
+  it closes — the failure it exists to catch is Enter reaching the hosted `<Rsx_Form>`
+  directly and leaving the dialog open), a textarea keeps Enter as a newline, and a dialog
+  with no default button ignores it. Runs against `/dashboard` because `Modal` is
+  application code in `rsx/lib/modal/` and is not in the framework's own bundle.
+
+A browser test belongs here rather than in the framework suite whenever its subject is
+`rsx/` code — the framework suite is guarded against naming application classes and routes.
+
 ## HOW TO CUSTOMIZE
 
 - **Add a test**: a `<Thing>_Test.php` here extending `Rsx_Test_Abstract`. Test the failure
