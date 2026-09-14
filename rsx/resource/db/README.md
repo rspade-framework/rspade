@@ -5,7 +5,7 @@ replaying every migration ever written.
 
 | File | What it is |
 |---|---|
-| `schema_cache.sql.gz` | A gzipped `mysqldump` of a database migrated from zero. No user rows: the first-run screen creates user 1 after the restore. |
+| `schema_cache.sql.gz` | A gzipped `mysqldump` of a database migrated from zero. No user rows: the first-run screen creates user 1 after the restore. Every `DEFINER=` clause is rewritten to `DEFINER=CURRENT_USER`, so the dump restores under any database account on any host. |
 | `uploads_cache.tar.gz` | The content-addressed blob store's contents at that same point - whatever the data-seed migrations wrote. Relative paths, so it extracts into any blob root. |
 
 ## Who writes them
