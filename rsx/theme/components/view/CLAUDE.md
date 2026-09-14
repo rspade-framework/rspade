@@ -12,6 +12,13 @@ One subdirectory per component (template + SCSS, `.js` only where behaviour exis
   whole row navigate, respecting real interactive elements inside it.
 - `feed_row/` — `Feed_Row`: one "actor did thing" activity line (icon tile + summary + time).
 - `author_meta_row/` — `Author_Meta_Row`: the authored-post byline (avatar + author + time).
+- `rich_text_display/` — `Rich_Text_Display`: renders a `Rich_Text` value. The PRINTER
+  component that type declares, so it is mounted by interpolating the value rather than
+  written by hand. Owns the one unescaped output in the application, which is correct only
+  here because `Rich_Text` filtered the content on write.
+- `raw_text_display/` — `Raw_Text_Display`: renders a `Raw_Text` value, escaped with line
+  breaks. A component rather than a plain string because a printer's string return is
+  escaped at the call site and so could never carry a `<br>` of its own.
 - `person_avatar/` — `Person_Avatar`: a profile photo or a deterministic initials disc.
 - `people_list/` — `People_List`: a scannable stacked list of people; fires `person_click`
   and `person_remove` with the exact person object.

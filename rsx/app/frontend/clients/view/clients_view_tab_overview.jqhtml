@@ -96,9 +96,15 @@ Usage:
     </Section>
     <% } %>
 
-    <% if (_client.notes) { %>
+    <%--
+    `notes` is declared Raw_Text on Client_Model, so interpolating it mounts the type's
+    Raw_Text_Display. The `<%br= %>` that used to stand here was this template deciding
+    the column is plain text whose newlines matter - which is the column's property, not
+    the page's, and had to be restated identically everywhere it printed.
+    --%>
+    <% if (_client.notes && !_client.notes.is_empty()) { %>
     <Section $title="Internal Notes">
-        <%br= _client.notes %>
+        <%= _client.notes %>
     </Section>
     <% } %>
 </Define:Clients_View_Tab_Overview>

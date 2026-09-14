@@ -1,41 +1,87 @@
 /**
- * Wysiwyg_Input - WYSIWYG editor widget using Quill
+ * Wysiwyg_Input - WYSIWYG editor widget using Quill.
  *
- * Implements the form widget interface:
- * - val() - Get/set HTML content (sanitized via safe_html())
- * - seed() - Fills with random content
+ * Edits a Rich_Text value and nothing else. ACCEPTS names the type, so wiring this widget
+ * to a column whose $text_types entry is not Rich_Text is refused at the moment a value
+ * arrives, rather than discovered when someone reads the rendered page.
  *
- * SECURITY NOTE: Data from this widget is rich HTML that will likely be displayed
- * without HTML escaping. To prevent XSS attacks, always sanitize at every step:
+ * val() gets and sets a Rich_Text INSTANCE, never a string. Everything that used to be a
+ * caller's responsibility now belongs to the type:
  *
- * 1. CLIENT DISPLAY: This widget's val() already sanitizes output, but when
- *    displaying stored content, always use safe_html():
- *        container.innerHTML = safe_html(data.description);
+ *   - the write filter runs in Rich_Text (client-side at from_editor(), authoritatively
+ *     again on the server), so no call site sanitizes before saving;
+ *   - display goes through the type's PRINTER component, so no call site chooses between
+ *     html() and safe_html();
+ *   - a server-rendered document uses Rich_Text::to_html(), so no Blade template decides
+ *     whether to escape.
  *
- * 2. SERVER DISPLAY (Blade): Use safe_html() before outputting:
- *        {!! safe_html($project->description) !!}
- *
- * 3. DATABASE SAVE: Sanitize before storing to stop malicious content early:
- *        $model->description = safe_html($params['description']);
- *
- * Defense in depth - sanitize at ALL layers, not just one.
+ * That is the point of the text-type system: the encoding is declared once on the model
+ * and every sink asks the value, instead of every sink remembering.
  */
 class Wysiwyg_Input extends Form_Input_Abstract {
+    // A NAME, not a class reference - see Raw_Text_Input for why.
+    static ACCEPTS = 'Rich_Text';
+
     on_create() {
         super.on_create();
         this.quill = null;
     }
 
+    /**
+     * @returns {Rich_Text|null}
+     */
     _get_value() {
-        if (!this.quill) return '';
-        return safe_html(this.quill.root.innerHTML);
+        if (!this.quill) {
+            return null;
+        }
+
+        // getSemanticHTML(), NOT `root.innerHTML`. The editor's live DOM is Quill's
+        // RENDERING, not its document: it carries `<span class="ql-ui">` chrome nodes and
+        // encodes a bullet list as `<ol><li data-list="bullet">`. Storing that meant
+        // saving editor internals into the column, and worse - Rich_Text's filter drops
+        // data-* attributes, so `data-list="bullet"` was stripped on the way in and a
+        // bulleted list came back as a NUMBERED one.
+        //
+        // getSemanticHTML() is Quill's own answer to "give me this document as portable
+        // HTML": plain `<ul><li>`, no chrome, nothing that depends on Quill to interpret.
+        // That is what a text type should hold - the column outlives whichever editor
+        // happens to be writing to it.
+        return Rich_Text.from_editor(this.quill.getSemanticHTML());
     }
 
+    /**
+     * @param {Rich_Text|null} value
+     */
     _set_value(value) {
-        if (value && this.quill) {
-            this.quill.root.innerHTML = value;
-            this.$sid('hidden_input').val(value);
+        if (!this.quill) {
+            return;
         }
+
+        // Editing always works on the raw form: the editor IS the thing that understands
+        // this encoding, which is why the type hands it the storage string directly.
+        const raw = value === null || value === undefined ? '' : value.to_storage();
+
+        // dangerouslyPasteHTML, NOT `root.innerHTML = raw`, and this is a data-integrity
+        // fix rather than a style preference.
+        //
+        // Quill keeps its own document model and treats the DOM as its rendering of that
+        // model. Assigning innerHTML puts nodes on screen that the model has never heard
+        // of, and the next reconciliation deletes them - so a stored `<ul><li>` list
+        // appeared for one frame and was then silently removed. Because _get_value()
+        // reads back from the DOM, saving such a record DESTROYED the list, with no
+        // error anywhere.
+        //
+        // Content authored in this editor round-trips either way (Quill emits markup it
+        // already understands), which is why this survived: it only bites HTML that
+        // reached the column from somewhere else - an import, a migration through
+        // Rich_Text::from_string(), or a seed.
+        //
+        // "dangerously" refers to pasting untrusted HTML. This value was filtered by
+        // Rich_Text on write and again by safe_html() client-side, so what arrives here
+        // has already been through the trust boundary twice.
+        this.quill.setContents([]);
+        this.quill.clipboard.dangerouslyPasteHTML(raw);
+        this.$sid('hidden_input').val(raw);
     }
 
     on_ready() {
@@ -68,10 +114,20 @@ class Wysiwyg_Input extends Form_Input_Abstract {
             }
         });
 
-        // Update hidden input on text change and trigger events
-        this.quill.on('text-change', function() {
+        // Update hidden input on text change and trigger events.
+        //
+        // The `source` check is required: Quill fires text-change for PROGRAMMATIC edits
+        // too ('api'), and _set_value() above is one. _notify_input() means "the USER
+        // changed this" - firing it while loading a record would mark the field dirty
+        // before anyone touched it, and Rsx_Form's dirty tracking deliberately refuses to
+        // let later data overwrite a dirty field. The form would then ignore its own
+        // populate().
+        this.quill.on('text-change', function (delta, old_delta, source) {
             that.$sid('hidden_input').val(that.quill.root.innerHTML);
-            that._notify_input(that.val());
+
+            if (source === 'user') {
+                that._notify_input(that.val());
+            }
         });
     }
 
@@ -92,6 +148,6 @@ class Wysiwyg_Input extends Form_Input_Abstract {
             <p>Another paragraph with <a href="#">a sample link</a>.</p>
         `;
 
-        this.val(sample_content);
+        this.val(Rich_Text.from_editor(sample_content));
     }
 }

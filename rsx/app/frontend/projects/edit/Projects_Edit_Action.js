@@ -20,10 +20,13 @@ class Projects_Edit_Action extends Spa_Action {
         // Check if client_id was passed as query param (from client view page)
         this.data.from_client = !!this.args.client_id;
 
-        // Form data stub - provide empty strings for all fields to avoid undefined
+        // Form data stub - provide empty strings for all fields to avoid undefined.
+        // EXCEPT the declared text-type columns (description, notes): their inputs edit a
+        // value object, and '' is a string. null is the right empty for them - it is what
+        // the column holds when it has no content, and every input handles it.
         this.data.form_data = {
             name: '',
-            description: '',
+            description: null,
             client_id: this.args.client_id || '',
             parent_project_id: '',
             status: '1',
@@ -31,7 +34,7 @@ class Projects_Edit_Action extends Spa_Action {
             start_date: '',
             due_date: '',
             budget: '',
-            notes: '',
+            notes: null,
             contacts: [],
             assigned_users: [],
         };
@@ -74,7 +77,10 @@ class Projects_Edit_Action extends Spa_Action {
                 this.data.form_data = {
                     id: project.id,
                     name: project.name || '',
-                    description: project.description || '',
+                    // No `|| ''` on the text-type columns: the value is an object, and
+                    // coercing an absent one to a string would hand the editor something
+                    // it refuses. null passes through as null.
+                    description: project.description,
                     client_id: project.client_id || '',
                     parent_project_id: project.parent_project_id || '',
                     status: str(project.status || '1'),
@@ -82,7 +88,7 @@ class Projects_Edit_Action extends Spa_Action {
                     start_date: project.start_date || '',
                     due_date: project.due_date || '',
                     budget: project.budget || '',
-                    notes: project.notes || '',
+                    notes: project.notes,
                     contacts: [],
                     assigned_users: [],
                 };

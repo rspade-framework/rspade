@@ -1,0 +1,196 @@
+/* Wysiwyg_Input component styles */
+.Wysiwyg_Input {
+
+    /*
+     * QUILL THEMING.
+     *
+     * Quill's `snow` theme is consumed PREBUILT from the CDN cache
+     * (rsx/resource/.cdn-cache/..._quill_snow.css) and hardcodes every colour as a
+     * literal - #ccc for chrome borders, #444 for icons and labels, #fff for the popup
+     * surfaces, #06c for links and the hover accent. There is nothing to re-point and
+     * nothing to recompile, so the rules below are the only way to make the editor follow
+     * the theme. Without them the toolbar and the link tooltip stay light-on-light while
+     * the page around them is dark, and the editor surface was literally
+     * `style="background: white"` in the template.
+     *
+     * Everything maps to var(--bs-*), so ONE set of rules serves both themes and there is
+     * no .rsx-dark selector to keep in sync. Those tokens are exactly what Bootstrap's own
+     * .form-control resolves to, which is the point: this widget sits in a form beside
+     * native inputs and the two have to agree.
+     *
+     * Every rule is nested under .Wysiwyg_Input, which both satisfies the component-scope
+     * rule and wins on specificity - Quill's own rules are (0,2,0) shapes like
+     * `.ql-snow .ql-picker`, and the extra class makes these (0,3,0). Quill renders its
+     * dropdowns and its link tooltip INSIDE the editor element, so nothing it draws
+     * escapes this block. (Contrast select_input.scss, which cannot nest: Tom Select
+     * appends its dropdown to <body>.)
+     *
+     * DELIBERATELY NOT THEMED: the content colour classes (.ql-bg-*, .ql-color-*) and the
+     * colour-picker swatches. Those are colours the AUTHOR chose for their text; re-mapping
+     * them to theme tokens would silently rewrite the document.
+     */
+
+    /*
+     * The editor box. Matches a .form-control, because that is what it is.
+     *
+     * FLEX IS LOAD-BEARING, not layout taste. Quill gives the inner .ql-editor - the
+     * contenteditable the user actually clicks - `height: 100%`, and a percentage height
+     * resolves against the parent's COMPUTED height. This box only declares min-height,
+     * so its computed height is `auto`, the percentage resolves to `auto` too, and the
+     * editable area collapses to the height of its own text.
+     *
+     * The result was a box that LOOKED like a 200px multi-line input but was only
+     * clickable across the one line of text inside it: clicking the empty space below
+     * landed on the container, not the contenteditable, and did not focus the editor.
+     *
+     * As a flex column with the editor set to grow, the editable area fills the box at
+     * any content length, and it also fills a taller box if a caller gives the host an
+     * explicit height - which `height: 100%` alone would still get wrong.
+     */
+    &__editor {
+        display: flex;
+        flex-direction: column;
+        min-height: 200px;
+        background-color: var(--bs-body-bg);
+        color: var(--bs-body-color);
+
+        .ql-editor {
+            flex: 1 1 auto;
+        }
+    }
+
+    .ql-container.ql-snow {
+        border-color: var(--bs-border-color);
+    }
+
+    .ql-editor.ql-blank::before {
+        color: var(--bs-secondary-color);
+    }
+
+    /* --- Toolbar chrome --- */
+
+    .ql-toolbar.ql-snow {
+        border-color: var(--bs-border-color);
+        background-color: var(--bs-tertiary-bg);
+    }
+
+    .ql-snow {
+
+        .ql-picker {
+            color: var(--bs-body-color);
+        }
+
+        /* The icons are SVG: their colour is stroke and fill, not `color`. */
+        .ql-stroke,
+        .ql-stroke-miter {
+            stroke: var(--bs-body-color);
+        }
+
+        .ql-fill,
+        .ql-stroke.ql-fill {
+            fill: var(--bs-body-color);
+        }
+
+        /* The open dropdown of a picker (heading level, colour swatches). */
+        .ql-picker-options {
+            background-color: var(--bs-body-bg);
+            border-color: var(--bs-border-color);
+        }
+
+        .ql-picker.ql-expanded {
+
+            .ql-picker-label {
+                color: var(--bs-body-color);
+                border-color: var(--bs-border-color);
+
+                .ql-fill {
+                    fill: var(--bs-body-color);
+                }
+
+                .ql-stroke {
+                    stroke: var(--bs-body-color);
+                }
+            }
+        }
+    }
+
+    /*
+     * Hover and focus. Quill paints these with its own blue; the theme has an accent
+     * already and a second one beside it reads as a bug.
+     *
+     * The :not(.ql-active) pair is Quill's own - it returns a hovered button to the
+     * resting colour when that button is already active - and it has to be restated here
+     * or the resting literal wins back on hover.
+     */
+    .ql-snow.ql-toolbar,
+    .ql-snow .ql-toolbar {
+
+        button:hover,
+        button:focus,
+        button.ql-active,
+        .ql-picker-label:hover,
+        .ql-picker-label.ql-active,
+        .ql-picker-item:hover,
+        .ql-picker-item.ql-selected {
+            color: var(--bs-link-color);
+
+            .ql-fill {
+                fill: var(--bs-link-color);
+            }
+
+            .ql-stroke {
+                stroke: var(--bs-link-color);
+            }
+        }
+
+        button:hover:not(.ql-active) {
+            color: var(--bs-body-color);
+
+            .ql-fill {
+                fill: var(--bs-body-color);
+            }
+
+            .ql-stroke {
+                stroke: var(--bs-body-color);
+            }
+        }
+    }
+
+    /* --- The link tooltip (appears when a link is inserted or clicked) --- */
+
+    .ql-snow .ql-tooltip {
+        background-color: var(--bs-body-bg);
+        border-color: var(--bs-border-color);
+        color: var(--bs-body-color);
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+
+        input[type="text"] {
+            background-color: var(--bs-body-bg);
+            border-color: var(--bs-border-color);
+            color: var(--bs-body-color);
+        }
+
+        a.ql-action::after {
+            border-right-color: var(--bs-border-color);
+        }
+    }
+
+    /* --- Content the editor renders that carries chrome colours of its own --- */
+
+    .ql-snow .ql-editor {
+
+        blockquote {
+            border-left-color: var(--bs-border-color);
+        }
+
+        code,
+        .ql-code-block-container {
+            background-color: var(--bs-secondary-bg);
+            color: var(--bs-body-color);
+        }
+
+        a {
+            color: var(--bs-link-color);
+        }
+    }
+}

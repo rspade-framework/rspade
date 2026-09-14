@@ -26,8 +26,26 @@
                             <Text_Input $name="name" $placeholder="Enter project name" $max_length=Project_Model.field_length('name') />
                         </Form_Field>
 
+                        <%--
+                        The DYNAMIC COMPONENT TAG, and the one situation it is for: the
+                        editor is whatever `description`'s declared text type says edits it,
+                        so this form names no widget. Change Project_Model::$text_types and
+                        the editor here changes with it - which is the promise the whole
+                        text-type feature makes, and it cannot be kept by a template that
+                        hardcodes <Wysiwyg_Input>.
+
+                        Note it asks the MODEL, not the value. There is no value to ask at
+                        this moment: on /projects/add every field is null, and on an edit the
+                        record is still being fetched. The column's type is known
+                        synchronously; the value is not.
+
+                        This is an advanced form and almost nothing else should use it - see
+                        `rsx:man jqhtml`, DYNAMIC COMPONENT TAGS. An ordinary conditional
+                        around two literal tags is the right answer everywhere else.
+                        --%>
                         <Form_Field $label="Description">
-                            <Wysiwyg_Input $name="description" $placeholder="Enter project description..." />
+                            <{Project_Model.editor_for('description')} $name="description"
+                                $placeholder="Enter project description..." />
                         </Form_Field>
 
                         <% if (this.data.is_edit || this.data.from_client) { %>
@@ -80,8 +98,10 @@
                     </Section>
 
                     <Section $title="Notes">
+                        <%-- Also derived from the column's declared type. --%>
                         <Form_Field $label="Internal Notes">
-                            <Text_Input $name="notes" $type="textarea" $rows=4 $placeholder="Internal notes about this project..." $max_length=-1 />
+                            <{Project_Model.editor_for('notes')} $name="notes" $rows=4
+                                $placeholder="Internal notes about this project..." />
                         </Form_Field>
                     </Section>
 

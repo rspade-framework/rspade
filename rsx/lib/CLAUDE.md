@@ -10,6 +10,7 @@ found by name, so a subdirectory is organisation only.
 | `action_log/` | `Action_Log` (record + read), `Action_Log_Renderer` (per-type HTML summaries), `Activity_Feed` (JS icon/variant map). Own `CLAUDE.md`. |
 | `notification/` | `Notification` (send, unread count, dropdown feed, expiry) and `Notification_Renderer` (per-type text + link). Own `CLAUDE.md`. |
 | `modal/` | `Modal`, `Modal_Abstract` and the `Rsx_Modal` chrome component — every dialog in the app. Own `CLAUDE.md`. |
+| `text_types/` | `Raw_Text` and `Rich_Text` - the declared TEXT column types. Each is a PHP class (the encoding) plus a JS class of the same name (which component prints it, which one edits it). Own `CLAUDE.md`. |
 | `topics/` | `Portal_Notification_Topic` — the realtime topic `Portal_Notification_Model::emit()` publishes on. `can_subscribe()` is fail-closed: the filter's `portal_user_id` must equal the caller's. |
 | `analytics/` | `Analytics` plus `analytics.externals.php`. Loads gtag.js only when `rsx.analytics.measurement_id` is set; the app's worked example of an external-resource declaration. |
 | `portal_user_admin/` | `Portal_User_Admin_Actions.suspend()/reactivate()` — confirm-then-call staff actions on a portal user, shared by the clients portal panel and the settings screen. |
@@ -21,7 +22,9 @@ found by name, so a subdirectory is organisation only.
 ## HOW IT IS USED
 
 A `lib` class is `public static` and namespaced under `Rsx\Lib\...`; nothing here holds
-request state or renders a page. The JS files are plain classes and free functions picked
+request state or renders a page. `text_types/` is the one exception to the static rule:
+a text value is an instance because each one IS a distinct value, which is the whole
+point of it. The JS files are plain classes and free functions picked
 up by whichever bundle includes `rsx/lib` — every module bundle does.
 
 **Before adding anything here, check the framework's standard library first**
@@ -35,6 +38,10 @@ DISPLAY conventions this application chose, not to re-implement them.
 - **Everything here is deletable.** `portal_demo_autoshare.php` is demo scaffolding and is
   the first thing to remove from a real fork; `analytics/` goes with the tracking decision;
   `quill_utils.js` goes if no form uses the WYSIWYG input.
+- **`text_types/` is meant to be adapted, not just kept.** The framework ships the abstract
+  and nothing else; which types exist and what they permit is entirely this application's
+  decision. Changing `Rich_Text`'s allow-list, or adding a type of your own, is the
+  expected use of that directory rather than a customisation of it.
 - **A new utility earns its place in `lib/` only when a second caller appears.** One caller
   means it belongs beside that caller.
 - Keep the two `Formatters` in step — a rule added to one half and not the other shows up
@@ -46,6 +53,7 @@ DISPLAY conventions this application chose, not to re-implement them.
 ## RELATED
 
 `action_log/CLAUDE.md` · `notification/CLAUDE.md` · `modal/CLAUDE.md` ·
+`text_types/CLAUDE.md` ·
 app skills `action-log-and-notifications`, `modals` · skills `rspade:rsx-stdlib`,
 `rspade:external-resources`, `rspade:realtime` · `rsx:man helpers`, `rsx:man js_functions`,
 `rsx:man external_resources`

@@ -1,0 +1,51 @@
+/* Rich_Text_Display component styles */
+.Rich_Text_Display {
+
+    /*
+     * The content here is AUTHORED, so it arrives with its own headings, lists and
+     * quotes and must read as a document rather than inheriting whatever the host
+     * happens to be. These are deliberately modest: enough that a pasted document does
+     * not collapse into a wall of text, not so much that it fights the page around it.
+     *
+     * Everything resolves to theme tokens, so the rendered document follows dark and
+     * light exactly as the editor that produced it does.
+     */
+    > :first-child {
+        margin-top: 0;
+    }
+
+    > :last-child {
+        margin-bottom: 0;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        margin-bottom: 0.5rem;
+    }
+
+    blockquote {
+        border-left: 4px solid var(--bs-border-color);
+        padding-left: 1rem;
+        margin-left: 0;
+        color: var(--bs-secondary-color);
+    }
+
+    code {
+        background-color: var(--bs-secondary-bg);
+        border-radius: 3px;
+        padding: 0.1em 0.3em;
+    }
+
+    img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    table {
+        border-collapse: collapse;
+
+        td, th {
+            border: 1px solid var(--bs-border-color);
+            padding: 0.25rem 0.5rem;
+        }
+    }
+}

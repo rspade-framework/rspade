@@ -7,6 +7,7 @@ use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
 use App\RSpade\Core\Models\Country_Model;
 use App\RSpade\Core\Models\Region_Model;
 use App\RSpade\Core\Models\User_Model;
+use Rsx\Lib\TextTypes\RawText\Raw_Text;
 use Rsx\Models\Client_Department_Model;
 use Rsx\Models\Contact_Model;
 use Rsx\Models\Portal_Membership_Model;
@@ -116,6 +117,21 @@ class Client_Model extends Rsx_Site_Model_Abstract
 
     protected $table = 'clients';
     protected $fillable = []; // No mass assignment - always explicit
+
+    /**
+     * DECLARED TEXT TYPES - see Project_Model::$text_types for the reasoning.
+     *
+     * `notes` is a plain textarea. Declaring it Raw_Text rather than leaving it
+     * undeclared is a statement of intent: it pins the editor (a rich-text widget on
+     * either column is now refused), it routes display through the type's printer, and it
+     * means the day `notes` becomes Rich_Text the change is one line here plus a migration
+     * that re-encodes the column - not an audit of every place either value is printed.
+     *
+     * @var array
+     */
+    public static $text_types = [
+        'notes' => Raw_Text::class,
+    ];
 
     // Realtime: this model publishes a Model_Changed_Topic notification on save/delete
     // (flushed on commit) so subscribers (e.g. Clients_View) live-refresh.

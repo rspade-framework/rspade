@@ -465,13 +465,20 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
                 $project->completed_date,
                 $project->budget,
                 $project->created_at,
+                // Both columns have a declared text type, so these are value objects and
+                // not strings, and a value object refuses to BE a string - handing one to
+                // the CSV writer would throw. to_text() is the explicit ask: the markup
+                // and the encoding come off, the content stays. No strip_tags() here, and
+                // nothing to keep in agreement with how the same columns print on a page.
+                $project->description?->to_text(),
+                $project->notes?->to_text(),
             ];
         }
 
         $csv = Projects_DataGrid::build_csv(
             [
                 'ID', 'Project Name', 'Client', 'Status', 'Priority', 'Start Date', 'Due Date',
-                'Completed Date', 'Budget', 'Created',
+                'Completed Date', 'Budget', 'Created', 'Description', 'Notes',
             ],
             $rows
         );

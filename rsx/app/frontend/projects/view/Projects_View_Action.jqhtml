@@ -62,10 +62,33 @@
 
                 <Tab_Panels $sid="panels">
                     <Tab_Panel $key="overview">
-                        <% const _desc_text = _project.description ? $('<div>').html(_project.description).text().trim() : ''; %>
-                        <% if (_desc_text) { %>
+                        <%--
+                        `description` is declared Rich_Text on Project_Model, so it arrives
+                        as a Rich_Text value and prints itself: jqhtml routes the object to
+                        the framework's value printer, which mounts the type's own
+                        Rich_Text_Display. This template chooses no escaping and names no
+                        component.
+
+                        What stood here before is worth remembering, because it is what the
+                        text-type system exists to delete:
+
+                            <% const _desc_text = _project.description
+                                   ? $('<div>').html(_project.description).text().trim() : ''; %>
+                            <% if (_desc_text) { %>
+                            <Section $title="Description">
+                                <%!= safe_html(_project.description) %>
+                            </Section>
+                            <% } %>
+
+                        Three decisions, all of them the template's to get wrong: a
+                        hand-rolled strip-the-markup emptiness test, a choice to emit
+                        UNESCAPED, and a manual sanitize standing between that choice and an
+                        XSS. Every other place this column printed had to repeat all three
+                        and stay in agreement with them.
+                        --%>
+                        <% if (_project.description && !_project.description.is_empty()) { %>
                         <Section $title="Description">
-                            <%!= safe_html(_project.description) %>
+                            <%= _project.description %>
                         </Section>
                         <% } %>
 
@@ -85,9 +108,16 @@
                         </Section>
                         <% } %>
 
-                        <% if (_project.notes) { %>
+                        <%--
+                        `notes` is declared Raw_Text, and prints through its own
+                        Raw_Text_Display. The `<%br= %>` that used to stand here was this
+                        template deciding that this particular column's newlines are
+                        meaningful - a property of the column, restated by hand everywhere
+                        it printed.
+                        --%>
+                        <% if (_project.notes && !_project.notes.is_empty()) { %>
                         <Section $title="Internal Notes">
-                            <%br= _project.notes %>
+                            <%= _project.notes %>
                         </Section>
                         <% } %>
 

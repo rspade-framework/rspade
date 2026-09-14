@@ -1,0 +1,29 @@
+<%--
+Raw_Text_Input
+
+Edits a Raw_Text value - a block of user-authored PLAIN text.
+
+$placeholder - Placeholder text
+$rows        - Textarea rows (default 4)
+$seeder      - Seeder function name for test data
+
+Widget interface:
+- val() - Get/set a Raw_Text INSTANCE (never a string)
+
+This is deliberately a SEPARATE component from Text_Input rather than a mode of it.
+An input component edits exactly one kind of value, which is what lets ACCEPTS refuse
+a mismatch: Text_Input edits varchar strings, Raw_Text_Input edits Raw_Text, and neither
+can be pointed at the other's column by accident. A TEXT column is not a long varchar -
+it holds a block of authored content whose encoding the model declares, and the editor
+for it is chosen by that declaration.
+
+Usage:
+<Raw_Text_Input $name="notes" $rows=4 $placeholder="Internal notes..." />
+--%>
+<Define:Raw_Text_Input extends="Form_Input_Abstract">
+    <textarea $sid="input"
+              class="form-control"
+              rows="<%= this.args.rows || 4 %>"
+              placeholder="<%= this.args.placeholder || '' %>"
+              <% if (this.args.disabled) { %>disabled<% } %>></textarea>
+</Define:Raw_Text_Input>

@@ -89,9 +89,17 @@ the grouping is for readers only):
   grows with customer activity. `DB-UNBOUNDED-01` lints against it.
 - **Enums** are integer columns with a `$enums` map on the model. Run
   `php artisan rsx:constants:regenerate` after changing one.
+- **Declared TEXT types**: a `$text_types` map beside `$enums` says what kind of string a
+  TEXT column holds (`Rich_Text`, `Raw_Text` — see `rsx/lib/text_types/CLAUDE.md`). A
+  declared column is read as a value object, filtered by its type on write, and printed by
+  its type's component instead of by whatever escape the template picked. `Project_Model`
+  and `Client_Model` are the worked examples. An undeclared TEXT column is an ordinary
+  string; declaration is opt-in. Use `is_empty()` on such a column, never `=== ''` — a
+  value object is never identical to a string, so the comparison is permanently false.
 
 ## Pointers
 
+`rsx/lib/text_types/CLAUDE.md` ·
 `rsx:man model` · `rsx:man model_fetch` · `rsx:man enums` ·
 `rsx:man detail_tables` · `rsx:man polymorphic` · `rsx:man actors` ·
 `rsx:man model_normalization` (audit authorship) ·

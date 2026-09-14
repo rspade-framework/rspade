@@ -18,8 +18,34 @@ One subdirectory per input family; every input extends the framework's
 - `repeater/` — `Repeater_Simple_Input`, a repeating row of sub-values.
 - `pin/` — `Pin_Input`, a fixed-length code entry.
 - `photo/` — `Profile_Photo_Input`, an upload that stores a file-attachment id.
-- `wysiwyg/` — `Wysiwyg_Input`, async-initialised rich text.
+- `wysiwyg/` — `Wysiwyg_Input`, async-initialised rich text. Edits a `Rich_Text` VALUE,
+  not a string (`static ACCEPTS = Rich_Text`).
+- `raw_text/` — `Raw_Text_Input`, a textarea editing a `Raw_Text` value.
 - `hidden/` — `Hidden_Input`.
+
+## TYPED INPUTS
+
+An input that edits a declared TEXT column type names it:
+
+```javascript
+class Wysiwyg_Input extends Form_Input_Abstract {
+    static ACCEPTS = Rich_Text;
+}
+```
+
+`val()` then gets and sets a `Rich_Text` INSTANCE rather than a string, and
+`Form_Input_Abstract` refuses a mismatch in both directions — a `Rich_Text` reaching a
+plain `Text_Input` (it would be stringified into a textarea and saved back as escaped
+markup) and a `Raw_Text` reaching a WYSIWYG (the column would start accepting HTML its
+type says it holds none of). An input with no `ACCEPTS` edits ordinary strings and refuses
+every text value.
+
+This is why `Raw_Text_Input` exists as its own component rather than as
+`<Text_Input $type="textarea">`: **one input component edits one kind of value**, which is
+what makes the refusal possible. A TEXT column is not a long varchar.
+
+Which component edits which type is declared by the type itself (`static EDITOR`), in
+`rsx/lib/text_types/`.
 
 ## HOW TO CUSTOMIZE
 
@@ -269,7 +295,8 @@ class Select_Ajax_Input extends Select_Input {
 | `text/text_input.js` | Simple text input - minimal implementation |
 | `select/select_input.js` | Dropdown with TomSelect |
 | `checkbox/checkbox_input.js` | Boolean with configurable checked/unchecked values |
-| `wysiwyg/wysiwyg_input.js` | Async initialization |
+| `wysiwyg/wysiwyg_input.js` | Async initialization; a typed input (`ACCEPTS = Rich_Text`) |
+| `raw_text/raw_text_input.js` | The minimal typed input (`ACCEPTS = Raw_Text`) |
 
 ## Text_Input $max_length Requirement
 

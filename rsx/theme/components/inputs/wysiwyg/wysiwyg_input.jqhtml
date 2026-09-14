@@ -1,31 +1,27 @@
 <%--
 Wysiwyg_Input
 
-WYSIWYG editor widget for forms using Quill.
+WYSIWYG editor widget for forms using Quill. Edits a Rich_Text value.
 
 $placeholder - Placeholder text
 $seeder - Seeder function name for test data
 
 Widget interface:
-- val() - Get/set HTML content (sanitized via safe_html())
+- val() - Get/set a Rich_Text INSTANCE (never a string)
 - seed() - Fills with random content
 
-SECURITY NOTE: Data from this widget is rich HTML that will likely be displayed
-without HTML escaping. To prevent XSS attacks, always sanitize at every step:
+This widget accepts Rich_Text and refuses everything else, so a column whose
+$text_types entry is not Rich_Text cannot be wired to it by accident.
 
-1. CLIENT DISPLAY: This widget's val() already sanitizes output, but when
-   displaying stored content, always use safe_html():
-       container.innerHTML = safe_html(data.description);
+There is no sanitize-at-every-layer checklist to follow any more: Rich_Text filters
+its own writes, renders itself on a live page through its PRINTER component, and
+renders itself into a server-generated document through to_html(). A call site never
+chooses an escaping function for this value, which is the whole reason the type exists.
 
-2. SERVER DISPLAY (Blade): Use safe_html() before outputting:
-       {!! safe_html($project->description) !!}
-
-3. DATABASE SAVE: Sanitize before storing to stop malicious content early:
-       $model->description = safe_html($params['description']);
-
-Defense in depth - sanitize at ALL layers, not just one.
+Usage:
+<Wysiwyg_Input $name="description" $placeholder="Describe the project..." />
 --%>
 <Define:Wysiwyg_Input extends="Form_Input_Abstract">
-    <div $sid="editor" style="min-height: 200px; background: white;"></div>
+    <div $sid="editor" class="Wysiwyg_Input__editor"></div>
     <input type="hidden" $sid="hidden_input" />
 </Define:Wysiwyg_Input>

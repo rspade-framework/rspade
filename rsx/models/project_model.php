@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
 use App\RSpade\Core\Models\User_Model;
 use Rsx\Lib\Formatters;
+use Rsx\Lib\TextTypes\RawText\Raw_Text;
+use Rsx\Lib\TextTypes\RichText\Rich_Text;
 use Rsx\Models\Client_Department_Model;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Contact_Model;
@@ -111,6 +113,27 @@ class Project_Model extends Rsx_Site_Model_Abstract
             3 => ['constant' => 'PRIORITY_HIGH', 'label' => 'High', 'badge' => 'bg-warning'],
             4 => ['constant' => 'PRIORITY_URGENT', 'label' => 'Urgent', 'badge' => 'bg-danger'],
         ],
+    ];
+
+    /**
+     * DECLARED TEXT TYPES - what kind of string each TEXT column actually holds.
+     *
+     * `description` is authored in a WYSIWYG and holds HTML; `notes` is a plain textarea.
+     * Before this declaration existed, that difference lived in the head of whoever wrote
+     * each template, endpoint and export - and the cost of misremembering it was either a
+     * broken render or an XSS. Now the value carries its own encoding: it is filtered by
+     * its type on write, rendered by its type's component on a live page, rendered by
+     * to_html() into a server-generated document, and reduced by to_text() for a CSV cell
+     * or a search index.
+     *
+     * A TEXT column NOT listed here is still an ordinary string with today's behaviour.
+     * Declaration is opt-in.
+     *
+     * @var array
+     */
+    public static $text_types = [
+        'description' => Rich_Text::class,
+        'notes' => Raw_Text::class,
     ];
 
     /**

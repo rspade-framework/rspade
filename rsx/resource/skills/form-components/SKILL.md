@@ -1,6 +1,6 @@
 ---
 name: form-components
-description: "Composing a form in this application from its own field chrome and input roster - Form_Field / Form_Field_Abstract (label, $required asterisk, $help, the Slot:label rule), Rsx_Tabs / Rsx_Tab error badges, and the shipped inputs (Text_Input and its $max_length rule, Select_Input / Select_With_Description_Input / Select_Ajax_Input / Select_Country_Input / Select_State_Input, Checkbox_Input, Checkbox_Multiselect_Input, Tag_List_Input, Repeater_Simple, Pin_Input, Wysiwyg_Input, Profile_Photo_Input, Hidden_Input, Currency_Input, Phone_Text_Input). Use when laying out a form's fields, adding a new input to the roster, wiring a date or time field, choosing between two existing inputs, or hitting \"Text_Input with $name=... requires $max_length\", \"Form_Field_Abstract has no Form_Input_Abstract child\", or \"Form_Field_Abstract child input has no data-name attribute\"."
+description: "Composing a form in this application from its own field chrome and input roster - Form_Field / Form_Field_Abstract (label, $required asterisk, $help, the Slot:label rule), Rsx_Tabs / Rsx_Tab error badges, and the shipped inputs (Text_Input and its $max_length rule, Select_Input / Select_With_Description_Input / Select_Ajax_Input / Select_Country_Input / Select_State_Input, Checkbox_Input, Checkbox_Multiselect_Input, Tag_List_Input, Repeater_Simple, Pin_Input, Wysiwyg_Input, Raw_Text_Input, Profile_Photo_Input, Hidden_Input, Currency_Input, Phone_Text_Input). Use when laying out a form's fields, adding a new input to the roster, wiring a date or time field, choosing between two existing inputs, or hitting \"Text_Input with $name=... requires $max_length\", \"edits Rich_Text values, but was given string\", \"Form_Field_Abstract has no Form_Input_Abstract child\", or \"Form_Field_Abstract child input has no data-name attribute\"."
 ---
 
 # Form chrome and the input roster
@@ -129,7 +129,8 @@ Every one extends `Form_Input_Abstract` and lives under `rsx/theme/components/in
 | `Tag_List_Input` | `tag_list/` | a list of short strings as ONE value |
 | `Repeater_Simple` | `repeater/` | a list of values built with any other input as the row editor |
 | `Pin_Input` | `pin/` | a short numeric code shown as N single-character boxes |
-| `Wysiwyg_Input` | `wysiwyg/` | Quill rich text; `val()` sanitizes through `safe_html()` |
+| `Wysiwyg_Input` | `wysiwyg/` | Quill rich text. Edits a `Rich_Text` VALUE, not a string |
+| `Raw_Text_Input` | `raw_text/` | textarea editing a `Raw_Text` value |
 | `Profile_Photo_Input` | `photo/` | thumbnail + upload, backed by the file-attachment flow |
 | `Hidden_Input` | `hidden/` | a value carried through the form with no UI |
 
@@ -142,8 +143,18 @@ Every one extends `Form_Input_Abstract` and lives under `rsx/theme/components/in
 native `$type`, and the browser supplies the picker; the string it produces is already
 the `Rsx_Date`/`Rsx_Time` ISO format. `php artisan rsx:man datetime_inputs`.
 
-**Rich text is XSS-sensitive.** `Wysiwyg_Input` sanitizes on the way out, but stored
-content must still be rendered through `safe_html()` at every display site.
+**Rich text carries its own encoding, and there is no per-site checklist any more.**
+`Wysiwyg_Input` edits a `Rich_Text` value rather than a string. The type filters its own
+writes, renders itself on a live page through its PRINTER component, and renders itself
+into a server-generated document through `to_html()` - so no call site chooses an escaping
+function for such a value, and none should. See `rsx:man text_types`.
+
+**A typed input names the type it edits** (`static ACCEPTS = 'Rich_Text'`) and refuses
+anything else in both directions, so a column cannot silently be wired to the wrong widget.
+That is why `Raw_Text_Input` is a separate component rather than `<Text_Input $type="textarea">`:
+one input component edits one kind of value. A form can also skip naming the widget
+entirely - `<{Project_Model.editor_for('description')} $name="description" />` asks the
+column's declared type which component edits it.
 
 ### Vendor libraries these inputs bring with them
 

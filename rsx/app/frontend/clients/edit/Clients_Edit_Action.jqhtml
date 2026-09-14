@@ -134,8 +134,8 @@
                         <Form_Field $label="Notes"
                             $help="These notes are for internal use only and not visible to the client"
                             $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::text') %>">
-                            <Text_Input $name="notes" $type="textarea" $rows=6 $placeholder="Internal notes about this client..."
-                                $max_length=-1 $disabled=true />
+                            <Raw_Text_Input $name="notes" $rows=6 $placeholder="Internal notes about this client..."
+                                $disabled=true />
                         </Form_Field>
                     </Section>
 

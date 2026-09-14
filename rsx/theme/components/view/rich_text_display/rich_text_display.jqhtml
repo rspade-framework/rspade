@@ -1,0 +1,29 @@
+<%--
+Rich_Text_Display - renders a Rich_Text value on a live page.
+
+$value - a Rich_Text instance (NOT a string)
+
+This is the PRINTER component Rich_Text declares, so it is almost never written by
+hand: interpolating the value is enough, and jqhtml mounts this in place.
+
+    <%= this.data.project.description %>
+
+The unescaped interpolation below is the one place in the application where raw
+markup enters the DOM, and it is correct HERE and nowhere else: Rich_Text filtered this
+content through safe_html() at the trust boundary on write. That is the whole trade the
+text-type system makes - one component owns the unescaped output for an encoding,
+instead of every call site deciding for itself.
+
+It runs through safe_html() (DOMPurify) AGAIN here, and that is belt-and-braces rather
+than distrust of the store. The write filter is the authority; this line covers what
+bypassed it - a row written by raw SQL or a migration, or a value an endpoint echoed
+straight back without ever assigning it, which reaches this component unfiltered. It is
+cheap, it is the literal injection point, and a second check at the one place it
+matters costs nothing.
+
+Usage (only when a printer needs an argument it cannot get by interpolation):
+    <Rich_Text_Display $value=this.data.project.description />
+--%>
+<Define:Rich_Text_Display tag="div">
+    <%!= safe_html(this.args.value.to_storage()) %>
+</Define:Rich_Text_Display>

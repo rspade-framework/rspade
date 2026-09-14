@@ -1,0 +1,19 @@
+<%--
+Raw_Text_Display - renders a Raw_Text value on a live page.
+
+$value - a Raw_Text instance (NOT a string)
+
+The PRINTER component Raw_Text declares. Interpolating the value mounts it:
+
+    <%= this.data.client.notes %>
+
+Escaped, with newlines becoming line breaks. That second half is why this is a
+component at all rather than a plain string returned from Raw_Text.print(): a printer
+returning a string is escaped by `<%= %>` exactly as a string literal is, so it could
+never produce a <br> of its own. The decision that this encoding's newlines are
+meaningful belongs to the type, not to whichever template happens to print it - which
+is precisely what used to be restated, by hand, at every call site.
+--%>
+<Define:Raw_Text_Display tag="div">
+    <%br= this.args.value.to_storage() %>
+</Define:Raw_Text_Display>

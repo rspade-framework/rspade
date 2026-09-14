@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Twenty-six test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Twenty-seven test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -41,6 +41,13 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   committed test baseline.
 - **External API**: `Client_Attachments_Api_Test` — the app-owned half of file attachment
   (claim once, ownership re-verified on delete, retention and share revocation).
+- **Declared text types**: `Text_Type_Assignment_Test` — what assignment does at a declared
+  column on a real model: a typeless request value reads back as the COLUMN's type (the cast
+  disables Eloquent's object caching; this is the test that notices if it comes back), the
+  client's claimed type is ignored, the filter runs once on assignment, a wrong-type value is
+  refused not converted, and a typed value refuses to be a string so a lossy concatenation
+  cannot reach storage. The framework suite pins the type contract against fixtures; this
+  pins the half only a real column can show.
 
 ## HOW IT IS USED
 
@@ -88,6 +95,15 @@ on failure, and prints `PASS:`/`FAIL:` lines.
   directly and leaving the dialog open), a textarea keeps Enter as a newline, and a dialog
   with no default button ignores it. Runs against `/dashboard` because `Modal` is
   application code in `rsx/lib/modal/` and is not in the framework's own bundle.
+
+- `text_type_rendering.js` — declared text types end to end on real screens: interpolating a
+  `Rich_Text` mounts `Rich_Text_Display` with real markup and a `Raw_Text` escapes with line
+  breaks; the edit form's dynamic tag `<{Project_Model.editor_for(...)}>` mounts the editor
+  the model names, with no wrapper interposed; and a load-then-save round trip through the
+  editor is byte-identical — the assertion that catches a third-party editor silently
+  dropping markup it did not author. Waits on the async mounts and the form's populate
+  rather than sampling early, because a sleep would be flaky in exactly the direction that
+  hides a regression.
 
 A browser test belongs here rather than in the framework suite whenever its subject is
 `rsx/` code — the framework suite is guarded against naming application classes and routes.
