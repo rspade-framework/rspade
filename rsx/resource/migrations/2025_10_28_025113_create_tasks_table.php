@@ -59,6 +59,5 @@ return new class extends Migration
     /**
      * down() method is prohibited in RSpade framework
      * Migrations should only move forward, never backward
-     * You may remove this comment as soon as you see it and understand.
      */
 };

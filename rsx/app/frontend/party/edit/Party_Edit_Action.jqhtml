@@ -31,31 +31,55 @@
                         <Form_Errors />
 
                         <% if (t === Party_Model.TYPE_PERSON) { %>
-                            <Form_Field $label="First Name" $required=true>
-                                <Text_Input $name="first_name" $max_length=Party_Model.field_length('first_name') />
-                            </Form_Field>
-                            <Form_Field $label="Last Name" $required=true>
-                                <Text_Input $name="last_name" $max_length=Party_Model.field_length('last_name') />
-                            </Form_Field>
-                            <Form_Field $label="Title">
-                                <Text_Input $name="title" $max_length=Party_Model.field_length('title') />
-                            </Form_Field>
-                            <Form_Field $label="Date of Birth">
-                                <Text_Input $name="date_of_birth" $type="date" $max_length=-1 />
-                            </Form_Field>
+                            <div class="row">
+                                <div class="col-tablet-6">
+                                    <Form_Field $label="First Name" $required=true>
+                                        <Text_Input $name="first_name" $max_length=Party_Model.field_length('first_name') />
+                                    </Form_Field>
+                                </div>
+                                <div class="col-tablet-6">
+                                    <Form_Field $label="Last Name" $required=true>
+                                        <Text_Input $name="last_name" $max_length=Party_Model.field_length('last_name') />
+                                    </Form_Field>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-tablet-6">
+                                    <Form_Field $label="Title">
+                                        <Text_Input $name="title" $max_length=Party_Model.field_length('title') />
+                                    </Form_Field>
+                                </div>
+                                <div class="col-tablet-6">
+                                    <Form_Field $label="Date of Birth">
+                                        <Text_Input $name="date_of_birth" $type="date" $max_length=-1 />
+                                    </Form_Field>
+                                </div>
+                            </div>
                         <% } else if (t === Party_Model.TYPE_COMPANY) { %>
-                            <Form_Field $label="Legal Name" $required=true>
-                                <Text_Input $name="legal_name" $max_length=Party_Model.field_length('legal_name') />
-                            </Form_Field>
-                            <Form_Field $label="Tax Identifier">
-                                <Text_Input $name="tax_identifier" $max_length=Party_Model.field_length('tax_identifier') />
-                            </Form_Field>
-                            <Form_Field $label="Industry">
-                                <Text_Input $name="industry" $max_length=Party_Model.field_length('industry') />
-                            </Form_Field>
-                            <Form_Field $label="Employees">
-                                <Text_Input $name="employee_count" $type="number" $max_length=-1 />
-                            </Form_Field>
+                            <div class="row">
+                                <div class="col-tablet-6">
+                                    <Form_Field $label="Legal Name" $required=true>
+                                        <Text_Input $name="legal_name" $max_length=Party_Model.field_length('legal_name') />
+                                    </Form_Field>
+                                </div>
+                                <div class="col-tablet-6">
+                                    <Form_Field $label="Tax Identifier">
+                                        <Text_Input $name="tax_identifier" $max_length=Party_Model.field_length('tax_identifier') />
+                                    </Form_Field>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-tablet-6">
+                                    <Form_Field $label="Industry">
+                                        <Text_Input $name="industry" $max_length=Party_Model.field_length('industry') />
+                                    </Form_Field>
+                                </div>
+                                <div class="col-tablet-6">
+                                    <Form_Field $label="Employees">
+                                        <Text_Input $name="employee_count" $type="number" $max_length=-1 />
+                                    </Form_Field>
+                                </div>
+                            </div>
                         <% } else { %>
                             <Form_Field $label="Group Name" $required=true>
                                 <Text_Input $name="name" $max_length=Party_Model.field_length('name') />
@@ -65,12 +89,18 @@
 
                     <%-- Universal fields (every party has these) --%>
                     <Section $title="Contact">
-                        <Form_Field $label="Email">
-                            <Text_Input $name="email" $type="email" $max_length=Party_Model.field_length('email') />
-                        </Form_Field>
-                        <Form_Field $label="Phone">
-                            <Text_Input $name="phone" $max_length=Party_Model.field_length('phone') />
-                        </Form_Field>
+                        <div class="row">
+                            <div class="col-tablet-6">
+                                <Form_Field $label="Email">
+                                    <Text_Input $name="email" $type="email" $max_length=Party_Model.field_length('email') />
+                                </Form_Field>
+                            </div>
+                            <div class="col-tablet-6">
+                                <Form_Field $label="Phone">
+                                    <Text_Input $name="phone" $max_length=Party_Model.field_length('phone') />
+                                </Form_Field>
+                            </div>
+                        </div>
                         <Form_Field $label="Notes">
                             <Text_Input $name="notes" $type="textarea" $max_length=-1 $rows=3 />
                         </Form_Field>

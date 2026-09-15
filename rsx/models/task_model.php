@@ -5,6 +5,7 @@ namespace Rsx\Models;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
 use App\RSpade\Core\Models\User_Model;
+use Rsx\Lib\TextTypes\RichText\Rich_Text;
 /**
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: tasks
@@ -123,6 +124,22 @@ class Task_Model extends Rsx_Site_Model_Abstract
      * @var array
      */
     protected static $type_ref_columns = ['taskable_type'];
+
+    /**
+     * DECLARED TEXT TYPES - what kind of string this TEXT column actually holds.
+     *
+     * `description` is authored in a WYSIWYG and holds HTML, so the value carries its own
+     * encoding instead of every template, endpoint and export remembering it.
+     * Project_Model::$text_types states the reasoning in full; this is the same decision
+     * for the same kind of column.
+     *
+     * A TEXT column NOT listed here is still an ordinary string. Declaration is opt-in.
+     *
+     * @var array
+     */
+    public static $text_types = [
+        'description' => Rich_Text::class,
+    ];
 
     public static $enums = [
         'status' => [

@@ -237,7 +237,7 @@ class Project_Model extends Rsx_Site_Model_Abstract
     /**
      * Contacts associated with this project (1-to-many via the project_contacts pivot).
      * Query method (not an Eloquent relationship) - JS reads via a dedicated controller
-     * endpoint per house pattern. Replaces the old single contact() belongsTo.
+     * endpoint per house pattern.
      *
      * @return \Illuminate\Database\Eloquent\Collection
      */

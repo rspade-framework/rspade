@@ -5,6 +5,7 @@ namespace Rsx\Models;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
 use App\RSpade\Core\Models\User_Model;
+use Rsx\Lib\TextTypes\RichText\Rich_Text;
 /**
  * User_Group_Model - User group for organizing site users
  *
@@ -42,6 +43,22 @@ class User_Group_Model extends Rsx_Site_Model_Abstract
 
     protected $table = 'user_groups';
     protected $fillable = []; // No mass assignment - always explicit
+
+    /**
+     * DECLARED TEXT TYPES - what kind of string this TEXT column actually holds.
+     *
+     * `description` is authored in a WYSIWYG and holds HTML, so the value carries its own
+     * encoding instead of every template, endpoint and export remembering it.
+     * Project_Model::$text_types states the reasoning in full; this is the same decision
+     * for the same kind of column.
+     *
+     * A TEXT column NOT listed here is still an ordinary string. Declaration is opt-in.
+     *
+     * @var array
+     */
+    public static $text_types = [
+        'description' => Rich_Text::class,
+    ];
 
     public static $enums = [];
 

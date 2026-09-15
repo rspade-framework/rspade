@@ -15,7 +15,8 @@ class Settings_Group_Management_View_Action extends Spa_Action {
         this.data.group = {
             id: null,
             name: '',
-            description: '',
+            // A declared text type: null is the empty a value object has, never ''.
+            description: null,
             deletion_protection: false,
             member_count: 0,
             members: [],

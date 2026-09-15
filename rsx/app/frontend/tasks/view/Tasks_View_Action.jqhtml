@@ -96,9 +96,15 @@
                             </View_Fields>
                         </Section>
 
-                        <% if (_task.description) { %>
+                        <%--
+                        `description` is declared Rich_Text on Task_Model, so it arrives as
+                        a Rich_Text value and prints itself - jqhtml routes the object to
+                        the type's own printer. No <%br= %>: the value is not a string, and
+                        the encoding decides its own line breaks.
+                        --%>
+                        <% if (_task.description && !_task.description.is_empty()) { %>
                         <Section $title="Description">
-                            <%br= _task.description %>
+                            <%= _task.description %>
                         </Section>
                         <% } %>
 

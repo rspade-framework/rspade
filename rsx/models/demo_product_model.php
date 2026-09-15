@@ -3,6 +3,7 @@
 namespace Rsx\Models;
 
 use App\RSpade\Core\Database\Models\Rsx_Model_Abstract;
+use Rsx\Lib\TextTypes\RichText\Rich_Text;
 
 /**
  * Demo Product model for Ajax ORM demonstration
@@ -68,6 +69,22 @@ class Demo_Product_Model extends Rsx_Model_Abstract
      *
      * @var array
      */
+    /**
+     * DECLARED TEXT TYPES - what kind of string this TEXT column actually holds.
+     *
+     * `description` is authored in a WYSIWYG and holds HTML, so the value carries its own
+     * encoding instead of every template, endpoint and export remembering it.
+     * Project_Model::$text_types states the reasoning in full; this is the same decision
+     * for the same kind of column.
+     *
+     * A TEXT column NOT listed here is still an ordinary string. Declaration is opt-in.
+     *
+     * @var array
+     */
+    public static $text_types = [
+        'description' => Rich_Text::class,
+    ];
+
     public static $enums = [
         'status_id' => [
             1 => [

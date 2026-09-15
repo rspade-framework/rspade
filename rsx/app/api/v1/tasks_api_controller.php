@@ -107,12 +107,16 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
      *
      * Returns the full task record. A soft-deleted or cross-site id is not found.
      *
+     * `description` is a declared TEXT column, so it travels as the value's envelope -
+     * the same shape a page receives - and is never flattened into a bare string for a
+     * client's convenience. A client that wants plain text renders it from `raw`.
+     *
      * @api-response
      * {
      *   "id": 12,
      *   "site_id": 1,
      *   "title": "Draft the statement of work",
-     *   "description": "Include the payment schedule.",
+     *   "description": { "__TEXT": "Rich_Text", "raw": "<p>Include the payment schedule.</p>", "empty": false },
      *   "status": 1,
      *   "status__label": "Pending",
      *   "priority": 2,

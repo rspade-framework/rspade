@@ -10,9 +10,8 @@ use App\RSpade\Core\Models\User_Permission_Model;
 use App\RSpade\Core\Session\Session;
 
 /**
- * ACL tester - CLOSED: no one can reach it, by declaration. (This replaces the
- * TODO that used to sit in pre_dispatch: the surface is now declared, and a
- * tighter policy is one more name in the #[Auth] list.)
+ * ACL tester - CLOSED: no one can reach it, by declaration. A tighter policy
+ * is one more name in the #[Auth] list.
  */
 #[Auth('closed')]
 class Dev_Acl_Controller extends Rsx_Controller_Abstract

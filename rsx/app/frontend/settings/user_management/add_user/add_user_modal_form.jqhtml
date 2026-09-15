@@ -52,13 +52,18 @@ form renders; none of them is repeated in the browser.
       </div>
     </div>
 
-    <Form_Field $label="Role" $required=true>
-      <Select_Input $name="role_id" $options=_role_options />
-    </Form_Field>
-
-    <Form_Field $label="Phone Number">
-      <Phone_Text_Input $name="phone" $placeholder="(555) 123-4567" />
-    </Form_Field>
+    <div class="row">
+      <div class="col-tablet-6">
+        <Form_Field $label="Role" $required=true>
+          <Select_Input $name="role_id" $options=_role_options />
+        </Form_Field>
+      </div>
+      <div class="col-tablet-6">
+        <Form_Field $label="Phone Number">
+          <Phone_Text_Input $name="phone" $placeholder="(555) 123-4567" />
+        </Form_Field>
+      </div>
+    </div>
 
     <Form_Field $label="API Access"
       $help="When off, this user's API keys stop working and no new ones can be used.">

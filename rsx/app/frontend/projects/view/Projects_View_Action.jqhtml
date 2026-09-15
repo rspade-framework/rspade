@@ -110,10 +110,8 @@
 
                         <%--
                         `notes` is declared Raw_Text, and prints through its own
-                        Raw_Text_Display. The `<%br= %>` that used to stand here was this
-                        template deciding that this particular column's newlines are
-                        meaningful - a property of the column, restated by hand everywhere
-                        it printed.
+                        Raw_Text_Display, which handles the newlines itself - a property
+                        of the column, not something this template needs to restate.
                         --%>
                         <% if (_project.notes && !_project.notes.is_empty()) { %>
                         <Section $title="Internal Notes">

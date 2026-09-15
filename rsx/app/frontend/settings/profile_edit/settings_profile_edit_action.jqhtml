@@ -22,12 +22,18 @@
                             <Profile_Photo_Input $name="profile_photo" $width=96 $height=96 $show_remove=true />
                         </Form_Field>
 
-                        <Form_Field $label="First Name" $required=true>
-                            <Text_Input $name="first_name" $placeholder="John" $max_length=User_Model.field_length('first_name') />
-                        </Form_Field>
-                        <Form_Field $label="Last Name" $required=true>
-                            <Text_Input $name="last_name" $placeholder="Doe" $max_length=User_Model.field_length('last_name') />
-                        </Form_Field>
+                        <div class="row">
+                            <div class="col-tablet-6">
+                                <Form_Field $label="First Name" $required=true>
+                                    <Text_Input $name="first_name" $placeholder="John" $max_length=User_Model.field_length('first_name') />
+                                </Form_Field>
+                            </div>
+                            <div class="col-tablet-6">
+                                <Form_Field $label="Last Name" $required=true>
+                                    <Text_Input $name="last_name" $placeholder="Doe" $max_length=User_Model.field_length('last_name') />
+                                </Form_Field>
+                            </div>
+                        </div>
 
                         <Form_Field $label="Email Address" $required=true
                             $help="Your primary email address for notifications and login.">
@@ -38,12 +44,18 @@
                             <Text_Input $name="phone" $type="tel" $placeholder="+1 (555) 123-4567" $max_length=User_Model.field_length('phone') />
                         </Form_Field>
 
-                        <Form_Field $label="Title">
-                            <Text_Input $name="title" $placeholder="Senior Developer" $max_length=User_Profile_Model.field_length('title') />
-                        </Form_Field>
-                        <Form_Field $label="Department">
-                            <Text_Input $name="department" $placeholder="Engineering" $max_length=User_Profile_Model.field_length('department') />
-                        </Form_Field>
+                        <div class="row">
+                            <div class="col-tablet-6">
+                                <Form_Field $label="Title">
+                                    <Text_Input $name="title" $placeholder="Senior Developer" $max_length=User_Profile_Model.field_length('title') />
+                                </Form_Field>
+                            </div>
+                            <div class="col-tablet-6">
+                                <Form_Field $label="Department">
+                                    <Text_Input $name="department" $placeholder="Engineering" $max_length=User_Profile_Model.field_length('department') />
+                                </Form_Field>
+                            </div>
+                        </div>
 
                         <Form_Field $label="Bio"
                             $help="Brief description for your profile. Max 500 characters.">

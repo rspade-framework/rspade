@@ -25,7 +25,9 @@
                 <Entity_Header>
                     <Slot:title><%= _g.name %></Slot:title>
                     <Slot:subtitle>
-                        <% if (_g.description) { %><%= _g.description %><% } else { %>No description<% } %>
+                        <%-- Declared Rich_Text: the value prints through its own printer,
+                        and is_empty() is the emptiness question its encoding answers. --%>
+                        <% if (_g.description && !_g.description.is_empty()) { %><%= _g.description %><% } else { %>No description<% } %>
                     </Slot:subtitle>
                     <Slot:meta>
                         <span>Created <%= Rsx_Time.format_date(_g.created_at) %></span>

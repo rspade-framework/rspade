@@ -48,6 +48,13 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   refused not converted, and a typed value refuses to be a string so a lossy concatenation
   cannot reach storage. The framework suite pins the type contract against fixtures; this
   pins the half only a real column can show.
+- **Declared text types, the converted columns**: `Text_Type_Descriptions_Test` — the three
+  `description` columns that moved from plain text to `Rich_Text` (`tasks`, `user_groups`,
+  `demo_products`): a bare string reads back typed on each, the filter strips a script on
+  each, `to_text()` reduces a stored value for the grid excerpt and the CSV cell, an emptied
+  editor is empty by CONTENT, and — the case only a conversion has — the re-encode
+  migration's SQL produces exactly what `Rich_Text::from_string()` produces, character for
+  character, on every awkward character.
 
 ## HOW IT IS USED
 

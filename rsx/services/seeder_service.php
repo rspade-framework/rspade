@@ -21,6 +21,7 @@ use App\RSpade\Core\Service\Rsx_Service_Abstract;
 use App\RSpade\Core\Task\Task;
 use App\RSpade\Core\Task\Task_Instance;
 use App\RSpade\Core\Time\Rsx_Date;
+use Rsx\Lib\TextTypes\RichText\Rich_Text;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Contact_Model;
 use Rsx\Models\Project_Contact_Model;
@@ -186,7 +187,7 @@ class Seeder_Service extends Rsx_Service_Abstract
                 $project = new Project_Model();
                 $project->site_id = $client->site_id;
                 $project->name = $project_words[array_rand($project_words)];
-                $project->description = 'Seeded demo project for ' . $client->name;
+                $project->description = Rich_Text::from_string('Seeded demo project for ' . $client->name);
                 $project->client_id = $client->id;
                 $project->status = $statuses[array_rand($statuses)];
                 $project->priority = rand(Project_Model::PRIORITY_LOW, Project_Model::PRIORITY_URGENT);
@@ -209,7 +210,7 @@ class Seeder_Service extends Rsx_Service_Abstract
                 $child = new Project_Model();
                 $child->site_id = $parent->site_id;
                 $child->name = $parent->name . ' - Phase 2';
-                $child->description = 'Seeded subproject of ' . $parent->name;
+                $child->description = Rich_Text::from_string('Seeded subproject of ' . $parent->name);
                 $child->client_id = $parent->client_id;
                 $child->parent_project_id = $parent->id;
                 $child->status = Project_Model::STATUS_ACTIVE;
@@ -311,7 +312,7 @@ class Seeder_Service extends Rsx_Service_Abstract
                 $t = new Task_Model();
                 $t->site_id = $project->site_id;
                 $t->title = $task_titles[array_rand($task_titles)];
-                $t->description = 'Seeded demo task for project ' . $project->name;
+                $t->description = Rich_Text::from_string('Seeded demo task for project ' . $project->name);
                 $t->taskable_type = 'Project_Model';
                 $t->taskable_id = $project->id;
                 $t->status = $status;
@@ -364,7 +365,7 @@ class Seeder_Service extends Rsx_Service_Abstract
                 $sub = new Task_Model();
                 $sub->site_id = $parent_task->site_id;
                 $sub->title = 'Subtask of: ' . $parent_task->title;
-                $sub->description = 'Seeded task-of-task (chain derives its project).';
+                $sub->description = Rich_Text::from_string('Seeded task-of-task (chain derives its project).');
                 $sub->taskable_type = 'Task_Model';
                 $sub->taskable_id = $parent_task->id;
                 $sub->status = Task_Model::STATUS_PENDING;
@@ -384,7 +385,7 @@ class Seeder_Service extends Rsx_Service_Abstract
                     $ct = new Task_Model();
                     $ct->site_id = $client->site_id;
                     $ct->title = 'Client-level task ' . ($i + 1);
-                    $ct->description = 'Seeded task parented to a client (no chain project).';
+                    $ct->description = Rich_Text::from_string('Seeded task parented to a client (no chain project).');
                     $ct->taskable_type = 'Client_Model';
                     $ct->taskable_id = $client->id;
                     $ct->status = Task_Model::STATUS_PENDING;
@@ -404,7 +405,7 @@ class Seeder_Service extends Rsx_Service_Abstract
                 $ut = new Task_Model();
                 $ut->site_id = 1;
                 $ut->title = 'Personal follow-up';
-                $ut->description = 'Seeded task parented to a user (no chain project).';
+                $ut->description = Rich_Text::from_string('Seeded task parented to a user (no chain project).');
                 $ut->taskable_type = 'User_Model';
                 $ut->taskable_id = $user->id;
                 $ut->status = Task_Model::STATUS_PENDING;
@@ -422,7 +423,7 @@ class Seeder_Service extends Rsx_Service_Abstract
             $none = new Task_Model();
             $none->site_id = 1;
             $none->title = 'Unattached planning task';
-            $none->description = 'Seeded task with no parent (project_id is user-set directly).';
+            $none->description = Rich_Text::from_string('Seeded task with no parent (project_id is user-set directly).');
             $none->taskable_type = null;
             $none->taskable_id = null;
             $none->status = Task_Model::STATUS_PENDING;

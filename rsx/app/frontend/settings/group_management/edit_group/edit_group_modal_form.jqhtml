@@ -23,8 +23,12 @@ is what the user waits behind, and it is the form's own structure underneath.
       <Text_Input $name="name" $max_length=User_Group_Model.field_length('name') $autofocus=true />
     </Form_Field>
 
+    <%--
+    The DYNAMIC COMPONENT TAG: `description` is a declared text type on User_Group_Model,
+    and the column says which component edits it. This form names no widget.
+    --%>
     <Form_Field $label="Description">
-      <Text_Input $name="description" $max_length=-1 $type="textarea" $rows="3" />
+      <{User_Group_Model.editor_for('description')} $name="description" />
     </Form_Field>
 
     <Form_Field $label="Members">

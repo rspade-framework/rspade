@@ -40,7 +40,11 @@ ordinary string, exactly as before. Declaration is opt-in.
 ## HOW IT IS USED
 
 **Declared on the model**, beside `$enums`. `Project_Model` and `Client_Model` are the
-worked examples.
+worked examples. Every `description` column in this application holds `Rich_Text`:
+`Project_Model`, `Task_Model`, `User_Group_Model` and `Demo_Product_Model`. The three that
+were converted from plain text were re-encoded first, by
+`rsx/resource/migrations/2026_09_15_052838_convert_description_columns_to_rich_text.php` -
+the worked example of the two-act rule below.
 
 **Read and written like any other column.** An endpoint still writes
 `$project->description = $params['description'];` — the value arrives already typed

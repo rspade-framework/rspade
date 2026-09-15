@@ -141,6 +141,11 @@
             "created_at": "2026-09-02T13:31:39+00:00",
             "created_by": "root",
             "command": "php artisan make:migration:safe add_is_2fa_required_to_users"
+        },
+        "2026_09_15_052838_convert_description_columns_to_rich_text.php": {
+            "created_at": "2026-09-15T05:28:38+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe convert_description_columns_to_rich_text"
         }
     }
 }

@@ -98,9 +98,8 @@ Usage:
 
     <%--
     `notes` is declared Raw_Text on Client_Model, so interpolating it mounts the type's
-    Raw_Text_Display. The `<%br= %>` that used to stand here was this template deciding
-    the column is plain text whose newlines matter - which is the column's property, not
-    the page's, and had to be restated identically everywhere it printed.
+    Raw_Text_Display, which handles the newlines itself - the column's property, not
+    the page's, so this template does not restate it.
     --%>
     <% if (_client.notes && !_client.notes.is_empty()) { %>
     <Section $title="Internal Notes">

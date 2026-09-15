@@ -40,8 +40,10 @@
                 <strong><%= row.name %></strong>
             </td>
             <td>
-                <% if (row.description) { %>
-                    <%= row.description.length > 50 ? row.description.substring(0, 50) + '...' : row.description %>
+                <%-- The server-made plain-text excerpt (Groups_DataGrid::transform_records).
+                row.description is a Rich_Text envelope, and a length test on one throws. --%>
+                <% if (row.description_excerpt) { %>
+                    <%= row.description_excerpt %>
                 <% } else { %>
                     <em class="text-muted">No description</em>
                 <% } %>

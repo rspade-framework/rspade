@@ -17,15 +17,13 @@ use Rsx\Models\Project_Model;
 use Rsx\Models\Task_Model;
 
 /**
- * The template app's polymorphic parent references, after the get_polymorphic_parent()
- * workaround was retired in favour of stock morphTo().
+ * The template app's polymorphic parent references, read through stock morphTo().
  *
  * Every one of these is a `{relation}_type` (BIGINT type ref) + `{relation}_id` pair read
  * through an ordinary Eloquent relation: Action_Log actor/subject, Action_Log_Related
  * related, Notification entity, Task taskable. What is being proven is that the relation
  * resolves the stored INTEGER discriminator to the right model - including a User_Model
- * parent, which lives in the framework namespace rather than the app one (the retired
- * hand-rolled resolver needed a special case for exactly that).
+ * parent, which lives in the framework namespace rather than the app one.
  *
  * Site-scoped models scope by the staff Session site_id, so seeding/querying runs under
  * __acting_as_site(). Default per-test transaction.
