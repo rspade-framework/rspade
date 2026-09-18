@@ -8,7 +8,7 @@ this tree nests inside, plus one directory per sub-feature:
 | Directory | Action | Route | Gate | The screen |
 |---|---|---|---|---|
 | `general/` | `Settings_General_Action` | `/frontend/settings` and `/frontend/settings/general` | `is_logged_in` | No template: `on_ready()` bounces to Profile. The tree's entry point. |
-| `profile_display/` | `Settings_Profile_Display_Action` | `.../profile_display` | `is_logged_in` | Read-only own profile. |
+| `profile_display/` | `Settings_Profile_Display_Action` | `.../profile_display` | `is_logged_in` | Read-only own profile. Carries a **Developer** chip beside the role when the signed-in login identity has `login_users.is_developer` - a classification, displayed and never editable. |
 | `profile_edit/` | `Settings_Profile_Edit_Action` | `.../profile_edit` | `is_logged_in` | Own-profile form; email disabled; `$max_length` from `Model.field_length()`. |
 | `user_settings/` | `Settings_User_Settings_Action` | `.../user_settings` | `is_logged_in` | Timezone + theme, saved through the framework's `Rsx_Timezone_Controller` / `Rsx_Dark_Mode_Controller`. |
 | `password_security/` | `Settings_Password_Security_Action` | `.../password_security` | `is_logged_in` | Change password, **two-factor authentication (real)**, **connected accounts (real)**, active sessions. Both real sections load from framework controllers (`Rsx_Two_Factor_Controller`, `Rsx_Sso_Controller`) in one `Promise.all`; the two local endpoints are still TODO stubs and the session list is hardcoded sample data. |

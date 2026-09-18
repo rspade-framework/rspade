@@ -45,6 +45,12 @@
                 <% } else { %>
                     <em class="text-muted">No name set</em>
                 <% } %>
+                <%-- A classification chip, not a status: the flag lives on the login
+                     identity and no screen edits it. An administrator sees at a glance
+                     which accounts can reach a developer-only surface. --%>
+                <% if (row.is_developer) { %>
+                    <span class="badge badge-outline-info">Developer</span>
+                <% } %>
             </td>
             <td>
                 <%= row.email %>

@@ -14,7 +14,7 @@ controller is class-level `#[Auth('public')]` with a written justification in it
 | Signup | `Signup_Controller` (`signup/`) | `/signup` GET + an `#[Ajax_Endpoint]` `submit` | Gated by `config('rsx.auth.signup_mode')` (`invite_only` by default, also `disabled` / open). Creates the `Login_User_Model`. |
 | Accept invite | `Accept_Invite_Controller` (`accept_invite/`) | `/accept-invite`, `/accept-invite/create-account`, `/accept-invite/success` | Six states (invalid, expired, email mismatch, already accepted, not logged in, logged in) plus the create-account form for an invitee with no login account. |
 | Site selection | `Site_Selection_Controller` | `/login/select-site`, `/login/site/:id` | `select` re-checks membership and sets the site. The picker page itself is a stub. |
-| Site unauthorized | `Site_Unauthorized_Controller` | `/login/site-unauthorized` | The signed-in identity has no membership on this site; offers the sites it does have. |
+| Site unauthorized | `Site_Unauthorized_Controller` | `/login/site-unauthorized` | The signed-in identity's session names a site it is not a member of; offers the sites it does have. Nothing in this mono-site template routes to it - the framework ends such a session itself (see SITE MEMBERSHIP below), so it is kept as the pattern for an app that declares the requested site from the host. |
 
 The login page also carries FEDERATED SIGN-IN: below the Sign In button,
 `login_index.blade.php` renders an `or` divider and the framework's provider buttons, both
@@ -63,6 +63,18 @@ branch — `Rsx_Turnstile::validate($request)` in `login_controller.php:68`, and
 carries the field in `$params`. The field always submits (sentinel `inactive` while the
 feature is off), so validating it is not optional.
 
+**Site membership is the framework's, not this module's.** `users.is_enabled` is the
+framework's switch for "may this identity use this installation": `RsxAuth::attempt()`
+refuses an identity holding no enabled membership exactly as it refuses a wrong password
+(recording `STATUS_FAILED_DISABLED`), `RsxAuth::login()` refuses it on the second-factor and
+federated paths, and `Session::enforce_enabled_membership()` ends a live session whose
+membership is disabled or deleted, before every dispatch and every Ajax call. So no
+controller here filters on the column, `post_login_destination()` has no zero-sites branch
+(a successful sign-in guarantees at least one enabled membership), and `rsx/main.php` checks
+no membership. Identity state - `status_id`, `is_activated`, `is_verified` - remains this
+application's, enforced in `Login_Controller::index()` and `Rsx\Main::pre_dispatch()`.
+See `rsx:man session`.
+
 **The throttle.** `login_controller.php` catches `Auth_Throttled_Exception` around the
 whole attempt and surfaces `$e->getMessage()` verbatim ahead of the wrong-password branch,
 so a lockout is never reported as bad credentials. `RsxAuth::attempt()` throws it as its
@@ -89,8 +101,7 @@ unguarded - it answers only from the challenge parked on the caller's own sessio
 no query string and no extra fields, so `index()` parks the code under
 `Login_Controller::INVITE_CODE_KEY` with the challenge's own expiry and `verify_2fa` consumes
 it once. Both paths then call the ONE destination function, `post_login_destination()` -
-invite, site selector, dashboard, or site-unauthorized - because a destination computed twice
-drifts.
+invite, site selector, or dashboard - because a destination computed twice drifts.
 
 **Federated sign-in reaches this module twice.** `Sso_Handlers` answers the framework's
 `sso.identity.unlinked` hook, and its two outcomes both land here: a VERIFIED provider email
@@ -167,7 +178,7 @@ one: `if (!$('.Login_Two_Factor_Setup').exists()) return;`.
 
 ## RELATED
 
-`rsx/main.php` (`pre_dispatch` bounces a bad site membership here) · `rsx/permission.php` ·
+`rsx/main.php` (`pre_dispatch` bounces a flagged identity to the 2FA interstitial) · `rsx/permission.php` ·
 `rsx/portal/CLAUDE.md` (the portal's own auth ladder) · skills `rspade:session-auth`,
 `rspade:turnstile`, `rspade:blade-views`, `rspade:auth-gates` · `rsx:man session`,
 `rsx:man turnstile`, `rsx:man auth_gates`, `rsx:man two_factor`, `rsx:man sso`

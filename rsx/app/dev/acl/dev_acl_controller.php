@@ -87,22 +87,16 @@ class Dev_Acl_Controller extends Rsx_Controller_Abstract
 
     /**
      * Populate test users with @rspade.test emails
-     * Creates one user for each role (except Developer)
+     * Creates one user for each role below the top one, which user 1 already holds.
      */
     #[Ajax_Endpoint]
     public static function populate_test_users(Request $request, array $params = [])
     {
-        // TODO: Implement developer role check
-        // $user = Session::get_user();
-        // if (!$user || $user->role_id !== User_Model::ROLE_DEVELOPER) {
-        //     return response_error(Ajax::ERROR_UNAUTHORIZED, 'Developer access required');
-        // }
-
         $site_id = Session::get_site_id();
         $created = [];
         $skipped = [];
 
-        // Define test users for each role (except Developer - that's user 1 only)
+        // Define test users for each role below the top one (user 1 holds that)
         $test_users = [
             ['email' => 'root.admin@rspade.test', 'first_name' => 'Root', 'last_name' => 'Admin', 'role_id' => User_Model::ROLE_ROOT_ADMIN],
             ['email' => 'site.owner@rspade.test', 'first_name' => 'Site', 'last_name' => 'Owner', 'role_id' => User_Model::ROLE_SITE_OWNER],

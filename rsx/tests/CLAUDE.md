@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Twenty-seven test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Twenty-eight test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -19,6 +19,11 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   `Timezone_Settings_Test`, `Api_Key_Scope_Ui_Test` (presets re-derived by name, so a
   tampering browser cannot widen a key), `Api_Key_Read_Only_Ui_Test` (only the literal
   '1' mints a read-only key, so a garbled form can never mint the wider one).
+- **The Developer chip**: `Developer_Chip_Test` — the three payloads that drive it
+  (`get_profile`, `get_user`, the users grid) carry `is_developer` ALWAYS and as a real
+  boolean, read from the LOGIN identity; a membership with no login identity is false rather
+  than an error; and the grid's `login_users` join multiplies no rows and leaves the search
+  and the sort resolving to the `users` columns.
 - **Portal**: `Portal_Workspaces_Test`, `Portal_Documents_Test`,
   `Portal_Request_Threads_Test`, `Portal_Invitation_Lifecycle_Test`,
   `Portal_Register_Flow_Test`, `Portal_User_Admin_Test`, `Portal_Impersonation_Test`

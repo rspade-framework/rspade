@@ -37,8 +37,9 @@ class Initial_User_Handlers
      * The founder runs this application: top role, and a member of Administrators.
      *
      * The role is only assigned when the framework left it unset. A caller that chose a
-     * role deliberately - the test baseline seeds ROLE_DEVELOPER, which outranks this -
-     * said what it wanted, and this is not the place to overrule it.
+     * role deliberately - the test baseline seeds the most privileged role this
+     * application declares - said what it wanted, and this is not the place to
+     * overrule it.
      *
      * @param array $data {user: User_Model, login_user: Login_User_Model, site_id: int, source: string}
      * @return void

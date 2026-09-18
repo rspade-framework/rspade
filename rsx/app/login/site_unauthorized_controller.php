@@ -11,7 +11,15 @@ use App\RSpade\Core\Session\Session;
 /**
  * Site_Unauthorized_Controller
  *
- * Handles users trying to access a site they don't have access to
+ * The screen for an identity whose session names a site it is not a member of: it offers the
+ * sites it IS a member of, and logs it out when there are none.
+ *
+ * WHEN THIS IS REACHED. The framework ends a session whose users row for the current site is
+ * missing or disabled (Session::enforce_enabled_membership(), run before every dispatch), so
+ * this screen is not where a revoked membership lands - that lands on the login page. It is
+ * here for an application that DECLARES the requested site itself, from the request host or a
+ * URL segment, and would rather offer a picker than sign the visitor out. This template is
+ * mono-site and routes to it from nowhere; it is the pattern, kept whole.
  *
  * Public by design: part of the login flow. The inline login_user_id check is
  * FLOW logic (send an anonymous visitor back to login), not an authorization
@@ -34,10 +42,9 @@ class Site_Unauthorized_Controller extends Rsx_Controller_Abstract
             return redirect(Rsx::Route('Login_Controller'));
         }
 
-        // Get all sites this user has access to
-        $user_sites = User_Model::where('login_user_id', $login_user_id)
-            ->where('is_enabled', true)
-            ->get();
+        // Get all sites this user has access to. No is_enabled filter: that column is the
+        // FRAMEWORK's switch and the framework enforces it (rsx:man session).
+        $user_sites = User_Model::where('login_user_id', $login_user_id)->get();
 
         // If user has no sites, logout with reason
         if ($user_sites->isEmpty()) {

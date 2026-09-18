@@ -37,9 +37,10 @@ use Rsx\App\Login\Login_Controller;
  *
  * THE DESTINATION IS THE OTHER HALF. post_login_destination() is reached through this
  * endpoint, which is the honest way to test it: what matters is not the
- * function but that a challenge completed with an invite in flight lands on the invite, a
- * single-site identity lands on the dashboard, and a membership-less one lands on the
- * unauthorized screen.
+ * function but that a challenge completed with an invite in flight lands on the invite and a
+ * single-site identity lands on the dashboard. A membership-less identity never reaches a
+ * destination at all - the framework refuses the sign-in itself (rsx:man session, SITE
+ * MEMBERSHIP), which is what tfa-app-03 now pins.
  */
 class Two_Factor_Login_Verify_Test extends Rsx_Test_Abstract
 {
@@ -188,19 +189,24 @@ class Two_Factor_Login_Verify_Test extends Rsx_Test_Abstract
     }
 
     /**
-     * tfa-app-03: no membership anywhere lands on the site-unauthorized screen, which is
-     * where the logout happens. Signing the identity in and then dropping them on a page
-     * they cannot use would be the alternative, and it is not one.
+     * tfa-app-03: an identity holding no ENABLED site membership is refused even with a live
+     * code, and is refused in the SAME shape a wrong code is refused in. Site membership is
+     * the framework's switch (RsxAuth::login() returns false), and the person at the keyboard
+     * is not told which of the two happened - so this endpoint never has a
+     * "correct code, nowhere to go" destination to compute.
      */
-    public static function test_an_identity_with_no_site_lands_on_site_unauthorized()
+    public static function test_an_identity_with_no_site_is_refused_like_a_wrong_code()
     {
         $fixture = static::__pending_challenge('no_site');
 
-        $result = Login_Controller::verify_2fa(static::__ajax_request(), [
+        $response = Login_Controller::verify_2fa(static::__ajax_request(), [
             'code' => static::__unspent_code($fixture['secret']),
         ]);
 
-        static::__assert_equals(Rsx::Route('Site_Unauthorized_Controller'), $result['redirect']);
+        static::__assert_instance_of(Error_Response::class, $response);
+        static::__assert_equals(Ajax::ERROR_VALIDATION, $response->get_error_code());
+        static::__assert_not_empty($response->get_reason(), 'the screen renders this message inline');
+        static::__assert_false(Session::is_logged_in(), 'no membership is no login');
     }
 
     /**

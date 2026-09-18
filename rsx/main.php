@@ -56,10 +56,10 @@ class Main extends Main_Abstract
      * Called before any route dispatch. If a non-null value is returned,
      * dispatch is halted and that value is returned as the response.
      *
-     * Two interceptions live here, both scoped to the frontend SPA module: a signed-in
-     * identity with no membership on the current site goes to the site-unauthorized screen,
-     * and one an administrator has flagged is_2fa_required with no second factor enrolled
-     * goes to the forced-enrollment interstitial.
+     * One interception lives here, scoped to the frontend SPA module: an identity an
+     * administrator has flagged is_2fa_required with no second factor enrolled goes to the
+     * forced-enrollment interstitial. Site membership is not checked here - users.is_enabled
+     * is the framework's switch and the framework enforces it before dispatch.
      *
      * @param Request $request The current request
      * @param array $params Combined GET values and URL parameters
@@ -83,14 +83,22 @@ class Main extends Main_Abstract
             $site_id = Session::get_site_id();
 
             if ($login_user_id && $site_id) {
-                // Check if user has access to this site
+                // The membership itself is the FRAMEWORK's question, and it has already been
+                // asked: Session::enforce_enabled_membership() runs ahead of every dispatch and
+                // ends a session whose users row for this site is missing or disabled. Reaching
+                // this line with an identity and a site therefore means the row exists and is
+                // enabled - the app neither repeats the check nor routes anywhere on it.
+                // See: php artisan rsx:man session
                 $user = \User_Model::where('login_user_id', $login_user_id)
                     ->where('site_id', $site_id)
                     ->first();
 
                 if (!$user) {
-                    // User is not authorized for this site
-                    return redirect(\Rsx::Route('Site_Unauthorized_Controller'));
+                    shouldnt_happen(
+                        'A dispatched staff request carries login user ' . $login_user_id . ' and site '
+                        . $site_id . ' with no users row - Session::enforce_enabled_membership() should '
+                        . 'have ended this session before pre_dispatch.'
+                    );
                 }
 
                 // ADMINISTRATOR-REQUIRED SECOND FACTOR.

@@ -46,6 +46,10 @@ class Frontend_Settings_Profile_Display_Controller extends Rsx_Controller_Abstra
             'email' => $user->email,
             'phone' => $user->phone,
             'role_id__label' => $user->role_id__label ?? 'Member',
+            // A developer is a per-identity flag on the LOGIN identity, never a role: the
+            // chip beside the role says which surfaces this person can reach, and nothing
+            // on this screen can change it.
+            'is_developer' => (bool) $user->login_user?->is_developer,
             'created_at' => $user->created_at,
             'last_login_at' => $user->last_login_at,
             'profile_photo_attachment_id' => $profile_photo_attachment_id,

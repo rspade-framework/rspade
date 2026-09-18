@@ -32,6 +32,12 @@
                     <Slot:chips>
                         <Status_Badge $label="Active" $badge="bg-primary" />
                         <span class="badge badge-outline-secondary"><%= _u.role_id__label || 'Member' %></span>
+                        <%-- A developer is a per-identity flag, not a role: the chip sits
+                             beside the role chip and says which surfaces this account can
+                             reach. Set in the database by hand; no screen edits it. --%>
+                        <% if (_u.is_developer) { %>
+                            <span class="badge badge-outline-info">Developer</span>
+                        <% } %>
                     </Slot:chips>
                     <Slot:subtitle>
                         <%= _u.email || 'No email' %><% if (_profile && _profile.title) { %> &middot; <%= _profile.title %><% } %>

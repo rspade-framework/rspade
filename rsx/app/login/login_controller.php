@@ -133,6 +133,10 @@ class Login_Controller extends Rsx_Controller_Abstract
                 // No second factor: this IS the login. login() stamps last_login (attempt()
                 // was told not to), and the success row is written here because nothing
                 // beneath this line records one.
+                //
+                // login() also refuses an identity with no enabled site membership, and its
+                // return is not branched on: the attempt() above asked the same question two
+                // statements ago, so a false here is unreachable.
                 RsxAuth::login($login_user);
                 Login_History::record_success((int) $login_user->id, $posted_email);
 
@@ -314,7 +318,16 @@ class Login_Controller extends Rsx_Controller_Abstract
             return Rsx::Route('Accept_Invite_Controller::index', ['code' => $invite_code]);
         }
 
-        // Which sites does this identity have?
+        // Which sites can this identity use?
+        //
+        // The is_enabled filter here is PRESENTATION, not authorization: it decides which
+        // sites are worth offering, so an identity enabled on one site and disabled on
+        // another lands on the usable one instead of a picker naming both. Authorization is
+        // the framework's - RsxAuth::attempt() refuses an identity holding no enabled
+        // membership exactly as it refuses a wrong password, and every request re-checks the
+        // membership - so every caller of this function is past a successful sign-in and at
+        // least one enabled membership is guaranteed to exist; there is no zero-sites branch.
+        // See: php artisan rsx:man session
         $user_sites = User_Model::where('login_user_id', $login_user_id)
             ->where('is_enabled', true)
             ->get();
@@ -327,15 +340,10 @@ class Login_Controller extends Rsx_Controller_Abstract
         }
 
         // Exactly one - set it and go to the dashboard.
-        if ($user_sites->count() === 1) {
-            Session::set_site_id($user_sites->first()->site_id);
-            Flash_Alert::success('Welcome back!');
+        Session::set_site_id($user_sites->first()->site_id);
+        Flash_Alert::success('Welcome back!');
 
-            return Rsx::Route('Dashboard_Index_Action');
-        }
-
-        // None - the unauthorized screen handles the logout.
-        return Rsx::Route('Site_Unauthorized_Controller');
+        return Rsx::Route('Dashboard_Index_Action');
     }
 
     /**

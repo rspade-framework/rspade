@@ -10,6 +10,7 @@ namespace Rsx;
 
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Permission\Permission_Abstract;
+use App\RSpade\Core\Session\Session;
 
 /**
  * Permission helper class for RSX applications - the staff realm's gate vocabulary
@@ -52,6 +53,8 @@ use App\RSpade\Core\Permission\Permission_Abstract;
  *   can_export_data           PERM_DATA_EXPORT
  *   can_use_api               PERM_API_ACCESS
  *   can_impersonate           ROLE_MANAGER floor ("View as Client")
+ *   is_developer              login_users.is_developer - the gate for a
+ *                             developer-only surface
  */
 class Permission extends Permission_Abstract
 {
@@ -161,6 +164,26 @@ class Permission extends Permission_Abstract
     public static function can_impersonate(): bool
     {
         return static::has_role(User_Model::ROLE_MANAGER);
+    }
+
+    /**
+     * Is this a developer - the gate for a surface only a developer may reach.
+     *
+     * A developer is a per-identity flag on the LOGIN identity
+     * (`login_users.is_developer`), never a role and never a hostname: a site role
+     * says what someone may do with the site's data, and a domain says nothing
+     * about anybody. The flag is set by hand in the database, so possession of a
+     * database client is both the proof of access and the competence bar.
+     *
+     * Name this gate on a diagnostic screen, a data-inspection endpoint or any
+     * other surface that exists for the people who build the application. The
+     * template's own `rsx/app/dev/` showcase stays `#[Auth('closed')]` - it is
+     * reachable by nobody until an application decides to open it.
+     */
+    #[Auth_Check]
+    public static function is_developer(): bool
+    {
+        return Session::is_developer();
     }
 
 }

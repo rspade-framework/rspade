@@ -136,12 +136,12 @@ class Sso_Handlers
      * So what does this application's password login actually enforce? Read
      * Login_Controller::index() and RsxAuth::attempt() together and the answer is: a LIVE
      * login_users row (SoftDeletes' global scope makes a trashed identity a not-found) and a
-     * correct password. Nothing else. There is no suspended flag, no activation gate and no
-     * email-verification gate on the way in - users.is_enabled decides which SITE PROFILES
-     * count, which is a question post_login_destination() answers after the login, and
-     * users.is_2fa_required is enforced per request in Rsx\Main::pre_dispatch(). Both of
-     * those already apply to a federated sign-in unchanged, because both run downstream of
-     * this gate.
+     * correct password, plus at least one ENABLED site membership - users.is_enabled is the
+     * FRAMEWORK's switch, refused by RsxAuth::attempt() and by RsxAuth::login(), so it already
+     * applies to a federated sign-in with nothing written here. Nothing else. This application
+     * adds no suspended flag, no activation gate and no email-verification gate on the way in;
+     * users.is_2fa_required is enforced per request in Rsx\Main::pre_dispatch(), which is also
+     * downstream of this gate.
      *
      * This handler therefore permits, and its value is the SEAM: the one place to add an
      * account-state rule, and the reminder that adding it here alone leaves the password

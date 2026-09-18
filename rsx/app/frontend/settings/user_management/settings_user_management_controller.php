@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Api\Api_Key_Model;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Realtime\Realtime;
 use App\RSpade\Core\Response\Error_Response;
@@ -512,6 +513,14 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             ? Rsx_Two_Factor::is_enabled((int) $user->login_user_id)
             : false;
 
+        // Whether the LOGIN identity behind this membership is a developer. Read as one
+        // scalar rather than through the relation: the screen needs the flag, not the row,
+        // and an administrator must be able to recognise an account that can reach a
+        // developer-only surface. Displayed here, never edited from here.
+        $is_developer = $user->login_user_id
+            ? (bool) Login_User_Model::where('id', $user->login_user_id)->value('is_developer')
+            : false;
+
         return [
             'id' => $user->id,
             'email' => $user->email,
@@ -522,6 +531,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             'is_api_access_enabled' => (bool) $user->is_api_access_enabled,
             'is_2fa_required' => (bool) $user->is_2fa_required,
             'is_2fa_enrolled' => $is_2fa_enrolled,
+            'is_developer' => $is_developer,
             'api_active_key_count' => $api_active_key_count,
             'api_last_used_at' => $api_last_used_at,
             'role_id' => $user->role_id,
@@ -590,7 +600,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
 
     /**
      * The role a user-management form may assign: present, a member of the role_id enum,
-     * selectable (Developer / Root Admin are assigned by the system only), and one the
+     * selectable (Root Admin is assigned by the system only), and one the
      * signed-in user may administer - the same set the form offered, enforced here
      * because the form is presentation. Fills $errors['role_id'] and returns null when
      * the value fails.

@@ -39,6 +39,12 @@
                         <% if (_u.role_id__label) { %>
                             <span class="badge badge-outline-primary"><%= _u.role_id__label %></span>
                         <% } %>
+                        <%-- Displayed, never edited: the developer flag lives on the LOGIN
+                             identity and is set in the database by hand. An administrator
+                             still needs to see which accounts carry it. --%>
+                        <% if (_u.is_developer) { %>
+                            <span class="badge badge-outline-info">Developer</span>
+                        <% } %>
                     </Slot:chips>
                     <Slot:subtitle>
                         <%= _u.email || 'No email' %><% if (_profile && _profile.title) { %> &middot; <%= _profile.title %><% } %>

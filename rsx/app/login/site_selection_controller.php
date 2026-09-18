@@ -57,10 +57,13 @@ class Site_Selection_Controller extends Rsx_Controller_Abstract
             return redirect(Rsx::Route('Login_Controller'));
         }
 
-        // Check if user has access to this site
+        // Check if user has access to this site.
+        //
+        // No is_enabled filter: users.is_enabled is the FRAMEWORK's switch, enforced at every
+        // request by Session::enforce_enabled_membership(), so an application never repeats it.
+        // See: php artisan rsx:man session
         $user = User_Model::where('login_user_id', $login_user->id)
             ->where('site_id', $site_id)
-            ->where('is_enabled', true)
             ->first();
 
         if (!$user) {

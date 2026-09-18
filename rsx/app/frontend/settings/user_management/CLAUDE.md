@@ -64,6 +64,19 @@ The `login_users` table contains authentication information private to the user 
 - Use `$user->login_user->email`, `$user->login_user->is_verified`, `$user->login_user->last_login`
 - Expose authentication-specific fields to administrators
 
+## The two named exceptions
+
+Both are read-only facts an administrator cannot do their job without, and neither is ever a
+form field on these screens.
+
+1. **Two-factor enrollment state** (`Rsx_Two_Factor::is_enabled()` on the `login_user_id`) -
+   see TWO-FACTOR above: a "Required" badge with no answer to "have they done it yet?" tells
+   an administrator nothing actionable.
+2. **The developer flag** (`login_users.is_developer`) - DISPLAYED as a chip on the user list
+   and the user view, because an administrator must know which accounts can reach a
+   developer-only surface. It is set by hand in the database and by nothing else: no screen,
+   no endpoint and no form in this tree writes it.
+
 ---
 ---
 

@@ -17,7 +17,6 @@ found by name, so a subdirectory is organisation only.
 | `formatters.php` / `formatters.js` | `Formatters`: phone (libphonenumber), currency, percentage, file size, date, datetime. The two halves are deliberate twins. |
 | `file_download.js` | `trigger_file_download()` + `base64_to_bytes()` — turns an Ajax-returned export into a browser download (an XHR cannot itself be one; xlsx travels base64). |
 | `quill_utils.js` | `quill_ready(callback)` — defers work until the Quill editor bundle has loaded. |
-| `portal_demo_autoshare.php` | `Portal_Demo_Autoshare` — dev-site-only demo behaviour that auto-shares an uploaded client document so the portal Documents tab has content. Inert off a dev site and in tests. |
 
 ## HOW IT IS USED
 
@@ -35,8 +34,7 @@ DISPLAY conventions this application chose, not to re-implement them.
 
 ## HOW TO CUSTOMIZE
 
-- **Everything here is deletable.** `portal_demo_autoshare.php` is demo scaffolding and is
-  the first thing to remove from a real fork; `analytics/` goes with the tracking decision;
+- **Everything here is deletable.** `analytics/` goes with the tracking decision;
   `quill_utils.js` goes if no form uses the WYSIWYG input.
 - **`text_types/` is meant to be adapted, not just kept.** The framework ships the abstract
   and nothing else; which types exist and what they permit is entirely this application's

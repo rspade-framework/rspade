@@ -27,7 +27,6 @@ use Rsx\App\Frontend\Clients\List\Clients_DataGrid;
 use Rsx\Emails\Portal_Invitation_Email;
 use Rsx\Emails\Portal_Shared_Content_Email;
 use Rsx\Lib\ActionLog\Action_Log;
-use Rsx\Lib\Portal_Demo_Autoshare;
 use Rsx\Models\Action_Log_Model;
 use Rsx\Models\Announcement_Model;
 use Rsx\Models\Client_Model;
@@ -1397,12 +1396,6 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
         }
 
         $attachment->add_to($client, Client_Model::DOCUMENTS_CATEGORY);
-
-        // DEMO ONLY (dev sites): auto-share every uploaded document with the client so
-        // the portal Documents tab is populated without manual sharing. Documents are
-        // shared at the client level (visible to all the client's portal users); no-op
-        // in real deployments. See Portal_Demo_Autoshare.
-        Portal_Demo_Autoshare::share_document_with_client($client, $attachment);
 
         return [
             'attachment_id' => $attachment->id,
