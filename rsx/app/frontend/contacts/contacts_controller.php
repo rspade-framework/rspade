@@ -13,6 +13,7 @@ use libphonenumber\PhoneNumberFormat;
 use libphonenumber\PhoneNumberUtil;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Forms\Form_Questions;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
 use App\RSpade\Core\Response\Error_Response;
@@ -212,6 +213,12 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
     /**
      * Ajax endpoint: Save contact (add or edit)
      *
+     * The app's worked example of a SERVER-DRIVEN QUESTION: on create, an email another
+     * contact already holds is a decision for the user, not a validation error, so the
+     * endpoint asks it with response_form_question() and writes nothing until it is
+     * answered. Order is validate -> ask -> write; see rsx:man form_conventions
+     * (QUESTIONS) and the handler in rsx/lib/modal/modal.js.
+     *
      * @param Request $request
      * @param array $params
      * @return mixed
@@ -263,6 +270,43 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
                 return response_error(Ajax::ERROR_NOT_FOUND, 'Contact not found');
             }
         } else {
+            // VALIDATE -> ASK -> WRITE. Validation has passed and nothing has been written
+            // yet; this is where a question belongs. Whether the address is already in use
+            // is server knowledge, so the question originates here rather than being
+            // re-implemented in JavaScript, where it would drift from this query.
+            //
+            // The endpoint re-runs from scratch on the resubmission, so no state is held
+            // between rounds: if the duplicate is still there, it is simply asked again.
+            $existing = Contact_Model::query()
+                ->whereRaw('LOWER(email) = ?', [mb_strtolower(trim($params['email']))])
+                ->orderBy('id')
+                ->first();
+
+            if ($existing) {
+                $answer = Form_Questions::answer($params, 'duplicate_email');
+
+                if ($answer === null) {
+                    $client_name = $existing->client ? $existing->client->name : 'no client';
+
+                    return response_form_question('duplicate_email', [
+                        'kind' => 'confirm',
+                        'title' => 'A contact with this email already exists',
+                        'body' => "{$existing->first_name} {$existing->last_name} ({$client_name}) already uses {$existing->email}.\n\nCreate a second contact with the same email?",
+                        'confirm_label' => 'Create anyway',
+                        'cancel_label' => 'Open the existing contact',
+                    ]);
+                }
+
+                // "No" is an ANSWER, not a cancel: the user chose the existing record.
+                // Nothing is written; the form's success path follows the redirect.
+                if ($answer === false) {
+                    return [
+                        'contact_id' => $existing->id,
+                        'redirect' => Rsx::Route('Contacts_View_Action', $existing->id),
+                    ];
+                }
+            }
+
             // Create new contact
             $contact = new Contact_Model();
             $contact->site_id = 1; // Default site

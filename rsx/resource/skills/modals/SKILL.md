@@ -299,6 +299,32 @@ into a jQuery body element.
 
 ---
 
+## The registered question handler
+
+The framework's form engine carries SERVER-DRIVEN QUESTIONS - an endpoint that returns
+`response_form_question($key, $question)` instead of writing - but defines no dialog and no
+question kinds. This directory is where they are presented:
+`Modal.on_app_modules_define()` calls `Rsx_Form.set_question_handler()` once, and the
+handler switches on `question.kind`.
+
+| kind | Presented as | Answer |
+|---|---|---|
+| `confirm` | `Modal.show()` with THREE buttons: Back, `cancel_label` (default "No"), `confirm_label` (default "Yes", the Enter button) | `true` / `false` |
+| `select` | `Modal.select(title, body, options, default)` | the chosen value |
+| `prompt` | `Modal.prompt(title, body, default, multiline)` | the string |
+| anything else | throws, naming the kind | - |
+
+**Cancel is not the answer "No".** "No" is an answer the endpoint receives and acts on;
+Back, X, Escape and a backdrop click return `Rsx_Form.CANCELLED`, which stops the submit
+and leaves the form open with the user's values. `Rsx_Modal` resolves every dismissal with
+`close(false)`, so a "No" button whose `value` were a bare `false` would be
+indistinguishable from one - it carries `Modal._QUESTION_NO`, which the handler maps back
+to `false`.
+
+Add a kind by adding a branch. The worked endpoint is
+`rsx/app/frontend/contacts/contacts_controller.php::save()`. Protocol and the recommended
+question shapes: `rsx:man form_conventions`, QUESTIONS.
+
 ## Modal Classes (Reusable Modals)
 
 A modal class is an **orchestration layer**: it shows one dialog and returns its result.

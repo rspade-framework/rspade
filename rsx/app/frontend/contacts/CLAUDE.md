@@ -4,6 +4,13 @@ Follows `rsx/app/frontend/clients/CLAUDE.md` and the app skill `crud-patterns`: 
 
 - **Less surface**: no portal subtree, no modals, no SCSS at all; no `delete`/`restore`/`fetch_deleted` (only `bulk_delete`, so the view page has no delete or restore button and no soft-deleted fallback fetch); CSV export only, no XLSX; one quick filter (`priority`), not two.
 - **The datagrid joins `clients`** and so implements `map_sort_column()` (`company` -> `company_name`), which the clients grid does not need.
+- **`save()` asks a SERVER-DRIVEN QUESTION**: creating a contact whose email another
+  non-deleted contact already holds returns `response_form_question('duplicate_email', ...)`
+  - a `confirm` naming the existing contact and its client - and writes nothing until it is
+  answered. "Create anyway" (`true`) falls through and creates the second contact; "Open the
+  existing contact" (`false`) is an ANSWER, writing nothing and returning a redirect to that
+  record; Back leaves the form open. The app's worked example of validate -> ask -> write;
+  the dialog itself is `rsx/lib/modal/modal.js`'s registered handler.
 - **Phone numbers are normalised server-side to E.164** in `save()` via libphonenumber — the app's worked example of format validation living only on the server.
 - **`edit/form/client_selector_input`** is defined here and reused by `../projects/edit/`.
 - **`?client_id=` mode**: arriving from a client repoints the breadcrumb and Back link and swaps the client picker for a `Hidden_Input`.

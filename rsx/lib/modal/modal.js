@@ -36,6 +36,68 @@ class Modal {
     }
 
     /**
+     * The "No" token for a confirm question.
+     *
+     * A button whose plain `value` is false is indistinguishable from a dismissal:
+     * Rsx_Modal resolves X, Escape and a backdrop click with close(false). Cancel and
+     * "No" are the two outcomes this feature exists to keep apart - "No" is an answer
+     * the endpoint acts on, cancel stops the submit - so "No" carries this token and is
+     * mapped back to false below.
+     * @private
+     */
+    static _QUESTION_NO = Object.freeze({ modal_question_no: true });
+
+    /**
+     * Present a server-driven form question. The application's ONE question handler.
+     *
+     * An endpoint that returns response_form_question() reaches here through
+     * Rsx_Form's submission pipeline, with the question object exactly as PHP wrote it.
+     * The framework defines no question kinds; these three are this application's
+     * vocabulary, and a fourth is added by extending this switch.
+     *
+     * See: php artisan rsx:man form_conventions (QUESTIONS)
+     */
+    static on_app_modules_define() {
+        Rsx_Form.set_question_handler(async (question) => {
+            const title = question.title || '';
+            const body = question.body || '';
+
+            if (question.kind === 'confirm') {
+                const answer = await Modal.show({
+                    title: title,
+                    body: body,
+                    max_width: 620,
+                    buttons: [
+                        { label: 'Back', value: null, class: 'btn-link' },
+                        { label: question.cancel_label || 'No', value: Modal._QUESTION_NO, class: 'btn-secondary' },
+                        { label: question.confirm_label || 'Yes', value: true, class: 'btn-primary', default: true },
+                    ],
+                });
+
+                if (answer === true) {
+                    return true;
+                }
+                if (answer === Modal._QUESTION_NO) {
+                    return false;
+                }
+                return Rsx_Form.CANCELLED;   // Back, X, Escape, backdrop
+            }
+
+            if (question.kind === 'select') {
+                const answer = await Modal.select(title, body, question.options || [], question.default || '');
+                return answer === false ? Rsx_Form.CANCELLED : answer;
+            }
+
+            if (question.kind === 'prompt') {
+                const answer = await Modal.prompt(title, body, question.default || '', !!question.multiline);
+                return answer === false ? Rsx_Form.CANCELLED : answer;
+            }
+
+            throw new Error(`Modal: no question handler for kind '${question.kind}'. Add it to Modal.on_app_modules_define().`);
+        });
+    }
+
+    /**
      * Initialize global handlers (called automatically on first modal)
      * @private
      */

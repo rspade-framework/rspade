@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Twenty-eight test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Thirty test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -13,7 +13,9 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 - **Domain models**: `Party_Test` (class-table inheritance end to end),
   `Polymorphic_Parents_Test` (type-ref pairs read through stock `morphTo()`),
   `Task_Derived_Project_Test` (the derived `project_id`, chain resolution and cycle guard),
-  `Contact_Phone_Validation_Test` (server-side E.164 normalisation).
+  `Contact_Phone_Validation_Test` (server-side E.164 normalisation),
+  `Contact_Duplicate_Question_Test` (the duplicate-email question: asking writes nothing,
+  `true` creates the second contact, `false` hands back the existing one, an edit never asks).
 - **UI seams**: `Datagrid_Mass_Actions_Test` (selection modes and CSV export),
   `Revision_History_Test` (the history endpoint's allowlist and its no-enumeration rule),
   `Timezone_Settings_Test`, `Api_Key_Scope_Ui_Test` (presets re-derived by name, so a

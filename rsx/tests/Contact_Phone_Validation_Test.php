@@ -54,6 +54,10 @@ class Contact_Phone_Validation_Test extends Rsx_Test_Abstract
     /**
      * The save() payload, with the phone fields overridable per case.
      *
+     * The email is per-client, so each case creates a contact nobody else in the site
+     * shares an address with: an email another contact already holds is a QUESTION on
+     * create (Contact_Duplicate_Question_Test), which is not what these cases are about.
+     *
      * @param Client_Model $client
      * @param array $phones
      * @return array
@@ -63,7 +67,7 @@ class Contact_Phone_Validation_Test extends Rsx_Test_Abstract
         return array_merge([
             'first_name' => 'Phone',
             'last_name' => 'Tester',
-            'email' => 'phone.tester@example.com',
+            'email' => 'phone.tester+' . $client->id . '@example.com',
             'client_id' => (int) $client->id,
             'phone_work' => '',
             'phone_cell' => '',
