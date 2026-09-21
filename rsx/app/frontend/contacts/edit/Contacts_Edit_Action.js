@@ -50,6 +50,7 @@ class Contacts_Edit_Action extends Spa_Action {
 
         this.data.error_data = null;
         this._record_settled = false;
+        this._guarded_form = null;
     }
 
     async on_load() {
@@ -129,6 +130,41 @@ class Contacts_Edit_Action extends Spa_Action {
             }
             this._set_form_loading(false);
         }
+
+        this._arm_navigation_guard();
+    }
+
+    /**
+     * The worked example of Rsx.set_navigation_guard(): once the user has touched a
+     * field, leaving this page asks first. The framework shows no dialog of its own -
+     * the callback below is the whole prompt, and resolving true allows the departure.
+     * A real page exit (refresh, tab close) gets the browser's native dialog instead,
+     * which set_navigation_guard() installs on its own.
+     *
+     * A re-render replaces the form component, so this wires the instance it is given
+     * and only that one; registering again on a later instance is harmless anyway,
+     * because the guard is one slot where the last registration wins.
+     */
+    _arm_navigation_guard() {
+        const $form = this.$.find('.Rsx_Form').first();
+        if (!$form.exists()) {
+            return;
+        }
+        const form = $form.component();
+        if (form === this._guarded_form) {
+            return;
+        }
+        this._guarded_form = form;
+
+        form.on('input', () => {
+            Rsx.set_navigation_guard(async () => Modal.confirm(
+                'Unsaved changes',
+                'You have unsaved changes on this contact. Leave without saving?',
+                'Leave',
+                'Stay'
+            ));
+        });
+        form.on('submitted', () => Rsx.clear_navigation_guard());
     }
 
     // Breadcrumb methods

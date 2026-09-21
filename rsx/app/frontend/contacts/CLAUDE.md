@@ -14,6 +14,13 @@ Follows `rsx/app/frontend/clients/CLAUDE.md` and the app skill `crud-patterns`: 
 - **Phone numbers are normalised server-side to E.164** in `save()` via libphonenumber — the app's worked example of format validation living only on the server.
 - **`edit/form/client_selector_input`** is defined here and reused by `../projects/edit/`.
 - **`?client_id=` mode**: arriving from a client repoints the breadcrumb and Back link and swaps the client picker for a `Hidden_Input`.
+- **The edit action is the app's worked example of the navigation guard.** `on_ready()`
+  wires the form it was given: `'input'` registers
+  `Rsx.set_navigation_guard(async () => Modal.confirm(...))`, `'submitted'` clears it. The
+  framework shows no dialog of its own for SPA navigation - the callback is the prompt,
+  and resolving `true` lets the dispatch through. Leaving the browser entirely (refresh,
+  tab close) gets the browser's native dialog, which `set_navigation_guard()` installs by
+  itself. Skill `rspade:navigation-guard`; contract in `rsx:man spa`.
 - **Portal-adjacent without owning the portal**: the view sidebar links to the client's portal tab and, for a contact with a portal user, offers `View as Client (read-only)` through `begin_portal_impersonation` (`#[Auth('can_impersonate')]`).
 - The Projects tab does not live-update: `Project_Model` touches the client, not the contact.
 - **The `View as Client` button is the app's worked example of definer-scoped slot content.**

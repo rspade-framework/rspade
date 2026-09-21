@@ -118,7 +118,7 @@ Every one extends `Form_Input_Abstract` and lives under `rsx/theme/components/in
 | Input | Directory | What it is |
 |---|---|---|
 | `Text_Input` | `text/` | the workhorse: text, `$type="email\|password\|number\|textarea\|date\|time\|datetime-local"`, `$rows` |
-| `Currency_Input` | `text/` | `Text_Input` with currency formatting |
+| `Currency_Input` | `text/` | `Text_Input` over the `rsx_numeric()` filter: `$decimals` (2), `$prefix` (`'$'`), `$commas` (true); `.val()` is the raw number |
 | `Phone_Text_Input` | `text/` | `Text_Input` with libphonenumber formatting; stores E.164 |
 | `Select_Input` | `select/` | TomSelect-backed single select |
 | `Select_With_Description_Input` | `select/` | select whose options carry a description line |

@@ -6,7 +6,8 @@ One subdirectory per input family; every input extends the framework's
 `Form_Input_Abstract` and owns exactly one named value.
 
 - `text/` — `Text_Input` (the `$max_length` rule below is its), plus the subclasses
-  `Phone_Text_Input` (libphonenumber, E.164) and `Currency_Input`;
+  `Phone_Text_Input` (libphonenumber, E.164) and `Currency_Input` (`$decimals` default 2,
+  `$prefix` default `'$'`, `$commas` default true — see NUMERIC INPUTS below);
   `phone_libphonenumber_bundle.php` declares the phone vendor bundle.
 - `select/` — `Select_Input` (TomSelect) and its own SCSS, `Select_Ajax_Input`,
   `Select_Country_Input`, `Select_State_Input`, `Select_With_Description_Input`;
@@ -22,6 +23,27 @@ One subdirectory per input family; every input extends the framework's
   not a string (`static ACCEPTS = Rich_Text`).
 - `raw_text/` — `Raw_Text_Input`, a textarea editing a `Raw_Text` value.
 - `hidden/` — `Hidden_Input`.
+
+## NUMERIC INPUTS
+
+A field that holds a number invokes the framework's jQuery filter and configures it; it
+never filters digits itself:
+
+```javascript
+this.$sid('input').rsx_numeric({decimals: 2, commas: true, prefix: '$'});
+```
+
+The filter accepts digits and, when `decimals` allows it, one `.`; it writes the separators
+and the prefix inline as the user types; and it leaves `.val()` answering the RAW number
+both ways, through a `$.valHooks.text` entry. So the component inherits
+`Text_Input._get_value()` / `_set_value()` and declares nothing of its own -
+`Currency_Input` is the whole worked example, and its class body is the call.
+
+`Pin_Input` is deliberately not one of these: a code is a string of digits rather than a
+number, and `0042` is not `42`.
+
+Contract and options: `php artisan rsx:man jquery` (Numeric Fields), skill
+`rspade:jquery-extensions`.
 
 ## TYPED INPUTS
 

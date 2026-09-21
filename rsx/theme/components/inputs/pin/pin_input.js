@@ -4,6 +4,10 @@
  * One named value - a short numeric code - presented as N single-character boxes.
  * See pin_input.jqhtml for the usage and the interaction rules.
  *
+ * The digit filtering here is its own rather than $(input).rsx_numeric(): a code is a
+ * string of digits and not a number, so its leading zeros have to survive - "0042" is
+ * not 42 - and each box holds one character anyway.
+ *
  * The value contract is the base class's: _get_value() joins the boxes, _set_value()
  * distributes a string across them, and _notify_input() announces every user edit.
  * val() itself is never overridden.
