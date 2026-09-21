@@ -6,8 +6,9 @@ One subdirectory per input family; every input extends the framework's
 `Form_Input_Abstract` and owns exactly one named value.
 
 - `text/` — `Text_Input` (the `$max_length` rule below is its), plus the subclasses
-  `Phone_Text_Input` (libphonenumber, E.164) and `Currency_Input` (`$decimals` default 2,
-  `$prefix` default `'$'`, `$commas` default true — see NUMERIC INPUTS below);
+  `Phone_Text_Input` (libphonenumber, E.164), `Currency_Input` (`$decimals` default 2,
+  `$prefix` default `'$'`, `$commas` default true) and `Time_Entry_Input` (hours, with
+  minutes accepted after a colon) — see NUMERIC INPUTS below;
   `phone_libphonenumber_bundle.php` declares the phone vendor bundle.
 - `select/` — `Select_Input` (TomSelect) and its own SCSS, `Select_Ajax_Input`,
   `Select_Country_Input`, `Select_State_Input`, `Select_With_Description_Input`;
@@ -38,6 +39,12 @@ and the prefix inline as the user types; and it leaves `.val()` answering the RA
 both ways, through a `$.valHooks.text` entry. So the component inherits
 `Text_Input._get_value()` / `_set_value()` and declares nothing of its own -
 `Currency_Input` is the whole worked example, and its class body is the call.
+
+A field holding HOURS passes `time: true` instead, which accepts a colon and converts it
+to decimal hours - `1:30` becomes `1.5`, `:90` becomes `1.5`, `1:20` becomes `1.33` - at
+the getter, the setter and blur, leaving the colon form as typed while the field is
+focused. `decimals` is forced to 2 there, so `Time_Entry_Input` takes no `$decimals` and
+its class body is the single call, exactly like `Currency_Input`'s.
 
 `Pin_Input` is deliberately not one of these: a code is a string of digits rather than a
 number, and `0042` is not `42`.
@@ -77,8 +84,8 @@ Which component edits which type is declared by the type itself (`static EDITOR`
 - **Restyle** in the input's own SCSS, single-class wrapped with its exact component-name
   BEM prefix. `select_input.scss` is the worked example of the hard case — a prebuilt
   third-party stylesheet re-pointed rule by rule onto the theme's runtime colour tokens.
-- **A variant is a subclass, not a fork.** `Phone_Text_Input` and `Currency_Input` extend
-  `Text_Input`; copying the file is how two inputs drift apart.
+- **A variant is a subclass, not a fork.** `Phone_Text_Input`, `Currency_Input` and
+  `Time_Entry_Input` extend `Text_Input`; copying the file is how two inputs drift apart.
 - **Never implement `val()`**, never add a client-side required/format/length check, and
   never rename the `$name` flow — the input stamps `data-name`, `Form_Field` reads it.
 - A vendor library an input needs is declared in a `*_bundle.php` beside it, never
@@ -340,7 +347,7 @@ class Select_Ajax_Input extends Select_Input {
 - `-1`: Unlimited (no maxlength applied)
 - Undefined: Console error with guidance
 
-**Subclasses are exempt.** Components extending `Text_Input` (like `Phone_Text_Input`, `Currency_Input`) bypass this check since they have intrinsic limits.
+**Subclasses are exempt.** Components extending `Text_Input` (like `Phone_Text_Input`, `Currency_Input`, `Time_Entry_Input`) bypass this check since they have intrinsic limits.
 
 The `field_length()` API is auto-generated from database schema:
 ```javascript

@@ -1,6 +1,6 @@
 ---
 name: form-components
-description: "Composing a form in this application from its own field chrome and input roster - Form_Field / Form_Field_Abstract (label, $required asterisk, $help, the Slot:label rule), Rsx_Tabs / Rsx_Tab error badges, and the shipped inputs (Text_Input and its $max_length rule, Select_Input / Select_With_Description_Input / Select_Ajax_Input / Select_Country_Input / Select_State_Input, Checkbox_Input, Checkbox_Multiselect_Input, Tag_List_Input, Repeater_Simple, Pin_Input, Wysiwyg_Input, Raw_Text_Input, Profile_Photo_Input, Hidden_Input, Currency_Input, Phone_Text_Input). Use when laying out a form's fields, adding a new input to the roster, wiring a date or time field, choosing between two existing inputs, or hitting \"Text_Input with $name=... requires $max_length\", \"edits Rich_Text values, but was given string\", \"Form_Field_Abstract has no Form_Input_Abstract child\", or \"Form_Field_Abstract child input has no data-name attribute\"."
+description: "Composing a form in this application from its own field chrome and input roster - Form_Field / Form_Field_Abstract (label, $required asterisk, $help, the Slot:label rule), Rsx_Tabs / Rsx_Tab error badges, and the shipped inputs (Text_Input and its $max_length rule, Select_Input / Select_With_Description_Input / Select_Ajax_Input / Select_Country_Input / Select_State_Input, Checkbox_Input, Checkbox_Multiselect_Input, Tag_List_Input, Repeater_Simple, Pin_Input, Wysiwyg_Input, Raw_Text_Input, Profile_Photo_Input, Hidden_Input, Currency_Input, Time_Entry_Input, Phone_Text_Input). Use when laying out a form's fields, adding a new input to the roster, wiring a date or time field, choosing between two existing inputs, or hitting \"Text_Input with $name=... requires $max_length\", \"edits Rich_Text values, but was given string\", \"Form_Field_Abstract has no Form_Input_Abstract child\", or \"Form_Field_Abstract child input has no data-name attribute\"."
 ---
 
 # Form chrome and the input roster
@@ -119,6 +119,7 @@ Every one extends `Form_Input_Abstract` and lives under `rsx/theme/components/in
 |---|---|---|
 | `Text_Input` | `text/` | the workhorse: text, `$type="email\|password\|number\|textarea\|date\|time\|datetime-local"`, `$rows` |
 | `Currency_Input` | `text/` | `Text_Input` over the `rsx_numeric()` filter: `$decimals` (2), `$prefix` (`'$'`), `$commas` (true); `.val()` is the raw number |
+| `Time_Entry_Input` | `text/` | `Text_Input` over the same filter in `time` mode: hours, with minutes accepted after a colon (`1:30` -> `1.5`); `.val()` is always decimal hours |
 | `Phone_Text_Input` | `text/` | `Text_Input` with libphonenumber formatting; stores E.164 |
 | `Select_Input` | `select/` | TomSelect-backed single select |
 | `Select_With_Description_Input` | `select/` | select whose options carry a description line |
@@ -136,7 +137,7 @@ Every one extends `Form_Input_Abstract` and lives under `rsx/theme/components/in
 
 **`Text_Input` requires `$max_length`** and throws without it: pass
 `Model.field_length('column')`, a literal number, or `-1` for "no limit". Subclasses
-(`Currency_Input`, `Phone_Text_Input`) are exempt - the check fires only when
+(`Currency_Input`, `Time_Entry_Input`, `Phone_Text_Input`) are exempt - the check fires only when
 `Text_Input` is used directly.
 
 **There is no date-picker component.** A date or time field is a `Text_Input` with a
