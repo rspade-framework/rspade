@@ -35,9 +35,15 @@ Two callers, both outside this directory:
    action, no action matches the URL, or an action fails to boot. **The bodies are
    app-owned theme code: the framework only resolves the container and mounts the component
    by name**, so each error class's page is replaceable by editing the component here — no
-   override machinery on the SPA side. (The server-rendered PHP twin,
-   `App\RSpade\Core\Errors\Error_Screens`, is a separate Blade path and is customised by
-   the class-override pattern instead: `rsx:man class_override`.)
+   override machinery on the SPA side.
+
+**The server-rendered twins live in `rsx/app/errors/`** (and `rsx/portal/errors/` for the
+portal realm): Blade pages the framework invokes when a request ends on a status before any
+SPA exists to mount a component into. The two halves cover the same outcomes — not found,
+access denied, something went wrong — from opposite sides of the boot: these components
+render INSIDE a layout that is already on screen, those pages ARE the whole document.
+**The copy is kept aligned by hand.** Nothing enforces it, and a user who meets both should
+not be able to tell that two different systems answered.
 
 ## HOW TO CUSTOMIZE
 
@@ -47,6 +53,8 @@ Two callers, both outside this directory:
 - **Add a new error outcome**: add the body component, then add its branch to
   `universal_error_page_component.jqhtml`; the `Ajax.ERROR_*` codes themselves are the
   framework's (`rspade:ajax-error-handling`).
+- **Reword an outcome here, reword its server-rendered twin too** — `rsx/app/errors/` for
+  staff, `rsx/portal/errors/` for the portal.
 - Keep the four required args of the router required — the loud throw is what stops a
   half-wired page from rendering an error page with no way out.
 - `Loading_Spinner` is this app's spinner markup; the framework's registry-based spinner
@@ -57,5 +65,6 @@ Two callers, both outside this directory:
 ## RELATED
 
 App skill `crud-patterns` (the three-state page) · `rsx/app/frontend/CLAUDE.md` ·
+`rsx/app/errors/CLAUDE.md` (the server-rendered twins) ·
 skills `rspade:ajax-error-handling`, `rspade:auth-gates` (ERROR SCREENS) ·
-`rsx:man auth_gates`, `rsx:man crud`, `rsx:man class_override`
+`rsx:man auth_gates`, `rsx:man crud`, `rsx:man error_pages`

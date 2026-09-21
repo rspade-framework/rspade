@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Thirty test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Thirty-one test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -16,6 +16,13 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   `Contact_Phone_Validation_Test` (server-side E.164 normalisation),
   `Contact_Duplicate_Question_Test` (the duplicate-email question: asking writes nothing,
   `true` creates the second contact, `false` hands back the existing one, an edit never asks).
+- **Error pages**: `App_Error_Pages_Test` — this application's `/error/` declarations actually
+  answer: an unmatched staff URL and a gate denial render `Errors_Layout` with 404 and 403,
+  a foreign-origin form POST renders the 419 page, a portal failure renders
+  `Portal_Auth_Layout` instead, and the `/error/generic` preview is a 500 carrying its
+  detail block. The framework suite pins the funnel; this pins the declarations. Named
+  `App_` because the framework suite already has an `Error_Pages_Test`, and a same-named
+  class in `rsx/` would override it out of the run.
 - **UI seams**: `Datagrid_Mass_Actions_Test` (selection modes and CSV export),
   `Revision_History_Test` (the history endpoint's allowlist and its no-enumeration rule),
   `Timezone_Settings_Test`, `Api_Key_Scope_Ui_Test` (presets re-derived by name, so a

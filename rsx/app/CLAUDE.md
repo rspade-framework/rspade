@@ -9,6 +9,7 @@ has no assets of its own), plus one loose file.
 |---|---|---|
 | `frontend/` | The main authenticated SPA — one bootstrap controller, one persistent layout, and a feature directory per screen. Own `CLAUDE.md`. | The application. |
 | `login/` | The server-rendered auth ladder: login, signup, invite acceptance, site selection, site-unauthorized. Own `CLAUDE.md`. | Live, public by declaration. |
+| `errors/` | The staff realm's full-page error screens - 404, 403, 419 and a catch-all - declared as `#[Route('/error/...')]` and invoked by the framework, never linked to. Own `CLAUDE.md`. | Live, public by declaration. |
 | `api/` | The external bearer REST surface under `/api/vN/`. Own `CLAUDE.md`. | Live. |
 | `apidocs/` | A CONTROLLER AND NOTHING ELSE: two methods mounting the framework's API reference console and its OpenAPI document. The console, including its bundle, is framework property - `Rsx_Api_Docs::page()` renders the whole page. Gate is `public`, with `Session::has_api_access()` decided in the body. | Live. |
 | `backend/` | A minimal Blade admin shell. Own `CLAUDE.md`. | **Skeleton — deletable.** |
@@ -33,6 +34,12 @@ closed by default; the manifest build fails on an ungated surface, and `public` 
 A feature controller inside an SPA module exposes **Ajax endpoints only** — the route lives
 on the JS action. A Blade module puts `#[Route]` on the controller instead.
 
+**`/error/` is a reserved prefix.** A route under it is an error PAGE: the framework invokes
+it when a request ends on that status, and `ROUTE-ERROR-01` fails the manifest build unless
+the pattern is exactly `/error/<400-599>` or `/error/generic`, GET, param-free and
+`#[Auth('public')]`. Only `errors/` (and `rsx/portal/errors/` in the portal realm) declares
+one; browsing such a URL previews the page in development and 404s in a sealed build.
+
 ## HOW TO CUSTOMIZE
 
 - **Add a module**: `php artisan rsx:app:module:create <name>` scaffolds the directory,
@@ -48,6 +55,6 @@ on the JS action. A Blade module puts `#[Route]` on the controller instead.
 
 ## RELATED
 
-`frontend/CLAUDE.md` · `login/CLAUDE.md` · `api/CLAUDE.md` · `../portal/CLAUDE.md` ·
+`frontend/CLAUDE.md` · `login/CLAUDE.md` · `errors/CLAUDE.md` · `api/CLAUDE.md` · `../portal/CLAUDE.md` ·
 skills `rspade:spa`, `rspade:blade-views`, `rspade:bundles`, `rspade:auth-gates` ·
 `rsx:man spa`, `rsx:man routing`, `rsx:man auth_gates`, `rsx:man bundles`

@@ -48,6 +48,7 @@ announcements, notifications, an action log, and a client portal.
 | `frontend/` | The main authenticated SPA. `Frontend_Spa_Controller` + `Frontend_Spa_Layout` (persistent chrome, primary nav), then one directory per feature: `dashboard`, `clients`, `contacts`, `projects`, `tasks`, `party`, `action_logs`, `notifications`, `calendar`, `reports`, `settings`, `system`. |
 | `backend/` | Minimal server-rendered admin shell (Blade). |
 | `login/` | Server-rendered auth flows: login, signup, invite acceptance, site selection, site-unauthorized. |
+| `errors/` | The full-page error screens, declared as `#[Route('/error/404')]` and friends and invoked by the framework when a request ends on that status. |
 | `api/` | External bearer REST surface, `v1/` (contacts, clients). Every path starts `/api/vN/`. |
 | `apidocs/` | The live API documentation and tester SPA. |
 | `dev/` | Developer showcase (components, modals, ORM, SPA, attachments, ACL) - shipped CLOSED (`#[Auth('closed')]`), reachable by nobody. Read it as a worked reference; open it by declaring a check of your own. |
@@ -56,8 +57,9 @@ announcements, notifications, an action log, and a client portal.
 
 **Client portal** - `rsx/portal/`: the parallel external experience.
 `Portal_Spa_Controller` + `Portal_Layout`, then `auth/` (Blade login, register,
-password reset), `dashboard/`, `workspaces/` (overview, documents, request
-threads), `invitations/`, `notifications/`, `settings/`.
+password reset), `errors/` (the portal realm's own error pages), `dashboard/`,
+`workspaces/` (overview, documents, request threads), `invitations/`,
+`notifications/`, `settings/`.
 
 **Models** - `rsx/models/`, flat, one file per model:
 

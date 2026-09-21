@@ -1,0 +1,131 @@
+// Errors_Layout - the page chrome every staff error page extends.
+//
+// LAYOUT ONLY. The card, its border, its radius and every colour here come from the
+// theme's Bootstrap build (.card, .card-body) and the runtime tokens, exactly as
+// Login_Layout does - so the error pages follow light and dark with the rest of the
+// application and carry no palette of their own.
+.Errors_Layout {
+    .Errors_Layout__viewport {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10vh $spacing-lg;
+        background: var(--bs-tertiary-bg);
+    }
+
+    .Errors_Layout__card {
+        width: 100%;
+        max-width: 640px;
+    }
+
+    .Errors_Layout__body {
+        padding: $spacing-3xl;
+        text-align: center;
+    }
+
+    .Errors_Layout__status {
+        @include rsx-text-mono;
+
+        display: inline-block;
+        margin-bottom: $spacing-lg;
+        padding: 2px 10px;
+        border: $border-width solid var(--bs-border-color);
+        border-radius: $border-radius-md;
+        background: var(--bs-tertiary-bg);
+        color: var(--bs-secondary-color);
+        font-size: $font-size-xs;
+        letter-spacing: 0.08em;
+    }
+
+    .Errors_Layout__heading {
+        margin: 0 0 $spacing-sm;
+        font-size: $font-size-3xl;
+        font-weight: $font-weight-semibold;
+        line-height: $line-height-tight;
+        color: var(--bs-emphasis-color);
+    }
+
+    .Errors_Layout__content {
+        margin-bottom: $spacing-2xl;
+        color: var(--bs-secondary-color);
+    }
+
+    .Errors_Layout__actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: $spacing-md;
+    }
+
+    // The exception block, generic page only. It sits outside the padded body so it
+    // reads as a separate region: the message above is for the person, this is for
+    // whoever is fixing it.
+    .Errors_Layout__detail {
+        text-align: left;
+        padding: $spacing-lg $spacing-3xl $spacing-2xl;
+        border-top: $border-width solid var(--bs-border-color);
+        background: var(--bs-tertiary-bg);
+    }
+
+    .Errors_Layout__detail-label {
+        margin: 0 0 $spacing-sm;
+        color: var(--bs-secondary-color);
+        font-size: $font-size-xs;
+        font-weight: $font-weight-semibold;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .Errors_Layout__detail-message {
+        @include rsx-text-mono;
+
+        margin: 0 0 $spacing-xs;
+        font-size: $font-size-sm;
+        color: var(--bs-body-color);
+        word-break: break-word;
+    }
+
+    .Errors_Layout__detail-origin {
+        @include rsx-text-mono;
+
+        margin: 0 0 $spacing-md;
+        font-size: $font-size-xs;
+        color: var(--bs-secondary-color);
+        word-break: break-word;
+    }
+
+    // The framework's own text pane, so a stack trace is set in the same monospace
+    // as every other block of text DATA in the application; the frame around it is
+    // this page's, because the mixin deliberately leaves the surface to its host.
+    .Errors_Layout__trace {
+        @include rsx-preview-text-pane;
+
+        height: auto;
+        max-height: 320px;
+        padding: $spacing-md;
+        border: $border-width solid var(--bs-border-color);
+        border-radius: $border-radius-md;
+        background: var(--bs-body-bg);
+        color: var(--bs-secondary-color);
+    }
+
+    @include mobile {
+        .Errors_Layout__viewport {
+            padding: $spacing-lg $spacing-md;
+        }
+
+        .Errors_Layout__card {
+            max-width: 100%;
+        }
+
+        .Errors_Layout__body {
+            padding: $spacing-lg;
+        }
+
+        .Errors_Layout__detail {
+            padding: $spacing-md $spacing-lg $spacing-lg;
+        }
+    }
+}

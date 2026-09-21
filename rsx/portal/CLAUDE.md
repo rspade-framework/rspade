@@ -19,6 +19,9 @@ dispatcher, bundle, layout, routing attributes and permission facade.
 - `notifications/` — `portal_notifications_controller.php` (feed, unread count, mark read),
   reading the framework's `Portal_Notification_Model`.
 - `settings/` — `Portal_Settings_Action` and its controller.
+- `errors/` — `Portal_Errors_Controller` and two blades: the portal realm's full-page error
+  screens, declared as `#[Portal_Route('/error/404')]` and `#[Portal_Route('/error/generic')]`
+  and invoked by the framework, never linked to. See PORTAL ERROR PAGES below.
 
 ## HOW TO CUSTOMIZE
 
@@ -32,7 +35,8 @@ dispatcher, bundle, layout, routing attributes and permission facade.
   would otherwise churn every open staff client view. Follow that shape for any other
   per-request stamp; use an ordinary `save()` for anything a screen should react to.
 - **Rebrand** the auth pages in `auth/portal_auth_layout.{blade.php,scss}` and the signed-in
-  chrome in `portal_layout.scss`. The portal composes the SAME theme components as the staff
+  chrome in `portal_layout.scss`. The error pages in `errors/` extend `Portal_Auth_Layout`,
+  so they follow that rebrand with no work of their own. The portal composes the SAME theme components as the staff
   app — see `rsx/theme/components/view/CLAUDE.md` and the other group files for the widget
   vocabulary rather than building portal-only variants.
 - **Every mutating endpoint guards on `Portal_Permission::is_read_only()` itself.** Every
@@ -41,6 +45,43 @@ dispatcher, bundle, layout, routing attributes and permission facade.
 - Per-client rules are record-level predicates called in the endpoint body after the gates
   pass (`has_client_access()`, `can_collaborate()`, `client_role()`,
   `accessible_client_ids()`), all defined in `rsx/portal_permission.php`.
+
+## PORTAL ERROR PAGES
+
+A failure picks its realm from the FAILING request, so a portal URL that 404s, denies or
+crashes renders `rsx/portal/errors/` — the portal bundle, the portal's auth chrome, and
+`home_url` pointing at the portal rather than at the staff application. The staff twins in
+`rsx/app/errors/` are a separate declaration and are never shared.
+
+Two pages, not four: the portal declares `/error/404` and `/error/generic`, and every other
+status falls to the generic one. A portal realm with neither would fall to the STAFF pair —
+a page is better than no page — which is exactly what makes the portal's own pair worth
+declaring.
+
+The method is called directly with `($request, ['error' => $error])`, an
+`App\RSpade\Core\Errors\Error_Context`: status, title, message, path, method, realm,
+home_url, preview, detail. That is all a page may read — the failing request is over, the
+caller may be anonymous, and the page is inspectable with curl. The portal pages
+deliberately render NO exception detail even where the context carries it: the reader is a
+client, and the trace is already in the log.
+
+**In this template a signed-in portal user rarely sees the 404 server-side**, because
+`Portal_Spa_Controller` declares `#[Portal_Route('/*')]` and the SPA answers an unknown path
+client-side (`rsx/theme/components/feedback/errors/`). What reaches the page is an
+`abort(404)`, a record that does not exist, and an unmatched URL from a visitor with no
+portal session.
+
+Preview in development (never served in a sealed build):
+
+```bash
+php artisan rsx:debug /_portal/error/404 --portal --portal-user=1
+php artisan rsx:debug /_portal/error/generic --portal --portal-user=1
+```
+
+Adding a page for another status is a method with `#[Portal_Route('/error/<status>')]`, a
+blade beside it, and `#[Auth('public')]`; `ROUTE-ERROR-01` fails the manifest build on a
+malformed pattern. Deleting one falls back to generic, then to the staff pair, then to the
+framework's own page.
 
 ## Key Differences from /rsx/app/
 

@@ -119,8 +119,7 @@ class Portal_Main extends Portal_Main_Abstract
     /**
      * Unhandled route hook for portal requests
      *
-     * Called when no portal route matches the request.
-     * Use this for custom 404 handling in the portal context.
+     * Called when no portal route matches the request, before the portal 404 page.
      *
      * @param Request $request The current request
      * @param array $params Combined GET values and URL parameters
@@ -128,8 +127,15 @@ class Portal_Main extends Portal_Main_Abstract
      */
     public static function unhandled_route(Request $request, array $params)
     {
-        // Default: return null to use standard 404 handling
-        // Can be customized to return a portal-specific 404 page
+        // THE PORTAL 404 PAGE IS NOT HERE. An unmatched portal URL renders
+        // rsx/portal/errors/ (Portal_Errors_Controller::not_found, declared as
+        // #[Portal_Route('/error/404')]), which the framework invokes after this hook
+        // declines.
+        //
+        // This hook is for answering an unmatched portal URL with something OTHER than an
+        // error page - a redirect map for retired URLs, a shared-link shortener - by returning a
+        // response. Returning null means "I have nothing for this URL", and the error page
+        // follows.
         return null;
     }
 }

@@ -144,8 +144,15 @@ class Main extends Main_Abstract
      */
     public static function unhandled_route(Request $request, array $params)
     {
-        // Custom 404 handling logic here
-        // Return null to use default 404 behavior
+        // THE 404 PAGE IS NOT HERE. An unmatched staff URL renders rsx/app/errors/
+        // (Errors_Controller::not_found, declared as #[Route('/error/404')]), which the
+        // framework invokes after this hook declines. Styling or rewording the 404 is a
+        // change to that page.
+        //
+        // This hook is for answering an unmatched URL with something OTHER than an error
+        // page - a redirect map for retired URLs, a vanity path, a slug table - by returning a
+        // response. Returning null means "I have nothing for this URL", and the error
+        // page follows.
         return null;
     }
 }
