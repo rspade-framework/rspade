@@ -44,6 +44,18 @@ class Raw_Text extends Rsx_Text_Abstract
     }
 
     /**
+     * Plain text -> plain text: a PASSTHROUGH, written down on purpose for the same reason
+     * as filter_set(). The encoding IS plain text, so a bare string is already in it.
+     *
+     * @param string $plain
+     * @return string
+     */
+    public static function escape_string(string $plain): string
+    {
+        return $plain;
+    }
+
+    /**
      * The stored form is already the readable text.
      *
      * @return string

@@ -58,7 +58,8 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 - **Declared text types**: `Text_Type_Assignment_Test` — what assignment does at a declared
   column on a real model: a typeless request value reads back as the COLUMN's type (the cast
   disables Eloquent's object caching; this is the test that notices if it comes back), the
-  client's claimed type is ignored, the filter runs once on assignment, a wrong-type value is
+  client's claimed type is ignored, the filter runs once on assignment, a bare string is plain
+  text escaped into the encoding, a wrong-type value is
   refused not converted, and a typed value refuses to be a string so a lossy concatenation
   cannot reach storage. The framework suite pins the type contract against fixtures; this
   pins the half only a real column can show.

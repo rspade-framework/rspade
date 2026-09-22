@@ -104,15 +104,15 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
     public static function test_a_bare_string_reads_back_as_rich_text_on_every_converted_column()
     {
         $task = static::__seed_task();
-        $task->description = '<p>a task <b>description</b></p>';
+        $task->description = 'a task description';
         $task->save();
 
         $group = static::__seed_group();
-        $group->description = '<p>a group description</p>';
+        $group->description = 'a group description';
         $group->save();
 
         $product = static::__seed_product();
-        $product->description = '<p>a product description</p>';
+        $product->description = 'a product description';
         $product->save();
 
         static::__assert_instance_of(Rich_Text::class, Task_Model::find($task->id)->description, 'tasks.description');
@@ -121,8 +121,7 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
     }
 
     /**
-     * The column's filter runs on assignment, on every one of them. Before the
-     * declaration these columns were stored exactly as submitted.
+     * The column's filter runs on assignment of an encoded value, on every one of them.
      */
     public static function test_the_filter_strips_a_script_on_every_converted_column()
     {
@@ -135,7 +134,7 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
         ];
 
         foreach ($records as $table => $record) {
-            $record->description = $hostile;
+            $record->description = Rich_Text::from_untrusted($hostile);
 
             $stored = $record->description->to_storage();
 
@@ -152,7 +151,7 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
     public static function test_to_text_reduces_a_stored_value_to_plain_text()
     {
         $group = static::__seed_group();
-        $group->description = '<p>first block</p><p>second <b>block</b></p>';
+        $group->description = Rich_Text::from_untrusted('<p>first block</p><p>second <b>block</b></p>');
         $group->save();
 
         $text = User_Group_Model::find($group->id)->description->to_text();
@@ -169,7 +168,7 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
     public static function test_an_empty_document_is_empty_by_content_not_by_string()
     {
         $task = static::__seed_task();
-        $task->description = '<p><br></p>';
+        $task->description = Rich_Text::from_untrusted('<p><br></p>');
 
         static::__assert_true($task->description->is_empty(), 'the type knows its own encoding');
         static::__assert_false($task->description->to_storage() === '', 'and the string it holds is not empty');

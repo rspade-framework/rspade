@@ -48,8 +48,11 @@ the worked example of the two-act rule below.
 
 **Read and written like any other column.** An endpoint still writes
 `$project->description = $params['description'];` — the value arrives already typed
-(rehydrated at the Ajax boundary) and a bare string is filtered by the type on assignment.
-No endpoint in this application calls a sanitizer.
+(rehydrated at the Ajax boundary, or from a JSON-encoded envelope in an `/api/vN` string
+param) and is filtered by the type on assignment. A BARE STRING is plain text: the type's
+`escape_string()` converts it and `filter_set()` runs on the result, so a seed, an import or
+a plain API param stores what was typed. Encoded content from server code is assigned as
+`Rich_Text::from_untrusted($html)`. No endpoint in this application calls a sanitizer.
 
 **Two render targets, each written once.** `to_html()` is the STATIC rendition for a
 server-generated document (an email, a PDF). A live page renders through the type's
@@ -87,9 +90,10 @@ content before storing it - the users tagged in a comment - name the type explic
 - **Adapt `Rich_Text` rather than working around it.** The usual reason is the allow-list:
   `filter_set()` calls `safe_html()`, and an application permitting embedded media or its
   own classes changes that one method.
-- **A new type needs ONE required method**: `filter_set()`, the server sanitizer - required
-  even as a passthrough, so "no filter" is always a written declaration with its reason
-  (see `Raw_Text`). Everything else is a CONVENTION the type adopts only when it needs the
+- **A new type needs TWO required methods**: `filter_set()`, the server sanitizer, and
+  `escape_string()`, the plain-text conversion every bare string goes through - each
+  required even as a passthrough, so "no filter" is always a written declaration with its
+  reason (see `Raw_Text`). Everything else is a CONVENTION the type adopts only when it needs the
   capability, and throws by default: `to_text()` (a plain rendition, for a CSV cell or an
   index) and `to_html()` (a server-side markup rendition, for an email or export - rarely
   needed, since a page renders through the PRINTER component). Anything the application
@@ -101,7 +105,7 @@ content before storing it - the users tagged in a comment - name the type explic
   what lets a mismatch be refused instead of silently stringified — see
   `theme/components/inputs/raw_text/` and `.../wysiwyg/`.
 - **Changing a column's type is two acts**: a migration that re-encodes the existing rows,
-  then the one-line change here. `Type::from_string($plain)` is the re-encoding path.
+  then the one-line change here. `Type::from_string($plain)` (`escape_string()` then `filter_set()`) is the re-encoding path.
 - **Use `is_empty()`, never `=== ''`.** A value object is never identical to a string, so
   `=== ''` is permanently false and an empty body reads as non-empty. This is the single
   most likely mistake when adopting a type on an existing column.

@@ -29,6 +29,7 @@ use Rsx\Models\Project_Model;
  *   - The client's claimed type is IGNORED. A wrapper claiming a class that does not exist
  *     stores fine, typed by the column.
  *   - The filter runs on assignment, once, with the column's type.
+ *   - A BARE string is plain text: escaped into the column's encoding, never read as markup.
  *   - A typed value of the WRONG type is refused, never converted.
  */
 class Text_Type_Assignment_Test extends Rsx_Test_Abstract
@@ -92,7 +93,7 @@ class Text_Type_Assignment_Test extends Rsx_Test_Abstract
         static::__assert_equals('<p>ok</p>', $reloaded->description->to_storage());
     }
 
-    public static function test_the_columns_filter_runs_on_assignment_exactly_as_it_would_for_a_bare_string()
+    public static function test_the_columns_filter_runs_on_an_encoded_value()
     {
         $project = static::__seed_project();
         $hostile = '<p>hi</p><script>alert(1)</script><img src=x onerror=alert(2)>';
@@ -100,12 +101,31 @@ class Text_Type_Assignment_Test extends Rsx_Test_Abstract
         $project->description = static::__request_value('Rich_Text', $hostile);
         $via_wrapper = $project->description->to_storage();
 
-        $project->description = $hostile;
-        $via_string = $project->description->to_storage();
+        $project->description = Rich_Text::from_untrusted($hostile);
+        $via_explicit = $project->description->to_storage();
 
-        static::__assert_equals($via_string, $via_wrapper, 'the wrapper path and the string path are the same filter');
+        static::__assert_equals($via_explicit, $via_wrapper, 'the wrapper path and the explicit encoded path are the same filter');
         static::__assert_false(str_contains($via_wrapper, '<script'), 'the script is gone');
         static::__assert_false(str_contains($via_wrapper, 'onerror'), 'the handler is gone');
+    }
+
+    public static function test_a_bare_string_is_plain_text_escaped_into_the_encoding()
+    {
+        $project = static::__seed_project();
+
+        // An import or a plain API param: nothing says this is markup, so it is text. The
+        // angle-bracketed address must survive as text instead of being purified away as
+        // an unknown tag, and the line break must survive as a break.
+        $project->description = "Contact <john@acme.com>\nre: <b>billing</b>";
+
+        static::__assert_equals(
+            Rich_Text::from_string("Contact <john@acme.com>\nre: <b>billing</b>")->to_storage(),
+            $project->description->to_storage(),
+            'assignment of a bare string is from_string()'
+        );
+        static::__assert_true(str_contains($project->description->to_text(), 'Contact <john@acme.com>'), 'the address survives as text');
+        static::__assert_true(str_contains($project->description->to_text(), 're: <b>billing</b>'), 'the tag survives as literal text');
+        static::__assert_true(str_contains($project->description->to_storage(), '<br'), 'the line break survives as a break');
     }
 
     public static function test_a_raw_text_column_keeps_markup_as_literal_text()
@@ -139,7 +159,7 @@ class Text_Type_Assignment_Test extends Rsx_Test_Abstract
     public static function test_a_typed_value_refuses_to_be_a_string_so_a_lossy_write_cannot_happen()
     {
         $project = static::__seed_project();
-        $project->description = '<p>keep <b>this</b></p>';
+        $project->description = Rich_Text::from_untrusted('<p>keep <b>this</b></p>');
 
         // The write this guards against: concatenation would strip the markup and store
         // something that looks fine. It must throw before it can reach the cast.

@@ -79,17 +79,16 @@ class Rich_Text extends Rsx_Text_Abstract
     }
 
     /**
-     * Plain text -> HTML. The migration path when a column is upgraded from plain text:
-     * the existing content is escaped (it was never markup) and its line breaks are
-     * preserved, so nothing a user typed is reinterpreted as a tag.
+     * Plain text -> HTML. Every bare string assigned to the column comes through here (an
+     * import, a seed, a plain API param), and so does a column upgraded from plain text:
+     * the content is escaped (it was never markup) and its line breaks are preserved, so
+     * nothing a user typed is reinterpreted as a tag. filter_set() runs on the result.
      *
      * @param string $plain
-     * @return static
+     * @return string
      */
-    public static function from_string(string $plain): static
+    public static function escape_string(string $plain): string
     {
-        $escaped = htmlspecialchars($plain, ENT_QUOTES | ENT_HTML5);
-
-        return static::from_untrusted('<p>' . nl2br($escaped) . '</p>');
+        return '<p>' . nl2br(htmlspecialchars($plain, ENT_QUOTES | ENT_HTML5)) . '</p>';
     }
 }
