@@ -61,6 +61,40 @@
                         </Empty_State>
                     <% } %>
                 </Section>
+
+                <%-- What rides with the message. Absent when the email carries nothing,
+                     because an empty table says less than no table at all. --%>
+                <% if (_e.attachments && _e.attachments.length) { %>
+                    <Section $title="Attachments" $flush=true>
+                        <Record_Table>
+                            <thead>
+                                <tr>
+                                    <th>File</th>
+                                    <th>Type</th>
+                                    <th>Part</th>
+                                    <th>Size</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% for (const _a of _e.attachments) { %>
+                                <tr>
+                                    <td>
+                                        <%= _a.file_name %>
+                                        <% if (_a.cid) { %>
+                                            <span class="d-block text-muted small">cid: <%= _a.cid %></span>
+                                        <% } %>
+                                    </td>
+                                    <td><%= _a.mime_type %></td>
+                                    <td><%= _a.disposition_id__label %></td>
+                                    <td>
+                                        <% if (_a.size_human) { %><%= _a.size_human %><% } else { %><Empty_Value /><% } %>
+                                    </td>
+                                </tr>
+                                <% } %>
+                            </tbody>
+                        </Record_Table>
+                    </Section>
+                <% } %>
             </Card_Widget>
         </Slot:main>
 

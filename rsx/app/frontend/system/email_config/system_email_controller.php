@@ -190,7 +190,38 @@ class System_Email_Controller extends Rsx_Controller_Abstract
             'next_attempt_at' => $record->next_attempt_at,
             'sent_at' => $record->sent_at,
             'created_at' => $record->created_at,
+            'attachments' => static::__attachment_rows($record),
         ];
+    }
+
+    /**
+     * What rides with the message: the filename and type the recipient sees, whether the
+     * part is a download or an inline image, and how big the blob behind it is.
+     *
+     * The bytes live in the content-addressed store, so the size comes from the blob and
+     * not from the attachment row - the same file attached to a thousand messages is one
+     * blob, and this is that blob's size.
+     */
+    private static function __attachment_rows(Email_Queue_Model $record): array
+    {
+        $rows = [];
+
+        foreach ($record->attachments as $attachment) {
+            $storage = $attachment->file_storage;
+
+            $rows[] = [
+                'id' => $attachment->id,
+                'file_name' => $attachment->file_name,
+                'mime_type' => $attachment->mime_type,
+                'disposition_id' => $attachment->disposition_id,
+                'disposition_id__label' => $attachment->disposition_id__label,
+                'disposition_id__badge' => $attachment->disposition_id__badge,
+                'cid' => $attachment->cid,
+                'size_human' => $storage ? $storage->get_human_size() : null,
+            ];
+        }
+
+        return $rows;
     }
 
     /**
