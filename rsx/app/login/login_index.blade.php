@@ -104,16 +104,23 @@
             </button>
         </div>
 
-        {{-- FEDERATED SIGN-IN. The divider is THIS page's, not the component's: the
-             buttons component renders nothing at all when no provider is switched on,
-             so a page that wants an "or" rule above them has to ask the same question
-             the component asks - Rsx_Sso::is_enabled(). Both halves sit inside one @if
-             for exactly that reason. --}}
-        @if (Rsx_Sso::is_enabled())
+        {{-- THE OTHER WAYS IN, below one "or" rule that is THIS page's, not a component's.
+             A passkey is always offered: <Passkey_Sign_In> runs a passwordless ceremony and
+             posts it to Login_Controller::passkey_login (and renders nothing in a browser
+             that cannot do passkeys). The federated buttons render nothing at all when no
+             provider is switched on, so they sit behind the same question the component
+             asks - Rsx_Sso::is_enabled(). --}}
+        <div class="login-alternatives">
             <div class="login-divider"><span>or</span></div>
 
-            <Sso_Buttons />
-        @endif
+            <Passkey_Sign_In $controller="Login_Controller" $method="passkey_login" />
+
+            @if (Rsx_Sso::is_enabled())
+                <div class="mt-2">
+                    <Sso_Buttons />
+                </div>
+            @endif
+        </div>
 
         <div class="mt-3 text-center">
             <small class="text-muted">

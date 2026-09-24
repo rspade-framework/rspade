@@ -1,6 +1,6 @@
 ---
 name: portal-app
-description: "The client-portal screens this application ships - portal_main.php (the site declaration) and portal_permission.php (has_client_access / client_role / accessible_client_ids / is_read_only), the Blade auth ladder (login, register from an invite, request-access, password reset, impersonate claim/stop, logout), Portal_Layout and Portal_Workspace_Layout, the dashboard, the workspace tabs (Overview / Requests / Documents) with the request-thread UI, invitations accept/decline, settings, and the per-endpoint read-only guard for View-as-Client. Use when adding or changing a portal screen or endpoint, wiring a new workspace tab, changing what an invite grants, branding the portal auth pages, or guarding a portal write against impersonation."
+description: "The client-portal screens this application ships - portal_main.php (the site declaration) and portal_permission.php (has_client_access / client_role / accessible_client_ids / is_read_only), the Blade auth ladder (login with its second-factor challenge, passkey sign-in and federated sign-in, register from an invite, request-access, password reset, impersonate claim/stop, logout), Portal_Layout and Portal_Workspace_Layout, the dashboard, the workspace tabs (Overview / Requests / Documents) with the request-thread UI, invitations accept/decline, settings, and the per-endpoint read-only guard for View-as-Client. Use when adding or changing a portal screen or endpoint, wiring a new workspace tab, changing what an invite grants, branding the portal auth pages, or guarding a portal write against impersonation."
 ---
 
 # The portal application
@@ -59,7 +59,8 @@ function bodies and in models' `portal_can_read()`.
 
 | Route | Controller | What it does |
 |---|---|---|
-| `/login` GET+POST | `Portal_Login_Controller` | email + password |
+| `/login` GET+POST | `Portal_Login_Controller` | email + password, TWO-STAGE when the portal user holds a second factor (`Rsx_Portal_Two_Factor::begin_challenge()`); the page also offers `<Passkey_Sign_In>` (Ajax `passkey_login`) and, when `rsx.sso.portal_enabled`, `<Sso_Buttons />` |
+| `/login/verify` GET | `Portal_Login_Controller::verify` | the second-factor challenge: `<Two_Factor_Challenge>` posting to the Ajax `verify_2fa` |
 | `/register` GET+POST | `Portal_Register_Controller` | invite-code registration; `invalid` / `expired` / `cancelled` pages |
 | `/request-access` GET+POST | `Portal_Request_Access_Controller` | a would-be user asks for an invite; resends a live one |
 | `/password/reset` and `/password/reset/:token` | `Portal_Password_Reset_Controller` | request + reset, with an `invalid` page |
@@ -116,7 +117,10 @@ if (Portal_Permission::is_read_only()) {
 
 Shipped guards live in `portal_settings_controller` (`change_password`,
 `terminate_session`), `portal_notifications_controller`, `portal_invitations_controller`
-(`accept`, `decline`) and `portal_request_threads_controller` (`reply`). **Every write you
+(`accept`, `decline`) and `portal_request_threads_controller` (`reply`). The passkey,
+authenticator-app and connected-account controls on Settings (`Portal_Settings_Security`)
+need no guard of this app's: the framework's portal controllers refuse every enrollment,
+removal and link during "View as Client" themselves. **Every write you
 add needs its own guard - an unguarded endpoint stays writable.** The banner and the
 disabled controls are affordance only; the server check is the boundary.
 

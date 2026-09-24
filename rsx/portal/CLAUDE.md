@@ -11,14 +11,16 @@ dispatcher, bundle, layout, routing attributes and permission facade.
   `Portal_Logout_Controller`, `Portal_Register_Controller` (invite-based),
   `Portal_Password_Reset_Controller`, `Portal_Request_Access_Controller`,
   `Portal_Impersonate_Controller` (the staff "View as Client" claim and stop), plus
-  `portal_auth_layout.blade.php` and the twelve blades of their outcome states.
+  `portal_auth_layout.blade.php` and the thirteen blades of their outcome states (the second-
+  factor challenge page `portal_login_verify.blade.php` among them).
 - `dashboard/` — `Portal_Dashboard_Action`, the landing page.
 - `workspaces/` — the per-client area: a sublayout plus Overview / Requests / Documents and
   the request-thread screen. Own `CLAUDE.md`.
 - `invitations/` — `portal_invitations_controller.php` (accept / decline).
 - `notifications/` — `portal_notifications_controller.php` (feed, unread count, mark read),
   reading the framework's `Portal_Notification_Model`.
-- `settings/` — `Portal_Settings_Action` and its controller.
+- `settings/` — `Portal_Settings_Action` and its controller, plus the page-private region
+  `Portal_Settings_Security` (passkeys, authenticator app, recovery codes, connected accounts).
 - `errors/` — `Portal_Errors_Controller` and two blades: the portal realm's full-page error
   screens, declared as `#[Portal_Route('/error/404')]` and `#[Portal_Route('/error/generic')]`
   and invoked by the framework, never linked to. See PORTAL ERROR PAGES below.
@@ -171,6 +173,30 @@ undeclared site throws. This app is mono-site and declares it in
   reset, logout, the impersonation claim.
 - Per-client rules are record-level predicates in the endpoint body, after the gates pass.
 
+### Passkeys, second factors and federated sign-in
+
+The portal realm has the framework's whole second-factor subsystem (`Rsx_Portal_Two_Factor`,
+credentials in `_portal_two_factor_credentials`) and its own federated sign-in
+(`Rsx_Portal_Sso`, links in `_portal_sso_identities`). Neither shares anything with the staff
+realm but the provider registry, so a staff passkey or a staff Google link never signs anybody
+in here. How this app uses them:
+
+- **Password login is two-stage** in `Portal_Login_Controller::index()`: a portal user holding
+  a second factor is parked with `Rsx_Portal_Two_Factor::begin_challenge()` (the invited-client
+  id rides the session under `CLIENT_ID_KEY`) and sent to `/login/verify`, where
+  `<Two_Factor_Challenge>` posts to `verify_2fa`.
+- **Passwordless**: the login page's `<Passkey_Sign_In>` posts to `passkey_login`, which calls
+  `Rsx_Portal_Two_Factor::verify_passkey_login()` - a complete sign-in, no second factor after.
+- **Federated sign-in** appears on the login page only when `rsx.sso.portal_enabled` is true
+  (off by default) and a provider is live. The policy is `rsx/handlers/Portal_Sso_Handlers.php`:
+  a verified provider email that matches a portal user of this site is connected and signed in;
+  anything else declines. Register the portal callback (`Rsx_Portal_Sso::callback_url('<key>')`)
+  in each provider's console.
+- Every way in lands on `Portal_Login_Controller::post_auth_destination()`.
+- The framework components are realm-aware on their own - on a portal page they talk to the
+  portal controllers - so this app passes them no realm argument.
+- "View as Client" cannot enroll, remove, link or unlink anything: the framework refuses it.
+
 ## Portal Pages
 
 ### Dashboard (`/dashboard`)
@@ -180,12 +206,20 @@ Landing page for authenticated portal users.
 User self-service page (composed from the shared theme components — see
 `rsx/theme/components/view/CLAUDE.md`) with:
 - **Change Password** — current password verification, min length, confirmation
+- **Passkeys** — `Portal_Settings_Security`: the portal user's passkeys and authenticator app
+  (remove), `<Passkey_Register />`, an on-demand `<Totp_Enrollment />`, the recovery-code count
+  and regeneration
+- **Connected Accounts** — same region, only when the portal realm offers federated sign-in:
+  connections (disconnect) and `<Sso_Buttons $intent="link" />`
 - **Team Members** — list of portal users sharing the same client membership
 - **Active Sessions** — list sessions with IP, last activity, terminate button
 - **Account Info** — email, status, last login, member since
 
 ### Auth Pages (Server-Side Blade)
-- **Login** (`/login`) — email/password, with credential autofill only when `RSPADE_LOGIN_AUTOFILL` is on
+- **Login** (`/login`) — email/password (no credential autofill: a portal account belongs to a
+  client), plus passkey sign-in and, when enabled, federated sign-in
+- **Two-factor challenge** (`/login/verify`) — `<Two_Factor_Challenge>` for a portal user
+  holding a second factor
 - **Registration** (`/register?code=X`) — invitation-based account creation
 - **Password Reset** (`/password/reset`) — request + reset token flow
 - **Logout** (`/logout`) — clears portal session, redirects to login

@@ -30,6 +30,9 @@
                 </form>
             </Section>
 
+            <%-- Passkeys and connected accounts: a region that loads its own data --%>
+            <Portal_Settings_Security />
+
             <%-- Active Sessions --%>
             <Section $title="Active Sessions" $count=_sessions.length $flush=true>
                 <Slot:body>

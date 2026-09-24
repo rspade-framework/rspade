@@ -1,0 +1,20 @@
+// Portal_Settings_Security - spacing around the controls inside its two sections.
+.Portal_Settings_Security {
+    display: block;
+
+    &__register,
+    &__totp,
+    &__connect,
+    &__recovery {
+        padding: $spacing-md;
+    }
+
+    &__totp {
+        padding-top: 0;
+    }
+
+    &__recovery {
+        color: var(--bs-secondary-color);
+        border-top: 1px solid var(--bs-border-color);
+    }
+}

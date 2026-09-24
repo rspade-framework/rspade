@@ -28,6 +28,17 @@ manifest from its `#[OnEvent]` attributes. There is no registration step.
   enforces only a live `login_users` row), `sso.two_factor.verify_url` returns
   `Rsx::Route('Login_Controller::verify')`, and `sso.login.destination` delegates to
   `Login_Controller::post_login_destination()`.
+- **`Portal_Sso_Handlers`** — the five PORTAL federated-sign-in hooks (`portal.sso.*`), a set
+  deliberately separate from `Sso_Handlers` so the staff policy never governs a client, and
+  reached only while `rsx.sso.portal_enabled` is on. `portal.sso.identity.unlinked` connects a
+  **verified** provider email to the portal user this site already has for it
+  (`Portal_User_Model::find_by_email(Portal_Session::get_site_id(), ...)`) and signs them in
+  through `Rsx_Portal_Sso::consume_pending_and_login()`; anything else declines - a portal
+  account is created only by an invitation, never by a provider. `portal.sso.login.authorize`
+  permits (the framework already applies `can_login()`), `portal.sso.two_factor.verify_url`
+  returns the portal `/login/verify` page, `portal.sso.login.destination` delegates to
+  `Portal_Login_Controller::post_auth_destination()`, and `portal.sso.link.destination`
+  returns to portal Settings.
 - **`Portal_File_Access_Handlers`** — `#[OnEvent('file.thumbnail.authorize')]` and
   `#[OnEvent('file.download.authorize')]`, both priority 10, both delegating to one
   fail-closed `_authorize()`. Staff pass outright; a portal user passes only for a client

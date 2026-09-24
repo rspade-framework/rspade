@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Thirty-one test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Thirty-two test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -47,6 +47,10 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   The framework deliberately ships no verification endpoint (the post-login destination is
   application logic), so the contract it must satisfy — one argument shape in, `{redirect}`
   out, every failure a user-safe `ERROR_VALIDATION` — is pinned here.
+  `Portal_Two_Factor_Login_Test` pins the portal ladder's equivalent: a portal user holding a
+  second factor is PARKED by `Portal_Login_Controller::index()` and sent to `/login/verify`
+  rather than signed in, `verify_2fa` answers `{redirect}` and signs them in, and both it and
+  `passkey_login` turn a wrong answer into an `ERROR_VALIDATION`.
 - **Migration state**: `Sample_Document_Import_Test` — the `import_sample_documents`
   migration in `rsx/resource/migrations` seeds the two sample attachments and links them to
   the first client when one exists (`$requires_db_reset`, transactions off).

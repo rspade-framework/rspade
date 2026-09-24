@@ -69,6 +69,24 @@
             </button>
         </div>
 
+        {{-- THE OTHER WAYS IN. A passkey is always offered: <Passkey_Sign_In> starts a
+             PORTAL passwordless ceremony on this page by itself and posts it to
+             Portal_Login_Controller::passkey_login. Federated sign-in appears only when the
+             portal realm has it switched on (rsx.sso.portal_enabled) and a provider is live -
+             <Sso_Buttons> reads the PORTAL roster on a portal page, so these buttons start the
+             portal's own ceremony, never the staff one. --}}
+        <div class="login-alternatives">
+            <div class="login-divider"><span>or</span></div>
+
+            <Passkey_Sign_In $controller="Portal_Login_Controller" $method="passkey_login" />
+
+            @if (Rsx_Portal_Sso::is_enabled())
+                <div class="mt-2">
+                    <Sso_Buttons />
+                </div>
+            @endif
+        </div>
+
         <div class="mt-3 text-center">
             <small class="text-muted">
                 <a href="{{ Rsx_Portal::Route('Portal_Password_Reset_Controller::request') }}">Forgot your password?</a>

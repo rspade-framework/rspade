@@ -1,0 +1,114 @@
+<%--
+Portal_Settings_Security
+
+The sign-in half of the portal Settings screen: this portal user's passkeys (and any
+authenticator app), and - when the portal realm has federated sign-in switched on - their
+connected accounts. A page-private region of Portal_Settings_Action that loads its own data.
+
+Everything it drives is the framework's PORTAL realm, chosen by the page:
+  Rsx_Portal_Two_Factor_Controller  credentials_list / credential_remove / recovery_regenerate
+  <Passkey_Register />             enrolls through the portal realm on a portal page
+  Rsx_Portal_Sso_Controller        identities_list / identity_unlink
+  <Sso_Buttons $intent="link" />   the PORTAL roster, so Connect starts the portal ceremony
+
+"View as Client" cannot change any of it: the framework refuses enrollment, removal, linking
+and unlinking while impersonating, and the refusal surfaces as an error dialog.
+--%>
+<Define:Portal_Settings_Security>
+    <% if (!this.data.two_factor) { %>
+        <Loading_Spinner $message="Loading sign-in settings..." />
+    <% } else { %>
+        <% const _credentials = this.data.two_factor.credentials; %>
+        <Section $title="Passkeys" $count=_credentials.length $flush=true>
+            <Slot:body>
+                <% if (_credentials.length === 0) { %>
+                    <Empty_State $icon="bi bi-key">
+                        <Slot:title>No passkeys yet - a passkey signs you in with your fingerprint, face or device PIN</Slot:title>
+                    </Empty_State>
+                <% } else { %>
+                    <Record_Table>
+                        <thead>
+                            <tr><th>Name</th><th>Type</th><th>Last Used</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            <% for (const credential of _credentials) { %>
+                            <tr>
+                                <td><%= credential.label || credential.type_id__label %></td>
+                                <td><%= credential.type_id__label %></td>
+                                <td>
+                                    <% if (credential.last_used_at) { %>
+                                        <%= Rsx_Time.relative(credential.last_used_at) %>
+                                    <% } else { %>
+                                        <Empty_Value />
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-danger" data-remove-credential="<%= credential.id %>">Remove</button>
+                                </td>
+                            </tr>
+                            <% } %>
+                        </tbody>
+                    </Record_Table>
+                <% } %>
+
+                <div class="Portal_Settings_Security__register">
+                    <Passkey_Register $sid="register" />
+                </div>
+
+                <%-- The authenticator app is offered ON DEMAND: <Totp_Enrollment> mints a
+                     pending seed as soon as it loads, which must not happen on every visit
+                     to Settings. --%>
+                <div class="Portal_Settings_Security__totp">
+                    <% if (this.state.show_totp) { %>
+                        <Totp_Enrollment $sid="totp" />
+                    <% } else { %>
+                        <button class="btn btn-sm btn-outline-secondary" $sid="show_totp">Use an authenticator app instead</button>
+                    <% } %>
+                </div>
+
+                <% if (this.data.two_factor.is_enabled) { %>
+                    <div class="Portal_Settings_Security__recovery">
+                        <%= this.data.two_factor.recovery_codes_remaining %> recovery codes left.
+                        <button class="btn btn-sm btn-outline-secondary" $sid="regenerate">New recovery codes</button>
+                    </div>
+                <% } %>
+            </Slot:body>
+        </Section>
+
+        <% if (this.data.sso_enabled) { %>
+            <Section $title="Connected Accounts" $count=this.data.sso_identities.length $flush=true>
+                <Slot:body>
+                    <% if (this.data.sso_identities.length > 0) { %>
+                        <Record_Table>
+                            <thead>
+                                <tr><th>Provider</th><th>Account</th><th>Last Used</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                                <% for (const identity of this.data.sso_identities) { %>
+                                <tr>
+                                    <td><%= identity.provider_label %></td>
+                                    <td><%= identity.email || identity.name || '' %></td>
+                                    <td>
+                                        <% if (identity.last_login_at) { %>
+                                            <%= Rsx_Time.relative(identity.last_login_at) %>
+                                        <% } else { %>
+                                            <Empty_Value />
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-danger" data-unlink-identity="<%= identity.id %>">Disconnect</button>
+                                    </td>
+                                </tr>
+                                <% } %>
+                            </tbody>
+                        </Record_Table>
+                    <% } %>
+
+                    <div class="Portal_Settings_Security__connect">
+                        <Sso_Buttons $intent="link" />
+                    </div>
+                </Slot:body>
+            </Section>
+        <% } %>
+    <% } %>
+</Define:Portal_Settings_Security>

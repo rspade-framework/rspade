@@ -9,6 +9,7 @@ controller is class-level `#[Auth('public')]` with a written justification in it
 |---|---|---|---|
 | Login | `Login_Controller` (`login_controller.php`) | `/login` GET+POST | Turnstile, then `RsxAuth::attempt($credentials, record: false, touch_last_login: false)` - the PASSWORD stage only. A failure records `STATUS_FAILED_PASSWORD` itself. On success: a second factor issues the challenge, otherwise `RsxAuth::login()` + `record_success()` and `post_login_destination()`. |
 | 2FA challenge | `Login_Controller::verify` + `verify_2fa` | `/login/verify` GET + an `#[Ajax_Endpoint]` | The screen hosting `<Two_Factor_Challenge>`, and the endpoint it posts to. Nothing pending redirects back to `/login`. |
+| Passkey sign-in | `Login_Controller::passkey_login` | an `#[Ajax_Endpoint]` | The endpoint `<Passkey_Sign_In>` on the login page posts to: `Rsx_Two_Factor::verify_passkey_login()`, then `post_login_destination()`. Passwordless - no password stage, no second factor after it. |
 | 2FA setup | `Login_Controller::two_factor_setup` | `/login/two_factor_setup` GET | The forced-enrollment interstitial, the one method-level `#[Auth('is_logged_in')]` in this module. |
 | Logout | `Login_Controller::logout` | `/logout` | `RsxAuth::logout()` then `Login_Redirect::consume($default)`. |
 | Signup | `Signup_Controller` (`signup/`) | `/signup` GET + an `#[Ajax_Endpoint]` `submit` | Gated by `config('rsx.auth.signup_mode')` (`invite_only` by default, also `disabled` / open). Creates the `Login_User_Model`. |
@@ -16,11 +17,12 @@ controller is class-level `#[Auth('public')]` with a written justification in it
 | Site selection | `Site_Selection_Controller` | `/login/select-site`, `/login/site/:id` | `select` re-checks membership and sets the site. The picker page itself is a stub. |
 | Site unauthorized | `Site_Unauthorized_Controller` | `/login/site-unauthorized` | The signed-in identity's session names a site it is not a member of; offers the sites it does have. Nothing in this mono-site template routes to it - the framework ends such a session itself (see SITE MEMBERSHIP below), so it is kept as the pattern for an app that declares the requested site from the host. |
 
-The login page also carries FEDERATED SIGN-IN: below the Sign In button,
-`login_index.blade.php` renders an `or` divider and the framework's provider buttons, both
-inside one `@if (Rsx_Sso::is_enabled())` — the component renders nothing on its own when no
-provider is switched on, so the divider has to ask the same question. `login_index.scss`
-holds the divider rule. Nothing else in this module changes: the ceremony is entirely the
+The login page also carries the OTHER WAYS IN: below the Sign In button,
+`login_index.blade.php` renders one `.login-alternatives` block: an `or` divider, then
+`<Passkey_Sign_In>` (always offered), then the framework's provider buttons inside
+`@if (Rsx_Sso::is_enabled())`. In a browser without passkeys the passkey control renders
+nothing and marks itself `Passkey_Sign_In--unsupported`, and `login_index.scss` hides the
+whole block when nothing in it is visible, so the divider never hangs over nothing. Nothing else in this module changes: the ceremony is entirely the
 framework's (`/_sso/...`), and this application's policy lives in
 `rsx/handlers/Sso_Handlers.php`.
 
@@ -90,6 +92,13 @@ full authentication; if `Rsx_Two_Factor::is_enabled($login_user)` it calls `begi
 `/login/verify`. `verify_2fa` calls `Rsx_Two_Factor::verify_challenge($params)` - which signs
 the identity in, stamps `last_login` and writes the success row - and answers
 `{redirect: <url>}`, which the component follows with `window.location`.
+
+**Passwordless passkey sign-in.** `passkey_login` receives `{assertion}` from
+`<Passkey_Sign_In>` and calls `Rsx_Two_Factor::verify_passkey_login()`, which does the whole
+sign-in - throttle first, user verification required, identity from the credential, the
+membership check, `last_login`, the success row - and owes no second factor afterwards (a
+user-verified passkey is a complete sign-in). It carries no invite code: the component posts
+nothing but the assertion. Like `verify_2fa` it has no Turnstile, for the same reason.
 
 **There is no Turnstile on `verify_2fa`, deliberately.** `<Two_Factor_Challenge>` posts
 `{code}` or `{assertion}` and renders no widget, so there is no `__turnstile` field; the

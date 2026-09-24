@@ -1,7 +1,7 @@
-// Login Page Styles
+// Portal Login Page Styles
 // All styles must be wrapped in the view's RSX ID class
 
-.Login_Index {
+.Portal_Login_Index {
     // The block holding the "or" rule and the other ways in. When nothing inside it is
     // visible - a browser without passkeys (the control marks itself --unsupported) and no
     // federated buttons - the whole block goes, so the rule never hangs over nothing.
@@ -9,8 +9,8 @@
         display: none;
     }
 
-    // The "or" rule between the password form and the other ways in: the passkey
-    // sign-in (always offered) and the federated buttons (when a provider is live).
+    // The "or" rule between the password form and the other ways in (a passkey, and the
+    // federated buttons when the portal realm has them switched on).
     .login-divider {
         display: flex;
         align-items: center;

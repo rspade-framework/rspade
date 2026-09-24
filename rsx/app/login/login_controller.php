@@ -226,6 +226,44 @@ class Login_Controller extends Rsx_Controller_Abstract
     }
 
     /**
+     * Sign in with a passkey ALONE - the endpoint <Passkey_Sign_In> on the login page posts to.
+     *
+     * Rsx_Two_Factor::verify_passkey_login() does the whole sign-in: the throttle first, the
+     * assertion verified with user verification required, the identity taken from the
+     * credential, the membership check, last_login and the success row. No second factor
+     * follows - a user-verified passkey is a complete sign-in (rsx:man two_factor). What is
+     * left is where the identity lands, which is the same one function every other sign-in
+     * path uses.
+     *
+     * NO TURNSTILE, for the reason verify_2fa() carries none: the component posts exactly
+     * {assertion} and renders no widget, and the endpoint spends the brute-force budget as its
+     * first statement.
+     *
+     * @return array {redirect}
+     */
+    #[Ajax_Endpoint]
+    public static function passkey_login(Request $request, array $params = [])
+    {
+        $assertion = $params['assertion'] ?? null;
+
+        if (!is_array($assertion)) {
+            return response_error(Ajax::ERROR_VALIDATION, 'That passkey could not sign you in.');
+        }
+
+        try {
+            $login_user = Rsx_Two_Factor::verify_passkey_login($assertion);
+        } catch (Auth_Throttled_Exception $e) {
+            return response_error(Ajax::ERROR_VALIDATION, $e->getMessage());
+        } catch (Two_Factor_Failed_Exception $e) {
+            return response_error(Ajax::ERROR_VALIDATION, $e->getMessage());
+        }
+
+        return [
+            'redirect' => static::post_login_destination((int) $login_user->id, null),
+        ];
+    }
+
+    /**
      * The forced-enrollment interstitial: an administrator requires a second factor on this
      * account and it does not have one yet.
      *
@@ -292,10 +330,10 @@ class Login_Controller extends Rsx_Controller_Abstract
     /**
      * Where a fully authenticated identity goes, as a URL.
      *
-     * ONE function, THREE callers: the password-only path returns redirect() of it, the
-     * second-factor endpoint hands the same string to the challenge component, which follows
-     * it with window.location, and the federated sign-in reaches it from outside this class
-     * through Rsx\Handlers\Sso_Handlers. It is a URL rather than a RedirectResponse because
+     * ONE function, FOUR callers: the password-only path returns redirect() of it, the
+     * second-factor and passkey endpoints hand the same string to their components, which
+     * follow it with window.location, and the federated sign-in reaches it from outside this
+     * class through Rsx\Handlers\Sso_Handlers. It is a URL rather than a RedirectResponse because
      * two of the three callers cannot return a response object.
      *
      * PUBLIC FOR THAT THIRD CALLER, and for no other reason. A destination computed twice
