@@ -18,7 +18,7 @@
                             <span class="text-muted ms-2"><%= _c.delivery_description %></span>
                         </View_Field>
                         <View_Field $label="From Address"><%= _c.from_address %></View_Field>
-                        <View_Field $label="Transport"><%= _c.transport_driver %></View_Field>
+                        <View_Field $label="Mailer"><%= _c.mailer %></View_Field>
                         <View_Field $label="From Name"><%= _c.from_name %></View_Field>
                         <View_Field $label="Transport Target"><%= _c.transport_target %></View_Field>
                         <View_Field $label="Retry Policy">

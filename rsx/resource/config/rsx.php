@@ -571,10 +571,13 @@ return [
     | Email System
     |--------------------------------------------------------------------------
     |
-    | Everything about outbound mail - the delivery mode, the transport, the
-    | retry policy, retention and the dev-site recipient gating - is framework
-    | config (system/config/rsx.php 'mail'), driven by .env. This app tier is
-    | for what is genuinely YOURS: how your email looks.
+    | Everything about outbound mail - the delivery mode, the retry policy,
+    | retention and the dev-site recipient gating - is framework config
+    | (system/config/rsx.php 'mail'), driven by .env. HOW mail leaves - the
+    | mailer, its host and credentials, the From address - is Laravel's mail
+    | config, driven by the standard MAIL_* keys; a mailer of your own (an API
+    | transport from a composer package) goes in rsx/resource/config/mail.php.
+    | This app tier is for what is genuinely YOURS: how your email looks.
     |
     | The three dev-site keys live in .env:
     |

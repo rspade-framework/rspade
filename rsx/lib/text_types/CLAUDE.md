@@ -54,6 +54,11 @@ param) and is filtered by the type on assignment. A BARE STRING is plain text: t
 a plain API param stores what was typed. Encoded content from server code is assigned as
 `Rich_Text::from_untrusted($html)`. No endpoint in this application calls a sanitizer.
 
+**The bare-string write is the one nothing checks.** Markup you build and assign as a string
+is stored as visible tags, silently; prose you wrap in `<p>` yourself shows the `<p>`. So a
+helper that composes content for a declared column returns `Rich_Text` (built once with
+`from_untrusted()`), never a string, and prose is assigned bare.
+
 **Two render targets, each written once.** `to_html()` is the STATIC rendition for a
 server-generated document (an email, a PDF). A live page renders through the type's
 `PRINTER` component instead — `Rich_Text_Display` and `Raw_Text_Display`, both under

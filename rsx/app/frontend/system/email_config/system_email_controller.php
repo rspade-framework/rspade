@@ -43,12 +43,13 @@ class System_Email_Controller extends Rsx_Controller_Abstract
             'delivery_label' => $delivery_display[0],
             'delivery_badge' => $delivery_display[1],
             'delivery_description' => $delivery_display[2],
-            // What the transport ACTUALLY is: in aiosmtpd mode the rsx.mail.transport
-            // block is ignored entirely, so reading it here would print a lie.
-            'transport_driver' => $mode === 'aiosmtpd' ? 'smtp' : config('rsx.mail.transport.driver'),
+            // What the transport ACTUALLY is: in aiosmtpd mode Laravel's mail config is
+            // ignored entirely, so the framework's own answer is shown rather than
+            // MAIL_MAILER, which would print a lie.
+            'mailer' => \App\RSpade\Core\Mail\Rsx_Mail_Transport::transport_label(),
             'transport_target' => \App\RSpade\Core\Mail\Rsx_Mail_Transport::describe(),
-            'from_address' => config('rsx.mail.from_address'),
-            'from_name' => config('rsx.mail.from_name') ?: config('rsx.name', '-'),
+            'from_address' => \App\RSpade\Core\Mail\Rsx_Mail_Transport::from_address(),
+            'from_name' => \App\RSpade\Core\Mail\Rsx_Mail_Transport::from_name(),
             'is_dev_site' => \App\RSpade\Core\Rsx::is_dev_site(),
             'dev_catchall' => config('rsx.mail.dev_site.catchall_address'),
             'dev_address_whitelist' => config('rsx.mail.dev_site.address_whitelist', ''),

@@ -85,6 +85,12 @@ The merge happens transparently at boot time - you don't need to do anything spe
 |------|---------|
 | `rsx.php` | Main RSX framework configuration overrides |
 
+**Any file here is merged the same way**: `rsx/resource/config/<name>.php` deep-merges over
+`config('<name>')`, whichever Laravel or framework config file that is. So `mail.php` adds or
+changes a mailer in Laravel's mail config (`rsx:man email`, MAIL TRANSPORTS) and `services.php`
+supplies a package's service credentials, without touching `system/config/`, which is
+framework property. Only `rsx.php` ships here; create the others when you need them.
+
 ## Configuration Sections in rsx.php
 
 - **development** - IDE integration, file auto-renaming, convention checking
