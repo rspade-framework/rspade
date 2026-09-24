@@ -106,7 +106,7 @@ class Wysiwyg_Input extends Form_Input_Abstract {
                     [{ 'header': [1, 2, 3, false] }],
                     ['bold', 'italic', 'underline', 'strike'],
                     ['blockquote', 'code-block'],
-                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }, { 'list': 'check' }],
                     [{ 'indent': '-1'}, { 'indent': '+1' }],
                     ['link', 'image'],
                     ['clean']
