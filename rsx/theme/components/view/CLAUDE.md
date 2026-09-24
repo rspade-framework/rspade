@@ -15,7 +15,8 @@ One subdirectory per component (template + SCSS, `.js` only where behaviour exis
 - `rich_text_display/` — `Rich_Text_Display`: renders a `Rich_Text` value. The PRINTER
   component that type declares, so it is mounted by interpolating the value rather than
   written by hand. Owns the one unescaped output in the application, which is correct only
-  here because `Rich_Text` filtered the content on write.
+  here because `Rich_Text` filtered the content on write. Draws a Quill 2 checklist
+  (`li[data-list="checked"|"unchecked"]`) as static ticked/empty boxes.
 - `raw_text_display/` — `Raw_Text_Display`: renders a `Raw_Text` value, escaped with line
   breaks. A component rather than a plain string because a printer's string return is
   escaped at the call site and so could never carry a `<br>` of its own.

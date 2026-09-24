@@ -59,6 +59,11 @@ is stored as visible tags, silently; prose you wrap in `<p>` yourself shows the 
 helper that composes content for a declared column returns `Rich_Text` (built once with
 `from_untrusted()`), never a string, and prose is assigned bare.
 
+**Checklists are part of the markup.** Quill 2's checklist stores each item's state as
+`li[data-list="checked"|"unchecked"]`, which `safe_html()` keeps; `Rich_Text_Display` draws the
+boxes (static - ticking is an edit). A field offers the format by adding `{ list: 'check' }` to
+its `Wysiwyg_Input` toolbar; the shipped toolbar does not.
+
 **Two render targets, each written once.** `to_html()` is the STATIC rendition for a
 server-generated document (an email, a PDF). A live page renders through the type's
 `PRINTER` component instead — `Rich_Text_Display` and `Raw_Text_Display`, both under

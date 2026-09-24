@@ -40,6 +40,43 @@
         height: auto;
     }
 
+    /*
+     * A checklist item. The editor stores its state as li[data-list] ('checked' /
+     * 'unchecked'); outside the editor there is no Quill to draw the box, so it is drawn
+     * here. Static by design - the read view shows the state, and changing it is an edit.
+     */
+    li[data-list="checked"],
+    li[data-list="unchecked"] {
+        list-style: none;
+        position: relative;
+        margin-left: -20px;
+        padding-left: 26px;
+
+        &::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 3px;
+            width: 16px;
+            height: 16px;
+            border: 1px solid var(--bs-border-color);
+            border-radius: 3px;
+            background-color: var(--bs-body-bg);
+        }
+    }
+
+    li[data-list="checked"]::after {
+        content: '';
+        position: absolute;
+        left: 5px;
+        top: 5px;
+        width: 6px;
+        height: 10px;
+        border: solid var(--bs-primary);
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+    }
+
     table {
         border-collapse: collapse;
 
