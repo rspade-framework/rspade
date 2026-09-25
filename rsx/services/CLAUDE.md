@@ -9,12 +9,20 @@ Two classes extending `Rsx_Service_Abstract`. Every method is
   Bulk-marks pending portal invitations past their window as expired, so a followed link
   lands on the "expired, you can still create an account" page instead of a dead error and
   admin screens show accurate status. Reports a count only when it changed something.
+  It sweeps EVERY site (`without_site_scope`): the worker running it serves no tenant, and
+  a site-scoped sweep would only ever expire the invitations of whichever site the CLI
+  process happened to declare. Any sweep added here that is install policy rather than
+  one tenant's business follows the same shape.
 - **`Seeder_Service`** — five `#[Task]`s building the demo dataset: `seed_clients`,
   `seed_contacts`, `seed_projects`, `seed_tasks`, and `seed_all`, which chains the other
   four through `Task::internal()` and reports progress. Every one refuses to run in
   production and every one is additive and idempotent (an entity that already has children
   is skipped). `seed_tasks` also backfills the derived `tasks.project_id` and builds
-  polymorphic parent chains so that code path gets exercised.
+  polymorphic parent chains so that code path gets exercised. `seed_clients` and
+  `seed_contacts` declare one revision unit of work per client
+  (`Revision::begin_unit_of_work()` / `Revision::unit_of_work()`), so the history shows one
+  entry per seeded client rather than one for the whole run - the shape any importing task
+  follows (`rsx:man revisions`, THE UNIT OF WORK).
 
 `seed_all` additionally carries `#[Command('rsx_app:seed', ...)]`.
 

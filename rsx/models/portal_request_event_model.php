@@ -34,17 +34,17 @@ use Rsx\Models\Portal_Request_Thread_Model;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: portal_request_events
  *
+ * @property int $actor_id
+ * @property int $actor_type
+ * @property string $created_at
+ * @property int $created_by_id
+ * @property int $created_by_type
+ * @property int $from_status
  * @property int $id
  * @property int $site_id
  * @property int $thread_id
- * @property int $from_status
  * @property int $to_status
- * @property int $actor_type
- * @property int $actor_id
- * @property string $created_at
  * @property string $updated_at
- * @property int $created_by_id
- * @property int $created_by_type
  * @property int $updated_by_id
  * @property int $updated_by_type
  *

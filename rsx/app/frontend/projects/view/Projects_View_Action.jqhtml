@@ -69,22 +69,11 @@
                         Rich_Text_Display. This template chooses no escaping and names no
                         component.
 
-                        What stood here before is worth remembering, because it is what the
-                        text-type system exists to delete:
-
-                            <% const _desc_text = _project.description
-                                   ? $('<div>').html(_project.description).text().trim() : ''; %>
-                            <% if (_desc_text) { %>
-                            <Section $title="Description">
-                                <%!= safe_html(_project.description) %>
-                            </Section>
-                            <% } %>
-
-                        Three decisions, all of them the template's to get wrong: a
-                        hand-rolled strip-the-markup emptiness test, a choice to emit
-                        UNESCAPED, and a manual sanitize standing between that choice and an
-                        XSS. Every other place this column printed had to repeat all three
-                        and stay in agreement with them.
+                        The emptiness test is is_empty(), never a string comparison: an
+                        emptied editor stores <p><br></p>, a non-empty string holding an
+                        empty document, and the value answers for its own encoding. Neither
+                        an escape nor a sanitize belongs here - the sanitizer ran when the
+                        value was written, and the printer owns how it is emitted.
                         --%>
                         <% if (_project.description && !_project.description.is_empty()) { %>
                         <Section $title="Description">

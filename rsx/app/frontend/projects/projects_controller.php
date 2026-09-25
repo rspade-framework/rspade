@@ -152,9 +152,8 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
                 return response_error(Ajax::ERROR_NOT_FOUND, 'Project not found');
             }
         } else {
-            // Create new project
+            // Create new project (site_id is stamped by the site-scoped model on save)
             $project = new Project_Model();
-            $project->site_id = 1; // Default site
         }
 
         // parent_project_id (self-referencing hierarchy). Cycle guard: a project cannot be
@@ -467,11 +466,11 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
                 $project->created_at,
                 // Both columns have a declared text type, so these are value objects and
                 // not strings, and a value object refuses to BE a string - handing one to
-                // the CSV writer would throw. to_text() is the explicit ask: the markup
+                // the CSV writer would throw. to_plain_text() is the explicit ask: the markup
                 // and the encoding come off, the content stays. No strip_tags() here, and
                 // nothing to keep in agreement with how the same columns print on a page.
-                $project->description?->to_text(),
-                $project->notes?->to_text(),
+                $project->description?->to_plain_text(),
+                $project->notes?->to_plain_text(),
             ];
         }
 

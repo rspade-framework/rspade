@@ -15,20 +15,20 @@ use App\RSpade\Core\Models\Portal_User_Model;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: portal_invitations
  *
- * @property int $id
- * @property int $site_id
- * @property string $email
- * @property string $invitation_code
- * @property int $status_id
- * @property array $metadata
- * @property string $expires_at
- * @property string $used_at
  * @property string $created_at
- * @property string $updated_at
  * @property int $created_by_id
  * @property int $created_by_type
+ * @property string $email
+ * @property string $expires_at
+ * @property int $id
+ * @property string $invitation_code
+ * @property array $metadata
+ * @property int $site_id
+ * @property int $status_id
+ * @property string $updated_at
  * @property int $updated_by_id
  * @property int $updated_by_type
+ * @property string $used_at
  *
  * @property-read string $status_id__label
  * @property-read string $status_id__constant

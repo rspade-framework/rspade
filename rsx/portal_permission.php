@@ -44,10 +44,10 @@ class Portal_Permission extends Portal_Permission_Abstract
      * Whether the current portal session is read-only.
      *
      * The application's "read-only mode": currently true exactly when the session
-     * is a staff impersonation ("View as Client"). Mutating portal endpoints MUST
-     * guard on this and refuse writes; the read-only experience (banner, disabled
-     * controls) is also the app's responsibility. The framework only exposes the
-     * impersonation flag (Portal_Session::is_impersonating()). See rsx:man portal.
+     * is a staff impersonation ("View as Client"). It drives the read-only
+     * EXPERIENCE (banner, disabled controls), which is the app's. The server-side
+     * refusal is the framework's: while impersonating, every portal Ajax endpoint
+     * not marked #[Portal_Impersonation_Readable] is refused. See rsx:man portal.
      *
      * @return bool
      */

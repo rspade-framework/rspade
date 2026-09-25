@@ -45,18 +45,18 @@ use Rsx\Models\Portal_Membership_Model;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: announcements
  *
- * @property int $id
- * @property int $site_id
- * @property int $client_id
- * @property string $title
  * @property string $body
- * @property string $published_at
+ * @property int $client_id
+ * @property string $created_at
  * @property int $created_by_id
  * @property int $created_by_type
+ * @property int $id
+ * @property string $published_at
+ * @property int $site_id
+ * @property string $title
+ * @property string $updated_at
  * @property int $updated_by_id
  * @property int $updated_by_type
- * @property string $created_at
- * @property string $updated_at
  *
  * @mixin \Eloquent
  */

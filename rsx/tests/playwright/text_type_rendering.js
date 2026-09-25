@@ -214,9 +214,9 @@ async function await_spa_ready(page) {
             const after = (await Project_Model.fetch(1)).description.to_storage();
 
             return {
-                expected_editor: Project_Model.editor_for('description'),
+                expected_editor: Project_Model.editor_component_for('description'),
                 actual_editor: description_input ? description_input.constructor.name : null,
-                expected_notes_editor: Project_Model.editor_for('notes'),
+                expected_notes_editor: Project_Model.editor_component_for('notes'),
                 actual_notes_editor: notes_input ? notes_input.constructor.name : null,
                 value_is_typed: description_input.val() instanceof Rich_Text,
                 before: before,

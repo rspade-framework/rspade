@@ -29,9 +29,13 @@ class Portal_Invitation_Service extends Rsx_Service_Abstract
     #[Schedule('0 * * * *')]
     public static function expire_stale(Task_Instance $task, array $params = [])
     {
-        $expired = Portal_Invitation_Model::where('status_id', Portal_Invitation_Model::STATUS_PENDING)
-            ->where('expires_at', '<', now())
-            ->update(['status_id' => Portal_Invitation_Model::STATUS_EXPIRED]);
+        // Every site's invitations: expiry is a property of the invitation, and the worker
+        // running this sweep serves no particular tenant.
+        $expired = Portal_Invitation_Model::without_site_scope(
+            fn () => Portal_Invitation_Model::where('status_id', Portal_Invitation_Model::STATUS_PENDING)
+                ->where('expires_at', '<', now())
+                ->update(['status_id' => Portal_Invitation_Model::STATUS_EXPIRED])
+        );
 
         if ($expired > 0) {
             $task->info("Expired {$expired} stale portal invitation(s).");

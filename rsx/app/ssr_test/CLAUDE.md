@@ -4,7 +4,9 @@
 one jqhtml component two ways for comparison: `/ssr-test` server-side through
 `Rsx_SSR::render_component()` with PHP and Node timings in a footer bar, and `/ssr-test-csr`
 client-side. Three further routes are session-cookie probes asserting which calls do and do
-not mint a session. It is the only surface in the app carrying `#[FPC]`. Its content is
+not mint a session; they answer a loopback caller only (`is_loopback_ip()`), which is how the
+framework's http tests call them, and 404 for anyone else. A render failure shows its
+exception message only to a caller `Rsx_Diagnostics` admits; everyone else sees an error id. It is the only surface in the app carrying `#[FPC]`. Its content is
 fixture data hardcoded in `get_page_data` — no model, no database; the four components under
 `components/` exist only to give the renderer something non-trivial to draw.
 

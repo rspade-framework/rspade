@@ -19,18 +19,18 @@ use Rsx\Lib\TextTypes\RichText\Rich_Text;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: user_groups
  *
- * @property int $id
- * @property int $site_id
- * @property string $name
- * @property string $description
- * @property int $deletion_protection
+ * @property string $created_at
+ * @property int $created_by_id
+ * @property int $created_by_type
  * @property string $deleted_at
  * @property int $deleted_by_id
  * @property int $deleted_by_type
- * @property string $created_at
+ * @property int $deletion_protection
+ * @property string $description
+ * @property int $id
+ * @property string $name
+ * @property int $site_id
  * @property string $updated_at
- * @property int $created_by_id
- * @property int $created_by_type
  * @property int $updated_by_id
  * @property int $updated_by_type
  *

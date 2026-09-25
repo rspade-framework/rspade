@@ -18,30 +18,30 @@ use Rsx\Models\Task_Model;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: projects
  *
- * @property int $id
- * @property int $site_id
- * @property string $name
- * @property string $description
- * @property int $client_id
- * @property int $parent_project_id
- * @property int $client_department_id
- * @property int $status
- * @property int $priority
- * @property string $start_date
- * @property string $due_date
- * @property string $completed_date
  * @property float $budget
- * @property string $notes
+ * @property int $client_department_id
+ * @property int $client_id
+ * @property string $completed_date
+ * @property string $created_at
  * @property int $created_by_id
  * @property int $created_by_type
- * @property int $owner_user_id
- * @property string $created_at
- * @property string $updated_at
- * @property int $updated_by_id
- * @property int $updated_by_type
  * @property string $deleted_at
  * @property int $deleted_by_id
  * @property int $deleted_by_type
+ * @property string $description
+ * @property string $due_date
+ * @property int $id
+ * @property string $name
+ * @property string $notes
+ * @property int $owner_user_id
+ * @property int $parent_project_id
+ * @property int $priority
+ * @property int $site_id
+ * @property string $start_date
+ * @property int $status
+ * @property string $updated_at
+ * @property int $updated_by_id
+ * @property int $updated_by_type
  *
  * @property-read string $status__label
  * @property-read string $status__constant
@@ -123,7 +123,7 @@ class Project_Model extends Rsx_Site_Model_Abstract
      * each template, endpoint and export - and the cost of misremembering it was either a
      * broken render or an XSS. Now the value carries its own encoding: it is filtered by
      * its type on write, rendered by its type's component on a live page, rendered by
-     * to_html() into a server-generated document, and reduced by to_text() for a CSV cell
+     * to_html() into a server-generated document, and reduced by to_plain_text() for a CSV cell
      * or a search index.
      *
      * A TEXT column NOT listed here is still an ordinary string with today's behaviour.

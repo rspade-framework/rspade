@@ -13,6 +13,11 @@
 
 ## HOW IT IS USED
 
+**The recipient is a LOGIN identity**: `notifications.user_id` holds a `login_users.id`, and
+`site_id` scopes the row to one site. `send()` is given login-user ids (`$user->login_user_id`,
+never `$user->id`), every read in `Notification` matches `Session::get_login_user_id()`, and
+`Notification_Model::fetch()` answers any other caller as a missing row.
+
 `send()` writes one **`Notification_Model`** row per recipient, carrying site, user, type,
 an optional polymorphic entity and an expiry (`rsx.notifications.default_expiry_days`,
 21 by default). Nothing here touches the portal's notifications — those are a separate

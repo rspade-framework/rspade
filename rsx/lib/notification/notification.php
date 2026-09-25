@@ -11,18 +11,22 @@ use Rsx\Models\Notification_Model;
  * Provides a simple API for creating notifications and retrieving them.
  * Notifications can optionally reference a primary entity (polymorphic).
  *
+ * The recipient column user_id holds a LOGIN identity id (login_users.id), scoped to one
+ * site by site_id: send() is given login-user ids, and every read here matches
+ * Session::get_login_user_id() - the same test Notification_Model::fetch() applies.
+ *
  * @example
  * // With entity reference - notification links to the entity
  * Notification::send(
  *     Notification_Model::TYPE_PROJECT_CREATED,
- *     [$user1->id, $user2->id],
+ *     [$user1->login_user_id, $user2->login_user_id],
  *     $project
  * );
  *
  * // Without entity - metadata only (entity is optional)
  * Notification::send(
  *     Notification_Model::TYPE_TASK_ASSIGNED,
- *     [$assignee->id],
+ *     [$assignee->login_user_id],
  *     null,
  *     ['task_title' => $task->title, 'project_name' => $project->name]
  * );
@@ -93,7 +97,7 @@ class Notification
      */
     public static function get_unread_count(): int
     {
-        $user_id = Session::get_user_id();
+        $user_id = Session::get_login_user_id();
         if (!$user_id) {
             return 0;
         }
@@ -116,7 +120,7 @@ class Notification
      */
     public static function get_for_dropdown(int $limit = 5): array
     {
-        $user_id = Session::get_user_id();
+        $user_id = Session::get_login_user_id();
         if (!$user_id) {
             return ['notifications' => [], 'total' => 0, 'unread' => 0];
         }
@@ -180,7 +184,7 @@ class Notification
      */
     public static function mark_all_read(): int
     {
-        $user_id = Session::get_user_id();
+        $user_id = Session::get_login_user_id();
         if (!$user_id) {
             return 0;
         }
@@ -199,7 +203,7 @@ class Notification
      */
     public static function mark_read(int $notification_id): bool
     {
-        $user_id = Session::get_user_id();
+        $user_id = Session::get_login_user_id();
         if (!$user_id) {
             return false;
         }

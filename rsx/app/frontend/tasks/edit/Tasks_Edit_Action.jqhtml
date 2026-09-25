@@ -32,7 +32,7 @@
                         Change Task_Model::$text_types and the editor here changes with it.
                         --%>
                         <Form_Field $label="Description">
-                            <{Task_Model.editor_for('description')} $name="description"
+                            <{Task_Model.editor_component_for('description')} $name="description"
                                 $placeholder="Describe the task..." />
                         </Form_Field>
 

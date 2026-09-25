@@ -395,11 +395,14 @@ return [
     |
     | system/app/Http/Kernel.php is framework-owned (hard-synced by every framework
     | update), so your own HTTP middleware is declared HERE. Entries are APPEND-ONLY:
-    | they run AFTER the framework stack and can never reorder or remove a framework
-    | middleware - if you genuinely need that, file a framework change request.
+    | they run AFTER the framework stack, around every request, and can never reorder
+    | or remove a framework middleware - if you genuinely need that, file a framework
+    | change request.
     |
-    | Every declared class is validated at bootstrap and a bad declaration throws:
-    | unknown group key, missing class, or an alias already bound to another class.
+    | 'global' is the only key: RSX requests never pass through Laravel's router, so
+    | there are no route middleware groups or aliases to add to.
+    |
+    | Every declared class is validated at bootstrap and a bad declaration throws.
     |
     | See: php artisan rsx:man config_rsx
     |
@@ -407,11 +410,6 @@ return [
 
     // 'middleware' => [
     //     'global' => [\App\Http\Middleware\My_Middleware::class],
-    //     'web' => [],
-    //     'api' => [],
-    //     'aliases' => [
-    //         'my_alias' => \App\Http\Middleware\My_Middleware::class,
-    //     ],
     // ],
 
     /*
@@ -453,8 +451,11 @@ return [
     | Framework handlers:
     | - Cli_Exception_Handler (priority 10)
     | - Ajax_Exception_Handler (priority 20)
+    | - Api_Exception_Handler (priority 25)
     | - Playwright_Exception_Handler (priority 30)
-    | - Rsx_Dispatch_Bootstrapper_Handler (priority 1000)
+    | - Web_Exception_Handler (priority 1100)
+    |
+    | A handler formats a failure for its context; it never dispatches a request.
     |
     | Priority ranges:
     | 1-50: Critical/environment-specific

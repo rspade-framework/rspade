@@ -18,8 +18,8 @@ class Rich_Text extends Rsx_Text_Abstract {
      * @param {string} raw
      * @returns {string}
      */
-    static filter_set(raw) {
-        return safe_html(raw);
+    static sanitize_encoded(raw) {
+        return sanitize_rich_text_html(raw);
     }
 
     /**

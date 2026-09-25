@@ -13,16 +13,16 @@ use Rsx\Models\Party_Model;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: party_person_details
  *
- * @property int $id
- * @property int $party_id
- * @property string $first_name
- * @property string $last_name
- * @property string $title
- * @property string $date_of_birth
  * @property string $created_at
- * @property string $updated_at
  * @property int $created_by_id
  * @property int $created_by_type
+ * @property string $date_of_birth
+ * @property string $first_name
+ * @property int $id
+ * @property string $last_name
+ * @property int $party_id
+ * @property string $title
+ * @property string $updated_at
  * @property int $updated_by_id
  * @property int $updated_by_type
  *

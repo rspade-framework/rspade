@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Thirty-two test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Thirty-five test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -11,6 +11,8 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 - **App libraries**: `Formatters_Test` (phone and currency, transactions off),
   `Analytics_Test` (the external-resource example ships inert).
 - **Domain models**: `Party_Test` (class-table inheritance end to end),
+  `Client_Region_Name_Test` (a client's region is resolved within its own country - two
+  countries sharing a region code never borrow each other's name),
   `Polymorphic_Parents_Test` (type-ref pairs read through stock `morphTo()`),
   `Task_Derived_Project_Test` (the derived `project_id`, chain resolution and cycle guard),
   `Contact_Phone_Validation_Test` (server-side E.164 normalisation),
@@ -33,8 +35,13 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   boolean, read from the LOGIN identity; a membership with no login identity is false rather
   than an error; and the grid's `login_users` join multiplies no rows and leaves the search
   and the sort resolving to the `users` columns.
+- **Staff notifications**: `Notification_Fetch_Test` (the ORM read serves the recipient
+  only) and `Notification_Recipient_Test` (`Notification::send()` and every reader agree
+  that `user_id` is a LOGIN identity id; the subject's site-user id is forced to differ so
+  a reader keyed on the wrong id cannot pass by coincidence).
 - **Portal**: `Portal_Workspaces_Test`, `Portal_Documents_Test`,
-  `Portal_Request_Threads_Test`, `Portal_Invitation_Lifecycle_Test`,
+  `Portal_Request_Threads_Test`, `Portal_Invitation_Lifecycle_Test` (including the hourly expiry reaching
+  every site's invitations),
   `Portal_Register_Flow_Test`, `Portal_User_Admin_Test`, `Portal_Impersonation_Test`
   (the per-endpoint read-only guard — every Ajax call is a POST, so a blanket POST block
   would break the portal), `Portal_Client_Authorization_Test` (the permission facade
@@ -70,9 +77,9 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 - **Declared text types, the converted columns**: `Text_Type_Descriptions_Test` — the three
   `description` columns that moved from plain text to `Rich_Text` (`tasks`, `user_groups`,
   `demo_products`): a bare string reads back typed on each, the filter strips a script on
-  each, `to_text()` reduces a stored value for the grid excerpt and the CSV cell, an emptied
+  each, `to_plain_text()` reduces a stored value for the grid excerpt and the CSV cell, an emptied
   editor is empty by CONTENT, and — the case only a conversion has — the re-encode
-  migration's SQL produces exactly what `Rich_Text::from_string()` produces, character for
+  migration's SQL produces exactly what `Rich_Text::from_plain_text()` produces, character for
   character, on every awkward character.
 
 ## HOW IT IS USED
@@ -124,7 +131,7 @@ on failure, and prints `PASS:`/`FAIL:` lines.
 
 - `text_type_rendering.js` — declared text types end to end on real screens: interpolating a
   `Rich_Text` mounts `Rich_Text_Display` with real markup and a `Raw_Text` escapes with line
-  breaks; the edit form's dynamic tag `<{Project_Model.editor_for(...)}>` mounts the editor
+  breaks; the edit form's dynamic tag `<{Project_Model.editor_component_for(...)}>` mounts the editor
   the model names, with no wrapper interposed; and a load-then-save round trip through the
   editor is byte-identical — the assertion that catches a third-party editor silently
   dropping markup it did not author. Waits on the async mounts and the form's populate

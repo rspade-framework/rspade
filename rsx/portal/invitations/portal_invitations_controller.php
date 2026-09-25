@@ -41,6 +41,7 @@ class Portal_Invitations_Controller extends Rsx_Controller_Abstract
      * the dashboard can show the "no active client access" empty state.
      */
     #[Ajax_Endpoint]
+    #[Portal_Impersonation_Readable]
     public static function pending(Request $request, array $params = [])
     {
         $invitations = [];
@@ -69,10 +70,6 @@ class Portal_Invitations_Controller extends Rsx_Controller_Abstract
     #[Ajax_Endpoint]
     public static function accept(Request $request, array $params = [])
     {
-        if (Portal_Permission::is_read_only()) {
-            return response_unauthorized('This is a read-only session; changes are disabled.');
-        }
-
         $invitation = static::_resolve_own_invitation($params['invitation_id'] ?? null);
         if ($invitation instanceof \App\RSpade\Core\Response\Error_Response) {
             return $invitation;
@@ -125,10 +122,6 @@ class Portal_Invitations_Controller extends Rsx_Controller_Abstract
     #[Ajax_Endpoint]
     public static function decline(Request $request, array $params = [])
     {
-        if (Portal_Permission::is_read_only()) {
-            return response_unauthorized('This is a read-only session; changes are disabled.');
-        }
-
         $invitation = static::_resolve_own_invitation($params['invitation_id'] ?? null);
         if ($invitation instanceof \App\RSpade\Core\Response\Error_Response) {
             return $invitation;

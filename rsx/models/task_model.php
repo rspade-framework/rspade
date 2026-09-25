@@ -10,29 +10,29 @@ use Rsx\Lib\TextTypes\RichText\Rich_Text;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: tasks
  *
- * @property int $id
- * @property int $site_id
- * @property string $title
- * @property string $description
- * @property int $taskable_type
- * @property int $taskable_id
- * @property int $project_id
- * @property int $status
- * @property int $priority
- * @property string $due_date
- * @property string $completed_date
  * @property int $assigned_to_user_id
- * @property string $notes
- * @property float $hour_estimate
+ * @property string $completed_date
+ * @property string $created_at
  * @property int $created_by_id
  * @property int $created_by_type
- * @property string $created_at
- * @property string $updated_at
- * @property int $updated_by_id
- * @property int $updated_by_type
  * @property string $deleted_at
  * @property int $deleted_by_id
  * @property int $deleted_by_type
+ * @property string $description
+ * @property string $due_date
+ * @property float $hour_estimate
+ * @property int $id
+ * @property string $notes
+ * @property int $priority
+ * @property int $project_id
+ * @property int $site_id
+ * @property int $status
+ * @property int $taskable_id
+ * @property int $taskable_type
+ * @property string $title
+ * @property string $updated_at
+ * @property int $updated_by_id
+ * @property int $updated_by_type
  *
  * @property-read string $status__label
  * @property-read string $status__constant

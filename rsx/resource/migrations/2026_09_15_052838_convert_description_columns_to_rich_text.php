@@ -13,9 +13,9 @@ use Illuminate\Support\Facades\DB;
  * plain text with a literal `5 < 6` in it would be read as markup, and a user's `&` would
  * print as the start of an entity.
  *
- * WHAT THE RE-ENCODE IS. Rich_Text::from_string() is the plain-text-to-HTML path:
+ * WHAT THE RE-ENCODE IS. Rich_Text::from_plain_text() is the plain-text-to-HTML path:
  * htmlspecialchars(ENT_QUOTES | ENT_HTML5), then nl2br(), then a <p> wrapper, then the
- * type's own filter_set() (HTMLPurifier). The SQL below reproduces that, and it is written
+ * type's own sanitize_encoded() (HTMLPurifier). The SQL below reproduces that, and it is written
  * out rather than calling the class because a migration runs against a schema, not against
  * an application: the class may be renamed, moved or deleted long before this file stops
  * running on a fresh database.
@@ -37,7 +37,7 @@ use Illuminate\Support\Facades\DB;
  * Nothing else survives that pipeline differently: HTMLPurifier is a passthrough for
  * already-escaped text inside a single <p>, which is verified for these exact cases by
  * rsx/tests/Text_Type_Descriptions_Test.php (it asserts the SQL expression and
- * Rich_Text::from_string() agree, character for character, on a fixture carrying &, <, >,
+ * Rich_Text::from_plain_text() agree, character for character, on a fixture carrying &, <, >,
  * quotes and newlines).
  *
  * ONE SEQUENCE IS NOT REPRODUCED CHARACTER FOR CHARACTER: an LF immediately followed by a

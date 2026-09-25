@@ -52,6 +52,7 @@ class Portal_Request_Threads_Controller extends Rsx_Controller_Abstract
      * PORTAL status label.
      */
     #[Ajax_Endpoint]
+    #[Portal_Impersonation_Readable]
     public static function list(Request $request, array $params = [])
     {
         $client_id = isset($params['client_id']) ? (int) $params['client_id'] : 0;
@@ -98,6 +99,7 @@ class Portal_Request_Threads_Controller extends Rsx_Controller_Abstract
      * staff-only actions are exposed.
      */
     #[Ajax_Endpoint]
+    #[Portal_Impersonation_Readable]
     public static function get(Request $request, array $params = [])
     {
         $id = isset($params['id']) ? (int) $params['id'] : 0;
@@ -197,10 +199,6 @@ class Portal_Request_Threads_Controller extends Rsx_Controller_Abstract
     #[Ajax_Endpoint]
     public static function reply(Request $request, array $params = [])
     {
-        if (Portal_Permission::is_read_only()) {
-            return response_unauthorized('This is a read-only session; changes are disabled.');
-        }
-
         $thread_id = isset($params['thread_id']) ? (int) $params['thread_id'] : 0;
         $body = trim($params['body'] ?? '');
         $attachment_keys = $params['attachment_keys'] ?? [];
@@ -320,6 +318,7 @@ class Portal_Request_Threads_Controller extends Rsx_Controller_Abstract
      * the portal dashboard "Action needed" panel. Newest activity first.
      */
     #[Ajax_Endpoint]
+    #[Portal_Impersonation_Readable]
     public static function needs_response_for_user(Request $request, array $params = [])
     {
         $client_ids = Portal_Permission::accessible_client_ids();

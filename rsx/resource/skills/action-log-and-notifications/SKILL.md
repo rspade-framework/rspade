@@ -1,6 +1,6 @@
 ---
 name: action-log-and-notifications
-description: "Recording activity and notifying users in this application - Action_Log::record() with related entities and metadata, Action_Log_Renderer, the Feed_Row activity tabs via Activity_Feed.decorate(), Notification::send() / get_unread_count() / get_for_dropdown() with Notification_Renderer, and the separate realtime Portal_Notification_Model::emit() for portal users. Use when asked to \"log an action\", \"record who did what\", \"show activity history\", \"notify a user\", \"unread count\", when adding a TYPE_* to Action_Log_Model or Notification_Model, or when a notification vanishes on fetch."
+description: "Recording activity and notifying users in this application - Action_Log::record() with related entities and metadata, Action_Log_Renderer, the Feed_Row activity tabs via Activity_Feed.decorate(), Notification::send() / get_unread_count() / get_for_dropdown() with Notification_Renderer, and the separate realtime Portal_Notification_Model::emit() for portal users. Use when asked to \"log an action\", \"record who did what\", \"show activity history\", \"notify a user\", \"unread count\", when adding a TYPE_* to Action_Log_Model or Notification_Model, or when a notification vanishes from the dropdown or Notification_Model.fetch() answers not found."
 ---
 
 # Action log and notifications
@@ -114,9 +114,12 @@ Notification::send(
   (`rsx.notifications.default_expiry_days`) and is run opportunistically behind
   `Rsx_Throttle` on `get_count()`.
 - **Self-policing:** a notification whose referenced entity no longer exists is
-  DELETED when fetched. That is the answer to "my notification disappeared" - not a
-  bug. Use metadata instead of an entity when the notification must outlive its
-  subject.
+  DELETED by `get_for_dropdown()` (the list read); `Notification_Model::fetch()` only
+  reports it absent and deletes nothing. That is the answer to "my notification
+  disappeared" - not a bug. Use metadata instead of an entity when the notification must
+  outlive its subject.
+- **`Notification_Model::fetch()` serves the recipient only** - a notification whose
+  `user_id` (a login_users id) is not the caller's is answered as a missing row.
 - Adding a type mirrors the action log: `$enums['type_id']` + a
   `Notification_Renderer` static returning `['text' => ..., 'url' => ..., 'image_url' => ...]`,
   handling a missing entity.

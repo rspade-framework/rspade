@@ -5,24 +5,22 @@
 
 namespace Rsx\Tests;
 
-use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
+use App\RSpade\Core\Ajax\Exceptions\AjaxUnauthorizedException;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
-use App\RSpade\Core\Response\Error_Response;
+use App\RSpade\Core\Portal\Rsx_Portal;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Contact_Model;
-use Rsx\Portal\Settings\Portal_Settings_Controller;
 use Rsx\Portal_Permission;
 
 /**
  * Portal_Impersonation_Test - the APPLICATION's half of "View as Client":
- *   - read-only enforcement: a write endpoint refuses while impersonating, a read
- *     endpoint still works (important - all Ajax endpoints are POST, so read-only
- *     cannot be a blanket POST block; it is per-write-endpoint via
- *     Portal_Permission::is_read_only()).
- *   - the guard fires ONLY under impersonation.
+ *   - read-only enforcement through the framework seam: an unmarked (write) endpoint
+ *     is refused while impersonating, one marked #[Portal_Impersonation_Readable]
+ *     still works (all Ajax endpoints are POST, so read-only cannot be a POST block).
+ *   - the refusal fires ONLY under impersonation.
  *   - the staff-side contact -> portal-user resolution that powers the button.
  *
  * The portal identity/impersonation context is seeded with Portal_Session CLI
@@ -39,8 +37,17 @@ class Portal_Impersonation_Test extends Rsx_Test_Abstract
         static::__acting_as_site(self::SITE_ID);
     }
 
+    public static function teardown(): void
+    {
+        static::__reset_portal_cli();
+    }
+
     private static function __make_portal_user(?int $contact_id = null): Portal_User_Model
     {
+        // Records are made in the staff realm; the realm is a process static that a
+        // previous test in this class may have left on portal.
+        Rsx_Portal::set_portal_request(false);
+
         $user = new Portal_User_Model();
         $user->site_id = self::SITE_ID;
         $user->email = 'impuser_' . uniqid() . '@example.com';
@@ -79,6 +86,7 @@ class Portal_Impersonation_Test extends Rsx_Test_Abstract
      */
     private static function __reset_portal_cli(): void
     {
+        Rsx_Portal::set_portal_request(false);
         Portal_Session::cli_set_impersonator_user_id(null);
         Portal_Session::cli_set_portal_user_id(0);
     }
@@ -88,6 +96,7 @@ class Portal_Impersonation_Test extends Rsx_Test_Abstract
      */
     private static function __impersonate(int $portal_user_id): void
     {
+        Rsx_Portal::set_portal_request(true);
         Portal_Session::set_site_id(self::SITE_ID);
         Portal_Session::cli_set_portal_user_id($portal_user_id);
         Portal_Session::cli_set_impersonator_user_id(self::IMPERSONATOR_ID);
@@ -102,14 +111,19 @@ class Portal_Impersonation_Test extends Rsx_Test_Abstract
         $user = static::__make_portal_user();
         static::__impersonate($user->id);
 
-        $res = Portal_Settings_Controller::change_password(new Request(), [
-            'current_password' => 'secret-password',
-            'new_password' => 'brand-new-password',
-            'confirm_password' => 'brand-new-password',
-        ]);
+        // Unmarked (a write): the framework refuses it before it runs.
+        static::__assert_throws(AjaxUnauthorizedException::class, function () {
+            Ajax::internal('Portal_Settings_Controller', 'change_password', [
+                'current_password' => 'secret-password',
+                'new_password' => 'brand-new-password',
+                'confirm_password' => 'brand-new-password',
+            ]);
+        }, 'read-only session');
 
-        static::__assert_instance_of(Error_Response::class, $res, 'write rejected while impersonating');
-        static::__assert_equals(Ajax::ERROR_UNAUTHORIZED, $res->get_error_code(), 'rejected as unauthorized (read-only)');
+        static::__assert_true(
+            Portal_User_Model::find($user->id)->check_password('secret-password'),
+            'the password did not change'
+        );
     }
 
     public static function test_read_endpoint_still_works_while_impersonating()
@@ -117,8 +131,8 @@ class Portal_Impersonation_Test extends Rsx_Test_Abstract
         $user = static::__make_portal_user();
         static::__impersonate($user->id);
 
-        // Reads must NOT be blocked - the portal has to load for the staff member.
-        $res = Portal_Settings_Controller::get_profile(new Request(), []);
+        // Marked #[Portal_Impersonation_Readable]: the portal has to load for the staff member.
+        $res = Ajax::internal('Portal_Settings_Controller', 'get_profile');
 
         static::__assert_true(is_array($res), 'read endpoint returns data while impersonating');
         static::__assert_equals($user->email, $res['email'] ?? null, 'reads resolve the impersonated user');
@@ -129,6 +143,7 @@ class Portal_Impersonation_Test extends Rsx_Test_Abstract
         static::__reset_portal_cli();
 
         $user = static::__make_portal_user();
+        Rsx_Portal::set_portal_request(true);
         Portal_Session::set_site_id(self::SITE_ID);
         Portal_Session::cli_set_portal_user_id($user->id);
         // No impersonator flag set.
@@ -136,15 +151,15 @@ class Portal_Impersonation_Test extends Rsx_Test_Abstract
         static::__assert_false(Portal_Permission::is_read_only(), 'not read-only without impersonation');
 
         // A wrong current password must reach validation (got past the read-only
-        // guard) - i.e. it is NOT the read-only unauthorized response.
-        $res = Portal_Settings_Controller::change_password(new Request(), [
-            'current_password' => 'wrong-password',
-            'new_password' => 'brand-new-password',
-            'confirm_password' => 'brand-new-password',
-        ]);
-
-        static::__assert_instance_of(Error_Response::class, $res, 'wrong password is rejected');
-        static::__assert_true($res->get_error_code() !== Ajax::ERROR_UNAUTHORIZED, 'rejection is validation, not read-only');
+        // refusal) - i.e. it is NOT the read-only unauthorized answer.
+        $e = static::__assert_throws(\Throwable::class, function () {
+            Ajax::internal('Portal_Settings_Controller', 'change_password', [
+                'current_password' => 'wrong-password',
+                'new_password' => 'brand-new-password',
+                'confirm_password' => 'brand-new-password',
+            ]);
+        });
+        static::__assert_false($e instanceof AjaxUnauthorizedException, 'rejection is validation, not read-only');
     }
 
     public static function test_is_read_only_reflects_impersonation_flag()

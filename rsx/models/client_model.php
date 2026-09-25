@@ -16,47 +16,47 @@ use Rsx\Models\Shared_Item_Model;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: clients
  *
- * @property int $id
- * @property int $site_id
- * @property string $name
  * @property string $address
- * @property string $city
- * @property string $state
- * @property string $zip
- * @property string $phone
- * @property string $fax
- * @property string $phone_secondary
- * @property string $website
- * @property string $email
+ * @property string $address_country
+ * @property string $address_street
  * @property int $billing_contact_id
- * @property int $priority
- * @property string $notes
+ * @property string $city
+ * @property string $company_size
+ * @property string $created_at
  * @property int $created_by_id
  * @property int $created_by_type
- * @property int $owner_user_id
- * @property string $created_at
- * @property string $updated_at
- * @property int $updated_by_id
- * @property int $updated_by_type
- * @property string $address_street
- * @property string $address_country
- * @property string $industry
- * @property string $company_size
- * @property int $established_year
- * @property string $revenue_range
- * @property string $facebook_url
- * @property string $twitter_handle
- * @property string $linkedin_url
- * @property string $instagram_handle
- * @property array $tags
- * @property int $status_id
- * @property string $preferred_contact_method
- * @property int $newsletter_opt_in
- * @property int $portal_enabled
- * @property string $portal_last_activity_at
  * @property string $deleted_at
  * @property int $deleted_by_id
  * @property int $deleted_by_type
+ * @property string $email
+ * @property int $established_year
+ * @property string $facebook_url
+ * @property string $fax
+ * @property int $id
+ * @property string $industry
+ * @property string $instagram_handle
+ * @property string $linkedin_url
+ * @property string $name
+ * @property int $newsletter_opt_in
+ * @property string $notes
+ * @property int $owner_user_id
+ * @property string $phone
+ * @property string $phone_secondary
+ * @property int $portal_enabled
+ * @property string $portal_last_activity_at
+ * @property string $preferred_contact_method
+ * @property int $priority
+ * @property string $revenue_range
+ * @property int $site_id
+ * @property string $state
+ * @property int $status_id
+ * @property array $tags
+ * @property string $twitter_handle
+ * @property string $updated_at
+ * @property int $updated_by_id
+ * @property int $updated_by_type
+ * @property string $website
+ * @property string $zip
  *
  * @property-read string $priority__label
  * @property-read string $priority__constant
@@ -244,7 +244,11 @@ class Client_Model extends Rsx_Site_Model_Abstract
             return null;
         }
 
-        $region = Region_Model::where('code', $this->state)->first();
+        // A region code is unique only within its country (unique_country_code), so the
+        // country is part of the key: 'WA' is Washington in US and Western Australia in AU.
+        $region = Region_Model::where('country_alpha2', $this->address_country)
+            ->where('code', $this->state)
+            ->first();
         return $region ? $region->name : $this->state;
     }
 

@@ -15,4 +15,7 @@
          the detail a developer needs is already in the log. The staff generic page is
          where the trace is rendered. --}}
     <p class="text-center text-body-secondary small mt-3 mb-0 font-monospace">ERROR {{ $error->status }}</p>
+    @if ($error->error_id)
+        <p class="text-center text-body-secondary small mb-0 font-monospace">Reference: {{ $error->error_id }}</p>
+    @endif
 @endsection

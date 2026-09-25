@@ -26,18 +26,18 @@ use App\RSpade\Core\Models\Portal_User_Model;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: portal_password_resets
  *
- * @property int $id
- * @property int $site_id
- * @property int $portal_user_id
- * @property string $token
- * @property string $expires_at
- * @property string $used_at
  * @property string $created_at
- * @property string $updated_at
  * @property int $created_by_id
  * @property int $created_by_type
+ * @property string $expires_at
+ * @property int $id
+ * @property int $portal_user_id
+ * @property int $site_id
+ * @property string $token
+ * @property string $updated_at
  * @property int $updated_by_id
  * @property int $updated_by_type
+ * @property string $used_at
  *
  * @mixin \Eloquent
  */

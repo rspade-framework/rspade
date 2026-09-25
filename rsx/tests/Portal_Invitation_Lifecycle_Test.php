@@ -5,6 +5,7 @@
 
 namespace Rsx\Tests;
 
+use App\RSpade\Core\Models\Site_Model;
 use App\RSpade\Core\Task\Task_Instance;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
 use Rsx\Models\Portal_Invitation_Model;
@@ -125,5 +126,31 @@ class Portal_Invitation_Lifecycle_Test extends Rsx_Test_Abstract
         static::__assert_equals(Portal_Invitation_Model::STATUS_EXPIRED, (int) $stale->fresh()->status_id, 'stale pending -> expired');
         static::__assert_equals(Portal_Invitation_Model::STATUS_PENDING, (int) $live->fresh()->status_id, 'live pending untouched');
         static::__assert_equals(Portal_Invitation_Model::STATUS_USED, (int) $used->fresh()->status_id, 'used untouched');
+    }
+
+    /**
+     * The hourly sweep serves every site: the worker running it declares site 1, and a
+     * second site's stale invitation expires all the same.
+     */
+    public static function test_expire_stale_task_reaches_every_site()
+    {
+        $site = new Site_Model();
+        $site->slug = 'invite-expiry-' . uniqid();
+        $site->name = 'Invitation Expiry Second Site';
+        $site->save();
+        $other_site_id = (int) $site->id;
+
+        static::__acting_as_site($other_site_id);
+        $stale = Portal_Invitation_Model::create_invitation($other_site_id, 'inv_' . uniqid() . '@example.com');
+        $stale->expires_at = now()->subDay();
+        $stale->save();
+        static::__acting_as_site(self::SITE_ID);
+
+        $task = new Task_Instance('Portal_Invitation_Service', 'expire_stale', [], 'default', true);
+        Portal_Invitation_Service::expire_stale($task, []);
+
+        $stored = Portal_Invitation_Model::without_site_scope(fn () => Portal_Invitation_Model::find($stale->id));
+        static::__assert_equals(Portal_Invitation_Model::STATUS_EXPIRED, (int) $stored->status_id, 'the second site\'s stale invite expired');
+        static::__assert_equals($other_site_id, (int) $stored->site_id, 'and still belongs to its own site');
     }
 }

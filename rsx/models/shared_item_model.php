@@ -20,20 +20,20 @@ use Rsx\Portal_Permission;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: shared_items
  *
- * @property int $id
- * @property int $site_id
- * @property int $shared_by
- * @property int $contact_id
- * @property int $item_type
- * @property int $item_id
- * @property string $token
- * @property string $message
- * @property string $expires_at
  * @property string $accessed_at
+ * @property int $contact_id
  * @property string $created_at
- * @property string $updated_at
  * @property int $created_by_id
  * @property int $created_by_type
+ * @property string $expires_at
+ * @property int $id
+ * @property int $item_id
+ * @property int $item_type
+ * @property string $message
+ * @property int $shared_by
+ * @property int $site_id
+ * @property string $token
+ * @property string $updated_at
  * @property int $updated_by_id
  * @property int $updated_by_type
  *

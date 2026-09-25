@@ -1,8 +1,8 @@
 <Define:Portal_Layout>
 
     <%-- Read-only impersonation banner: shown when a staff member is viewing the
-         portal as a client. The server enforces read-only at each write endpoint
-         (Portal_Permission::is_read_only()); this is the visible affordance. --%>
+         portal as a client. The framework refuses every portal Ajax endpoint not
+         marked #[Portal_Impersonation_Readable]; this is the visible affordance. --%>
     <% if (Rsx_Portal.is_impersonating()) { %>
         <div class="Portal_Layout__impersonation-banner bg-warning text-dark text-center py-2 px-3">
             <i class="bi bi-eye me-1"></i>

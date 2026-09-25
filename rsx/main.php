@@ -53,8 +53,9 @@ class Main extends Main_Abstract
     /**
      * Pre-dispatch hook
      *
-     * Called before any route dispatch. If a non-null value is returned,
-     * dispatch is halted and that value is returned as the response.
+     * Called before any route dispatch, and before every external API call (after the
+     * bearer identity and the gates). If a non-null value is returned, dispatch is halted:
+     * a page answers with that value, an API call with 403 account_refused.
      *
      * One interception lives here, scoped to the frontend SPA module: an identity an
      * administrator has flagged is_2fa_required with no second factor enrolled goes to the

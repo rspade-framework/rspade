@@ -47,6 +47,11 @@
             "created_by": "root",
             "command": "php artisan make:migration:safe add_soft_deletes_to_core_tables"
         },
+        "2025_12_11_061551_create_groups_and_group_users_tables.php": {
+            "created_at": "2025-12-11T06:15:51+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_groups_and_group_users_tables"
+        },
         "2025_12_26_023543_convert_client_status_to_enum.php": {
             "created_at": "2025-12-26T02:35:44+00:00",
             "created_by": "root",
@@ -56,6 +61,16 @@
             "created_at": "2025-12-27T22:53:05+00:00",
             "created_by": "root",
             "command": "php artisan make:migration:safe convert_tasks_polymorphic_to_type_refs"
+        },
+        "2026_01_29_070242_create_action_logs_tables.php": {
+            "created_at": "2026-01-29T07:02:42+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_action_logs_tables"
+        },
+        "2026_01_29_081902_create_notifications_table.php": {
+            "created_at": "2026-01-29T08:19:02+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_notifications_table"
         },
         "2026_01_29_180545_create_portal_invitations_table.php": {
             "created_at": "2026-01-29T18:05:45+00:00",
@@ -146,6 +161,26 @@
             "created_at": "2026-09-15T05:28:38+00:00",
             "created_by": "root",
             "command": "php artisan make:migration:safe convert_description_columns_to_rich_text"
+        },
+        "2026_09_25_193929_reindex_activity_notifications_and_groups.php": {
+            "created_at": "2026-09-25T19:39:29+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe reindex_activity_notifications_and_groups"
+        },
+        "2026_09_25_193930_reindex_clients_and_contacts.php": {
+            "created_at": "2026-09-25T19:39:29+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe reindex_clients_and_contacts"
+        },
+        "2026_09_25_193931_reindex_projects_tasks_and_parties.php": {
+            "created_at": "2026-09-25T19:39:30+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe reindex_projects_tasks_and_parties"
+        },
+        "2026_09_25_193932_reindex_portal_and_sharing_tables.php": {
+            "created_at": "2026-09-25T19:39:30+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe reindex_portal_and_sharing_tables"
         }
     }
 }

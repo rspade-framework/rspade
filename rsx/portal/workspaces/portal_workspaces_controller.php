@@ -43,6 +43,7 @@ class Portal_Workspaces_Controller extends Rsx_Controller_Abstract
      * status label from the client status_id enum.
      */
     #[Ajax_Endpoint]
+    #[Portal_Impersonation_Readable]
     public static function list(Request $request, array $params = [])
     {
         $portal_user_id = Portal_Permission::current_user_id();
@@ -81,6 +82,7 @@ class Portal_Workspaces_Controller extends Rsx_Controller_Abstract
      * columns are exposed.
      */
     #[Ajax_Endpoint]
+    #[Portal_Impersonation_Readable]
     public static function get(Request $request, array $params = [])
     {
         $client_id = isset($params['id']) ? (int) $params['id'] : 0;

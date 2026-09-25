@@ -40,20 +40,20 @@ use App\RSpade\Core\Files\File_Attachment_Model;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: portal_request_documents
  *
- * @property int $id
- * @property int $site_id
- * @property int $thread_id
- * @property int $message_id
  * @property int $attachment_id
- * @property int $requires_review
- * @property int $review_status
- * @property string $reject_reason
- * @property int $reviewed_by
- * @property string $reviewed_at
  * @property string $created_at
- * @property string $updated_at
  * @property int $created_by_id
  * @property int $created_by_type
+ * @property int $id
+ * @property int $message_id
+ * @property string $reject_reason
+ * @property int $requires_review
+ * @property int $review_status
+ * @property string $reviewed_at
+ * @property int $reviewed_by
+ * @property int $site_id
+ * @property int $thread_id
+ * @property string $updated_at
  * @property int $updated_by_id
  * @property int $updated_by_type
  *

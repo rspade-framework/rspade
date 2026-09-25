@@ -12,36 +12,36 @@ use Rsx\Models\Client_Model;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: contacts
  *
- * @property int $id
- * @property int $site_id
- * @property int $client_id
- * @property string $first_name
- * @property string $last_name
- * @property string $title
- * @property int $client_department_id
- * @property string $email
- * @property string $email_secondary
- * @property string $phone_work
- * @property string $phone_cell
- * @property string $phone_other
  * @property string $address
  * @property string $city
- * @property string $state
- * @property string $zip
- * @property int $reports_to_contact_id
- * @property int $is_active
- * @property int $priority
- * @property string $notes
+ * @property int $client_department_id
+ * @property int $client_id
+ * @property string $created_at
  * @property int $created_by_id
  * @property int $created_by_type
- * @property int $owner_user_id
- * @property string $created_at
- * @property string $updated_at
- * @property int $updated_by_id
- * @property int $updated_by_type
  * @property string $deleted_at
  * @property int $deleted_by_id
  * @property int $deleted_by_type
+ * @property string $email
+ * @property string $email_secondary
+ * @property string $first_name
+ * @property int $id
+ * @property int $is_active
+ * @property string $last_name
+ * @property string $notes
+ * @property int $owner_user_id
+ * @property string $phone_cell
+ * @property string $phone_other
+ * @property string $phone_work
+ * @property int $priority
+ * @property int $reports_to_contact_id
+ * @property int $site_id
+ * @property string $state
+ * @property string $title
+ * @property string $updated_at
+ * @property int $updated_by_id
+ * @property int $updated_by_type
+ * @property string $zip
  *
  * @property-read string $priority__label
  * @property-read string $priority__constant

@@ -52,11 +52,11 @@ nothing and the user must still be able to remove it. The one SCSS rule on this 
 the inline brand marks, which arrive as SVG with no intrinsic dimensions.
 
 `group_management`'s `description` is a declared `Rich_Text` column on `User_Group_Model`.
-Both modal forms name no widget (`<{User_Group_Model.editor_for('description')} />`), the
+Both modal forms name no widget (`<{User_Group_Model.editor_component_for('description')} />`), the
 view page prints the value through its own printer behind `is_empty()`, and the grid prints
 `description_excerpt` - a PLAIN-TEXT excerpt `Groups_DataGrid::transform_records()` makes on
-the server with `to_text()`, because a value object has no length and no substring. The CSV
-export asks `to_text()` for the same reason. The `filter` still searches `description` with a
+the server with `to_plain_text()`, because a value object has no length and no substring. The CSV
+export asks `to_plain_text()` for the same reason. The `filter` still searches `description` with a
 `LIKE` over the stored markup.
 
 `group_management`'s add/edit endpoints show the length-rule convention: the server asks

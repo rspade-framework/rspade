@@ -1,6 +1,6 @@
 ---
 name: portal-app
-description: "The client-portal screens this application ships - portal_main.php (the site declaration) and portal_permission.php (has_client_access / client_role / accessible_client_ids / is_read_only), the Blade auth ladder (login with its second-factor challenge, passkey sign-in and federated sign-in, register from an invite, request-access, password reset, impersonate claim/stop, logout), Portal_Layout and Portal_Workspace_Layout, the dashboard, the workspace tabs (Overview / Requests / Documents) with the request-thread UI, invitations accept/decline, settings, and the per-endpoint read-only guard for View-as-Client. Use when adding or changing a portal screen or endpoint, wiring a new workspace tab, changing what an invite grants, branding the portal auth pages, or guarding a portal write against impersonation."
+description: "The client-portal screens this application ships - portal_main.php (the site declaration) and portal_permission.php (has_client_access / client_role / accessible_client_ids / is_read_only), the Blade auth ladder (login with its second-factor challenge, passkey sign-in and federated sign-in, register from an invite, request-access, password reset, impersonate claim/stop, logout), Portal_Layout and Portal_Workspace_Layout, the dashboard, the workspace tabs (Overview / Requests / Documents) with the request-thread UI, invitations accept/decline, settings, and the #[Portal_Impersonation_Readable] marks that keep View-as-Client read-only. Use when adding or changing a portal screen or endpoint, wiring a new workspace tab, changing what an invite grants, branding the portal auth pages, or deciding which portal endpoints stay callable during impersonation (mark reads #[Portal_Impersonation_Readable])."
 ---
 
 # The portal application
@@ -11,7 +11,7 @@ description: "The client-portal screens this application ships - portal_main.php
 > companions. When this feature changes, update this skill and those files in the same pass.
 
 The portal MACHINERY is framework core and is not yours: `Portal_Session`,
-`Portal_Dispatcher`, `Rsx_Portal`, `Portal_Main_Abstract`, `Portal_Permission_Abstract`,
+the portal realm of the `Dispatcher`, `Rsx_Portal`, `Portal_Main_Abstract`, `Portal_Permission_Abstract`,
 `Portal_Authorizable`, `Portal_User_Model`, `Portal_Notification_Model`,
 `#[Portal_Route]` / `@portal_spa`. Skill `rspade:portal-core` is that contract, and
 `rsx:man portal` is the spec. **Everything below is application code you may change,
@@ -47,7 +47,7 @@ models:
 | `client_role($client_id)` | VIEWER=1 / COLLABORATOR=2 |
 | `can_collaborate($client_id)` | role >= COLLABORATOR |
 | `accessible_client_ids()` | for `whereIn()` scoping |
-| `is_read_only()` | the View-as-Client guard (returns `Portal_Session::is_impersonating()`) |
+| `is_read_only()` | the View-as-Client affordance - banner, disabled controls (returns `Portal_Session::is_impersonating()`) |
 
 The parameterized ones are NOT gates (a gate takes no arguments) - they stay inline in
 function bodies and in models' `portal_can_read()`.
@@ -102,27 +102,31 @@ Adding a workspace tab: a new action under `rsx/portal/workspaces/<tab>/` with b
 `@layout`s and `@route('/workspace/:id/<tab>')`, plus its nav entry in
 `Portal_Workspace_Layout`.
 
-## Read-only ("View as Client") is enforced here, per endpoint
+## Read-only ("View as Client"): mark the reads
 
-The framework only exposes `is_impersonating()`. **A blanket POST block does not work** -
-every Ajax endpoint is a POST, reads included, so a blanket block breaks the portal's
-ability to load a page at all. Each MUTATING endpoint guards itself, as the first
-statement of the write:
+The framework refuses every portal Ajax endpoint while the session is impersonating unless
+the endpoint declares `#[Portal_Impersonation_Readable]` - deny by default, because every
+Ajax call is a POST and a write cannot be told from a read by its verb. **Every READ endpoint
+you add gets the mark** (or "View as Client" cannot load the screen that calls it); a write
+gets nothing and is refused:
 
 ```php
-if (Portal_Permission::is_read_only()) {
-    return response_unauthorized('This is a read-only session; changes are disabled.');
-}
+#[Ajax_Endpoint]
+#[Portal_Impersonation_Readable]
+public static function list(Request $request, array $params = []) { ... }
 ```
 
-Shipped guards live in `portal_settings_controller` (`change_password`,
-`terminate_session`), `portal_notifications_controller`, `portal_invitations_controller`
-(`accept`, `decline`) and `portal_request_threads_controller` (`reply`). The passkey,
-authenticator-app and connected-account controls on Settings (`Portal_Settings_Security`)
-need no guard of this app's: the framework's portal controllers refuse every enrollment,
-removal and link during "View as Client" themselves. **Every write you
-add needs its own guard - an unguarded endpoint stays writable.** The banner and the
-disabled controls are affordance only; the server check is the boundary.
+Marked in this app: `Portal_Workspaces_Controller` (`get`, `list`),
+`Portal_Documents_Controller::list`, `Portal_Request_Threads_Controller` (`get`, `list`,
+`needs_response_for_user`), `Portal_Notifications_Controller` (`feed`, `unread_count`),
+`Portal_Invitations_Controller::pending` and `Portal_Settings_Controller` (`get_profile`,
+`get_sessions`). The writes (`reply`, `mark_read`, `mark_all_read`, invitation `accept` /
+`decline`, `change_password`, `terminate_session`) carry no mark and no guard of their own.
+The passkey, authenticator-app and connected-account controls on Settings need nothing of
+this app's either: the framework marks only their list endpoints. The banner and the
+disabled controls (`Portal_Permission::is_read_only()`) are affordance only; the server
+refusal is the boundary. A `#[Portal_Route]` page that handles a POST is not an Ajax
+endpoint and guards itself on `Portal_Session::is_impersonating()`.
 
 ## Accounts, invites and memberships (this app's model)
 

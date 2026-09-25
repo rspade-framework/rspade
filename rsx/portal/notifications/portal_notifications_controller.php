@@ -31,6 +31,7 @@ class Portal_Notifications_Controller extends Rsx_Controller_Abstract
      *   since       ISO  - created_at > since ("what's new since last login")
      */
     #[Ajax_Endpoint]
+    #[Portal_Impersonation_Readable]
     public static function feed(Request $request, array $params = [])
     {
         $portal_user_id = Portal_Permission::current_user_id();
@@ -71,6 +72,7 @@ class Portal_Notifications_Controller extends Rsx_Controller_Abstract
      * Unread count only (cheap polling / badge).
      */
     #[Ajax_Endpoint]
+    #[Portal_Impersonation_Readable]
     public static function unread_count(Request $request, array $params = [])
     {
         $portal_user_id = Portal_Permission::current_user_id();
@@ -84,10 +86,6 @@ class Portal_Notifications_Controller extends Rsx_Controller_Abstract
     #[Ajax_Endpoint]
     public static function mark_read(Request $request, array $params = [])
     {
-        if (Portal_Permission::is_read_only()) {
-            return response_unauthorized('This is a read-only session; changes are disabled.');
-        }
-
         $notification_id = isset($params['id']) ? (int) $params['id'] : 0;
         if ($notification_id <= 0) {
             return response_error(Ajax::ERROR_VALIDATION, 'Notification id is required');
@@ -108,10 +106,6 @@ class Portal_Notifications_Controller extends Rsx_Controller_Abstract
     #[Ajax_Endpoint]
     public static function mark_all_read(Request $request, array $params = [])
     {
-        if (Portal_Permission::is_read_only()) {
-            return response_unauthorized('This is a read-only session; changes are disabled.');
-        }
-
         $portal_user_id = Portal_Permission::current_user_id();
         $count = Portal_Notification_Model::mark_all_read($portal_user_id);
 

@@ -10,13 +10,13 @@ use Rsx\Models\Contact_Model;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: client_departments
  *
- * @property int $id
- * @property int $site_id
  * @property int $client_id
- * @property string $name
+ * @property string $created_at
  * @property int $created_by_id
  * @property int $created_by_type
- * @property string $created_at
+ * @property int $id
+ * @property string $name
+ * @property int $site_id
  * @property string $updated_at
  * @property int $updated_by_id
  * @property int $updated_by_type

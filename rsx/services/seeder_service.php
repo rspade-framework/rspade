@@ -17,6 +17,7 @@
 namespace Rsx\Services;
 
 use App\RSpade\Core\Models\User_Model;
+use App\RSpade\Core\Revisions\Revision;
 use App\RSpade\Core\Service\Rsx_Service_Abstract;
 use App\RSpade\Core\Task\Task;
 use App\RSpade\Core\Task\Task_Instance;
@@ -60,6 +61,9 @@ class Seeder_Service extends Rsx_Service_Abstract
         ];
 
         for ($i = 1; $i <= 20; $i++) {
+            // One revision-history entry per seeded client, not one for the whole task run.
+            Revision::begin_unit_of_work("Seeded client {$i}");
+
             $company_name = $company_names[array_rand($company_names)];
             $company_type = $company_types[array_rand($company_types)];
             $location = $cities[array_rand($cities)];
@@ -115,34 +119,39 @@ class Seeder_Service extends Rsx_Service_Abstract
         $titles = ['CEO', 'CTO', 'CFO', 'VP of Operations', 'Director of IT', 'Project Manager', 'Account Manager', 'Sales Director', 'Operations Manager', 'IT Manager'];
 
         foreach ($clients as $client) {
-            // Create 5-15 contacts per client
+            // Create 5-15 contacts per client, each client's batch its own unit of work in
+            // revision history (the closure form hands the task's own unit back afterwards).
             $contact_count = rand(5, 15);
 
-            for ($i = 0; $i < $contact_count; $i++) {
-                $first_name = $first_names[array_rand($first_names)];
-                $last_name = $last_names[array_rand($last_names)];
-                $email_local = strtolower($first_name . '.' . $last_name);
-                $domain = strtolower(str_replace(' ', '', $client->name)) . '.com';
+            Revision::unit_of_work("Seeded {$contact_count} contacts for {$client->name}", function () use (
+                $client, $contact_count, $first_names, $last_names, $titles, &$contacts_created
+            ) {
+                for ($i = 0; $i < $contact_count; $i++) {
+                    $first_name = $first_names[array_rand($first_names)];
+                    $last_name = $last_names[array_rand($last_names)];
+                    $email_local = strtolower($first_name . '.' . $last_name);
+                    $domain = strtolower(str_replace(' ', '', $client->name)) . '.com';
 
-                $contact = new Contact_Model();
-                $contact->site_id = $client->site_id;
-                $contact->client_id = $client->id;
-                $contact->first_name = $first_name;
-                $contact->last_name = $last_name;
-                $contact->title = $titles[array_rand($titles)];
-                $contact->email = $email_local . '@' . $domain;
-                $contact->email_secondary = rand(0, 1) ? $email_local . rand(1, 99) . '@' . $domain : null;
-                $contact->phone_work = sprintf('(%03d) %03d-%04d', rand(200, 999), rand(200, 999), rand(1000, 9999));
-                $contact->phone_cell = rand(0, 1) ? sprintf('(%03d) %03d-%04d', rand(200, 999), rand(200, 999), rand(1000, 9999)) : null;
-                $contact->phone_other = rand(0, 1) ? sprintf('(%03d) %03d-%04d', rand(200, 999), rand(200, 999), rand(1000, 9999)) : null;
-                $contact->is_active = rand(0, 10) > 1; // 90% active
-                $contact->priority = rand(Contact_Model::PRIORITY_LOW, Contact_Model::PRIORITY_URGENT);
-                $contact->notes = rand(0, 1) ? 'Test contact created by seeder' : null;
-                $contact->owner_user_id = 1;
-                $contact->save();
+                    $contact = new Contact_Model();
+                    $contact->site_id = $client->site_id;
+                    $contact->client_id = $client->id;
+                    $contact->first_name = $first_name;
+                    $contact->last_name = $last_name;
+                    $contact->title = $titles[array_rand($titles)];
+                    $contact->email = $email_local . '@' . $domain;
+                    $contact->email_secondary = rand(0, 1) ? $email_local . rand(1, 99) . '@' . $domain : null;
+                    $contact->phone_work = sprintf('(%03d) %03d-%04d', rand(200, 999), rand(200, 999), rand(1000, 9999));
+                    $contact->phone_cell = rand(0, 1) ? sprintf('(%03d) %03d-%04d', rand(200, 999), rand(200, 999), rand(1000, 9999)) : null;
+                    $contact->phone_other = rand(0, 1) ? sprintf('(%03d) %03d-%04d', rand(200, 999), rand(200, 999), rand(1000, 9999)) : null;
+                    $contact->is_active = rand(0, 10) > 1; // 90% active
+                    $contact->priority = rand(Contact_Model::PRIORITY_LOW, Contact_Model::PRIORITY_URGENT);
+                    $contact->notes = rand(0, 1) ? 'Test contact created by seeder' : null;
+                    $contact->owner_user_id = 1;
+                    $contact->save();
 
-                $contacts_created++;
-            }
+                    $contacts_created++;
+                }
+            });
         }
 
         return [
@@ -187,7 +196,7 @@ class Seeder_Service extends Rsx_Service_Abstract
                 $project = new Project_Model();
                 $project->site_id = $client->site_id;
                 $project->name = $project_words[array_rand($project_words)];
-                $project->description = Rich_Text::from_string('Seeded demo project for ' . $client->name);
+                $project->description = Rich_Text::from_plain_text('Seeded demo project for ' . $client->name);
                 $project->client_id = $client->id;
                 $project->status = $statuses[array_rand($statuses)];
                 $project->priority = rand(Project_Model::PRIORITY_LOW, Project_Model::PRIORITY_URGENT);
@@ -210,7 +219,7 @@ class Seeder_Service extends Rsx_Service_Abstract
                 $child = new Project_Model();
                 $child->site_id = $parent->site_id;
                 $child->name = $parent->name . ' - Phase 2';
-                $child->description = Rich_Text::from_string('Seeded subproject of ' . $parent->name);
+                $child->description = Rich_Text::from_plain_text('Seeded subproject of ' . $parent->name);
                 $child->client_id = $parent->client_id;
                 $child->parent_project_id = $parent->id;
                 $child->status = Project_Model::STATUS_ACTIVE;
@@ -312,7 +321,7 @@ class Seeder_Service extends Rsx_Service_Abstract
                 $t = new Task_Model();
                 $t->site_id = $project->site_id;
                 $t->title = $task_titles[array_rand($task_titles)];
-                $t->description = Rich_Text::from_string('Seeded demo task for project ' . $project->name);
+                $t->description = Rich_Text::from_plain_text('Seeded demo task for project ' . $project->name);
                 $t->taskable_type = 'Project_Model';
                 $t->taskable_id = $project->id;
                 $t->status = $status;
@@ -365,7 +374,7 @@ class Seeder_Service extends Rsx_Service_Abstract
                 $sub = new Task_Model();
                 $sub->site_id = $parent_task->site_id;
                 $sub->title = 'Subtask of: ' . $parent_task->title;
-                $sub->description = Rich_Text::from_string('Seeded task-of-task (chain derives its project).');
+                $sub->description = Rich_Text::from_plain_text('Seeded task-of-task (chain derives its project).');
                 $sub->taskable_type = 'Task_Model';
                 $sub->taskable_id = $parent_task->id;
                 $sub->status = Task_Model::STATUS_PENDING;
@@ -385,7 +394,7 @@ class Seeder_Service extends Rsx_Service_Abstract
                     $ct = new Task_Model();
                     $ct->site_id = $client->site_id;
                     $ct->title = 'Client-level task ' . ($i + 1);
-                    $ct->description = Rich_Text::from_string('Seeded task parented to a client (no chain project).');
+                    $ct->description = Rich_Text::from_plain_text('Seeded task parented to a client (no chain project).');
                     $ct->taskable_type = 'Client_Model';
                     $ct->taskable_id = $client->id;
                     $ct->status = Task_Model::STATUS_PENDING;
@@ -405,7 +414,7 @@ class Seeder_Service extends Rsx_Service_Abstract
                 $ut = new Task_Model();
                 $ut->site_id = 1;
                 $ut->title = 'Personal follow-up';
-                $ut->description = Rich_Text::from_string('Seeded task parented to a user (no chain project).');
+                $ut->description = Rich_Text::from_plain_text('Seeded task parented to a user (no chain project).');
                 $ut->taskable_type = 'User_Model';
                 $ut->taskable_id = $user->id;
                 $ut->status = Task_Model::STATUS_PENDING;
@@ -423,7 +432,7 @@ class Seeder_Service extends Rsx_Service_Abstract
             $none = new Task_Model();
             $none->site_id = 1;
             $none->title = 'Unattached planning task';
-            $none->description = Rich_Text::from_string('Seeded task with no parent (project_id is user-set directly).');
+            $none->description = Rich_Text::from_plain_text('Seeded task with no parent (project_id is user-set directly).');
             $none->taskable_type = null;
             $none->taskable_id = null;
             $none->status = Task_Model::STATUS_PENDING;

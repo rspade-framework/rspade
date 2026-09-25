@@ -26,14 +26,10 @@ class Accept_Invite {
             try {
                 const response = await Accept_Invite_Controller.accept({code: code});
 
-                if (response._success) {
-                    // Redirect to the site dashboard
-                    window.location.href = response.redirect_url;
-                } else {
-                    await Modal.alert('Error', response.error || 'Failed to accept invitation');
-                }
+                // The call resolves with the endpoint's return value; a failure rejects
+                window.location.href = response.redirect_url;
             } catch (error) {
-                await Modal.alert('Error', 'An error occurred while accepting the invitation');
+                await Modal.alert('Error', error.message || 'An error occurred while accepting the invitation');
             }
         });
     }

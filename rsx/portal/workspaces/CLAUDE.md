@@ -40,12 +40,12 @@ the tab payload - the arguments are independent, and each endpoint enforces
 `this.data.error_data`. Sequencing them would only buy a second serial round-trip; it would
 buy no safety, because the second endpoint was never trusting the first.
 
-**The read-only guard is per mutating endpoint.** Every Ajax call is a POST, reads included,
-so a blanket block would break the portal. `Portal_Request_Threads_Controller::reply()`
-shows the shape — `if (Portal_Permission::is_read_only()) { ... }` as its first act — and
-the reply composer is additionally hidden client-side when the thread is closed or the
-caller's role cannot collaborate. Hiding the control is courtesy; the endpoint check is the
-enforcement.
+**Read-only impersonation is enforced by the framework, by default.** While a staff member
+views the portal as a client, every portal Ajax endpoint is refused unless it carries
+`#[Portal_Impersonation_Readable]` - the read endpoints here (`list`, `get`,
+`needs_response_for_user`) carry it and `reply()` does not. The reply composer is
+additionally hidden client-side when the thread is closed or the caller's role cannot
+collaborate. Hiding the control is courtesy; the server refusal is the enforcement.
 
 ## HOW TO CUSTOMIZE
 
@@ -54,8 +54,9 @@ enforcement.
   `NAV_CONFIG` row. Load through `Portal_Workspaces_Controller.get()` so the membership gate
   comes for free - alongside the tab's own fetch in one `Promise.all`, per above, and give
   the tab's endpoint its own `has_client_access()` check rather than leaning on that call.
-- **Every new write endpoint gets its own `is_read_only()` refusal.** Nothing adds it for
-  you, and staff impersonation is read-only by application policy, not framework policy.
+- **Every new READ endpoint gets `#[Portal_Impersonation_Readable]`**, or "View as Client"
+  cannot load it. A write endpoint gets nothing: it is refused during impersonation by
+  default.
 - **Never hand-scope a query by `site_id`** — the portal's site is declared in
   `rsx/portal_main.php` and every framework seam reads that declaration.
 - Restyle in `Portal_Workspace_Layout.scss` and the per-action SCSS; the thread screen is

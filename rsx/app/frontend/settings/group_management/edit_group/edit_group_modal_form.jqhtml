@@ -28,7 +28,7 @@ is what the user waits behind, and it is the form's own structure underneath.
     and the column says which component edits it. This form names no widget.
     --%>
     <Form_Field $label="Description">
-      <{User_Group_Model.editor_for('description')} $name="description" />
+      <{User_Group_Model.editor_component_for('description')} $name="description" />
     </Form_Field>
 
     <Form_Field $label="Members">

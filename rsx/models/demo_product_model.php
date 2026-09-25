@@ -14,16 +14,16 @@ use Rsx\Lib\TextTypes\RichText\Rich_Text;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: demo_products
  *
- * @property int $id
- * @property string $name
- * @property string $description
- * @property float $price
- * @property int $status_id
  * @property int $category_id
  * @property string $created_at
- * @property string $updated_at
  * @property int $created_by_id
  * @property int $created_by_type
+ * @property string $description
+ * @property int $id
+ * @property string $name
+ * @property float $price
+ * @property int $status_id
+ * @property string $updated_at
  * @property int $updated_by_id
  * @property int $updated_by_type
  *

@@ -44,7 +44,7 @@
                         around two literal tags is the right answer everywhere else.
                         --%>
                         <Form_Field $label="Description">
-                            <{Project_Model.editor_for('description')} $name="description"
+                            <{Project_Model.editor_component_for('description')} $name="description"
                                 $placeholder="Enter project description..." />
                         </Form_Field>
 
@@ -111,7 +111,7 @@
                     <Section $title="Notes">
                         <%-- Also derived from the column's declared type. --%>
                         <Form_Field $label="Internal Notes">
-                            <{Project_Model.editor_for('notes')} $name="notes" $rows=4
+                            <{Project_Model.editor_component_for('notes')} $name="notes" $rows=4
                                 $placeholder="Internal notes about this project..." />
                         </Form_Field>
                     </Section>

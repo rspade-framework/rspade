@@ -5,13 +5,13 @@
  * to a column whose $text_types entry is not Rich_Text is refused at the moment a value
  * arrives, rather than discovered when someone reads the rendered page.
  *
- * val() gets and sets a Rich_Text INSTANCE, never a string. Everything that used to be a
- * caller's responsibility now belongs to the type:
+ * val() gets and sets a Rich_Text INSTANCE, never a string. Everything a caller would
+ * otherwise have to handle belongs to the type:
  *
  *   - the write filter runs in Rich_Text (client-side at from_editor(), authoritatively
  *     again on the server), so no call site sanitizes before saving;
  *   - display goes through the type's PRINTER component, so no call site chooses between
- *     html() and safe_html();
+ *     escape_html() and sanitize_rich_text_html();
  *   - a server-rendered document uses Rich_Text::to_html(), so no Blade template decides
  *     whether to escape.
  *
@@ -74,10 +74,10 @@ class Wysiwyg_Input extends Form_Input_Abstract {
         // Content authored in this editor round-trips either way (Quill emits markup it
         // already understands), which is why this survived: it only bites HTML that
         // reached the column from somewhere else - an import, a migration through
-        // Rich_Text::from_string(), or a seed.
+        // Rich_Text::from_plain_text(), or a seed.
         //
         // "dangerously" refers to pasting untrusted HTML. This value was filtered by
-        // Rich_Text on write and again by safe_html() client-side, so what arrives here
+        // Rich_Text on write and again by sanitize_rich_text_html() client-side, so what arrives here
         // has already been through the trust boundary twice.
         this.quill.setContents([]);
         this.quill.clipboard.dangerouslyPasteHTML(raw);

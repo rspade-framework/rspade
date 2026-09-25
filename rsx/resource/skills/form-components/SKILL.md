@@ -154,7 +154,7 @@ function for such a value, and none should. See `rsx:man text_types`.
 anything else in both directions, so a column cannot silently be wired to the wrong widget.
 That is why `Raw_Text_Input` is a separate component rather than `<Text_Input $type="textarea">`:
 one input component edits one kind of value. A form can also skip naming the widget
-entirely - `<{Project_Model.editor_for('description')} $name="description" />` asks the
+entirely - `<{Project_Model.editor_component_for('description')} $name="description" />` asks the
 column's declared type which component edits it.
 
 ### Vendor libraries these inputs bring with them

@@ -24,7 +24,7 @@ rendered by the form.
     and the column says which component edits it. This form names no widget.
     --%>
     <Form_Field $label="Description">
-      <{User_Group_Model.editor_for('description')} $name="description" $placeholder="Optional group description" />
+      <{User_Group_Model.editor_component_for('description')} $name="description" $placeholder="Optional group description" />
     </Form_Field>
 
     <Form_Field $label="Members">

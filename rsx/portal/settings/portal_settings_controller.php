@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\Hash;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Portal\Portal_Session;
-use Rsx\Portal_Permission;
 
 /**
  * Portal_Settings_Controller - the portal account screen's endpoints: the caller's own
@@ -16,8 +15,9 @@ use Rsx\Portal_Permission;
  * Authorization: the class-level #[Auth('is_logged_in')] gate (portal realm) admits
  * only a logged-in portal user, at the framework seam, before any code here runs.
  * Every method then reads the SESSION's portal user - never a client-supplied id - so
- * a caller can only ever see or change their own account; the mutating methods
- * additionally refuse a read-only (staff impersonation) session.
+ * a caller can only ever see or change their own account. During a staff member's
+ * read-only "View as Client" session the framework refuses every endpoint not marked
+ * #[Portal_Impersonation_Readable] - here, the two writes.
  */
 #[Auth('is_logged_in')]
 class Portal_Settings_Controller extends Rsx_Controller_Abstract
@@ -26,6 +26,7 @@ class Portal_Settings_Controller extends Rsx_Controller_Abstract
      * Get current portal user's profile data
      */
     #[Ajax_Endpoint]
+    #[Portal_Impersonation_Readable]
     public static function get_profile(Request $request, array $params = [])
     {
         $user = Portal_Session::get_portal_user();
@@ -46,10 +47,6 @@ class Portal_Settings_Controller extends Rsx_Controller_Abstract
     #[Ajax_Endpoint]
     public static function change_password(Request $request, array $params = [])
     {
-        if (Portal_Permission::is_read_only()) {
-            return response_unauthorized('This is a read-only session; changes are disabled.');
-        }
-
         $user = Portal_Session::get_portal_user();
 
         $current = $params['current_password'] ?? '';
@@ -83,6 +80,7 @@ class Portal_Settings_Controller extends Rsx_Controller_Abstract
      * Get active sessions for current user
      */
     #[Ajax_Endpoint]
+    #[Portal_Impersonation_Readable]
     public static function get_sessions(Request $request, array $params = [])
     {
         // The facade owns the query, the ordering and the is_current stamp - the
@@ -109,10 +107,6 @@ class Portal_Settings_Controller extends Rsx_Controller_Abstract
     #[Ajax_Endpoint]
     public static function terminate_session(Request $request, array $params = [])
     {
-        if (Portal_Permission::is_read_only()) {
-            return response_unauthorized('This is a read-only session; changes are disabled.');
-        }
-
         $session_id = $params['session_id'] ?? null;
         if (!$session_id) {
             return response_error(Ajax::ERROR_VALIDATION, 'Session ID is required');

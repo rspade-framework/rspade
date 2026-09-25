@@ -191,7 +191,7 @@
                             </a>
                         <% } %>
                         <% if (_contact.client_id) { %>
-                            <a href="<%= Rsx.Route('Clients_View_Action', _contact.client_id) %>#tab=portal" class="btn btn-outline-secondary btn-sm">
+                            <a href="<%= Rsx.Route('Clients_View_Action', _contact.client_id, {tab: 'portal'}) %>" class="btn btn-outline-secondary btn-sm">
                                 <i class="bi bi-globe"></i> Manage Client Portal
                             </a>
                             <% if (_contact.portal_user_id) { %>

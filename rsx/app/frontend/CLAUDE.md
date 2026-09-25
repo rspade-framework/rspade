@@ -89,6 +89,10 @@ authored-empty `Recent` section is exempt), so a link the user's gates would den
 renders. Tighten a page's `@auth` and its nav entry disappears by itself — never
 hand-write a role test at the link site.
 
+**The header's user controls read `this.state.user`**, which `on_create()` takes from
+`window.rsxapp.user` (the hydrated `User_Model` every page publishes). The dropdown's
+Sign Out item is a plain GET link to `Login_Controller::logout`.
+
 **`scaffolded = true` on an action yields page width and padding to `Page_Scaffold`.**
 `on_action()` clears the content pane's width modifiers and, when the incoming action
 declares the flag, stamps `Frontend_Spa_Layout__page-content--scaffolded` instead of the

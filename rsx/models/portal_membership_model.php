@@ -11,15 +11,15 @@ use Rsx\Portal_Permission;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: portal_memberships
  *
- * @property int $id
- * @property int $site_id
- * @property int $portal_user_id
  * @property int $client_id
- * @property int $role_id
  * @property string $created_at
- * @property string $updated_at
  * @property int $created_by_id
  * @property int $created_by_type
+ * @property int $id
+ * @property int $portal_user_id
+ * @property int $role_id
+ * @property int $site_id
+ * @property string $updated_at
  * @property int $updated_by_id
  * @property int $updated_by_type
  *

@@ -20,30 +20,30 @@ use Rsx\Models\Party_Person_Detail_Model;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: parties
  *
- * @property int $id
- * @property int $site_id
- * @property int $type_id
- * @property string $name
- * @property string $email
- * @property string $phone
- * @property string $notes
  * @property string $created_at
- * @property string $updated_at
  * @property int $created_by_id
  * @property int $created_by_type
- * @property int $updated_by_id
- * @property int $updated_by_type
  * @property string $deleted_at
  * @property int $deleted_by_id
  * @property int $deleted_by_type
+ * @property string $email
+ * @property int $id
+ * @property string $name
+ * @property string $notes
+ * @property string $phone
+ * @property int $site_id
+ * @property int $type_id
+ * @property string $updated_at
+ * @property int $updated_by_id
+ * @property int $updated_by_type
+ * @property string $date_of_birth (detail: party_person_details)
  * @property string $first_name (detail: party_person_details)
  * @property string $last_name (detail: party_person_details)
  * @property string $title (detail: party_person_details)
- * @property string $date_of_birth (detail: party_person_details)
+ * @property int $employee_count (detail: party_company_details)
+ * @property string $industry (detail: party_company_details)
  * @property string $legal_name (detail: party_company_details)
  * @property string $tax_identifier (detail: party_company_details)
- * @property string $industry (detail: party_company_details)
- * @property int $employee_count (detail: party_company_details)
  *
  * @property-read string $type_id__label
  * @property-read string $type_id__constant

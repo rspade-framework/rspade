@@ -54,15 +54,15 @@ use Rsx\Portal_Permission;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: portal_request_threads
  *
- * @property int $id
- * @property int $site_id
  * @property int $client_id
- * @property string $title
- * @property int $status_id
+ * @property string $created_at
  * @property int $created_by_id
  * @property int $created_by_type
+ * @property int $id
  * @property string $last_activity_at
- * @property string $created_at
+ * @property int $site_id
+ * @property int $status_id
+ * @property string $title
  * @property string $updated_at
  * @property int $updated_by_id
  * @property int $updated_by_type

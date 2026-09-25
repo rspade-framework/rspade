@@ -80,7 +80,7 @@ class Groups_DataGrid extends DataGrid_Abstract
      * `description` is a declared Rich_Text column, so the record carries the value's
      * envelope and the list cannot do string work on it - a length test or a substring on
      * a value object throws. An excerpt is a PLAIN-TEXT rendition, and a plain-text
-     * rendition is made on the SERVER, where to_text() exists: description_excerpt is that
+     * rendition is made on the SERVER, where to_plain_text() exists: description_excerpt is that
      * extra key, under its own name. The envelope in `description` is left exactly as it
      * is - a list that needs the real value still has it.
      *
@@ -95,7 +95,7 @@ class Groups_DataGrid extends DataGrid_Abstract
             $group = User_Group_Model::find($record['id']);
             $record['member_count'] = $group->member_count();
 
-            $text = $group->description?->to_text();
+            $text = $group->description?->to_plain_text();
             $record['description_excerpt'] = $text === null || $text === ''
                 ? null
                 : (mb_strlen($text) > 50 ? mb_substr($text, 0, 50) . '...' : $text);

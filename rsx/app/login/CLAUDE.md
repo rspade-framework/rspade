@@ -133,7 +133,9 @@ it asks for a password after all.
 edit-user modal). `Rsx\Main::pre_dispatch()` bounces a flagged identity with no factor to
 `/login/two_factor_setup`, exempting impersonation and `Session::TYPE_PLAYWRIGHT` (rsx:debug's
 dev-auth logs in without a challenge and must not bounce). The handler-prefix check there
-covers `Rsx\App\Frontend` only, so this module is outside it and there is no loop.
+covers `Rsx\App\Frontend` only, so this module is outside it and there is no loop. The same
+hook also runs for bearer-key API calls (`$params['_handler']` is the API controller), and the
+prefix check leaves those alone: the interstitial is a page, and an API client cannot follow it.
 `login_two_factor_setup.js` mounts the chosen framework enrollment component and sends the user
 to `/` on `enrolled`/`registered`.
 

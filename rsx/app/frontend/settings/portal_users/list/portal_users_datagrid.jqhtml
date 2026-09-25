@@ -43,7 +43,7 @@
                     <div class="Portal_Users_DataGrid__memberships">
                         <% for (const m of row.memberships) { %>
                             <span class="Portal_Users_DataGrid__membership">
-                                <a href="<%= Rsx.Route('Clients_View_Action', m.client_id) %>#tab=portal"><%= m.client_name %></a>
+                                <a href="<%= Rsx.Route('Clients_View_Action', m.client_id, {tab: 'portal'}) %>"><%= m.client_name %></a>
                                 <span class="badge <%= m.role_id__badge %>"><%= m.role_id__label %></span>
                             </span>
                         <% } %>

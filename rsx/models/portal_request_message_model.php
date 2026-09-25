@@ -35,16 +35,16 @@ use Rsx\Models\Portal_Request_Thread_Model;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: portal_request_messages
  *
+ * @property int $author_id
+ * @property int $author_type
+ * @property string $body
+ * @property string $created_at
+ * @property int $created_by_id
+ * @property int $created_by_type
  * @property int $id
  * @property int $site_id
  * @property int $thread_id
- * @property int $author_type
- * @property int $author_id
- * @property string $body
- * @property string $created_at
  * @property string $updated_at
- * @property int $created_by_id
- * @property int $created_by_type
  * @property int $updated_by_id
  * @property int $updated_by_type
  *

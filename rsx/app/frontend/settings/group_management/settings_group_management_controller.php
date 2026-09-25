@@ -398,7 +398,7 @@ class Frontend_Settings_Group_Management_Controller extends Rsx_Controller_Abstr
                 // A declared text type refuses to BE a string, so a CSV cell asks for the
                 // plain rendition explicitly. No strip_tags() here, and nothing to keep in
                 // agreement with how the same column prints on a page.
-                $group->description?->to_text(),
+                $group->description?->to_plain_text(),
                 $group->member_count(),
                 $group->deletion_protection ? 'Yes' : 'No',
                 $group->created_at,

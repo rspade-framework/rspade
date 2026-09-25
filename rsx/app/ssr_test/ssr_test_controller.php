@@ -12,6 +12,7 @@ namespace Rsx\App\SsrTest;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Debug\Rsx_Diagnostics;
 use App\RSpade\Core\SSR\Rsx_SSR;
 use App\RSpade\Core\View\PageData;
 
@@ -50,11 +51,17 @@ class SSR_Test_Controller extends Rsx_Controller_Abstract
         } catch (\Exception $e) {
             $total_ms = round((microtime(true) - $start) * 1000, 1);
 
+            // The page is public: the renderer's message (paths, the Node server's
+            // address) is shown only to a caller Rsx_Diagnostics admits.
+            $error = Rsx_Diagnostics::caller_sees_detail()
+                ? $e->getMessage()
+                : 'Server-side render failed (error id ' . Rsx_Diagnostics::report_redacted($e, 'web') . ')';
+
             return rsx_view('SSR_Test_Index', [
                 'html' => '',
                 'timing' => [],
                 'total_ms' => $total_ms,
-                'error' => $e->getMessage(),
+                'error' => $error,
             ]);
         }
     }
@@ -70,7 +77,21 @@ class SSR_Test_Controller extends Rsx_Controller_Abstract
 
     // -----------------------------------------------------------------
     // Session cookie test endpoints
+    //
+    // Probes for the framework's http tests, which call them from this machine. They
+    // answer a loopback caller only (is_loopback_ip(): the peer and every forwarded hop):
+    // session-get-session-id mints a session row per call, and nobody else needs that.
     // -----------------------------------------------------------------
+
+    /**
+     * 404 for any caller that is not on this machine.
+     */
+    private static function _require_loopback(): void
+    {
+        if (!is_loopback_ip()) {
+            abort(404);
+        }
+    }
 
     /**
      * Noop endpoint - no session interaction at all.
@@ -79,6 +100,8 @@ class SSR_Test_Controller extends Rsx_Controller_Abstract
     #[Route('/ssr-test/session-noop', methods: ['GET'])]
     public static function session_noop(Request $request, array $params = [])
     {
+        static::_require_loopback();
+
         return response('OK', 200, ['Content-Type' => 'text/plain']);
     }
 
@@ -89,6 +112,8 @@ class SSR_Test_Controller extends Rsx_Controller_Abstract
     #[Route('/ssr-test/session-get-user-id', methods: ['GET'])]
     public static function session_get_user_id(Request $request, array $params = [])
     {
+        static::_require_loopback();
+
         \App\RSpade\Core\Session\Session::init();
         $user_id = \App\RSpade\Core\Session\Session::get_user_id();
         return response('user_id=' . ($user_id ?? 'null'), 200, ['Content-Type' => 'text/plain']);
@@ -101,6 +126,8 @@ class SSR_Test_Controller extends Rsx_Controller_Abstract
     #[Route('/ssr-test/session-get-session-id', methods: ['GET'])]
     public static function session_get_session_id(Request $request, array $params = [])
     {
+        static::_require_loopback();
+
         $session_id = \App\RSpade\Core\Session\Session::get_session_id();
         return response('session_id=' . $session_id, 200, ['Content-Type' => 'text/plain']);
     }

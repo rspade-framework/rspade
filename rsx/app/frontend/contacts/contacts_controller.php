@@ -175,8 +175,9 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
      *
      * Creates a throwaway, read-only-intended portal session for the contact's
      * linked portal user (stamped with the current staff user as impersonator) and
-     * returns a single-use claim URL for the caller to open in a new tab. The
-     * read-only experience itself is enforced portal-side (see portal_main.php).
+     * returns a single-use claim URL for the caller to open in a new tab. Read-only
+     * is enforced by the framework: while impersonating, a portal Ajax endpoint runs
+     * only if it is marked #[Portal_Impersonation_Readable].
      *
      * @param Request $request
      * @param array $params
@@ -277,8 +278,10 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
             //
             // The endpoint re-runs from scratch on the resubmission, so no state is held
             // between rounds: if the duplicate is still there, it is simply asked again.
+            // contacts.email is utf8mb4_unicode_ci, so the comparison is already
+            // case-insensitive and (site_id, email) serves it directly.
             $existing = Contact_Model::query()
-                ->whereRaw('LOWER(email) = ?', [mb_strtolower(trim($params['email']))])
+                ->where('email', trim($params['email']))
                 ->orderBy('id')
                 ->first();
 
@@ -307,9 +310,8 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
                 }
             }
 
-            // Create new contact
+            // Create new contact (site_id is stamped by the site-scoped model on save)
             $contact = new Contact_Model();
-            $contact->site_id = 1; // Default site
         }
 
         // Set all fields explicitly

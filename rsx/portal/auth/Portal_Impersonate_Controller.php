@@ -25,8 +25,9 @@ use App\RSpade\Core\Portal\Rsx_Portal;
  *   - stop:  end the impersonation (clears the portal properties, leaving the staff
  *     login on the same browser session alone) and show a "you may close this tab" page.
  *
- * Read-only enforcement is NOT here - it lives at the portal's mutating endpoints
- * via Portal_Permission::is_read_only(). See: php artisan rsx:man portal.
+ * Read-only enforcement is NOT here - the framework refuses every portal Ajax endpoint
+ * not marked #[Portal_Impersonation_Readable] while the session is impersonating
+ * (Ajax::execute). See: php artisan rsx:man portal.
  *
  * Public gate: both routes are reached WITHOUT a prior portal login (claim mints the
  * session; stop must work even after the session is gone).

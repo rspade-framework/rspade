@@ -18,6 +18,9 @@ class Frontend_Spa_Layout extends Spa_Layout {
         this._current_chain = null; // Track current chain for progressive updates
         this._current_url = null;   // Track current URL for caching
         this.state = {
+            // The signed-in site user (a hydrated User_Model), published on every page as
+            // window.rsxapp.user - the header's profile link and user dropdown read it.
+            user: window.rsxapp.user || null,
             nav_sections: [
                 {
                     title: 'Overview',

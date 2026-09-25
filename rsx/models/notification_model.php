@@ -3,6 +3,7 @@
 namespace Rsx\Models;
 
 use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
+use App\RSpade\Core\Session\Session;
 
 /**
  * Notification_Model - User notifications with type-based rendering
@@ -11,8 +12,8 @@ use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
  * Each notification type has a renderer method that returns structured
  * data (text, URL, optional image) for flexible display.
  *
- * Self-policing: Notifications automatically validate their entity
- * during fetch operations, deleting invalid notifications.
+ * Self-policing: Notification::get_for_dropdown() validates each notification's entity
+ * and deletes the invalid ones; fetch() only reports them absent.
  */
 
 
@@ -20,21 +21,21 @@ use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: notifications
  *
- * @property int $id
- * @property int $site_id
- * @property int $user_id
- * @property int $type_id
- * @property int $entity_type
- * @property int $entity_id
- * @property array $metadata
- * @property string $read_at
- * @property string $expires_at
+ * @property string $created_at
  * @property int $created_by_id
  * @property int $created_by_type
- * @property string $created_at
+ * @property int $entity_id
+ * @property int $entity_type
+ * @property string $expires_at
+ * @property int $id
+ * @property array $metadata
+ * @property string $read_at
+ * @property int $site_id
+ * @property int $type_id
  * @property string $updated_at
  * @property int $updated_by_id
  * @property int $updated_by_type
+ * @property int $user_id
  *
  * @property-read string $type_id__label
  * @property-read string $type_id__constant
@@ -243,22 +244,23 @@ class Notification_Model extends Rsx_Site_Model_Abstract
     }
 
     /**
-     * Ajax model fetch - allows JavaScript to load notification records
+     * Ajax model fetch - allows JavaScript to load the caller's OWN notification records
      *
-     * Self-polices: deletes invalid notifications and returns false
+     * A notification belongs to one recipient (user_id holds a login_users id): anybody
+     * else is answered exactly as a missing row. An invalid notification (its entity is
+     * gone) is reported absent too, but never deleted here - a read has no side effects;
+     * the cleanup is Notification::get_for_dropdown()'s self-policing.
      */
     #[Ajax_Endpoint_Model_Fetch]
     public static function fetch($id)
     {
         $notification = static::find($id);
 
-        if (!$notification) {
+        if (!$notification || (int) $notification->user_id !== (int) Session::get_login_user_id()) {
             return false;
         }
 
-        // Self-police: delete if entity no longer valid
         if (!$notification->is_valid()) {
-            $notification->delete();
             return false;
         }
 

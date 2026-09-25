@@ -41,9 +41,11 @@ dispatcher, bundle, layout, routing attributes and permission facade.
   so they follow that rebrand with no work of their own. The portal composes the SAME theme components as the staff
   app — see `rsx/theme/components/view/CLAUDE.md` and the other group files for the widget
   vocabulary rather than building portal-only variants.
-- **Every mutating endpoint guards on `Portal_Permission::is_read_only()` itself.** Every
-  Ajax call is a POST, reads included, so a blanket POST block would break the portal;
-  read-only impersonation is application policy, and nothing adds the check for you.
+- **"View as Client" is read-only by default, enforced by the framework.** While the session
+  is impersonating, every portal Ajax endpoint is refused unless it is marked
+  `#[Portal_Impersonation_Readable]`; mark each READ endpoint you add, and leave writes
+  unmarked. A forgotten mark fails safe (the read is refused) rather than leaving a write
+  open. `Portal_Permission::is_read_only()` drives the banner and disabled controls.
 - Per-client rules are record-level predicates called in the endpoint body after the gates
   pass (`has_client_access()`, `can_collaborate()`, `client_role()`,
   `accessible_client_ids()`), all defined in `rsx/portal_permission.php`.

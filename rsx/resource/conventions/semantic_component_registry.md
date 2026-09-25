@@ -306,7 +306,7 @@ group remains a Clients/Dashboard feature (entities that own counts).
   "Add Team Member"/"Add Task" (all unwired, no handler, copy-paste chrome).
 - **[FIXED] Projects description is a WYSIWYG HTML field** rendered via `<%!= %>`;
   project 1's value is `<p><br></p>` (effectively empty) and showed a blank Description
-  card. Now renders `safe_html()` and the Section is guarded on visible-text
+  card. Now renders `sanitize_rich_text_html()` and the Section is guarded on visible-text
   (`$('<div>').html(desc).text().trim()`), so an empty-HTML description hides the
   section instead of showing an empty one.
 - **[ENHANCED] Party discriminator surfaced properly:** the detail-table `type_id`

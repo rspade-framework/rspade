@@ -16,7 +16,7 @@ finds the page for the status the request ended on, and invokes the method itsel
 | `errors_not_found.blade.php` | `Errors_Not_Found` — 404. |
 | `errors_forbidden.blade.php` | `Errors_Forbidden` — 403, plus a "Sign in as a different user" link to `Login_Controller::logout`. |
 | `errors_expired.blade.php` | `Errors_Expired` — 419, the CSRF failure on a native form POST. |
-| `errors_generic.blade.php` | `Errors_Generic` — every status with no exact page: 400, 500, 429, anything `abort()` raised. Renders `$error->detail` when the context carries one. |
+| `errors_generic.blade.php` | `Errors_Generic` — every status with no exact page: 400, 500, 429, anything `abort()` raised. Renders `$error->detail` when the context carries one, and `$error->error_id` as a reference line when it does not. |
 
 There is no `/error/500`, deliberately: the generic page answers it, which is what makes
 the fallback visible in the template rather than theoretical.
@@ -43,7 +43,8 @@ to read:
 | `realm` | Staff or portal. |
 | `home_url` | The realm's home — the staff root here. |
 | `preview` | True when this is a development browse of `/error/<code>`. |
-| `detail` | `{class, message, file, line, frames[]}`, for a 500 only, and NULL in every sealed build (debug and production). |
+| `detail` | `{class, message, file, line, frames[]}`, for a 500 only, and only for a DEVELOPER caller outside production (`Rsx_Diagnostics::caller_sees_detail()`: a signed-in developer, a valid `rsx:debug` credential, a loopback caller). NULL for everybody else. |
+| `error_id` | The reference a redacted 500's detail was logged under (`[error_id=...]` in the log). NULL when `detail` is shown. |
 
 The blades are passed `['error' => $error]`, and Blade hands the same data to the layout,
 which is why `errors_layout.blade.php` can read `$error->home_url` and `$error->status`
@@ -53,7 +54,8 @@ without every page re-yielding them.
 and the page is fully inspectable with curl. So a page shows what the context carries and
 nothing else: no record lookup, no session chrome, no "you were trying to reach X" beyond
 the path the context already holds. `detail` is redacted server-side, which is why
-`errors_generic.blade.php` needs no mode check.
+`errors_generic.blade.php` needs no caller check; it prints `error_id` as a "Reference"
+line instead.
 
 **Preview, development only.** Browse `/error/404`, `/error/403`, `/error/419` or
 `/error/generic` to see a page against a fabricated context; the generic preview renders as

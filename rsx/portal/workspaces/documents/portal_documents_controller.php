@@ -43,6 +43,7 @@ class Portal_Documents_Controller extends Rsx_Controller_Abstract
      * are excluded.
      */
     #[Ajax_Endpoint]
+    #[Portal_Impersonation_Readable]
     public static function list(Request $request, array $params = [])
     {
         $client_id = isset($params['client_id']) ? (int) $params['client_id'] : 0;

@@ -10,7 +10,7 @@ use App\RSpade\Core\Database\TextTypes\Rsx_Text_Abstract;
  *
  * The simplest possible text type, and the one to declare on a column that holds notes,
  * a description or an address typed into a textarea. The storage form IS the text, so
- * to_text() is the identity and there is nothing to filter.
+ * to_plain_text() is the identity and there is nothing to filter.
  *
  * Declaring it rather than leaving the column undeclared is not decoration. It buys:
  *
@@ -31,26 +31,27 @@ class Raw_Text extends Rsx_Text_Abstract
      * beside it, never something a type inherits by forgetting.
      *
      * The reason it is safe here: plain text is never rendered as markup. The printer
-     * escapes it, to_html() escapes it, and to_text() is the identity. There is no
-     * encoding to enforce and nothing an input could contain that the sinks would
-     * interpret. If this type ever grew an encoding, this is the first line to change.
+     * escapes it and to_plain_text() is the identity; the type defines no to_html(), so no
+     * server-side sink renders it at all. There is no encoding to enforce and nothing an
+     * input could contain that the sinks would interpret. If this type ever grew an
+     * encoding, this is the first line to change.
      *
      * @param string $raw
      * @return string
      */
-    public static function filter_set(string $raw): string
+    public static function sanitize_encoded(string $raw): string
     {
         return $raw;
     }
 
     /**
      * Plain text -> plain text: a PASSTHROUGH, written down on purpose for the same reason
-     * as filter_set(). The encoding IS plain text, so a bare string is already in it.
+     * as sanitize_encoded(). The encoding IS plain text, so a bare string is already in it.
      *
      * @param string $plain
      * @return string
      */
-    public static function escape_string(string $plain): string
+    public static function encode_plain_text(string $plain): string
     {
         return $plain;
     }
@@ -60,7 +61,7 @@ class Raw_Text extends Rsx_Text_Abstract
      *
      * @return string
      */
-    public function to_text(): string
+    public function to_plain_text(): string
     {
         return $this->raw;
     }

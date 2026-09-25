@@ -5,6 +5,7 @@ namespace Rsx\App\Api\V1;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Api\Rsx_Api;
 use App\RSpade\Core\Api\Rsx_Api_Controller_Abstract;
+use Rsx\Models\Client_Model;
 use Rsx\Models\Contact_Model;
 
 /**
@@ -164,6 +165,12 @@ class Contacts_Api_Controller extends Rsx_Api_Controller_Abstract
             return Rsx_Api::validation_error(['email' => 'Please enter a valid email address']);
         }
 
+        // The client must be one of the caller's site's: the site-scoped find answers
+        // null for a client of another site, exactly as for one that does not exist.
+        if (!Client_Model::find($params['client_id'])) {
+            return Rsx_Api::validation_error(['client_id' => 'No such client']);
+        }
+
         $contact = new Contact_Model();
 
         // Explicit field assignment (no mass assignment). site_id is stamped by the
@@ -251,6 +258,11 @@ class Contacts_Api_Controller extends Rsx_Api_Controller_Abstract
             } elseif (!filter_var($params['email'], FILTER_VALIDATE_EMAIL)) {
                 $errors['email'] = 'Please enter a valid email address';
             }
+        }
+        // The client must be one of the caller's site's (site-scoped find: another site's
+        // client is null, exactly as a missing one).
+        if (array_key_exists('client_id', $params) && !Client_Model::find($params['client_id'])) {
+            $errors['client_id'] = 'No such client';
         }
         if (!empty($errors)) {
             return Rsx_Api::validation_error($errors);

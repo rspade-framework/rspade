@@ -20,17 +20,17 @@ use Rsx\Models\Action_Log_Related_Model;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: action_logs
  *
- * @property int $id
- * @property int $site_id
- * @property int $type_id
- * @property int $actor_type
  * @property int $actor_id
- * @property int $subject_type
- * @property int $subject_id
- * @property array $metadata
+ * @property int $actor_type
+ * @property string $created_at
  * @property int $created_by_id
  * @property int $created_by_type
- * @property string $created_at
+ * @property int $id
+ * @property array $metadata
+ * @property int $site_id
+ * @property int $subject_id
+ * @property int $subject_type
+ * @property int $type_id
  * @property string $updated_at
  * @property int $updated_by_id
  * @property int $updated_by_type

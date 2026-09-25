@@ -15,16 +15,16 @@ use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: project_users
  *
- * @property int $id
- * @property int $site_id
- * @property int $project_id
- * @property int $user_id
  * @property string $created_at
- * @property string $updated_at
  * @property int $created_by_id
  * @property int $created_by_type
+ * @property int $id
+ * @property int $project_id
+ * @property int $site_id
+ * @property string $updated_at
  * @property int $updated_by_id
  * @property int $updated_by_type
+ * @property int $user_id
  *
  * @mixin \Eloquent
  */

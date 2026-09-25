@@ -61,7 +61,7 @@ class Text_Type_Assignment_Test extends Rsx_Test_Abstract
      */
     private static function __request_value(string $claimed, string $raw, bool $empty = false): Rsx_Text_Request_Value
     {
-        return Rsx_Text_Abstract::hydrate_request_value([
+        return Rsx_Text_Abstract::wrap_request_envelopes([
             'v' => ['__TEXT' => $claimed, 'raw' => $raw, 'empty' => $empty],
         ])['v'];
     }
@@ -101,7 +101,7 @@ class Text_Type_Assignment_Test extends Rsx_Test_Abstract
         $project->description = static::__request_value('Rich_Text', $hostile);
         $via_wrapper = $project->description->to_storage();
 
-        $project->description = Rich_Text::from_untrusted($hostile);
+        $project->description = Rich_Text::from_untrusted_encoded($hostile);
         $via_explicit = $project->description->to_storage();
 
         static::__assert_equals($via_explicit, $via_wrapper, 'the wrapper path and the explicit encoded path are the same filter');
@@ -119,12 +119,12 @@ class Text_Type_Assignment_Test extends Rsx_Test_Abstract
         $project->description = "Contact <john@acme.com>\nre: <b>billing</b>";
 
         static::__assert_equals(
-            Rich_Text::from_string("Contact <john@acme.com>\nre: <b>billing</b>")->to_storage(),
+            Rich_Text::from_plain_text("Contact <john@acme.com>\nre: <b>billing</b>")->to_storage(),
             $project->description->to_storage(),
-            'assignment of a bare string is from_string()'
+            'assignment of a bare string is from_plain_text()'
         );
-        static::__assert_true(str_contains($project->description->to_text(), 'Contact <john@acme.com>'), 'the address survives as text');
-        static::__assert_true(str_contains($project->description->to_text(), 're: <b>billing</b>'), 'the tag survives as literal text');
+        static::__assert_true(str_contains($project->description->to_plain_text(), 'Contact <john@acme.com>'), 'the address survives as text');
+        static::__assert_true(str_contains($project->description->to_plain_text(), 're: <b>billing</b>'), 'the tag survives as literal text');
         static::__assert_true(str_contains($project->description->to_storage(), '<br'), 'the line break survives as a break');
     }
 
@@ -159,7 +159,7 @@ class Text_Type_Assignment_Test extends Rsx_Test_Abstract
     public static function test_a_typed_value_refuses_to_be_a_string_so_a_lossy_write_cannot_happen()
     {
         $project = static::__seed_project();
-        $project->description = Rich_Text::from_untrusted('<p>keep <b>this</b></p>');
+        $project->description = Rich_Text::from_untrusted_encoded('<p>keep <b>this</b></p>');
 
         // The write this guards against: concatenation would strip the markup and store
         // something that looks fine. It must throw before it can reach the cast.

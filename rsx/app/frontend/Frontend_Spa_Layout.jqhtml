@@ -54,9 +54,9 @@
                     <div class="me-3">
                         <a href="<%= Rsx.Route('Settings_Profile_Display_Action') %>"
                             class="Frontend_Spa_Layout__user-profile-link">
-                            <% if (this.args.user && this.args.user.profile_photo_attachment_id) { %>
+                            <% if (this.state.user && this.state.user.profile_photo_attachment_id) { %>
                                 <Attachment_Thumbnail class="Frontend_Spa_Layout__user-profile-icon Frontend_Spa_Layout__user-profile-icon--image"
-                                    $attachment_id=int(this.args.user.profile_photo_attachment_id) $type="cover" $width=32 $height=32 $alt="Profile" />
+                                    $attachment_id=int(this.state.user.profile_photo_attachment_id) $type="cover" $width=32 $height=32 $alt="Profile" />
                             <% } else { %>
                                 <div class="Frontend_Spa_Layout__user-profile-icon">
                                     <i class="bi bi-person-circle"></i>
@@ -68,28 +68,30 @@
                     <%-- User Dropdown --%>
                     <div class="dropdown">
                         <button class="btn btn-sm dropdown-toggle" data-bs-toggle="dropdown" type="button">
-                            <% if (this.args.user) { %>
-                                <%= this.args.user.email.split('@')[0] %>
+                            <% if (this.state.user) { %>
+                                <%= this.state.user.email.split('@')[0] %>
                             <% } else { %>
                                 Guest
                             <% } %>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow">
-                            <% if (this.args.user) { %>
+                            <% if (this.state.user) { %>
                                 <li>
                                     <a class="dropdown-item" href="<%= Rsx.Route('Settings_Profile_Display_Action') %>">
                                         <i class="bi bi-person"></i> My Profile
                                     </a>
                                 </li>
 
-                                <li><a class="dropdown-item"
-                                        href="<%= Rsx.Route('Settings_General_Action') %>">
+                                <li>
+                                    <a class="dropdown-item" href="<%= Rsx.Route('Settings_General_Action') %>">
                                         <i class="bi bi-gear"></i> My Settings
-                                </a></li>
+                                    </a>
+                                </li>
                                 <li>
                                     <hr class="dropdown-divider">
                                 </li>
-                                <li><a class="dropdown-item" href="<%= Rsx.Route('Login_Controller::logout') %>">
+                                <li>
+                                    <a class="dropdown-item" href="<%= Rsx.Route('Login_Controller::logout') %>">
                                         <i class="bi bi-box-arrow-right"></i> Sign Out
                                     </a>
                                 </li>

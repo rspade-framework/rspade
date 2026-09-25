@@ -21,7 +21,7 @@ use Rsx\Models\User_Group_Model;
  * Text_Type_Assignment_Test pins what a declared column DOES, on Project_Model. This pins
  * the three columns that joined it, plus the one thing only a conversion can get wrong:
  * the migration rewrote existing rows in SQL, and SQL has to produce exactly what
- * Rich_Text::from_string() produces. A drift there is silent - the row is valid HTML
+ * Rich_Text::from_plain_text() produces. A drift there is silent - the row is valid HTML
  * either way, it is just not the HTML the type would have written, and a user's literal
  * `5 < 6` turns into a broken tag with nothing to report it.
  */
@@ -134,7 +134,7 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
         ];
 
         foreach ($records as $table => $record) {
-            $record->description = Rich_Text::from_untrusted($hostile);
+            $record->description = Rich_Text::from_untrusted_encoded($hostile);
 
             $stored = $record->description->to_storage();
 
@@ -151,10 +151,10 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
     public static function test_to_text_reduces_a_stored_value_to_plain_text()
     {
         $group = static::__seed_group();
-        $group->description = Rich_Text::from_untrusted('<p>first block</p><p>second <b>block</b></p>');
+        $group->description = Rich_Text::from_untrusted_encoded('<p>first block</p><p>second <b>block</b></p>');
         $group->save();
 
-        $text = User_Group_Model::find($group->id)->description->to_text();
+        $text = User_Group_Model::find($group->id)->description->to_plain_text();
 
         static::__assert_false(str_contains($text, '<'), 'no markup survives');
         static::__assert_contains('first block', $text);
@@ -168,7 +168,7 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
     public static function test_an_empty_document_is_empty_by_content_not_by_string()
     {
         $task = static::__seed_task();
-        $task->description = Rich_Text::from_untrusted('<p><br></p>');
+        $task->description = Rich_Text::from_untrusted_encoded('<p><br></p>');
 
         static::__assert_true($task->description->is_empty(), 'the type knows its own encoding');
         static::__assert_false($task->description->to_storage() === '', 'and the string it holds is not empty');
@@ -177,7 +177,7 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
     /**
      * THE MIGRATION. A row is seeded in the OLD plain-text form with a raw UPDATE (which
      * bypasses the cast exactly as a pre-conversion row did), the migration's own SQL
-     * expression is applied to it, and the result must equal what Rich_Text::from_string()
+     * expression is applied to it, and the result must equal what Rich_Text::from_plain_text()
      * produces for the same input - character for character.
      *
      * The fixture carries every character the expression treats specially: an ampersand,
@@ -203,13 +203,13 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
         $migrated = DB::table('demo_products')->where('id', $product->id)->value('description');
 
         static::__assert_equals(
-            Rich_Text::from_string($plain)->to_storage(),
+            Rich_Text::from_plain_text($plain)->to_storage(),
             $migrated,
             'the SQL and the type agree on what plain text becomes'
         );
 
         // And the re-encoded row reads back as a real value that still carries every
-        // character of the original. Not an equality against $plain: to_text() reads a
+        // character of the original. Not an equality against $plain: to_plain_text() reads a
         // <br /> AND the newline beside it as block boundaries, so the rendition of a
         // re-encoded value has the paragraph shape of the HTML, not of the plain text it
         // came from. What must not happen is content going missing or an escape leaking
@@ -218,7 +218,7 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
 
         static::__assert_instance_of(Rich_Text::class, $reloaded->description);
 
-        $text = $reloaded->description->to_text();
+        $text = $reloaded->description->to_plain_text();
 
         foreach (['a & b < c > d "quoted" and \'single\'', 'second line', 'fourth line'] as $fragment) {
             static::__assert_contains($fragment, $text, 'the re-encode kept: ' . $fragment);
@@ -247,7 +247,7 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
         foreach ($cases as $label => $plain) {
             $sql = DB::selectOne('SELECT ' . self::MIGRATION_EXPRESSION . ' AS v', [$plain])->v;
 
-            static::__assert_equals(Rich_Text::from_string($plain)->to_storage(), $sql, $label);
+            static::__assert_equals(Rich_Text::from_plain_text($plain)->to_storage(), $sql, $label);
         }
     }
 }

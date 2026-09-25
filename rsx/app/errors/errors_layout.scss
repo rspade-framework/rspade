@@ -51,6 +51,13 @@
         color: var(--bs-secondary-color);
     }
 
+    .Errors_Layout__reference {
+        @include rsx-text-mono;
+
+        margin: $spacing-sm 0 0;
+        font-size: $font-size-xs;
+    }
+
     .Errors_Layout__actions {
         display: flex;
         flex-wrap: wrap;
