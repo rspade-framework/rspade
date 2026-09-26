@@ -57,6 +57,14 @@ class Portal_Invitation_Model extends Rsx_Site_Model_Abstract
     public static $unbounded = true;
 
     /**
+     * Columns toArray() never sends to the browser. invitation_code is a bearer credential: whoever holds it can register against the invitation. It reaches its owner only
+     * inside the emailed link.
+     *
+     * @var string[]
+     */
+    protected $neverExport = ['invitation_code'];
+
+    /**
      * _AUTO_GENERATED_ Enum constants
      */
     const STATUS_PENDING = 1;

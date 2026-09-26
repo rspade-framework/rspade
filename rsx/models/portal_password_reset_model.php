@@ -57,6 +57,14 @@ class Portal_Password_Reset_Model extends Rsx_Site_Model_Abstract
      */
     public static $unbounded = true;
 
+    /**
+     * Columns toArray() never sends to the browser. token is a bearer credential: whoever holds it can set the account's password. It reaches its owner only
+     * inside the emailed link.
+     *
+     * @var string[]
+     */
+    protected $neverExport = ['token'];
+
     protected $table = 'portal_password_resets';
     protected $fillable = []; // No mass assignment - always explicit
 

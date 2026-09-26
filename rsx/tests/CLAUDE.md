@@ -39,6 +39,8 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   only) and `Notification_Recipient_Test` (`Notification::send()` and every reader agree
   that `user_id` is a LOGIN identity id; the subject's site-user id is forced to differ so
   a reader keyed on the wrong id cannot pass by coincidence).
+- **Credentials never serialize**: `Portal_Credential_Never_Export_Test` (a portal user's
+  password, an invitation's code and a reset's token are absent from `toArray()` and its JSON).
 - **Portal**: `Portal_Workspaces_Test`, `Portal_Documents_Test`,
   `Portal_Request_Threads_Test`, `Portal_Invitation_Lifecycle_Test` (including the hourly expiry reaching
   every site's invitations),
