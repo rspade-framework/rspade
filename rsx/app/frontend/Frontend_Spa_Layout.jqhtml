@@ -30,6 +30,9 @@
 
     <%-- Main Content Area --%>
     <div class="Frontend_Spa_Layout__content">
+        <%-- Shown only while the session is signed in as another user --%>
+        <Impersonation_Banner />
+
         <%-- Top Header Navbar --%>
         <nav class="Frontend_Spa_Layout__header navbar navbar-expand bg-dark navbar-dark">
             <div class="container-fluid">

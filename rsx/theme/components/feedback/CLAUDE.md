@@ -19,10 +19,12 @@
   `generic_error_page_component` (the fallback for any unrecognised code).
   Two of them carry SCSS (`generic_`, `php_exception_`); the rest are Bootstrap utility
   markup.
+- `errors/error_screen_components.js` — `Error_Screen_Components`: registers three of those
+  bodies as the SPA's error screens (see HOW IT IS USED).
 
 ## HOW IT IS USED
 
-Two callers, both outside this directory:
+Two callers:
 
 1. **The three-state page pattern** — an action catches into `this.data.error_data` and
    its template renders `<Loading_Spinner>` / `<Universal_Error_Page_Component>` / the
@@ -32,10 +34,12 @@ Two callers, both outside this directory:
 2. **The framework's SPA error screens** — `system/app/RSpade/Core/SPA/Error_Screens.js`
    mounts `Unauthorized_Error_Page_Component`, `Not_Found_Error_Page_Component` and
    `Generic_Error_Page_Component` into the live layout's content area when a gate denies an
-   action, no action matches the URL, or an action fails to boot. **The bodies are
-   app-owned theme code: the framework only resolves the container and mounts the component
-   by name**, so each error class's page is replaceable by editing the component here — no
-   override machinery on the SPA side.
+   action, no action matches the URL, or an action fails to boot. It mounts them because
+   `errors/error_screen_components.js` (`Error_Screen_Components`) REGISTERS them, from a
+   static `on_app_modules_define()`, with `Error_Screens.set_components()`. **The bodies are
+   app-owned theme code: the framework only resolves the container and mounts what was
+   registered** — every bundle that includes `rsx/theme` carries the registration, and one
+   that registered nothing throws the first time it needs an error screen.
 
 **The server-rendered twins live in `rsx/app/errors/`** (and `rsx/portal/errors/` for the
 portal realm): Blade pages the framework invokes when a request ends on a status before any
@@ -48,8 +52,9 @@ not be able to tell that two different systems answered.
 ## HOW TO CUSTOMIZE
 
 - **Rebrand an error page**: edit that component's `.jqhtml`. Keep the component NAME and
-  its argument names — `Error_Screens.js` and `Universal_Error_Page_Component` both mount
-  by name, and a rename silently breaks the mount.
+  its argument names — `Universal_Error_Page_Component` mounts by name, and a rename breaks
+  that mount. A rename or a different SPA error body is also a one-line change to
+  `error_screen_components.js`.
 - **Add a new error outcome**: add the body component, then add its branch to
   `universal_error_page_component.jqhtml`; the `Ajax.ERROR_*` codes themselves are the
   framework's (`rspade:ajax-error-handling`).

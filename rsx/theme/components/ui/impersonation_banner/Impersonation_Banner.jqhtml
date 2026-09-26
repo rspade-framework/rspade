@@ -1,0 +1,35 @@
+<%--
+Impersonation_Banner - the strip that says this session is signed in AS someone else.
+
+Renders nothing unless the framework's window.rsxapp.impersonation block is set (a staff
+session between Session::begin_impersonation() and stop_impersonation()). Read at render,
+and every impersonation begin or stop is a full page load, so there is nothing to watch.
+
+It names the effective user (window.rsxapp.user, already the impersonated membership) and
+the real principal behind the session (impersonator_email), and links "Stop impersonating"
+to the system panel's stop route - the one way this application begins an impersonation
+is the panel's "Sign in as this user", and that route hands the developer back their own
+identity and site and lands on the user they were viewing. The link is a STRING route
+target (Rsx.Route('_Sys_Impersonation_Controller::stop')), published into every bundle by
+the framework; an application that adds its own staff impersonation links its own stop
+here instead.
+
+No arguments.
+
+    <Impersonation_Banner />
+--%>
+<Define:Impersonation_Banner tag="div">
+    <% const _imp = window.rsxapp.impersonation; %>
+    <% if (_imp) { %>
+        <div class="Impersonation_Banner__bar" role="status">
+            <i class="bi bi-incognito Impersonation_Banner__icon"></i>
+            <span class="Impersonation_Banner__text">
+                Signed in as <strong><%= window.rsxapp.user ? window.rsxapp.user.email : 'another user' %></strong>
+                by <strong><%= _imp.impersonator_email || ('login #' + _imp.impersonator_login_user_id) %></strong>
+            </span>
+            <a class="Impersonation_Banner__stop" href="<%= Rsx.Route('_Sys_Impersonation_Controller::stop') %>">
+                <i class="bi bi-box-arrow-left"></i> Stop impersonating
+            </a>
+        </div>
+    <% } %>
+</Define:Impersonation_Banner>

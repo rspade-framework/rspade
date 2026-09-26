@@ -11,8 +11,10 @@ bundle. Everything else is a feature directory.
 - `Frontend_Spa_Controller.php` — the `#[SPA]` bootstrap; every action in this
   module names it in `@spa(...)`.
 - `Frontend_Spa_Layout.{js,jqhtml}` + `frontend_spa_layout.scss` — the persistent
-  chrome (sidebar, header, breadcrumbs, notification dropdown) and the two layout
-  seams documented under HOW TO CUSTOMIZE.
+  chrome (sidebar, header, breadcrumbs, notification dropdown, and the
+  `Impersonation_Banner` strip above the header while a developer is signed in as
+  another user from the `/_sys` panel) and the two layout seams documented under
+  HOW TO CUSTOMIZE.
 - `frontend_bundle.php` — the module's one asset bundle.
 - `frontend_pagemodal_layout.blade.php` — the bare Blade shell used when a page is
   opened inside a modal frame.

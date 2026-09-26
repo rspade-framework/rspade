@@ -1,0 +1,33 @@
+.Impersonation_Banner {
+    display: block;
+
+    // The warning palette the portal's read-only banner and the realtime badge use:
+    // amber ground, dark ink, in both themes - an impersonated session must never be
+    // mistaken for the user's own.
+    &__bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: $spacing-sm;
+        padding: $spacing-sm $spacing-md;
+        background-color: $warning-color;
+        color: #212529; // dark ink on the amber ground - stays dark in both themes
+        font-size: $font-size-sm;
+    }
+
+    &__icon {
+        font-size: $font-size-sm;
+    }
+
+    &__stop {
+        color: inherit;
+        font-weight: $font-weight-semibold;
+        text-decoration: underline;
+
+        &:hover {
+            color: inherit;
+            text-decoration: none;
+        }
+    }
+}

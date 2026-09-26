@@ -42,9 +42,10 @@ class Site_Unauthorized_Controller extends Rsx_Controller_Abstract
             return redirect(Rsx::Route('Login_Controller'));
         }
 
-        // Get all sites this user has access to. No is_enabled filter: that column is the
-        // FRAMEWORK's switch and the framework enforces it (rsx:man session).
-        $user_sites = User_Model::where('login_user_id', $login_user_id)->get();
+        // The sites this identity can USE: ->active() is the framework's one definition of a
+        // usable membership (enabled, on an enabled site), so a picker never offers a site the
+        // framework would refuse. Never restate the columns here (rsx:man session).
+        $user_sites = User_Model::where('login_user_id', $login_user_id)->active()->get();
 
         // If user has no sites, logout with reason
         if ($user_sites->isEmpty()) {

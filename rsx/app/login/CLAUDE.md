@@ -14,7 +14,7 @@ controller is class-level `#[Auth('public')]` with a written justification in it
 | Logout | `Login_Controller::logout` | `/logout` | `RsxAuth::logout()` then `Login_Redirect::consume($default)`. |
 | Signup | `Signup_Controller` (`signup/`) | `/signup` GET + an `#[Ajax_Endpoint]` `submit` | Gated by `config('rsx.auth.signup_mode')` (`invite_only` by default, also `disabled` / open). Creates the `Login_User_Model`. |
 | Accept invite | `Accept_Invite_Controller` (`accept_invite/`) | `/accept-invite`, `/accept-invite/create-account`, `/accept-invite/success` | Six states (invalid, expired, email mismatch, already accepted, not logged in, logged in) plus the create-account form for an invitee with no login account. |
-| Site selection | `Site_Selection_Controller` | `/login/select-site`, `/login/site/:id` | `select` re-checks membership and sets the site. The picker page itself is a stub. |
+| Site selection | `Site_Selection_Controller` | `/login/select-site`, `/login/site/:id` | `select` accepts only an active membership (`->active()`, error card otherwise) and sets the site. The picker page itself is a stub. |
 | Site unauthorized | `Site_Unauthorized_Controller` | `/login/site-unauthorized` | The signed-in identity's session names a site it is not a member of; offers the sites it does have. Nothing in this mono-site template routes to it - the framework ends such a session itself (see SITE MEMBERSHIP below), so it is kept as the pattern for an app that declares the requested site from the host. |
 
 The login page also carries the OTHER WAYS IN: below the Sign In button,
@@ -65,16 +65,21 @@ branch — `Rsx_Turnstile::validate($request)` in `login_controller.php:68`, and
 carries the field in `$params`. The field always submits (sentinel `inactive` while the
 feature is off), so validating it is not optional.
 
-**Site membership is the framework's, not this module's.** `users.is_enabled` is the
-framework's switch for "may this identity use this installation": `RsxAuth::attempt()`
-refuses an identity holding no enabled membership exactly as it refuses a wrong password
-(recording `STATUS_FAILED_DISABLED`), `RsxAuth::login()` refuses it on the second-factor and
-federated paths, and `Session::enforce_enabled_membership()` ends a live session whose
-membership is disabled or deleted, before every dispatch and every Ajax call. So no
-controller here filters on the column, `post_login_destination()` has no zero-sites branch
-(a successful sign-in guarantees at least one enabled membership), and `rsx/main.php` checks
-no membership. Identity state - `status_id`, `is_activated`, `is_verified` - remains this
-application's, enforced in `Login_Controller::index()` and `Rsx\Main::pre_dispatch()`.
+**Site membership is the framework's, not this module's.** `users.is_enabled` and
+`sites.is_enabled` are the framework's switches for "may this identity use this site", and
+a membership is usable only when both are on (`User_Model::is_active()`, the `->active()`
+scope): `RsxAuth::attempt()` refuses an identity holding no active membership exactly as it
+refuses a wrong password (recording `STATUS_FAILED_DISABLED`), `RsxAuth::login()` refuses it
+on the second-factor and federated paths, and `Session::enforce_enabled_membership()` ends a
+live session whose membership or site is disabled or deleted, before every dispatch and every
+Ajax call. So no controller here restates either column: the site lists
+(`post_login_destination()`, the site-unauthorized picker) and `Site_Selection_Controller::select`
+filter with `->active()`, `select` answering the error card for an unusable site,
+`post_login_destination()` has no zero-sites branch (a successful sign-in guarantees at least
+one active membership), and `rsx/main.php` checks no membership. Identity state - `status_id`, `is_activated`, `is_verified` - is this application's
+vocabulary, and this template enforces none of it: neither `Login_Controller::index()` nor
+`Rsx\Main::pre_dispatch()` reads those columns. An application that wants Suspended to refuse
+sign-in checks it in both places.
 See `rsx:man session`.
 
 **The throttle.** `login_controller.php` catches `Auth_Throttled_Exception` around the

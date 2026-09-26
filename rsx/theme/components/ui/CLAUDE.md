@@ -14,6 +14,10 @@
   bare `domain.com` to a full URL.
 - `breadcrumb/` — `Breadcrumb` + `Breadcrumb_Item`: the authored breadcrumb list (as
   opposed to `../page/breadcrumb_nav.jqhtml`, which the layout drives from data).
+- `impersonation_banner/` — `Impersonation_Banner`: the amber "Signed in as <user> by
+  <impersonator>" strip with a "Stop impersonating" link, rendered only while
+  `window.rsxapp.impersonation` is set (a staff session between
+  `Session::begin_impersonation()` and `stop_impersonation()`); empty otherwise.
 
 ## HOW IT IS USED
 
@@ -22,6 +26,14 @@
 `rsx/app/frontend/dashboard/Dashboard_Index_Action.jqhtml`. `Action_Menu` sits in an
 entity header's action cluster (`.../clients/view/Clients_View_Action.jqhtml`,
 `rsx/app/frontend/tasks/view/Tasks_View_Action.jqhtml`).
+
+`Impersonation_Banner` is mounted once, at the top of `Frontend_Spa_Layout`'s content
+column (`rsx/app/frontend/Frontend_Spa_Layout.jqhtml`). This application starts a staff
+impersonation in one place only - the framework panel's "Sign in as this user"
+(`rsx:man sys_panel`, IMPERSONATION) - so its link is that panel's stop route,
+`Rsx.Route('_Sys_Impersonation_Controller::stop')`: a STRING route target the framework
+publishes into every bundle, which is why NAME-RESERVED-02 allows it. That route restores
+the developer's identity and site and lands on the user they were viewing.
 
 `Count_Pill` has no direct consumer in `rsx/app`: it is composed INSIDE `Section` headers
 and `Tab_Bar` tabs, which is how counts reach the screen. The authored `Breadcrumb` pair
@@ -42,6 +54,10 @@ from `rsx/theme/badges.scss`, not a second filled badge. Registry rows: Layer 4 
 - `Action_Menu` items are authored by the caller and wired in the owning action's
   `on_ready()` via their `$sid` — the component itself knows nothing about them, so a new
   kind of menu item needs no change here.
+- `Impersonation_Banner`'s wording and colour are its own (`impersonation_banner.scss`,
+  the same amber the portal's read-only banner and `Realtime_Status_Badge` use). An app
+  that adds its OWN staff impersonation links that feature's stop route here instead of
+  (or beside) the panel's - the panel's route refuses an impersonation a non-developer began.
 - Keep the two breadcrumb implementations apart: `Breadcrumb_Nav` (`../page/`) is the
   layout's data-driven chain and is the one to change for the staff shell.
 

@@ -358,16 +358,18 @@ class Login_Controller extends Rsx_Controller_Abstract
 
         // Which sites can this identity use?
         //
-        // The is_enabled filter here is PRESENTATION, not authorization: it decides which
-        // sites are worth offering, so an identity enabled on one site and disabled on
-        // another lands on the usable one instead of a picker naming both. Authorization is
-        // the framework's - RsxAuth::attempt() refuses an identity holding no enabled
-        // membership exactly as it refuses a wrong password, and every request re-checks the
-        // membership - so every caller of this function is past a successful sign-in and at
-        // least one enabled membership is guaranteed to exist; there is no zero-sites branch.
+        // The ->active() filter here is PRESENTATION, not authorization: it decides which
+        // sites are worth offering, so an identity usable on one site and disabled (or whose
+        // site is disabled) on another lands on the usable one instead of a picker naming
+        // both. ->active() is the framework's one definition of a usable membership, so this
+        // list and the framework's enforcement cannot drift. Authorization is the
+        // framework's - RsxAuth::attempt() refuses an identity holding no active membership
+        // exactly as it refuses a wrong password, and every request re-checks it - so every
+        // caller of this function is past a successful sign-in and at least one active
+        // membership is guaranteed to exist; there is no zero-sites branch.
         // See: php artisan rsx:man session
         $user_sites = User_Model::where('login_user_id', $login_user_id)
-            ->where('is_enabled', true)
+            ->active()
             ->get();
 
         // More than one: don't set site_id yet - show the site selector.

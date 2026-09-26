@@ -57,13 +57,16 @@ class Site_Selection_Controller extends Rsx_Controller_Abstract
             return redirect(Rsx::Route('Login_Controller'));
         }
 
-        // Check if user has access to this site.
+        // Check if user can use this site.
         //
-        // No is_enabled filter: users.is_enabled is the FRAMEWORK's switch, enforced at every
-        // request by Session::enforce_enabled_membership(), so an application never repeats it.
-        // See: php artisan rsx:man session
+        // ->active() is the framework's one definition of a usable membership (the membership
+        // and its site both enabled). A disabled site or membership is refused HERE with the
+        // error card, rather than accepted and then ended by the framework's per-request
+        // enforcement (Session::enforce_enabled_membership()), which would sign the identity
+        // out of every site. See: php artisan rsx:man session
         $user = User_Model::where('login_user_id', $login_user->id)
             ->where('site_id', $site_id)
+            ->active()
             ->first();
 
         if (!$user) {
