@@ -72,7 +72,7 @@
                                         <div class="Portal_Request_Thread_Action__chips">
                                             <% for (const doc of entry.documents) { %>
                                                 <span class="Portal_Request_Thread_Action__chip" data-document="<%= doc.id %>" title="<%= doc.name %>">
-                                                    <i class="bi bi-paperclip"></i>
+                                                    <File_Type_Icon $file_name=doc.name />
                                                     <span class="Portal_Request_Thread_Action__chip-name"><%= doc.name %></span>
                                                     <span class="badge <%= doc.badge %>"><%= doc.review_label %></span>
                                                 </span>
