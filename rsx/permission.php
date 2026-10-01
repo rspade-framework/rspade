@@ -52,7 +52,7 @@ use App\RSpade\Core\Session\Session;
  *   can_view_data             PERM_VIEW_DATA
  *   can_export_data           PERM_DATA_EXPORT
  *   can_use_api               PERM_API_ACCESS
- *   can_impersonate           ROLE_MANAGER floor ("View as Client")
+ *   can_impersonate           (redeclared) ROLE_MANAGER floor ("View as Client")
  *   is_developer              login_users.is_developer - the gate for a
  *                             developer-only surface
  */
@@ -155,10 +155,11 @@ class Permission extends Permission_Abstract
     /**
      * May impersonate a client-portal user ("View as Client").
      *
-     * Wraps the User_Model::ROLE_MANAGER floor - the check that used to sit
-     * inline at the top of the impersonation endpoint. The read-only nature of
-     * the impersonated session is enforced portal-side; this gate only decides
-     * WHO may start one.
+     * Redeclares the framework's check (which denies by default) with this app's
+     * rule: the User_Model::ROLE_MANAGER floor. The framework asks it again on the
+     * staff leg of the linked-session handshake when the portal is on its own host.
+     * The read-only nature of the impersonated session is enforced portal-side; this
+     * gate only decides WHO may start one.
      */
     #[Auth_Check]
     public static function can_impersonate(): bool

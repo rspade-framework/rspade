@@ -14,6 +14,7 @@ use App\RSpade\Core\Dispatch\Dispatcher;
 use App\RSpade\Core\Errors\Error_Screens;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
+use App\RSpade\Core\Portal\Rsx_Portal_Url;
 use App\RSpade\Core\Session\Rsx_Csrf;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
 
@@ -39,8 +40,8 @@ class App_Error_Pages_Test extends Rsx_Test_Abstract
     /** A staff URL no route matches. */
     const UNMATCHED_URL = '/no-such-url-for-the-app-error-pages-test';
 
-    /** A portal URL no portal route matches. */
-    const UNMATCHED_PORTAL_URL = '/_portal/no-such-url-for-the-app-error-pages-test';
+    /** A portal path no portal route matches (inside the portal - the prefix goes in front). */
+    const UNMATCHED_PORTAL_PATH = '/no-such-url-for-the-app-error-pages-test';
 
     /** A staff route every identity is denied: the whole dev module is #[Auth('closed')]. */
     const CLOSED_URL = '/dev';
@@ -173,7 +174,7 @@ class App_Error_Pages_Test extends Rsx_Test_Abstract
         // declaration is a config key; this is the same line, in the same order.
         Portal_Session::set_site_id((int) config('rsx.portal.site_id'));
 
-        $response = Error_Screens::not_found(Request::create(self::UNMATCHED_PORTAL_URL, 'GET'));
+        $response = Error_Screens::not_found(Request::create(Rsx_Portal_Url::prefix() . self::UNMATCHED_PORTAL_PATH, 'GET'));
 
         static::__assert_equals(404, $response->getStatusCode());
 

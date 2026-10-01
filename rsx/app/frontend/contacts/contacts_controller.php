@@ -15,7 +15,6 @@ use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Forms\Form_Questions;
 use App\RSpade\Core\Portal\Portal_Session;
-use App\RSpade\Core\Portal\Rsx_Portal;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
@@ -173,11 +172,12 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
     /**
      * Ajax endpoint: Begin a client-portal impersonation ("View as Client").
      *
-     * Creates a throwaway, read-only-intended portal session for the contact's
-     * linked portal user (stamped with the current staff user as impersonator) and
-     * returns a single-use claim URL for the caller to open in a new tab. Read-only
-     * is enforced by the framework: while impersonating, a portal Ajax endpoint runs
-     * only if it is marked #[Portal_Impersonation_Readable].
+     * Hands the contact's linked portal user to Portal_Session::begin_impersonation_from_staff(),
+     * which returns the URL for the caller to open in a new tab: the portal itself when it
+     * is served under a prefix on this host, or the first leg of the linked-session
+     * handshake when it is on its own host. Read-only is enforced by the framework: while
+     * impersonating, a portal Ajax endpoint runs only if it is marked
+     * #[Portal_Impersonation_Readable].
      *
      * @param Request $request
      * @param array $params
@@ -200,14 +200,14 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
         // get_user() is guaranteed non-null here (the can_impersonate gate implies
         // a logged-in user); use its id rather than get_user_id(), which is null
         // when there is no resolved site context (e.g. CLI/rsx:ajax).
-        $handoff = Portal_Session::create_impersonation_session(
+        $url = Portal_Session::begin_impersonation_from_staff(
             $portal_user->id,
             Session::get_user()->id,
             (int) $contact->site_id
         );
 
         return [
-            'url' => Rsx_Portal::Route('Portal_Impersonate_Controller::claim', ['t' => $handoff]),
+            'url' => $url,
         ];
     }
 

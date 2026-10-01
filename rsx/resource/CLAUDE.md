@@ -277,7 +277,7 @@ appear in `#[Auth('...')]` / `@auth('...')`.
 | `can_view_data` | `PERM_VIEW_DATA` - read records. |
 | `can_export_data` | `PERM_DATA_EXPORT` - downloads, report extracts. |
 | `can_use_api` | `PERM_API_ACCESS`. Defined but deliberately NOT applied to the template's `#[Api_Endpoint]` surfaces (pre-existing keys would break); name it on your own endpoints. |
-| `can_impersonate` | Role floor `ROLE_MANAGER` - may start "View as Client". |
+| `can_impersonate` | Role floor `ROLE_MANAGER` - may start "View as Client". Redeclares the framework check, which denies by default. |
 | `closed` | Framework built-in: always false. Gates `rsx/app/dev/`, which ships unreachable. The counterpart to `public`. |
 
 Plus the framework-supplied `public` and `is_logged_in`.

@@ -527,22 +527,13 @@ return [
     | Configuration for the client portal - a separate authenticated experience
     | for external users (customers, clients, vendors).
     |
-    | URL Strategy:
-    | - Production: Set 'domain' to use a dedicated portal domain
-    | - Development: Leave 'domain' null to use URL prefix mode (/_portal/)
+    | WHERE the portal is served is framework config, not this block: PORTAL_URL
+    | in .env (blank = APP_URL + /_portal; https://portal.myapp.com/ for its own
+    | host). See rsx:man portal. The keys below are this application's own.
     |
     */
 
     'portal' => [
-        // Portal domain for production (e.g., 'portal.example.com')
-        // When set, portal routes are served from this domain
-        // When null, portal routes use the prefix below
-        'domain' => env('PORTAL_DOMAIN', null),
-
-        // URL prefix for portal routes when no domain configured
-        // All portal routes will be prefixed with this path
-        'prefix' => '/_portal',
-
         // Session lifetime in days for portal users
         'session_lifetime_days' => 30,
 

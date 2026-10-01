@@ -9,7 +9,7 @@
 
     <div class="d-grid">
         {{-- home_url is the PORTAL's home, computed by the framework from the realm:
-             the portal prefix here, or the portal root on a dedicated domain. --}}
+             the portal's origin + prefix, wherever PORTAL_URL places it. --}}
         <a class="btn btn-primary" href="{{ $error->home_url }}">Return to the Portal</a>
     </div>
 

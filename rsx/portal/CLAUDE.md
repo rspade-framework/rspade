@@ -10,8 +10,9 @@ dispatcher, bundle, layout, routing attributes and permission facade.
 - `auth/` — the server-rendered ladder: `Portal_Login_Controller`,
   `Portal_Logout_Controller`, `Portal_Register_Controller` (invite-based),
   `Portal_Password_Reset_Controller`, `Portal_Request_Access_Controller`,
-  `Portal_Impersonate_Controller` (the staff "View as Client" claim and stop), plus
-  `portal_auth_layout.blade.php` and the thirteen blades of their outcome states (the second-
+  `Portal_Impersonate_Controller` (the staff "View as Client" stop; starting one is the
+  framework's `Portal_Session::begin_impersonation_from_staff()`), plus
+  `portal_auth_layout.blade.php` and the eleven blades of their outcome states (the second-
   factor challenge page `portal_login_verify.blade.php` among them).
 - `dashboard/` — `Portal_Dashboard_Action`, the landing page.
 - `workspaces/` — the per-client area: a sublayout plus Overview / Requests / Documents and
@@ -101,13 +102,15 @@ framework's own page.
 
 ### URL Strategy
 
-**Development** (no `PORTAL_DOMAIN` configured):
-- URLs prefixed with `/_portal/`
-- Example: `/_portal/login`, `/_portal/dashboard`, `/_portal/settings`
-
-**Production** (with `PORTAL_DOMAIN`):
-- Dedicated domain, no prefix
-- Example: `https://portal.example.com/login`
+Where the portal is served is `PORTAL_URL` in `.env` (framework config, `rsx:man portal`).
+This application leaves it blank, so the portal lives under `/_portal/` on the
+application's own host (`/_portal/login`, `/_portal/dashboard`). Setting it moves every
+screen with no code change - another prefix (`https://myapp.com/client-portal`) or a host
+of its own (`https://portal.myapp.com/` -> `https://portal.myapp.com/login`) - because
+every portal URL here is built with `Rsx_Portal::Route()`, which answers an absolute URL
+when called off the portal's host (the staff-side invitation and notification links
+included). Changing it after launch re-registers the portal SSO redirect URI and strands
+passkeys enrolled under an old host (`rsx:man prelaunch_checklist`).
 
 ### Route Attributes
 
@@ -172,7 +175,7 @@ undeclared site throws. This app is mono-site and declares it in
   every `@portal_spa` action, evaluated in the PORTAL realm before any application code.
   `Portal_Main::pre_dispatch()` performs NO authorization — it runs after the gates.
 - Public surfaces declare `#[Auth('public')]`: login, register, request access, password
-  reset, logout, the impersonation claim.
+  reset, logout, the impersonation stop.
 - Per-client rules are record-level predicates in the endpoint body, after the gates pass.
 
 ### Passkeys, second factors and federated sign-in

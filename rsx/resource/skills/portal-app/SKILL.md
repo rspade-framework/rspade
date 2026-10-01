@@ -1,6 +1,6 @@
 ---
 name: portal-app
-description: "The client-portal screens this application ships - portal_main.php (the site declaration) and portal_permission.php (has_client_access / client_role / accessible_client_ids / is_read_only), the Blade auth ladder (login with its second-factor challenge, passkey sign-in and federated sign-in, register from an invite, request-access, password reset, impersonate claim/stop, logout), Portal_Layout and Portal_Workspace_Layout, the dashboard, the workspace tabs (Overview / Requests / Documents) with the request-thread UI, invitations accept/decline, settings, and the #[Portal_Impersonation_Readable] marks that keep View-as-Client read-only. Use when adding or changing a portal screen or endpoint, wiring a new workspace tab, changing what an invite grants, branding the portal auth pages, or deciding which portal endpoints stay callable during impersonation (mark reads #[Portal_Impersonation_Readable])."
+description: "The client-portal screens this application ships - portal_main.php (the site declaration) and portal_permission.php (has_client_access / client_role / accessible_client_ids / is_read_only), the Blade auth ladder (login with its second-factor challenge, passkey sign-in and federated sign-in, register from an invite, request-access, password reset, impersonate stop, logout), Portal_Layout and Portal_Workspace_Layout, the dashboard, the workspace tabs (Overview / Requests / Documents) with the request-thread UI, invitations accept/decline, settings, and the #[Portal_Impersonation_Readable] marks that keep View-as-Client read-only. Use when adding or changing a portal screen or endpoint, wiring a new workspace tab, changing what an invite grants, branding the portal auth pages, or deciding which portal endpoints stay callable during impersonation (mark reads #[Portal_Impersonation_Readable])."
 ---
 
 # The portal application
@@ -54,6 +54,11 @@ function bodies and in models' `portal_can_read()`.
 
 ## The screens
 
+Every route below is a path INSIDE the portal. Where that is on the web is `PORTAL_URL`
+(blank here: `/_portal/...` on the application host; `rsx:man portal`), so `/login` is
+browsed at `/_portal/login` today - and every link to it is `Rsx_Portal::Route()`, never a
+literal.
+
 **Server-rendered auth ladder** (`rsx/portal/auth/`, Blade under
 `portal_auth_layout.blade.php`, every controller `#[Auth('public')]`):
 
@@ -64,7 +69,7 @@ function bodies and in models' `portal_can_read()`.
 | `/register` GET+POST | `Portal_Register_Controller` | invite-code registration; `invalid` / `expired` / `cancelled` pages |
 | `/request-access` GET+POST | `Portal_Request_Access_Controller` | a would-be user asks for an invite; resends a live one |
 | `/password/reset` and `/password/reset/:token` | `Portal_Password_Reset_Controller` | request + reset, with an `invalid` page |
-| `/impersonate/claim` and `/impersonate/stop` GET | `Portal_Impersonate_Controller` | burns the staff handoff token; `invalid` / `stopped` pages |
+| `/impersonate/stop` GET | `Portal_Impersonate_Controller` | ends a staff "View as Client" (clears the portal properties); `stopped` page. Starting one is the staff endpoint `Frontend_Contacts_Controller::begin_portal_impersonation` -> `Portal_Session::begin_impersonation_from_staff()` |
 | `/logout` GET | `Portal_Logout_Controller` | clears the portal properties only |
 
 **SPA screens** (`@portal_spa('Portal_Spa_Controller::index')`, `@auth('is_logged_in')`):

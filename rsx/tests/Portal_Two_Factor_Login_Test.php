@@ -12,6 +12,7 @@ use App\RSpade\Core\Auth\Login_Throttle;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
+use App\RSpade\Core\Portal\Rsx_Portal_Url;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
@@ -115,7 +116,7 @@ class Portal_Two_Factor_Login_Test extends Rsx_Test_Abstract
     {
         $fixture = static::__portal_user_with_totp();
 
-        $request = Request::create('/_portal/login', 'POST', [
+        $request = Request::create(Rsx_Portal_Url::prefix() . '/login', 'POST', [
             'email' => $fixture['portal_user']->email,
             'password' => self::PASSWORD,
             Rsx_Turnstile::FIELD => static::__turnstile_token(),
@@ -124,7 +125,7 @@ class Portal_Two_Factor_Login_Test extends Rsx_Test_Abstract
         $response = Portal_Login_Controller::index($request, []);
 
         static::__assert_equals(
-            Rsx_Portal::Route('Portal_Login_Controller::verify'),
+            parse_url(Rsx_Portal::Route('Portal_Login_Controller::verify'), PHP_URL_PATH),
             parse_url($response->getTargetUrl(), PHP_URL_PATH),
             'sent to the challenge page'
         );
@@ -145,7 +146,7 @@ class Portal_Two_Factor_Login_Test extends Rsx_Test_Abstract
 
         Rsx_Portal_Two_Factor::begin_challenge($fixture['portal_user']);
 
-        $result = Portal_Login_Controller::verify_2fa(Request::create('/_portal/_ajax/Portal_Login_Controller/verify_2fa', 'POST'), [
+        $result = Portal_Login_Controller::verify_2fa(Request::create(Rsx_Portal_Url::prefix() . '/_ajax/Portal_Login_Controller/verify_2fa', 'POST'), [
             'code' => Totp::code_for($fixture['secret'], intdiv(time(), Totp::PERIOD) + 1),
         ]);
 
@@ -162,7 +163,7 @@ class Portal_Two_Factor_Login_Test extends Rsx_Test_Abstract
 
         Rsx_Portal_Two_Factor::begin_challenge($fixture['portal_user']);
 
-        $result = Portal_Login_Controller::verify_2fa(Request::create('/_portal/_ajax/Portal_Login_Controller/verify_2fa', 'POST'), [
+        $result = Portal_Login_Controller::verify_2fa(Request::create(Rsx_Portal_Url::prefix() . '/_ajax/Portal_Login_Controller/verify_2fa', 'POST'), [
             'code' => '000000',
         ]);
 
@@ -182,7 +183,7 @@ class Portal_Two_Factor_Login_Test extends Rsx_Test_Abstract
     {
         static::__as_portal();
 
-        $request = Request::create('/_portal/_ajax/Portal_Login_Controller/passkey_login', 'POST');
+        $request = Request::create(Rsx_Portal_Url::prefix() . '/_ajax/Portal_Login_Controller/passkey_login', 'POST');
 
         static::__assert_instance_of(Error_Response::class, Portal_Login_Controller::passkey_login($request, []));
 

@@ -10,46 +10,28 @@ namespace Rsx\Portal\Auth;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Portal\Portal_Session;
-use App\RSpade\Core\Portal\Rsx_Portal;
 
 /**
  * Portal Impersonate Controller
  *
- * Server-rendered endpoints for the staff "View as Client" feature. Staff begin an
- * impersonation from the main app (Frontend_Contacts_Controller::begin_portal_impersonation),
- * which mints a single-use handoff token and opens this claim URL in a new tab.
+ * The portal end of the staff "View as Client" feature. Staff begin an impersonation from
+ * the main app (Frontend_Contacts_Controller::begin_portal_impersonation), which calls
+ * Portal_Session::begin_impersonation_from_staff() and opens the URL it returns: the
+ * portal itself on the same host, or the framework's linked-session handshake
+ * (/_session_link/*) when the portal is on its own host. Neither passes through here.
  *
- *   - claim: consume the handoff token (stamps the impersonated portal identity onto
- *     this browser's own session, replacing any portal identity already on it) and
- *     land on the dashboard.
- *   - stop:  end the impersonation (clears the portal properties, leaving the staff
+ *   - stop: end the impersonation (clears the portal properties, leaving the staff
  *     login on the same browser session alone) and show a "you may close this tab" page.
  *
  * Read-only enforcement is NOT here - the framework refuses every portal Ajax endpoint
  * not marked #[Portal_Impersonation_Readable] while the session is impersonating
  * (Ajax::execute). See: php artisan rsx:man portal.
  *
- * Public gate: both routes are reached WITHOUT a prior portal login (claim mints the
- * session; stop must work even after the session is gone).
+ * Public gate: stop must work even after the session is gone.
  */
 #[Auth('public')]
 class Portal_Impersonate_Controller extends Rsx_Controller_Abstract
 {
-    /**
-     * Claim a single-use impersonation handoff token and start the session.
-     */
-    #[Portal_Route('/impersonate/claim', methods: ['GET'])]
-    public static function claim(Request $request, array $params = [])
-    {
-        $token = (string) ($params['t'] ?? '');
-
-        if (!Portal_Session::claim_impersonation($token)) {
-            return rsx_view('Portal_Impersonate_Invalid');
-        }
-
-        return redirect(Rsx_Portal::Route('Portal_Dashboard_Action'));
-    }
-
     /**
      * End the current impersonation session.
      */

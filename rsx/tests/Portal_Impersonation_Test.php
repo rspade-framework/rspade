@@ -5,11 +5,15 @@
 
 namespace Rsx\Tests;
 
+use Illuminate\Support\Facades\Hash;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Ajax\Exceptions\AjaxUnauthorizedException;
+use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\Portal_User_Model;
+use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
+use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Contact_Model;
@@ -22,9 +26,14 @@ use Rsx\Portal_Permission;
  *     still works (all Ajax endpoints are POST, so read-only cannot be a POST block).
  *   - the refusal fires ONLY under impersonation.
  *   - the staff-side contact -> portal-user resolution that powers the button.
+ *   - the begin endpoint (Frontend_Contacts_Controller::begin_portal_impersonation):
+ *     gated by this app's can_impersonate rule, answering the portal's landing URL on
+ *     the same host and the first leg of the framework's linked-session handshake when
+ *     PORTAL_URL puts the portal on its own host.
  *
  * The portal identity/impersonation context is seeded with Portal_Session CLI
- * setters; the full staff HTTP begin->claim flow is smoke-tested via rsx:debug.
+ * setters. The handshake legs themselves are framework tests (Portal_Session_Link_Test
+ * and session/http/session_link_handshake.sh).
  * Runs in the default per-test transaction (rolled back afterward).
  */
 class Portal_Impersonation_Test extends Rsx_Test_Abstract
@@ -32,14 +41,19 @@ class Portal_Impersonation_Test extends Rsx_Test_Abstract
     private const SITE_ID = 1;
     private const IMPERSONATOR_ID = 99;
 
+    private static $saved_portal_url;
+
     public static function setup(): void
     {
+        self::$saved_portal_url = config('rsx.portal.url');
         static::__acting_as_site(self::SITE_ID);
     }
 
     public static function teardown(): void
     {
         static::__reset_portal_cli();
+        config(['rsx.portal.url' => self::$saved_portal_url]);
+        static::__reset_session();
     }
 
     private static function __make_portal_user(?int $contact_id = null): Portal_User_Model
@@ -194,5 +208,89 @@ class Portal_Impersonation_Test extends Rsx_Test_Abstract
         $contact = static::__make_contact('noaccount_' . uniqid() . '@example.com');
 
         static::__assert_null($contact->resolve_portal_user(), 'no portal account -> null');
+    }
+
+    // =====================================================================
+    // the begin endpoint
+    // =====================================================================
+
+    /**
+     * A staff user with $role_id on the test site, signed in.
+     */
+    private static function __sign_in_staff(int $role_id): User_Model
+    {
+        Rsx_Portal::set_portal_request(false);
+        static::__acting_as_site(self::SITE_ID);
+
+        $email = 'impstaff_' . uniqid() . '@example.com';
+
+        $login_user = new Login_User_Model();
+        $login_user->email = $email;
+        $login_user->password = Hash::make('secret-password');
+        $login_user->is_activated = true;
+        $login_user->is_verified = true;
+        $login_user->status_id = Login_User_Model::STATUS_ACTIVE;
+        $login_user->save();
+
+        $user = new User_Model();
+        $user->login_user_id = $login_user->id;
+        $user->email = $email;
+        $user->first_name = 'Imp';
+        $user->last_name = 'Staff';
+        $user->role_id = $role_id;
+        $user->is_enabled = 1;
+        $user->save();
+
+        static::__acting_as_user($user->id);
+
+        return $user;
+    }
+
+    public static function test_begin_on_the_same_host_opens_the_portal_as_the_contact()
+    {
+        config(['rsx.portal.url' => '']);
+        $staff = static::__sign_in_staff(User_Model::ROLE_MANAGER);
+        $contact = static::__make_contact('begin_' . uniqid() . '@example.com');
+        $portal_user = static::__make_portal_user($contact->id);
+        Rsx_Portal::set_portal_request(false);
+
+        $res = Ajax::internal('Frontend_Contacts_Controller', 'begin_portal_impersonation', ['id' => $contact->id]);
+
+        static::__assert_equals('/_portal/', $res['url'] ?? null, 'the portal itself, on this host');
+
+        $row = Session::find(Session::get_session_id());
+        static::__assert_equals($portal_user->id, (int) $row->portal_user_id, 'viewing as the contact\'s portal user');
+        static::__assert_equals($staff->id, (int) $row->impersonator_user_id, 'impersonated by the caller');
+    }
+
+    public static function test_begin_with_the_portal_on_its_own_host_opens_the_handshake()
+    {
+        config(['rsx.portal.url' => 'https://portal.example.test']);
+        static::__sign_in_staff(User_Model::ROLE_MANAGER);
+        $contact = static::__make_contact('begin_far_' . uniqid() . '@example.com');
+        static::__make_portal_user($contact->id);
+        Rsx_Portal::set_portal_request(false);
+
+        $res = Ajax::internal('Frontend_Contacts_Controller', 'begin_portal_impersonation', ['id' => $contact->id]);
+
+        static::__assert_true(
+            str_starts_with((string) ($res['url'] ?? ''), 'https://portal.example.test/_session_link/open?'),
+            'the first handshake leg, on the portal host; got ' . ($res['url'] ?? 'nothing')
+        );
+    }
+
+    public static function test_begin_is_refused_below_the_manager_floor()
+    {
+        config(['rsx.portal.url' => '']);
+        static::__sign_in_staff(User_Model::ROLE_USER);
+        $contact = static::__make_contact('begin_low_' . uniqid() . '@example.com');
+        static::__make_portal_user($contact->id);
+        Rsx_Portal::set_portal_request(false);
+
+        static::__assert_throws(AjaxUnauthorizedException::class, function () use ($contact) {
+            Ajax::internal('Frontend_Contacts_Controller', 'begin_portal_impersonation', ['id' => $contact->id]);
+        });
+
+        static::__assert_false(Portal_Session::is_impersonating(), 'nothing was started');
     }
 }
