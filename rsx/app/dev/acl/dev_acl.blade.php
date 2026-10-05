@@ -62,7 +62,7 @@
                                     <td>{{ $role['label'] }}</td>
                                     <td>
                                         @foreach($role['permissions'] as $perm_id)
-                                            <span class="badge bg-success">{{ $permissions[$perm_id] ?? $perm_id }}</span>
+                                            <span class="badge bg-success">{{ $permissions[$perm_id]['label'] ?? $perm_id }}</span>
                                         @endforeach
                                         @if(empty($role['permissions']))
                                             <span class="text-muted">None</span>
@@ -109,15 +109,9 @@
                                     <th>Email</th>
                                     <th>Name</th>
                                     <th>Role</th>
-                                    <th>ROOT</th>
-                                    <th>BILLING</th>
-                                    <th>SETTINGS</th>
-                                    <th>USERS</th>
-                                    <th>ACTIVITY</th>
-                                    <th>EDIT</th>
-                                    <th>VIEW</th>
-                                    <th>API</th>
-                                    <th>EXPORT</th>
+                                    @foreach($permissions as $permission)
+                                        <th title="{{ $permission['description'] }}">{{ $permission['label'] }}</th>
+                                    @endforeach
                                     <th>Supplementary</th>
                                 </tr>
                             </thead>
@@ -136,9 +130,9 @@
                                         <span class="badge bg-primary">{{ $user['role_label'] }}</span>
                                         <small class="text-muted">({{ $user['role_id'] }})</small>
                                     </td>
-                                    @foreach(['MANAGE_SITES_ROOT', 'MANAGE_SITE_BILLING', 'MANAGE_SITE_SETTINGS', 'MANAGE_SITE_USERS', 'VIEW_USER_ACTIVITY', 'EDIT_DATA', 'VIEW_DATA', 'API_ACCESS', 'DATA_EXPORT'] as $perm)
+                                    @foreach($user['breakdown'] as $row)
                                         <td class="text-center">
-                                            @if($user['permissions'][$perm])
+                                            @if($row['effective'])
                                                 <i class="bi bi-check-circle-fill text-success"></i>
                                             @else
                                                 <i class="bi bi-x-circle text-danger"></i>

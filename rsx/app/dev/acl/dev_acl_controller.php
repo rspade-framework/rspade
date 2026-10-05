@@ -25,11 +25,15 @@ class Dev_Acl_Controller extends Rsx_Controller_Abstract
         // Get all users (no eager loading - explicit relationship access)
         $users = User_Model::orderBy('role_id', 'asc')->get();
 
-        // Build user data with permissions
+        // One query for every user's overrides, then the framework's per-permission
+        // breakdown (role default, override, effective) for each row.
+        $overrides = User_Permission_Model::for_users($users->pluck('id')->all());
+
         $user_data = [];
         foreach ($users as $user) {
             $login_user = $user->login_user;
             $email = $login_user->email ?? 'N/A';
+
             $user_data[] = [
                 'id' => $user->id,
                 'email' => $email,
@@ -37,18 +41,8 @@ class Dev_Acl_Controller extends Rsx_Controller_Abstract
                 'role_id' => $user->role_id,
                 'role_label' => $user->role_id__label ?? 'Unknown',
                 'is_test_user' => str_ends_with($email, '@rspade.test'),
-                'permissions' => [
-                    'MANAGE_SITES_ROOT' => $user->has_permission(User_Model::PERM_MANAGE_SITES_ROOT),
-                    'MANAGE_SITE_BILLING' => $user->has_permission(User_Model::PERM_MANAGE_SITE_BILLING),
-                    'MANAGE_SITE_SETTINGS' => $user->has_permission(User_Model::PERM_MANAGE_SITE_SETTINGS),
-                    'MANAGE_SITE_USERS' => $user->has_permission(User_Model::PERM_MANAGE_SITE_USERS),
-                    'VIEW_USER_ACTIVITY' => $user->has_permission(User_Model::PERM_VIEW_USER_ACTIVITY),
-                    'EDIT_DATA' => $user->has_permission(User_Model::PERM_EDIT_DATA),
-                    'VIEW_DATA' => $user->has_permission(User_Model::PERM_VIEW_DATA),
-                    'API_ACCESS' => $user->has_permission(User_Model::PERM_API_ACCESS),
-                    'DATA_EXPORT' => $user->has_permission(User_Model::PERM_DATA_EXPORT),
-                ],
-                'supplementary' => User_Permission_Model::for_user($user->id),
+                'breakdown' => $user->get_permission_breakdown($overrides[$user->id]),
+                'supplementary' => $overrides[$user->id],
             ];
         }
 
@@ -65,18 +59,7 @@ class Dev_Acl_Controller extends Rsx_Controller_Abstract
             ];
         }
 
-        // Permission definitions
-        $permissions = [
-            User_Model::PERM_MANAGE_SITES_ROOT => 'MANAGE_SITES_ROOT',
-            User_Model::PERM_MANAGE_SITE_BILLING => 'MANAGE_SITE_BILLING',
-            User_Model::PERM_MANAGE_SITE_SETTINGS => 'MANAGE_SITE_SETTINGS',
-            User_Model::PERM_MANAGE_SITE_USERS => 'MANAGE_SITE_USERS',
-            User_Model::PERM_VIEW_USER_ACTIVITY => 'VIEW_USER_ACTIVITY',
-            User_Model::PERM_EDIT_DATA => 'EDIT_DATA',
-            User_Model::PERM_VIEW_DATA => 'VIEW_DATA',
-            User_Model::PERM_API_ACCESS => 'API_ACCESS',
-            User_Model::PERM_DATA_EXPORT => 'DATA_EXPORT',
-        ];
+        $permissions = User_Model::permission_definitions();
 
         return rsx_view('Dev_Acl', [
             'users' => $user_data,
