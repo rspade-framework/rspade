@@ -6,6 +6,7 @@ namespace Rsx\App\Frontend\System\EmailConfig;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Mail\Rsx_Mail;
 use App\RSpade\Core\Models\Email_Queue_Model;
 use App\RSpade\Core\Models\Email_Recipient_Model;
 
@@ -139,6 +140,10 @@ class System_Email_Controller extends Rsx_Controller_Abstract
      * re-rendering here would show today's template with today's config against
      * yesterday's data, which is exactly the email nobody sent. A row that has not
      * been through the builder yet says so.
+     *
+     * The body goes out through Rsx_Mail::displayable_html(): the stored HTML names its
+     * inline images by cid:, which no browser can load, and that call turns each one into
+     * a data: URI of the bytes recorded on the row - what was sent, not today's asset.
      */
     #[Ajax_Endpoint]
     public static function queue_preview(Request $request, array $params = [])
@@ -154,7 +159,7 @@ class System_Email_Controller extends Rsx_Controller_Abstract
         }
 
         return [
-            'html' => $email->rendered_html,
+            'html' => Rsx_Mail::displayable_html($email),
             'is_rendered' => $email->rendered_html !== null && $email->rendered_html !== '',
             'subject' => $email->subject,
             'to_address' => $email->to_address,

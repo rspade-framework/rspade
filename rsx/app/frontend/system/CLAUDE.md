@@ -13,7 +13,7 @@ all `scaffolded = true`:
 | Scheduled Tasks | `System_Tasks_Action` | `/frontend/system/tasks` | Nothing — the same placeholder. |
 | Email Configuration | `System_Email_Config_Action` | `/frontend/system/email_config` | `Rsx_Mail_Transport::delivery_mode()`/`describe()`, `Rsx::is_dev_site()`, the `rsx.mail.*` config keys (driver, from address, dev-site catchall and whitelists, retry, retention) and per-status counts on `Email_Queue_Model`. |
 | Email Queue | `System_Email_Queue_Action` | `/frontend/system/email_queue` | `Email_Queue_Model`, paginated, status filter + search on recipient/subject; per-row resend. |
-| Email (one message) | `System_Email_View_Action` | `/frontend/system/email_queue/view/:id` | One `Email_Queue_Model` row plus its rendered HTML, shown in an iframe `srcdoc`, and its `attachments()` rows (file name, mime type, attachment-vs-inline, and the blob's size) when the message carries any; resend returns it to `STATUS_PENDING`. |
+| Email (one message) | `System_Email_View_Action` | `/frontend/system/email_queue/view/:id` | One `Email_Queue_Model` row plus its rendered HTML through `Rsx_Mail::displayable_html()` (inline `cid:` images become `data:` URIs of the bytes recorded on the row), shown in an iframe `srcdoc`, and its `attachments()` rows (file name, mime type, attachment-vs-inline, and the blob's size) when the message carries any; resend returns it to `STATUS_PENDING`. |
 | Email Recipients | `System_Email_Recipients_Action` | `/frontend/system/email_recipients` | `Email_Recipient_Model`; toggles `is_blocked_notification` / `is_blocked_marketing` / `is_blocked_all`. |
 
 `email_config/system_email_controller.php` (`System_Email_Controller`) is the **only**
