@@ -54,6 +54,7 @@ class Portal_Register_Flow_Test extends Rsx_Test_Abstract
     {
         $client = new Client_Model();
         $client->name = 'Reg Client ' . uniqid();
+        $client->portal_enabled = true; // a membership grants portal access only while the portal is open
         $client->save();
 
         return $client;

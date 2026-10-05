@@ -12,7 +12,7 @@ use Rsx\App\Frontend\ActionLogs\List\Action_Logs_DataGrid;
  *
  * Action logs are read-only - no create/edit/delete endpoints.
  */
-#[Auth('is_logged_in')]
+#[Auth('is_logged_in', 'can_view_user_activity')]
 class Frontend_Action_Logs_Controller extends Rsx_Controller_Abstract
 {
     /**

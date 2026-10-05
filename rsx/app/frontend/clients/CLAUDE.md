@@ -33,10 +33,34 @@ own `#[Auth('can_export_data')]`), and the whole portal surface. It declares no 
 at all: routes live on the JS actions' `@route` decorators, which is what makes this an SPA
 feature rather than a Blade one.
 
+**The gates are the permission model.** The class is `#[Auth('is_logged_in', 'can_view_data')]`,
+and EVERY write - `save`, `delete`, `bulk_delete`, `restore`, the document and share
+endpoints, and every portal-membership, invitation, announcement and request-thread write -
+adds a method-level `#[Auth('can_edit_data')]`. The record-scoped activity tabs
+(`client_activity`) are record history and read on `can_view_data`; the site-wide audit log is
+`../action_logs/`, on `can_view_user_activity`. `rsx/tests/Endpoint_Data_Gates_Test.php` fails
+when a write-shaped endpoint lacks `can_edit_data`.
+
+**Portal access follows the client.** "Disable Portal" (`toggle_portal`) and deleting the
+client keep every `portal_memberships` row and revoke access at once: the portal side reads
+memberships only through `Portal_Membership_Model::has_membership()` /
+`find_for_user_and_client()` / `get_for_user()`, which count a row only while its client is
+portal-enabled and not deleted. The staff panel reads every row (`has_membership_row()`,
+`get_all_for_user()`, `get_for_client()`), so a closed portal's members are still listed and
+re-inviting one creates no duplicate. `portal_add_member` accepts only one of THIS client's
+contacts, and every membership role write accepts only a `Portal_Membership_Model` role id.
+
+**A document share is per contact and expires.** `documents_share` writes one
+`Shared_Item_Model` row per chosen contact with an expiry (`rsx.portal.shared_link_default_expiry_days`),
+and only that contact's portal user can see or download the document, only until it expires
+(`Shared_Item_Model::find_valid_share()`). Sharing again with a contact whose share has expired
+replaces it with a fresh one; the panel badge counts the live shares.
+
 ## HOW IT IS USED
 
 Every action carries the same five decorators — `@route`, `@layout('Frontend_Spa_Layout')`,
-`@spa('Frontend_Spa_Controller::index')`, `@title`, `@auth('is_logged_in')` — plus
+`@spa('Frontend_Spa_Controller::index')`, `@title`, `@auth('is_logged_in', 'can_view_data')`
+(the edit action adds `'can_edit_data'`, so its links hide for a read-only user) — plus
 `scaffolded = true`, because each template composes `<Page_Scaffold>` (see `../CLAUDE.md`).
 
 **One action serves add and edit**, with two `@route` decorators (`/clients/add` and
@@ -121,7 +145,8 @@ hardcoded path (`URL-HARDCODE-01`), an interpolated one included.
   controller of Ajax endpoints at the root, `list/` + `view/` + `edit/`, `history/` if the
   model records revisions.
 - **Add an endpoint** to the existing controller rather than creating a second one — a
-  feature has one controller, and the gate is declared once at class level.
+  feature has one controller; the read gate is declared once at class level and a write adds
+  `#[Auth('can_edit_data')]` on the method.
 - **Keep validation on the server.** `save()` validates and returns
   `response_form_error($message, ['field' => 'Message'])`; the form paints it under the
   field. `$required` on a field is an asterisk announcing a server rule, not a check.

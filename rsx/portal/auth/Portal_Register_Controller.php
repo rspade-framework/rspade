@@ -145,7 +145,7 @@ class Portal_Register_Controller extends Rsx_Controller_Abstract
                     $role_id = (int) ($invitation->get_metadata('role_id')
                         ?: Portal_Membership_Model::ROLE_VIEWER);
 
-                    if (!Portal_Membership_Model::has_membership($portal_user->id, $client_id)) {
+                    if (!Portal_Membership_Model::has_membership_row($portal_user->id, $client_id)) {
                         $membership = new Portal_Membership_Model();
                         $membership->site_id = $invitation->site_id;
                         $membership->portal_user_id = $portal_user->id;

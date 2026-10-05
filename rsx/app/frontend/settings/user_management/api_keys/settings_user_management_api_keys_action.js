@@ -13,7 +13,7 @@
 @layout('Frontend_Spa_Layout')
 @layout('Settings_Layout')
 @spa('Frontend_Spa_Controller::index')
-@auth('can_manage_users')
+@auth('is_logged_in', 'can_manage_users')
 class Settings_User_Management_Api_Keys_Action extends Spa_Action {
     scaffolded = true;
 

@@ -81,7 +81,7 @@ class Portal_Users_DataGrid extends DataGrid_Abstract
                 : null;
 
             $memberships = [];
-            foreach (Portal_Membership_Model::get_for_user((int) $record['id']) as $membership) {
+            foreach (Portal_Membership_Model::get_all_for_user((int) $record['id']) as $membership) {
                 $client = Client_Model::find($membership->client_id);
                 $memberships[] = [
                     'membership_id' => $membership->id,

@@ -16,6 +16,34 @@ Three SPA actions under `Settings_Layout` and one controller
 `export_csv` carries an additional `#[Auth('can_export_data')]` — the one per-method gate in
 the tree.
 
+## EQUAL-OR-LOWER ADMINISTRATION
+
+A caller creates, edits, re-roles, disables and re-enables only users whose role is EQUAL to
+or LOWER than their own - the role's `can_admin_roles` list (`User_Model::$enums`, where every
+administering role names itself and the roles below it), read through `can_admin_role()`.
+Every write asks it of the target's CURRENT role (`__administrable_user()`: `get_user_for_edit`,
+`save_user`, `set_user_enabled`, `revoke_user_api_key`) and of any NEW role
+(`_validate_role_id()`: `add_user`, `save_user`); a refusal is `ERROR_UNAUTHORIZED` and
+changes nothing - not the role, the email, the second-factor rule or API access. A
+non-selectable role (Root Admin) is never assigned through the form; a user who already holds
+it keeps it on save, which is why the edit form lists every role the caller administers
+rather than only the selectable ones. Reads (`get_user`, the grid, `get_user_api_keys`) stay
+open to every holder of `can_manage_users`; `get_user` reports `can_administer` / `is_self`
+and the view page shows Edit and Enable/Disable only when they would be accepted.
+
+**An invitation link is never shown for a role above the caller's.** `send_invite` re-sends
+the email for any pending user of the site (the email goes to the invitee), but returns
+`invite_url` only when the caller administers the invitee's role; otherwise it returns
+`invite_url_hidden: true` and `Send_User_Invite_Modal` says the link is hidden because the
+selected user's access level exceeds the caller's own.
+
+**Disabling is `users.is_enabled`** (`set_user_enabled`), never a role: the framework refuses
+a disabled membership at sign-in and ends its live sessions, while the role and ACL rows are
+kept so re-enabling restores them. Nobody disables themselves.
+
+`get_user` lists the user's recent sessions ON THIS SITE only - an identity's sessions on
+other sites are not this site's business.
+
 ## TWO-FACTOR
 
 `users.is_2fa_required` is this application's own policy column (the framework decides only
@@ -41,8 +69,6 @@ principle below, which it is a deliberate, narrow exception to.
   or a field to any of these screens.
 - New screens follow the settings ladder: `../CLAUDE.md` for the two `Settings_Layout` edits
   a new sub-feature needs.
-- Note the gate asymmetry to resolve before launch: `Settings_User_Management_Api_Keys_Action`
-  declares `can_manage_users` without `is_logged_in`, unlike every sibling.
 
 ---
 

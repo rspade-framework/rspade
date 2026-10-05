@@ -16,14 +16,15 @@ use Rsx\App\Frontend\Settings\ApiKeys\Api_Keys_DataGrid;
 /**
  * Frontend_Settings_Api_Keys_Controller - the API key management endpoints.
  *
- * EVERY ENDPOINT RE-ASKS Session::has_api_access(). The #[Auth('is_logged_in')] gate says
- * who may reach this controller at all; whether this identity may deal in API keys is
- * users.is_api_access_enabled, the same predicate Api_Dispatcher applies to a Bearer key
- * and the page applies to its own chrome. The nav link and the buttons hide themselves for
+ * TWO SWITCHES, BOTH REQUIRED. The class gate is can_use_api - this application's
+ * PERM_API_ACCESS, granted per user - which Main::pre_dispatch also asks of every bearer-key
+ * request. And EVERY ENDPOINT RE-ASKS Session::has_api_access(): users.is_api_access_enabled,
+ * the framework's own switch, the same predicate the bearer layer applies to a key and the
+ * page applies to its own chrome. The nav link and the buttons hide themselves for
  * a user without it, but a hidden link is not access control - the refusal has to live
  * here, where the write happens.
  */
-#[Auth('is_logged_in')]
+#[Auth('is_logged_in', 'can_use_api')]
 class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
 {
     /**

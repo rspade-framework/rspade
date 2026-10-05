@@ -12,7 +12,13 @@ use Rsx\Portal_Permission;
  *
  * Internal users share files/content with contacts via secure token-based links.
  * The contact receives an email, clicks the link, creates a portal account (or
- * logs in), and can view the shared item. No client portal membership required.
+ * logs in), and can view the shared item.
+ *
+ * A SHARE IS PER CONTACT AND EXPIRES. A row grants its one contact - the portal user
+ * linked to that contact - and only until expires_at. find_valid_share() is the one
+ * question every reader asks ("may THIS contact see THIS item NOW?"), so a document shared
+ * with one contact is never readable by another member of the same client, and an expired
+ * share grants nothing anywhere.
  *
  * Uses polymorphic type references for item_type (BIGINT, not VARCHAR).
  */
@@ -131,6 +137,29 @@ class Shared_Item_Model extends Rsx_Site_Model_Abstract
     }
 
     /**
+     * The newest UNEXPIRED share of an item with one contact, or null.
+     *
+     * THE share check: the portal file gate, the portal Documents tab and portal_can_read()
+     * all ask this, never "does any row exist for the item".
+     */
+    public static function find_valid_share(string $item_type, int $item_id, int $contact_id): ?self
+    {
+        if ($contact_id <= 0) {
+            return null;
+        }
+
+        return static::where('item_type', $item_type)
+            ->where('item_id', $item_id)
+            ->where('contact_id', $contact_id)
+            ->where(function ($query) {
+                $query->whereNull('expires_at')
+                    ->orWhere('expires_at', '>', now());
+            })
+            ->orderBy('created_at', 'desc')
+            ->first();
+    }
+
+    /**
      * Find a shared item by its secure token
      */
     public static function find_by_token(string $token): ?self
@@ -228,8 +257,8 @@ class Shared_Item_Model extends Rsx_Site_Model_Abstract
      * Record-level portal visibility (shared-recipient rule).
      *
      * A portal user may read a shared item only when it was shared with the
-     * contact their portal account is linked to. Fail-closed: no linked contact,
-     * or any mismatch, denies. portal_fetch() (Portal_Authorizable trait) has
+     * contact their portal account is linked to and has not expired. Fail-closed: no
+     * linked contact, any mismatch, or an expired share denies. portal_fetch() (Portal_Authorizable trait) has
      * already required an authenticated portal session before this is called.
      *
      * @return bool
@@ -241,6 +270,7 @@ class Shared_Item_Model extends Rsx_Site_Model_Abstract
             return false;
         }
 
-        return (int) $this->contact_id === (int) $portal_user->contact_id;
+        return (int) $this->contact_id === (int) $portal_user->contact_id
+            && $this->is_valid();
     }
 }

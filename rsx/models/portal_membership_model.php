@@ -74,24 +74,84 @@ class Portal_Membership_Model extends Rsx_Site_Model_Abstract
         ],
     ];
 
+    // =========================================================================
+    // PORTAL ACCESS - live memberships only
+    //
+    // A membership row grants portal access only while its client is LIVE: not
+    // soft-deleted and with clients.portal_enabled on. "Disable Portal" and deleting a
+    // client therefore revoke every member's access at once WITHOUT touching a row, and
+    // re-enabling (or restoring) the client gives it back. These three are the portal
+    // side's only membership readers - Portal_Permission is built on them - so every
+    // portal surface inherits the rule.
+    // =========================================================================
+
     /**
-     * Find membership for a portal user + client combination
+     * Find the LIVE membership for a portal user + client combination, or null.
      */
     public static function find_for_user_and_client(int $portal_user_id, int $client_id): ?self
     {
-        return static::where('portal_user_id', $portal_user_id)
+        return static::__live(static::where('portal_user_id', $portal_user_id))
             ->where('client_id', $client_id)
             ->first();
     }
 
     /**
-     * Get all memberships for a portal user.
+     * Get the LIVE memberships of a portal user - one per client they can reach now.
      *
      * Returns an Rsx_Result_Set - foreach it, count() it. This model is $unbounded
      * (one row per user per client), so the whole set is walked a page at a time
      * rather than held in memory.
      */
     public static function get_for_user(int $portal_user_id): \App\RSpade\Core\Database\Rsx_Result_Set
+    {
+        return static::__live(static::where('portal_user_id', $portal_user_id))->result_set();
+    }
+
+    /**
+     * Does a portal user have a LIVE membership of a client - may they reach it now?
+     */
+    public static function has_membership(int $portal_user_id, int $client_id): bool
+    {
+        return static::__live(static::where('portal_user_id', $portal_user_id))
+            ->where('client_id', $client_id)
+            ->exists();
+    }
+
+    /**
+     * Narrow a membership query to clients that are live for the portal: the client row
+     * exists (Client_Model's SoftDeletes and site scope apply to the subquery) and has
+     * portal_enabled on.
+     */
+    private static function __live($query)
+    {
+        return $query->whereIn('client_id', Client_Model::where('portal_enabled', 1)->select('id'));
+    }
+
+    // =========================================================================
+    // MEMBERSHIP MANAGEMENT - every row, whatever its client's state
+    //
+    // Staff screens and the code that CREATES memberships read the rows themselves:
+    // a closed portal's members are still its members (they get access back when it
+    // reopens), and an invitation accepted while the portal is closed must not create
+    // a second row.
+    // =========================================================================
+
+    /**
+     * Does a membership row exist for this portal user and client, live or not?
+     */
+    public static function has_membership_row(int $portal_user_id, int $client_id): bool
+    {
+        return static::where('portal_user_id', $portal_user_id)
+            ->where('client_id', $client_id)
+            ->exists();
+    }
+
+    /**
+     * Every membership row of a portal user, live or not (staff screens).
+     *
+     * Returns an Rsx_Result_Set, walked a page at a time ($unbounded).
+     */
+    public static function get_all_for_user(int $portal_user_id): \App\RSpade\Core\Database\Rsx_Result_Set
     {
         return static::where('portal_user_id', $portal_user_id)->result_set();
     }
@@ -110,16 +170,6 @@ class Portal_Membership_Model extends Rsx_Site_Model_Abstract
     public static function count_for_client(int $client_id): int
     {
         return static::where('client_id', $client_id)->count();
-    }
-
-    /**
-     * Check if a portal user has membership for a specific client
-     */
-    public static function has_membership(int $portal_user_id, int $client_id): bool
-    {
-        return static::where('portal_user_id', $portal_user_id)
-            ->where('client_id', $client_id)
-            ->exists();
     }
 
     /**

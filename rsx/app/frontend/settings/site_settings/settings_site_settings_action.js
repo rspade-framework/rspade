@@ -9,7 +9,7 @@
 @layout('Settings_Layout')
 @spa('Frontend_Spa_Controller::index')
 @title('Site Settings')
-@auth('is_logged_in')
+@auth('is_logged_in', 'can_manage_site_settings')
 class Settings_Site_Settings_Action extends Spa_Action {
     scaffolded = true;
 

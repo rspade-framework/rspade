@@ -16,16 +16,15 @@ use Rsx\Portal_Permission;
 
 /**
  * Portal_Documents_Controller - the portal-authed surface for the workspace
- * Documents tab. Returns the documents the firm has SHARED with the requested
- * client (workspace).
+ * Documents tab. Returns the documents the firm has SHARED with the caller, within the
+ * requested client (workspace).
  *
- * CLIENT-LEVEL SHARING (current model): a document is shared with the CLIENT, not an
- * individual - once shared it is visible to EVERY portal user of that client. A shared
- * document is a 'documents' File_Attachment of the client that has at least one
- * Shared_Item_Model row (item_type='File_Attachment_Model'); the per-contact rows only
- * record who was specifically invited + emailed. The workspace scope (client) is taken
- * from a membership gate, never from a client-supplied user id. End-user applications
- * will likely replace this with a more granular per-document / per-contact model.
+ * PER-CONTACT SHARING: a share is a Shared_Item_Model row for one document and one
+ * contact, with an expiry. A portal user sees a document only while an UNEXPIRED share
+ * names THEIR contact (Shared_Item_Model::find_valid_share) - the same rule the file gate
+ * (rsx/handlers/Portal_File_Access_Handlers.php) applies to the bytes, so the list never
+ * offers a link the download would refuse. The workspace scope (client) is taken from a
+ * live-membership gate, never from a client-supplied user id.
  *
  * Authorization: the class-level #[Auth('is_logged_in')] gate (portal realm) admits
  * only a logged-in portal user. list() additionally fails closed for a client the
@@ -37,10 +36,9 @@ class Portal_Documents_Controller extends Rsx_Controller_Abstract
     /**
      * Ajax endpoint: the client's shared documents for this workspace.
      *
-     * Fail-closed: a caller who is not a member of the requested client gets an empty
-     * list. Returns every 'documents' attachment of the client that has been shared
-     * with the client (has at least one Shared_Item); uploaded-but-unshared documents
-     * are excluded.
+     * Fail-closed: a caller who is not a live member of the requested client is refused.
+     * Returns every 'documents' attachment of the client shared with the caller's own
+     * contact by an unexpired share; everything else is excluded.
      */
     #[Ajax_Endpoint]
     #[Portal_Impersonation_Readable]
@@ -63,17 +61,16 @@ class Portal_Documents_Controller extends Rsx_Controller_Abstract
         // Firm label the recipient sees as the sharer (the workspace's own name).
         $shared_by_label = $client->name;
 
-        // CLIENT-LEVEL SHARING: every 'documents' attachment of this client that has
-        // been shared with the client (any Shared_Item exists) is visible to all of the
-        // client's portal users. The most recent share supplies the shared-at/message.
+        // PER-CONTACT SHARING: a 'documents' attachment of this client is listed only
+        // while an unexpired share names the caller's own contact. That share supplies
+        // the shared-at/message.
+        $contact_id = (int) (Portal_Permission::current_user()->contact_id ?? 0);
+
         $documents = [];
         foreach ($client->get_attachments('documents') as $attachment) {
-            $share = Shared_Item_Model::where('item_type', 'File_Attachment_Model')
-                ->where('item_id', $attachment->id)
-                ->orderBy('created_at', 'desc')
-                ->first();
+            $share = Shared_Item_Model::find_valid_share('File_Attachment_Model', (int) $attachment->id, $contact_id);
             if (!$share) {
-                continue; // uploaded but not yet shared with the client
+                continue; // not shared with this contact, or the share has expired
             }
 
             $documents[] = [

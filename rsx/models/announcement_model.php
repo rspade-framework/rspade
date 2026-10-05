@@ -201,6 +201,7 @@ class Announcement_Model extends Rsx_Site_Model_Abstract
      * compose/view UI. Staff-only; pre_dispatch on the calling controller already
      * enforces the staff session, and the site global scope restricts to this site.
      */
+    #[Auth('can_view_data')]
     #[Ajax_Endpoint_Model_Fetch]
     public static function fetch($id)
     {

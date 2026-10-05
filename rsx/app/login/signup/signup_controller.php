@@ -54,7 +54,12 @@ use Rsx\App\Login\Invite_Helper;
  *    - Confirm password (required)
  *
  * 6. SIGNUP ACTION
+ *    - submit() honours rsx.auth.signup_mode exactly as index() does: 'disabled' refuses
+ *      every submission, 'invite_only' refuses one without a valid invitation - a POST is
+ *      never a way around the page
  *    - Creates login_user record with is_verified = 0 (unverified)
+ *    - An email that already has an account gets the SAME answer as a new one and
+ *      creates nothing: the endpoint is not a way to learn which addresses exist
  *    - Uses Rsx_Form pattern (like edit contact CRUD)
  *    - Ajax endpoint for validation and response
  *    - On success: Show alert with created record as JSON string
@@ -139,6 +144,14 @@ class Signup_Controller extends Rsx_Controller_Abstract
         // carries the envelope, not the field, on the Request).
         Rsx_Turnstile::validate($request, $params);
 
+        // The page's own rule, asked again here: a POST must never succeed where the page
+        // would have refused to render.
+        $signup_mode = config('rsx.auth.signup_mode', 'invite_only');
+
+        if ($signup_mode === 'disabled') {
+            return response_form_error('Registration is currently disabled.');
+        }
+
         // Extract form data
         $email = trim($params['email'] ?? '');
         $first_name = trim($params['first_name'] ?? '');
@@ -156,12 +169,6 @@ class Signup_Controller extends Rsx_Controller_Abstract
             $errors['email'] = 'Email address is required';
         } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $errors['email'] = 'Please enter a valid email address';
-        } else {
-            // Check if email already exists
-            $existing = Login_User_Model::where('email', $email)->first();
-            if ($existing) {
-                $errors['email'] = 'An account with this email already exists';
-            }
         }
 
         // Name validation
@@ -185,7 +192,6 @@ class Signup_Controller extends Rsx_Controller_Abstract
         }
 
         // Invite code validation (if provided or required)
-        $signup_mode = config('rsx.auth.signup_mode', 'invite_only');
         $invitation = null;
 
         if ($signup_mode === 'invite_only' || $invite_code) {
@@ -219,20 +225,27 @@ class Signup_Controller extends Rsx_Controller_Abstract
             return response_form_error('Please correct the errors below.', $errors);
         }
 
-        // Create login_user record
-        $login_user = new Login_User_Model();
-        $login_user->email = $email;
-        $login_user->password = Hash::make($password);
-        $login_user->is_verified = 0; // Unverified until email confirmation
-        $login_user->is_activated = 1; // Activated by default
-        $login_user->save();
+        // An address that already has an account is answered exactly like a new one and
+        // nothing is written: telling the two apart would make this public form a way to
+        // learn which addresses hold an account. The owner of that address signs in, or
+        // resets their password, as the shared message says.
+        // The hash is computed either way so the two answers also take the same time.
+        $password_hash = Hash::make($password);
 
-        Flash_Alert::success('Account created successfully! Please check your email to verify your account.');
+        if (!Login_User_Model::where('email', $email)->exists()) {
+            $login_user = new Login_User_Model();
+            $login_user->email = $email;
+            $login_user->password = $password_hash;
+            $login_user->is_verified = 0; // Unverified until email confirmation
+            $login_user->is_activated = 1; // Activated by default
+            $login_user->save();
+        }
+
+        Flash_Alert::success('Registration received. Sign in with your email address and password - if this address already had an account, sign in with that account or reset its password.');
 
         // 'redirect' is the one result key the form itself acts on: the browser leaves
         // for the login page, and the flash message is waiting there.
         return [
-            'user_id' => $login_user->id,
             'redirect' => Rsx::Route('Login_Controller'),
         ];
     }

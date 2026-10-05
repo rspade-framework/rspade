@@ -43,7 +43,7 @@ models:
 |---|---|
 | `is_logged_in()` | the one gate check (`#[Auth('is_logged_in')]`) |
 | `current_user()` / `current_user_id()` / `site_id()` | the acting identity |
-| `has_client_access($client_id)` | is there a membership |
+| `has_client_access($client_id)` | is there a LIVE membership (its client portal-enabled and not deleted) |
 | `client_role($client_id)` | VIEWER=1 / COLLABORATOR=2 |
 | `can_collaborate($client_id)` | role >= COLLABORATOR |
 | `accessible_client_ids()` | for `whereIn()` scoping |
@@ -153,6 +153,10 @@ Invitations carry `status_id` (PENDING/USED/EXPIRED/REVOKED) and expire after `r
 | REVOKED | "cancelled" page |
 
 **Only PENDING grants membership.** Admins **Cancel** (revoke) a pending invite on the per-client members screen. "Disable Access" removes a client membership (account, contact and login persist) - distinct from the de-emphasized global account suspend on the Portal Users admin screen. Force-password-reset is **not** a staff action (self-service only).
+
+**A membership grants access only while its client is live.** "Disable Portal" (`clients.portal_enabled` off) and deleting the client revoke every member at once WITHOUT touching a membership row; reopening restores them. The portal side reads memberships only through `Portal_Membership_Model::has_membership()` / `find_for_user_and_client()` / `get_for_user()`, which count live rows only, so every `Portal_Permission` method and every `portal_can_read()` built on it inherits the rule. Staff screens and the code that CREATES a membership read the rows themselves (`has_membership_row()`, `get_all_for_user()`, `get_for_client()`), so accepting an invitation to a closed portal creates the row (no duplicate) and grants nothing until it reopens.
+
+**A document share is per contact and expires.** A client document is visible to a portal user only while an unexpired `Shared_Item_Model` row names THEIR contact (`Shared_Item_Model::find_valid_share()`) and they hold a live membership of the client - on the Documents tab and on the file routes alike (`rsx/handlers/Portal_File_Access_Handlers.php`). A portal-realm file URL is answered for the PORTAL identity only; a staff session never opens one.
 
 ## Record-level access
 

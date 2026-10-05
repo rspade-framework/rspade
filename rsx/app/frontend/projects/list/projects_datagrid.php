@@ -82,7 +82,12 @@ class Projects_DataGrid extends DataGrid_Abstract
                 'projects.*',
                 'clients.name as client_name',
             ])
-            ->leftJoin('clients', 'projects.client_id', '=', 'clients.id');
+            // Same-site join: the base query is site-scoped, the joined table is not, so the
+            // join itself refuses a client row from another site.
+            ->leftJoin('clients', function ($join) {
+                $join->on('projects.client_id', '=', 'clients.id')
+                    ->on('clients.site_id', '=', 'projects.site_id');
+            });
 
         // Apply filter if provided - searches across multiple fields.
         // Every column is qualified: clients carries name/id of its own.

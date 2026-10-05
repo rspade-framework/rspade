@@ -28,6 +28,7 @@ use Rsx\Portal\Workspaces\Documents\Portal_Documents_Controller;
  *   - the portal Portal_Documents_Controller.list() returns ONLY the caller's shared
  *     docs for the requested client - membership-gated AND contact-scoped.
  *   - a non-member is denied; a member with a DIFFERENT contact sees nothing.
+ *   - an expired share grants nothing, and sharing again renews it.
  *   - unshare removes portal access.
  *
  * Staff operations run under __acting_as_site (site-scoped models). Portal reads run
@@ -233,16 +234,15 @@ class Portal_Documents_Test extends Rsx_Test_Abstract
         static::__assert_false(is_array($response) && isset($response['documents']), 'non-member does not get a documents list');
     }
 
-    public static function test_other_member_sees_client_shared_doc()
+    public static function test_other_member_does_not_see_a_doc_shared_with_someone_else()
     {
-        // CLIENT-LEVEL SHARING: sharing a document with one contact shares it with the
-        // whole client, so any OTHER member of that client sees it too (the invited
-        // contact is merely the one who gets emailed).
+        // PER-CONTACT SHARING: a share names one contact, so a document shared with one
+        // member of the client is not visible to another member of the same client.
         $client = static::__make_client();
 
-        // The contact the doc is invited/shared to.
         $recipient_contact = static::__make_contact($client);
-        static::__make_portal_user($recipient_contact);
+        $recipient_user = static::__make_portal_user($recipient_contact);
+        static::__add_member($client, $recipient_user);
         $doc = static::__make_document($client);
         Frontend_Clients_Controller::documents_share(new Request(), [
             'client_id' => $client->id,
@@ -250,17 +250,60 @@ class Portal_Documents_Test extends Rsx_Test_Abstract
             'contact_ids' => [$recipient_contact->id],
         ]);
 
-        // A DIFFERENT member of the same client (different contact). The doc was not
-        // shared with THEM specifically, but it is shared with the client.
         $other_contact = static::__make_contact($client);
         $other_user = static::__make_portal_user($other_contact);
         static::__add_member($client, $other_user);
 
         static::__login_portal($other_user);
         $result = Portal_Documents_Controller::list(new Request(), ['client_id' => $client->id]);
+        static::__assert_count(0, $result['documents'], 'a fellow member does not see a doc shared with somebody else');
 
-        static::__assert_count(1, $result['documents'], 'a fellow member sees the client-shared doc');
-        static::__assert_equals($doc->file_name, $result['documents'][0]['name']);
+        static::__login_portal($recipient_user);
+        $result = Portal_Documents_Controller::list(new Request(), ['client_id' => $client->id]);
+        static::__assert_count(1, $result['documents'], 'the recipient sees it');
+    }
+
+    public static function test_expired_share_grants_nothing_and_resharing_renews_it()
+    {
+        $client = static::__make_client();
+        $contact = static::__make_contact($client);
+        $user = static::__make_portal_user($contact);
+        static::__add_member($client, $user);
+        $doc = static::__make_document($client);
+
+        Frontend_Clients_Controller::documents_share(new Request(), [
+            'client_id' => $client->id,
+            'attachment_id' => $doc->id,
+            'contact_ids' => [$contact->id],
+        ]);
+
+        $share = Shared_Item_Model::where('item_type', 'File_Attachment_Model')
+            ->where('item_id', $doc->id)
+            ->first();
+        $share->expires_at = now()->subDay();
+        $share->save();
+
+        static::__login_portal($user);
+        $result = Portal_Documents_Controller::list(new Request(), ['client_id' => $client->id]);
+        static::__assert_count(0, $result['documents'], 'an expired share lists nothing');
+        static::__assert_null(
+            Shared_Item_Model::find_valid_share('File_Attachment_Model', (int) $doc->id, (int) $contact->id),
+            'an expired share is not a valid share'
+        );
+        static::__assert_false($share->portal_can_read(), 'an expired share is not readable through portal_fetch');
+
+        // Sharing again replaces the expired row with a live one.
+        static::__acting_as_site(self::SITE_ID);
+        $again = Frontend_Clients_Controller::documents_share(new Request(), [
+            'client_id' => $client->id,
+            'attachment_id' => $doc->id,
+            'contact_ids' => [$contact->id],
+        ]);
+        static::__assert_equals(1, $again['shared'], 're-sharing an expired share creates a new one');
+
+        static::__login_portal($user);
+        $result = Portal_Documents_Controller::list(new Request(), ['client_id' => $client->id]);
+        static::__assert_count(1, $result['documents'], 'the renewed share lists the doc');
     }
 
     // ---------------------------------------------------------------------

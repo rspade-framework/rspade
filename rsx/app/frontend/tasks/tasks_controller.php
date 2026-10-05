@@ -27,7 +27,7 @@ use Rsx\Models\Task_Model;
  * taskable parent chain and cascaded to descendants; a user-supplied project value is honored
  * only when the chain does NOT resolve to a project.
  */
-#[Auth('is_logged_in')]
+#[Auth('is_logged_in', 'can_view_data')]
 class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
 {
     /** Polymorphic parent types a task may be attached to. */
@@ -246,6 +246,7 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
      * does not, project_id takes the user value (nullable). Descendants are cascaded. See
      * docs.dev/BACKLOG.md B-1 (this application-level derivation is that item's case study).
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function save(Request $request, array $params = [])
     {
@@ -273,6 +274,15 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
         }
         if ($parent_type && $parent_id && !static::__parent_exists($parent_type, $parent_id)) {
             $errors['taskable_id'] = 'The selected parent does not exist';
+        }
+
+        // Every other referenced id must name a record of this site - the site-scoped find
+        // is the tenant check, so an id from another site misses.
+        if (!empty($params['assigned_to_user_id']) && !User_Model::find((int) $params['assigned_to_user_id'])) {
+            $errors['assigned_to_user_id'] = 'The selected user does not exist';
+        }
+        if (!empty($params['project_id']) && !Project_Model::find((int) $params['project_id'])) {
+            $errors['project_id'] = 'The selected project does not exist';
         }
 
         $task_id = $params['id'] ?? null;
@@ -341,6 +351,7 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
     /**
      * Ajax endpoint: Delete a task (soft delete).
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function delete(Request $request, array $params = [])
     {

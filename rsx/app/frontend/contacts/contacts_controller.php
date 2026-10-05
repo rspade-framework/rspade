@@ -30,7 +30,7 @@ use Rsx\Models\Project_Model;
 
 /**
  */
-#[Auth('is_logged_in')]
+#[Auth('is_logged_in', 'can_view_data')]
 class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
 {
     /**
@@ -224,6 +224,7 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
      * @param array $params
      * @return mixed
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function save(Request $request, array $params = [])
     {
@@ -240,6 +241,9 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
 
         if (empty($params['client_id'])) {
             $errors['client_id'] = 'Client is required';
+        } elseif (!Client_Model::find((int) $params['client_id'])) {
+            // The site-scoped find is the tenant check: an id from another site misses.
+            $errors['client_id'] = 'The selected client does not exist';
         }
 
         if (empty($params['email'])) {
@@ -432,13 +436,13 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
      * complete. Every row goes through the model layer one at a time - a raw bulk DELETE would
      * skip the soft delete, the audit stamp, the realtime frame and the action log.
      *
-     * Gate: the class-level 'is_logged_in'. Contacts have no single-record delete endpoint to
-     * copy a gate from, so this matches save() - the controller's other mutating endpoint.
+     * Gate: can_edit_data, as on save() - the controller's other mutating endpoint.
      *
      * @param Request $request
      * @param array $params
      * @return mixed
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function bulk_delete(Request $request, array $params = [])
     {

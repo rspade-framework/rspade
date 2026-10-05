@@ -84,7 +84,7 @@ class Portal_Invitations_Controller extends Rsx_Controller_Abstract
         }
 
         // Idempotent: if a membership already exists, just consume the invitation.
-        if (!Portal_Membership_Model::has_membership($portal_user_id, $client_id)) {
+        if (!Portal_Membership_Model::has_membership_row($portal_user_id, $client_id)) {
             $membership = new Portal_Membership_Model();
             $membership->site_id = (int) $invitation->site_id;
             $membership->portal_user_id = $portal_user_id;
@@ -168,7 +168,7 @@ class Portal_Invitations_Controller extends Rsx_Controller_Abstract
         return $combined->reject(function ($invitation) use ($user) {
             $client_id = (int) $invitation->get_metadata('client_id');
 
-            return $client_id && Portal_Membership_Model::has_membership($user->id, $client_id);
+            return $client_id && Portal_Membership_Model::has_membership_row($user->id, $client_id);
         })->values();
     }
 

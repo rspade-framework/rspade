@@ -11,7 +11,7 @@ use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
  * class-level gate is declared up front so the first endpoint added here is
  * login-gated by default rather than by remembering to say so.
  */
-#[Auth('is_logged_in')]
+#[Auth('is_logged_in', 'can_view_data')]
 class Frontend_Calendar_Controller extends Rsx_Controller_Abstract
 {
 }

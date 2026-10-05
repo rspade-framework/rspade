@@ -101,7 +101,9 @@ this application DECLARES ITS SITE (`Session::set_site_id(1)` - mono-site; a
 multi-tenant app resolves the site from the host or the signed-in user here instead).
 `pre_dispatch()` runs before every staff route and is where cross-cutting request work
 lives (this app bounces an identity an administrator flagged `users.is_2fa_required`
-with no second factor enrolled to the forced-enrollment interstitial; site membership
+with no second factor enrolled to the forced-enrollment interstitial, and refuses a
+bearer-key request whose user lacks `can_use_api` - the framework answers it 403
+`account_refused`, on the file routes as on `/api/vN`; site membership
 is NOT checked here - `users.is_enabled` is the framework's switch and the framework
 enforces it at login and before every dispatch); `unhandled_route()`
 is the 404 hook. Edit `init()` when tenancy changes; edit `pre_dispatch()` for an
@@ -276,9 +278,10 @@ appear in `#[Auth('...')]` / `@auth('...')`.
 | `can_edit_data` | `PERM_EDIT_DATA` - create/modify/delete records. |
 | `can_view_data` | `PERM_VIEW_DATA` - read records. |
 | `can_export_data` | `PERM_DATA_EXPORT` - downloads, report extracts. |
-| `can_use_api` | `PERM_API_ACCESS`. Defined but deliberately NOT applied to the template's `#[Api_Endpoint]` surfaces (pre-existing keys would break); name it on your own endpoints. |
+| `can_use_api` | `PERM_API_ACCESS`, granted per user (no role holds it). Gates every `#[Api_Endpoint]` and key minting; `Main::pre_dispatch()` also refuses a bearer-key request without it. |
 | `can_impersonate` | Role floor `ROLE_MANAGER` - may start "View as Client". Redeclares the framework check, which denies by default. |
 | `closed` | Framework built-in: always false. Gates `rsx/app/dev/`, which ships unreachable. The counterpart to `public`. |
+| `is_framework_developer` | Framework built-in: true only on a framework-development tree. Gates `rsx/app/ssr_test/`, which is therefore unreachable here. |
 
 Plus the framework-supplied `public` and `is_logged_in`.
 

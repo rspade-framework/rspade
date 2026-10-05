@@ -139,6 +139,7 @@ class Demo_Product_Model extends Rsx_Model_Abstract
      * @param int $id Single ID
      * @return static|false Single model object or false if not found
      */
+    #[Auth('can_view_data')]
     #[Ajax_Endpoint_Model_Fetch]
     public static function fetch($id)
     {

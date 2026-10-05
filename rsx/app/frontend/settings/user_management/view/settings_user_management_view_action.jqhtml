@@ -194,9 +194,25 @@
                 </View_Fields>
 
                 <div class="d-grid gap-2">
-                    <button $sid="btn_edit_user" class="btn btn-primary btn-sm">
-                        <i class="bi bi-pencil"></i> Edit User
-                    </button>
+                    <%-- Equal-or-lower administration: a user whose role is above the
+                         signed-in user's is shown, never changed. The endpoints refuse it
+                         either way; hiding the buttons keeps the screen honest. --%>
+                    <% if (_u.can_administer) { %>
+                        <button $sid="btn_edit_user" class="btn btn-primary btn-sm">
+                            <i class="bi bi-pencil"></i> Edit User
+                        </button>
+                        <% if (!_u.is_self) { %>
+                            <% if (_u.is_enabled) { %>
+                                <button $sid="btn_set_enabled" data-enabled="0" class="btn btn-danger btn-sm">
+                                    <i class="bi bi-slash-circle"></i> Disable User
+                                </button>
+                            <% } else { %>
+                                <button $sid="btn_set_enabled" data-enabled="1" class="btn btn-success btn-sm">
+                                    <i class="bi bi-check-circle"></i> Enable User
+                                </button>
+                            <% } %>
+                        <% } %>
+                    <% } %>
                     <% if (_u.invitation_status !== 'accepted' && _u.is_enabled) { %>
                         <button $sid="btn_resend_invite" class="btn btn-outline-secondary btn-sm">
                             <i class="bi bi-envelope"></i> Resend Invite

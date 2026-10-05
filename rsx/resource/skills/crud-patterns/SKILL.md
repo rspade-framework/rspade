@@ -56,8 +56,10 @@ The controller provides Ajax endpoints for all operations:
 
 **`#[Auth]` is MANDATORY on every endpoint** - surfaces are closed by default and the manifest build FAILS without a gate. A class-level `#[Auth]` covers every endpoint in the class; a method-level one is ADDITIVE (gates only narrow). **`pre_dispatch()` performs NO authorization anywhere** - it exists for other middleware concerns, never for access control.
 
+**This application's data checks are part of the convention**: the class carries `is_logged_in` + `can_view_data` (reads), every write adds `can_edit_data`, and the model's `fetch()` adds `can_view_data`. `rsx/tests/Endpoint_Data_Gates_Test.php` fails the suite when a write-shaped endpoint under `rsx/app/` lacks `can_edit_data` (or an administrative check) or a read carries nothing beyond `is_logged_in`. Every id a save stores (a `client_id`, a pivot id) is looked up through its site-scoped model first, so another tenant's id is a field error.
+
 ```php
-#[Auth('is_logged_in')]                          // class-level: covers every endpoint below
+#[Auth('is_logged_in', 'can_view_data')]         // class-level: covers every endpoint below
 class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
 {
     #[Ajax_Endpoint]
@@ -67,7 +69,7 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
     }
 
     #[Ajax_Endpoint]
-    #[Auth('can_manage_contacts')]               // additive - narrows this endpoint further
+    #[Auth('can_edit_data')]                     // additive - narrows this endpoint further
     public static function save(Request $request, array $params = [])
     {
         // Validation - response_form_error() carries per-field messages
@@ -86,7 +88,7 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
     }
 
     #[Ajax_Endpoint]
-    #[Auth('can_manage_contacts')]
+    #[Auth('can_edit_data')]
     public static function delete(Request $request, array $params = [])
     {
         $contact = Contact_Model::find($params['id']);
@@ -106,7 +108,7 @@ The gate answers "may this USER use this endpoint at all". Rules that depend on 
 @route('/contacts')
 @layout('Frontend_Layout')
 @spa('Frontend_Spa_Controller::index')
-@auth('is_logged_in')   // MANDATORY on every @route action; the build fails without it
+@auth('is_logged_in', 'can_view_data')   // MANDATORY on every @route action; the build fails without it
 class Contacts_Index_Action extends Spa_Action {
     async on_load() {
         // DataGrid fetches its own data
@@ -166,7 +168,7 @@ View pages use the three-state loading pattern: loading → error → content.
 @route('/contacts/:id')
 @layout('Frontend_Layout')
 @spa('Frontend_Spa_Controller::index')
-@auth('is_logged_in')
+@auth('is_logged_in', 'can_view_data')
 class Contacts_View_Action extends Spa_Action {
     on_create() {
         this.data.contact = null;
@@ -210,7 +212,7 @@ A single action handles both add and edit modes:
 @route('/contacts/:id/edit')
 @layout('Frontend_Layout')
 @spa('Frontend_Spa_Controller::index')
-@auth('can_manage_contacts')
+@auth('is_logged_in', 'can_view_data', 'can_edit_data')
 class Contacts_Edit_Action extends Spa_Action {
     on_create() {
         this.data.form_data = { name: '', email: '' };
@@ -293,7 +295,7 @@ class Contacts_Edit_Action extends Spa_Action {
 class Contact_Model extends Rsx_Site_Model_Abstract
 {
     #[Ajax_Endpoint_Model_Fetch]
-    #[Auth('is_logged_in')]        // MANDATORY - the build fails without a gate, and the
+    #[Auth('can_view_data')]       // MANDATORY - the build fails without a gate, and the
     public static function fetch($id)   // gate is evaluated BEFORE any model code runs
     {
         $contact = static::find($id);   // site scope is already applied

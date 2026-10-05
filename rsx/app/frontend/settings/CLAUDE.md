@@ -12,15 +12,17 @@ this tree nests inside, plus one directory per sub-feature:
 | `profile_edit/` | `Settings_Profile_Edit_Action` | `.../profile_edit` | `is_logged_in` | Own-profile form; email disabled; `$max_length` from `Model.field_length()`. |
 | `user_settings/` | `Settings_User_Settings_Action` | `.../user_settings` | `is_logged_in` | Timezone + theme, saved through the framework's `Rsx_Timezone_Controller` / `Rsx_Dark_Mode_Controller`. |
 | `password_security/` | `Settings_Password_Security_Action` | `.../password_security` | `is_logged_in` | Change password, **two-factor authentication (real)**, **connected accounts (real)**, active sessions. Both real sections load from framework controllers (`Rsx_Two_Factor_Controller`, `Rsx_Sso_Controller`) in one `Promise.all`; the two local endpoints are still TODO stubs and the session list is hardcoded sample data. |
-| `api_keys/` | `Settings_Api_Keys_Action` | `.../api_keys` | `is_logged_in` | Own API keys datagrid + create / scope-preview / revoke modals. |
-| `user_management/` | `Settings_User_Management_Index_Action`, `..._View_Action`, `..._Api_Keys_Action` | `.../user_management[/:id[/api_keys]]` | `can_manage_users` | Users datagrid, one-user view, another user's keys. Own `CLAUDE.md`. |
+| `api_keys/` | `Settings_Api_Keys_Action` | `.../api_keys` | `is_logged_in`, `can_use_api` | Own API keys datagrid + create / scope-preview / revoke modals. Every endpoint also re-asks `Session::has_api_access()` - API access takes BOTH the permission and the framework's `users.is_api_access_enabled`. |
+| `user_management/` | `Settings_User_Management_Index_Action`, `..._View_Action`, `..._Api_Keys_Action` | `.../user_management[/:id[/api_keys]]` | `is_logged_in`, `can_manage_users` | Users datagrid, one-user view (edit, enable/disable, resend invite), another user's keys. Equal-or-lower administration. Own `CLAUDE.md`. |
 | `group_management/` | `Settings_Group_Management_Index_Action`, `..._View_Action` | `.../group_management[/:id]` | `is_logged_in`, `can_manage_users` | `User_Group_Model` datagrid + add/edit/delete modals. |
-| `portal_users/` | `Settings_Portal_Users_Index_Action` | `.../portal_users` | `is_logged_in` | Portal-user datagrid; suspend/reactivate delegate to `Portal_User_Admin_Actions`, whose endpoints live on `Frontend_Clients_Controller`. |
-| `site_settings/` | `Settings_Site_Settings_Action` | `.../site_settings` | `is_logged_in` | Site name/description form. **Scaffolding: `update` validates and persists nothing.** |
+| `portal_users/` | `Settings_Portal_Users_Index_Action` | `.../portal_users` | `is_logged_in`, `can_view_data` | Portal-user datagrid (every membership row, live or not); suspend/reactivate delegate to `Portal_User_Admin_Actions`, whose endpoints live on `Frontend_Clients_Controller` (`can_edit_data`). |
+| `site_settings/` | `Settings_Site_Settings_Action` | `.../site_settings` | `is_logged_in`, `can_manage_site_settings` | Site name/description form. **Scaffolding: `update` validates and persists nothing.** |
 
-Each sub-feature keeps its Ajax endpoints in its own `*_controller.php`; only
-`user_management` and `group_management` add a per-method gate (`can_export_data` on
-`export_csv`).
+Each sub-feature keeps its Ajax endpoints in its own `*_controller.php`, gated at class
+level as the table says; `user_management` and `group_management` add a per-method gate
+(`can_export_data` on `export_csv`). The own-record screens (profile, preferences, password)
+stay on `is_logged_in`: they act on the caller and nobody else. API keys are the caller's
+own too, but minting one is a permission (`can_use_api`).
 
 ## HOW IT IS USED
 
@@ -37,8 +39,9 @@ action aliases to its index's nav id so the right item stays active). `on_action
 `NAV_CONFIG` and toggles `.settings-sidebar__item.active`.
 
 The sidebar hides what the user cannot reach: the API Keys link asks
-`Permission.has_api_access()`, and each Administration link asks
-`Permission.can_access('<Action>')`, with the heading itself dropped when nothing survives.
+`Permission.has_api_access()` AND `Permission.can_access('Settings_Api_Keys_Action')`, and
+each Administration link asks `Permission.can_access('<Action>')`, with the heading itself
+dropped when nothing survives.
 
 **Connected Accounts is absent, not empty, when no provider is switched on.**
 `window.rsxapp.sso` is omitted entirely in that case, so `Rsx_Sso.is_enabled()` is read once
@@ -85,9 +88,6 @@ the same seam `Frontend_Spa_Layout` uses, described in `../CLAUDE.md`.
 - **Change what Connected Accounts offers**: the roster is `config('rsx.sso.providers')`,
   not this page — the section renders whatever is switched on. Account POLICY (what a
   provider identity may do) lives in `rsx/handlers/Sso_Handlers.php`.
-- Gate widths differ deliberately-looking but are worth a review before launch: Site
-  Settings and Portal Users sit under the Administration heading yet gate only on
-  `is_logged_in`, so `can_access()` shows them to every signed-in user.
 
 ## RELATED
 

@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Four classes, each a plain `public static` class in `Rsx\Handlers` discovered by the
+Six classes, each a plain `public static` class in `Rsx\Handlers` discovered by the
 manifest from its `#[OnEvent]` attributes. There is no registration step.
 
 - **`File_Upload_Handlers`** — `#[OnEvent('file.upload.authorize', priority: 10)]`. Returns
@@ -19,15 +19,18 @@ manifest from its `#[OnEvent]` attributes. There is no registration step.
   the user-management detail screen for anyone else, each resolved through
   `Auth_Gates::accessible_route()` so the link exists exactly when the viewer may follow it;
   null in the portal realm. With no answer `<Record_Author>` renders plain text.
-- **`Sso_Handlers`** — the four federated-sign-in hooks. `sso.identity.unlinked` is the
-  policy decision: a **verified** provider email matching a `login_users` row is connected
-  and signed in through `Rsx_Sso::consume_pending_and_login()`; otherwise an **open
-  invitation** to that address sends the browser to `/accept-invite?code=...` with the
-  identity still pending; otherwise it declines and the framework fails closed. The other
-  three are wiring — `sso.login.authorize` permits (it MIRRORS the password door, which
+- **`Sso_Handlers`** — the federated-sign-in hooks. `sso.identity.unlinked`
+  (`match_verified_email_of_existing_account()`) is the policy decision, and the policy is
+  that SSO signs in an account that ALREADY EXISTS and does nothing else: a **verified**
+  provider email matching a `login_users` row is connected and signed in through
+  `Rsx_Sso::consume_pending_and_login()`; anything else - an unverified email, no account,
+  an open invitation to the address - declines and the framework fails closed. Accounts are
+  created in advance, by an administrator's invitation accepted with a password. The rest
+  are wiring — `sso.login.authorize` permits (it MIRRORS the password door, which
   enforces only a live `login_users` row), `sso.two_factor.verify_url` returns
-  `Rsx::Route('Login_Controller::verify')`, and `sso.login.destination` delegates to
-  `Login_Controller::post_login_destination()`.
+  `Rsx::Route('Login_Controller::verify')`, `sso.login.destination` delegates to
+  `Login_Controller::post_login_destination()`, and `sso.link.destination` returns to the
+  Password & Security screen.
 - **`Portal_Sso_Handlers`** — the five PORTAL federated-sign-in hooks (`portal.sso.*`), a set
   deliberately separate from `Sso_Handlers` so the staff policy never governs a client, and
   reached only while `rsx.sso.portal_enabled` is on. `portal.sso.identity.unlinked` connects a
@@ -41,9 +44,15 @@ manifest from its `#[OnEvent]` attributes. There is no registration step.
   returns to portal Settings.
 - **`Portal_File_Access_Handlers`** — `#[OnEvent('file.thumbnail.authorize')]` and
   `#[OnEvent('file.download.authorize')]`, both priority 10, both delegating to one
-  fail-closed `_authorize()`. Staff pass outright; a portal user passes only for a client
-  document that is shared with a client they belong to, or for an attachment on a request
-  thread of such a client. Membership is the boundary, not the individual share row.
+  fail-closed `_authorize()`, which forks on the REALM of the request
+  (`Rsx_Portal::is_portal_request()`) and judges the gate payload's own `user` - never
+  whichever identity happens to be on the session. On a staff URL an ACTIVE staff membership
+  (`User_Model::is_active()`) passes. On a portal URL only the portal user passes, and only
+  for (a) a client `documents` file shared with THEIR OWN contact by an UNEXPIRED share
+  (`Shared_Item_Model::find_valid_share()`) of a client they hold a live membership of, or
+  (b) an attachment on a request thread of such a client. A staff session on a portal file
+  URL gets nothing. These are the template's only read-gate handlers, and the framework
+  refuses every file read when a read gate has none (`Rsx_File_Gates`).
 
 ## HOW IT IS USED
 
@@ -53,21 +62,20 @@ upload endpoint — so `File_Upload_Handlers` is not optional scaffolding. Its p
 `request`, `user`, `params`, `file`, `filename`, `size`, `mime_type`, `extension` and
 `tmp_path`, so a stricter policy can read the real bytes and reject before anything persists.
 
-**Gate semantics**: every handler must return `true`; the first non-`true` return denies, and
-a gate with no handlers is open — which is why the two file-access gates are written
-fail-closed rather than relying on absence.
+**Gate semantics**: every handler must return `true`; the first non-`true` return denies. The
+three FILE gates are the exception to "a gate with no handlers is open": the framework asks
+them fail-closed (`Rsx_File_Gates`), so removing a handler here switches that kind of file
+access off.
 
 **Handlers run inline, in the request.** Anything slow belongs in `Task::dispatch()`.
 
 **An unverified provider email is never matched to an account.** A provider that lets a user
 type any address into a profile hands over a CLAIM, not a fact, so matching one would let
 anybody who can name your address at such a provider sign in as you — no password, no
-notification. `Sso_Handlers::match_verified_email_or_open_invitation()` reads
-`email_verified` for exactly that reason, and the invitation branch grants nothing on its own
-(the connection is written by `Accept_Invite_Controller`, only when the addresses match).
-The other three policy modes an application can implement there — auto-provision,
-invite-only-strict, finish-registration — are named in the method's docblock and written out
-in `php artisan rsx:man sso`.
+notification. `Sso_Handlers::match_verified_email_of_existing_account()` reads
+`email_verified` for exactly that reason. The other policy modes an application can implement
+there — auto-provision, finish-registration — are named in the method's docblock and written
+out in `php artisan rsx:man sso`.
 
 `user.initial.created` is a handler and not a migration on purpose: a migration runs once per
 database at a fixed point in history, while this event also fires for the first-run setup
@@ -79,7 +87,7 @@ screen and for the test-suite baseline seed, so a test may rely on the group exi
   a size or extension policy belongs there, where it runs before any byte is stored. Never
   delete the handler to "open uploads"; that closes them instead, loudly.
 - **Change the SSO account policy** by rewriting
-  `Sso_Handlers::match_verified_email_or_open_invitation()` — it is one method and one
+  `Sso_Handlers::match_verified_email_of_existing_account()` — it is one method and one
   decision. Adding an account-state rule (suspended, pending approval) goes in
   `Sso_Handlers::authorize_login()` **and** in `Login_Controller::index()`, in the same
   change: a check that exists on one door only leaves the other one open.

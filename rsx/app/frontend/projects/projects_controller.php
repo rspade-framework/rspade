@@ -18,6 +18,7 @@ use App\RSpade\Core\Time\Rsx_Date;
 use Rsx\App\Frontend\Projects\List\Projects_DataGrid;
 use Rsx\Lib\ActionLog\Action_Log;
 use Rsx\Models\Action_Log_Model;
+use Rsx\Models\Client_Model;
 use Rsx\Models\Contact_Model;
 use Rsx\Models\Project_Contact_Model;
 use Rsx\Models\Project_Model;
@@ -26,7 +27,7 @@ use Rsx\Models\Task_Model;
 
 /**
  */
-#[Auth('is_logged_in')]
+#[Auth('is_logged_in', 'can_view_data')]
 class Frontend_Projects_Controller extends Rsx_Controller_Abstract
 {
     /**
@@ -124,6 +125,7 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
      * @param array $params
      * @return mixed
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function save(Request $request, array $params = [])
     {
@@ -136,6 +138,24 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
 
         if (empty($params['client_id'])) {
             $errors['client_id'] = 'Client is required';
+        } elseif (!Client_Model::find((int) $params['client_id'])) {
+            // The site-scoped find is the tenant check: an id from another site misses.
+            $errors['client_id'] = 'The selected client does not exist';
+        }
+
+        if (!empty($params['parent_project_id']) && !Project_Model::find((int) $params['parent_project_id'])) {
+            $errors['parent_project_id'] = 'The selected parent project does not exist';
+        }
+
+        // Every pivot id must name a record of this site.
+        if (array_key_exists('contacts', $params)
+            && !static::__all_on_site(Contact_Model::class, (array) $params['contacts'])) {
+            $errors['contacts'] = 'One of the selected contacts does not exist';
+        }
+
+        if (array_key_exists('assigned_users', $params)
+            && !static::__all_on_site(User_Model::class, (array) $params['assigned_users'])) {
+            $errors['assigned_users'] = 'One of the selected users does not exist';
         }
 
         if (!empty($errors)) {
@@ -397,13 +417,13 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
      * Every row goes through the model layer one at a time - a raw bulk DELETE would skip the
      * soft delete, the audit stamp, the realtime frame and the action log.
      *
-     * Gate: the class-level 'is_logged_in'. Projects have no single-record delete endpoint to
-     * copy a gate from, so this matches save() - the controller's other mutating endpoint.
+     * Gate: can_edit_data, as on save() - the controller's other mutating endpoint.
      *
      * @param Request $request
      * @param array $params
      * @return mixed
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function bulk_delete(Request $request, array $params = [])
     {
@@ -487,5 +507,24 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
             'filename' => 'projects_export_' . Rsx_Date::today() . '.csv',
             'count' => count($rows),
         ];
+    }
+
+    /**
+     * Does every id name a record of the current site? The model's site scope does the
+     * tenant check: an id from another site (or one that does not exist) is not counted.
+     *
+     * @param string $model_class A site-scoped model class.
+     * @param array $ids Submitted ids.
+     * @return bool
+     */
+    private static function __all_on_site(string $model_class, array $ids): bool
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+
+        if (empty($ids)) {
+            return true;
+        }
+
+        return $model_class::whereIn('id', $ids)->count() === count($ids);
     }
 }

@@ -4,7 +4,8 @@
 
 `System_Layout.{js,jqhtml}` + `system_layout.scss` — the sublayout, and the clearest
 example in the app of nesting a second layout inside `Frontend_Spa_Layout`. Then six
-actions in five directories, all `@auth('is_logged_in')` and all `scaffolded = true`:
+actions in five directories, all `@auth('is_logged_in', 'can_manage_site_settings')` and
+all `scaffolded = true`:
 
 | Screen | Action | Route | What it reads |
 |---|---|---|---|
@@ -30,7 +31,7 @@ controller in this tree and serves all three mail screens: `get_config`, `queue_
 @layout('System_Layout')
 @spa('Frontend_Spa_Controller::index')
 @title('System Status')
-@auth('is_logged_in')
+@auth('is_logged_in', 'can_manage_site_settings')
 ```
 
 `System_Layout` extends `Spa_Layout`, renders its own `$sid="content"` inside the frontend
@@ -56,11 +57,13 @@ mailed to a thousand people is one blob, and that blob's size is the honest numb
 - **Finish the placeholders**: Status and Scheduled Tasks are `<Placeholder_Card>` bodies
   with no backing endpoint — replace the card with real content or delete the directory
   and its two nav anchors.
-- **Unlike the settings sidebar, this one does no `Permission.can_access()` filtering** and
-  every route here gates only on `is_logged_in` — the mail queue, message previews and the
-  recipient block toggles included. Tighten both together if this console should be
-  admin-only: a `can_access()` filter in the template without tighter gates hides links
-  without closing routes.
+- **The whole console is an administrative surface.** `System_Email_Controller` and every
+  action here are gated `can_manage_site_settings`, because a rendered message body carries
+  whatever bearer links the message did - staff invitations, portal password resets, portal
+  invitations - and reading it is a way into those accounts. The primary nav's System entry
+  disappears for everyone else through `Permission.can_access()`. The sidebar inside does no
+  filtering of its own, which is right only while every screen shares the one gate: a new
+  screen with a different gate adds a `can_access()` test to its anchor.
 - Restyle in `system_layout.scss`; the screens compose theme components and carry almost
   no SCSS of their own.
 

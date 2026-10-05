@@ -139,10 +139,14 @@
                                 <% } %>
                             </td>
                             <td>
-                                <% if (doc.shared_with.length === 0) { %>
-                                    <Status_Badge $label="Not shared" $badge="bg-warning text-dark" />
+                                <%-- A share is per contact and expires: count the live ones. --%>
+                                <% const _live_shares = doc.shared_with.filter(sw => !sw.is_expired).length; %>
+                                <% if (_live_shares > 0) { %>
+                                    <Status_Badge $label="<%= 'Shared with ' + _live_shares + (_live_shares === 1 ? ' contact' : ' contacts') %>" $badge="bg-success" />
+                                <% } else if (doc.shared_with.length > 0) { %>
+                                    <Status_Badge $label="Share expired" $badge="bg-secondary" />
                                 <% } else { %>
-                                    <Status_Badge $label="Shared with client" $badge="bg-success" />
+                                    <Status_Badge $label="Not shared" $badge="bg-warning text-dark" />
                                 <% } %>
                             </td>
                             <td class="text-end">

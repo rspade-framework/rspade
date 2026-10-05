@@ -3,7 +3,7 @@
 @layout('System_Layout')
 @spa('Frontend_Spa_Controller::index')
 @title('Email Preview')
-@auth('is_logged_in')
+@auth('is_logged_in', 'can_manage_site_settings')
 class System_Email_View_Action extends Spa_Action {
     scaffolded = true;
 

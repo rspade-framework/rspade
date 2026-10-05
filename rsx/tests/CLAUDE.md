@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Thirty-five test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Forty-four test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -48,9 +48,25 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   (the per-endpoint read-only guard — every Ajax call is a POST, so a blanket POST block
   would break the portal), `Portal_Client_Authorization_Test` (the permission facade
   beneath those screens — membership, role, `accessible_client_ids()`, the shared-item and
-  wrong-site denials), `Portal_Notifications_Test` (the notification endpoints return only
+  wrong-site denials), `Portal_Access_Revocation_Test` (closing or deleting a client revokes
+  every membership's access with the rows kept, and the file gate answers a portal URL for
+  the portal identity only, through a live share of the caller's own contact),
+  `Portal_Member_Validation_Test` (a membership goes only to the client's own contact, with
+  an enum role), `Portal_Notifications_Test` (the notification endpoints return only
   the caller's own feed, and `clients.portal_last_activity_at` is stamped),
   `Announcement_Test`.
+- **Authorization**: `Endpoint_Data_Gates_Test` reads the manifest's surface index and fails
+  when a write-shaped `rsx/app` Ajax or API endpoint lacks `can_edit_data` (or an
+  administrative check), or when any other one carries nothing beyond `is_logged_in` - the
+  own-record and sign-in endpoints it excuses are listed by name, with the reason.
+  `User_Management_Authority_Test` (equal-or-lower administration: a superior's current
+  role, a new role above the caller's, the hidden invitation link, disabling through
+  `users.is_enabled`, site-scoped session lists), `Api_Access_Permission_Test` (the API and
+  key minting require a GRANTED `can_use_api`, a DENY wins), `Cross_Site_Reference_Test`
+  (saves refuse another site's ids, grids print no foreign row),
+  `Self_Registration_Policy_Test` (`/signup` POST honours `signup_mode` and answers an
+  existing address like a new one; SSO declines an open invitation, an unverified and an
+  unknown address).
 - **Two-factor**: `Two_Factor_Login_Verify_Test` — this application's
   `Login_Controller::verify_2fa`, the endpoint `<Two_Factor_Challenge>` is pointed at.
   The framework deliberately ships no verification endpoint (the post-login destination is

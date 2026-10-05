@@ -337,6 +337,7 @@ class Project_Model extends Rsx_Site_Model_Abstract
      * Ajax model fetch - allows JavaScript to load project records
      * Unrestricted for development/testing - no auth required
      */
+    #[Auth('can_view_data')]
     #[Ajax_Endpoint_Model_Fetch]
     public static function fetch($id)
     {

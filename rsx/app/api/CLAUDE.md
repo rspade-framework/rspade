@@ -13,6 +13,14 @@ docs live in framework core (`App\RSpade\Core\Api`).
 Each new API version gets its own `vN/` directory. Every endpoint pattern MUST start
 `/api/vN/` (N = one or more digits) - the manifest scan throws otherwise.
 
+**Gates.** Every controller is `#[Auth('is_logged_in', 'can_use_api', 'can_view_data')]` and
+every write adds `#[Auth('can_edit_data')]` - the same data checks the staff screens apply,
+so a key can never do what its holder could not do in the browser. API use takes TWO
+switches: the framework's `users.is_api_access_enabled`, checked by the bearer layer, and this
+application's `can_use_api` permission (`PERM_API_ACCESS`), which no role holds by default -
+grant it per user. `Rsx\Main::pre_dispatch()` asks it of EVERY bearer-key request (the file
+routes too), answered 403 `account_refused`.
+
 ## HOW TO CUSTOMIZE
 
 - **Add an endpoint**: a static method on an existing `vN/` controller with
@@ -83,7 +91,7 @@ Three things that are easy to get wrong:
 
 - **`can_user_assign_this_file()` is STRUCTURAL, not a permission check.** It proves the
   file is still unclaimed and is in this tenant - nothing about WHO. Authorizing the claim
-  is your endpoint's job (here, the class `#[Auth]` gate plus the site scope that found the
+  is your endpoint's job (here, the `can_edit_data` gate plus the site scope that found the
   record). It works fine under a Bearer identity: a key is a staff session with a real site.
 - **Removing needs `$record->find_attachment($id_or_key, $category)`.** It returns null
   unless the attachment belongs to THIS record in THIS category. Resolving with a bare
@@ -125,7 +133,9 @@ write NO manual `->where('site_id', ...)`. A cross-site id simply comes back nul
 
 ## Auth & testing
 
-`Authorization: Bearer rsx_...` (mint keys in Settings > API Keys, or from the CLI).
+`Authorization: Bearer rsx_...` (mint keys in Settings > API Keys, or from the CLI). The
+key's user must hold `can_use_api` (a `PERM_API_ACCESS` GRANT row) or every call is 403
+`account_refused`.
 External calls in dev must use the `APP_URL` host or loopback (dev hostname guard).
 CLI test - mint a self-expiring key and call the API exactly as an outside client does:
 

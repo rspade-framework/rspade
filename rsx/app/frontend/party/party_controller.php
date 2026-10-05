@@ -22,7 +22,7 @@ use Rsx\Models\Party_Model;
  * Inheritance reference; see man detail_tables). save() writes the base + the active detail
  * in one DB::transaction, filling the detail through the auto-vivifying accessor.
  */
-#[Auth('is_logged_in')]
+#[Auth('is_logged_in', 'can_view_data')]
 class Frontend_Party_Controller extends Rsx_Controller_Abstract
 {
     #[Ajax_Endpoint]
@@ -66,6 +66,7 @@ class Frontend_Party_Controller extends Rsx_Controller_Abstract
      * Delete a Party (soft delete). The detail row is retained on soft delete and removed by
      * the FK cascade on a hard delete.
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function delete(Request $request, array $params = [])
     {
@@ -85,6 +86,7 @@ class Frontend_Party_Controller extends Rsx_Controller_Abstract
     /**
      * Create or update a Party (base + the type-specific detail) atomically.
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function save(Request $request, array $params = [])
     {

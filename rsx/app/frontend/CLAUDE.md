@@ -43,6 +43,16 @@ new feature, and copy its structure rather than inventing one.
 - **`#[Auth]` on every controller endpoint, `@auth` on every `@route` action.**
   Mandatory. The manifest build FAILS without it. There is no attribute-free
   "open".
+- **Every data endpoint names this application's data checks**: reads `can_view_data`
+  (class level), writes `can_edit_data` (method level), the activity log
+  `can_view_user_activity`, settings and the system console `can_manage_site_settings`,
+  user and group management `can_manage_users`; only the caller's own records
+  (notifications, profile, password, preferences, API keys) stay on `is_logged_in`.
+  `rsx/tests/Endpoint_Data_Gates_Test.php` fails on a write-shaped endpoint without
+  `can_edit_data` and on a read with no check beyond `is_logged_in`.
+- **Every id a save stores is looked up through its site-scoped model first** (another
+  tenant's id is then a field error), and a list grid joins related tables on the base
+  row's own `site_id`.
 - A feature controller in an SPA module exposes **Ajax endpoints only**. The
   route lives on the JS action's `@route` decorator.
 - **Never hardcode a URL.** `Rsx.Route('Contacts_View_Action', id)` / PHP

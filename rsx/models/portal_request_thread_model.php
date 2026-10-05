@@ -427,11 +427,12 @@ class Portal_Request_Thread_Model extends Rsx_Site_Model_Abstract
     }
 
     /**
-     * Staff Ajax model fetch. Gated by the class-level #[Auth('is_logged_in')] (staff
+     * Staff Ajax model fetch. Gated by the class-level #[Auth('is_logged_in')] plus can_view_data on this method (staff
      * realm here); the site global scope restricts to this site. The portal-realm entry
      * point is portal_fetch() (Portal_Authorizable -> portal_can_read), covered by the
      * same class gate in the portal realm.
      */
+    #[Auth('can_view_data')]
     #[Ajax_Endpoint_Model_Fetch]
     public static function fetch($id)
     {

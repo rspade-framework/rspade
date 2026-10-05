@@ -114,6 +114,7 @@ class Frontend_Dashboard_Controller extends Rsx_Controller_Abstract
      * widget lists. Empty results are returned honestly (the page renders an
      * empty state, not a placeholder).
      */
+    #[Auth('can_view_data')]
     #[Ajax_Endpoint]
     public static function dashboard_data(Request $request, array $params = [])
     {
@@ -135,9 +136,14 @@ class Frontend_Dashboard_Controller extends Rsx_Controller_Abstract
 
         // --- Recent activity feed (action log) -----------------------------
         // render() already emits the linked "actor verb object" summary; we add
-        // an icon + accent per action category.
+        // an icon + accent per action category. The site-wide log is the activity
+        // history of the site's users, so it is shown only to a holder of
+        // can_view_user_activity - everyone else gets the feed's empty state.
         $recent_activity = [];
-        foreach (Action_Log_Model::orderBy('created_at', 'desc')->limit(8)->get() as $log) {
+        $activity_logs = Permission::can_view_user_activity()
+            ? Action_Log_Model::orderBy('created_at', 'desc')->limit(8)->get()
+            : [];
+        foreach ($activity_logs as $log) {
             [$icon, $variant] = static::_activity_icon((int) $log->type_id);
             $recent_activity[] = [
                 'id' => $log->id,

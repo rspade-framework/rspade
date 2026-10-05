@@ -79,12 +79,16 @@ class Tasks_DataGrid extends DataGrid_Abstract
                 "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(users.first_name, ''), ' ', "
                 . "COALESCE(users.last_name, ''))), ''), users.email) AS assigned_to_name"
             )
+            // Same-site joins: the base query is site-scoped, the joined tables are not, so
+            // each join itself refuses a row from another site.
             ->leftJoin('projects', function ($join) {
                 $join->on('tasks.project_id', '=', 'projects.id')
+                    ->on('projects.site_id', '=', 'tasks.site_id')
                     ->whereNull('projects.deleted_at');
             })
             ->leftJoin('users', function ($join) {
                 $join->on('tasks.assigned_to_user_id', '=', 'users.id')
+                    ->on('users.site_id', '=', 'tasks.site_id')
                     ->whereNull('users.deleted_at');
             });
 

@@ -10,8 +10,13 @@ use App\RSpade\Core\Models\Email_Queue_Model;
 use App\RSpade\Core\Models\Email_Recipient_Model;
 
 /**
+ * The mail operator's console: queue, rendered message bodies, resend, recipient opt-outs.
+ *
+ * Gated on can_manage_site_settings for the whole class. A rendered body carries whatever
+ * bearer links the message carried - staff invitations, portal password resets and portal
+ * invitations - so reading the queue is an administrative power, not a staff convenience.
  */
-#[Auth('is_logged_in')]
+#[Auth('is_logged_in', 'can_manage_site_settings')]
 class System_Email_Controller extends Rsx_Controller_Abstract
 {
     /**

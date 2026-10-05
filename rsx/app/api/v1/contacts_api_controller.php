@@ -16,14 +16,12 @@ use Rsx\Models\Contact_Model;
  * Records serialize through the model's redacting toArray() (enum __label fields and
  * __MODEL included). Delete is a soft delete, mirroring the staff contacts feature.
  *
- * AUTH. Gated 'is_logged_in': the Bearer key establishes a headless staff identity,
- * and that identity plus the automatic site scope IS the authorization boundary for
- * v1. The 'can_use_api' gate (PERM_API_ACCESS) exists in rsx/permission.php and is
- * the natural tightening, but is deliberately NOT applied here - keys minted before
- * the permission existed belong to users who may not carry it, and adding it would
- * silently break live keys.
+ * AUTH. The Bearer key establishes a headless staff identity; the class gates are
+ * can_use_api (PERM_API_ACCESS, also required of every bearer request by Main::pre_dispatch)
+ * and can_view_data, and every write adds can_edit_data - the same data checks the staff
+ * screens apply. The automatic site scope bounds every record.
  */
-#[Auth('is_logged_in')]
+#[Auth('is_logged_in', 'can_use_api', 'can_view_data')]
 class Contacts_Api_Controller extends Rsx_Api_Controller_Abstract
 {
     /**
@@ -142,6 +140,7 @@ class Contacts_Api_Controller extends Rsx_Api_Controller_Abstract
      *   "__MODEL": "Contact_Model"
      * }
      */
+    #[Auth('can_edit_data')]
     #[Api_Endpoint('/api/v1/contacts/create', methods: ['POST'])]
     #[Api_Param('first_name', type: 'string', required: true, description: 'First name')]
     #[Api_Param('last_name', type: 'string', required: true, description: 'Last name')]
@@ -218,6 +217,7 @@ class Contacts_Api_Controller extends Rsx_Api_Controller_Abstract
      *   "__MODEL": "Contact_Model"
      * }
      */
+    #[Auth('can_edit_data')]
     #[Api_Endpoint('/api/v1/contacts/:id/update', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Contact ID')]
     #[Api_Param('first_name', type: 'string', description: 'First name')]
@@ -332,6 +332,7 @@ class Contacts_Api_Controller extends Rsx_Api_Controller_Abstract
      * @api-response
      * (empty body, HTTP 204)
      */
+    #[Auth('can_edit_data')]
     #[Api_Endpoint('/api/v1/contacts/:id/delete', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Contact ID')]
     public static function delete(Request $request, array $params = [])

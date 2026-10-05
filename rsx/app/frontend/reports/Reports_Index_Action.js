@@ -9,7 +9,7 @@
 @layout('Frontend_Spa_Layout')
 @spa('Frontend_Spa_Controller::index')
 @title('Reports')
-@auth('is_logged_in')
+@auth('is_logged_in', 'can_view_data')
 class Reports_Index_Action extends Spa_Action {
     scaffolded = true;
 

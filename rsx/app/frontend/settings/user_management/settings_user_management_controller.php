@@ -19,6 +19,15 @@ use Rsx\App\Frontend\Settings\UserManagement\List\Users_DataGrid;
 use Rsx\Emails\User_Invitation_Email;
 
 /**
+ * User administration for the signed-in user's site.
+ *
+ * EQUAL-OR-LOWER ADMINISTRATION. A caller creates, edits, re-roles, re-invites the link of
+ * and disables only users whose role is EQUAL to or LOWER than their own - the role's
+ * can_admin_roles list (User_Model::$enums), read through can_admin_role(). Every endpoint
+ * that changes a user asks it of the target's CURRENT role (__administrable_user()) and of
+ * any NEW role it assigns (_validate_role_id()); a refusal is an ERROR_UNAUTHORIZED
+ * response, never a silent no-op. Reads (the list, the view page) stay open to every
+ * holder of can_manage_users.
  */
 #[Auth('is_logged_in', 'can_manage_users')]
 class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstract
@@ -70,7 +79,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         }
 
         // Validate role: a real, selectable role the signed-in user may administer.
-        $role_id = static::_validate_role_id($params['role_id'] ?? null, $errors);
+        $role_id = static::_validate_role_id($params['role_id'] ?? null, null, $errors);
 
         // Return validation errors if any
         if (!empty($errors)) {
@@ -186,7 +195,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
     #[Ajax_Endpoint]
     public static function revoke_user_api_key(Request $request, array $params = [])
     {
-        $user = static::__site_user($params['id'] ?? null);
+        $user = static::__administrable_user($params['id'] ?? null);
 
         if (!$user instanceof User_Model) {
             return $user;
@@ -210,12 +219,12 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
     /**
      * Resolve a user id within the caller's site, or the error response to return.
      *
-     * Shared by the two endpoints above so "which users may I act on" is answered once.
+     * The READ answer to "which users may I see": every user of this site.
      */
-    private static function __site_user($user_id)
+    private static function __site_user($user_id, string $field = 'id')
     {
         if (!$user_id) {
-            return response_form_error('User ID is required', ['id' => 'User ID is required']);
+            return response_form_error('User ID is required', [$field => 'User ID is required']);
         }
 
         $user = User_Model::where('site_id', Session::get_site_id())
@@ -224,6 +233,28 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
 
         if (!$user) {
             return response_error(Ajax::ERROR_NOT_FOUND, 'User not found');
+        }
+
+        return $user;
+    }
+
+    /**
+     * Resolve a user id the caller may CHANGE, or the error response to return.
+     *
+     * The WRITE answer to "which users may I act on": a user of this site whose CURRENT role
+     * the signed-in user may administer (equal-or-lower administration). Refused as
+     * ERROR_UNAUTHORIZED, never silently.
+     */
+    private static function __administrable_user($user_id, string $field = 'id')
+    {
+        $user = static::__site_user($user_id, $field);
+
+        if (!$user instanceof User_Model) {
+            return $user;
+        }
+
+        if (!Session::get_user()->can_admin_role((int) $user->role_id)) {
+            return response_unauthorized("You cannot manage a user whose access level is above your own");
         }
 
         return $user;
@@ -239,23 +270,10 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
     #[Ajax_Endpoint]
     public static function get_user_for_edit(Request $request, array $params = [])
     {
-        $user_id = $params['user_id'] ?? null;
+        $user = static::__administrable_user($params['user_id'] ?? null, 'user_id');
 
-        if (!$user_id) {
-            return response_form_error('User ID is required', [
-                'user_id' => 'User ID is required',
-            ]);
-        }
-
-        $site_id = Session::get_site_id();
-
-        // Load user
-        $user = User_Model::where('site_id', $site_id)
-            ->where('id', $user_id)
-            ->first();
-
-        if (!$user) {
-            return response_error(Ajax::ERROR_NOT_FOUND, 'User not found in this site');
+        if (!$user instanceof User_Model) {
+            return $user;
         }
 
         return [
@@ -310,23 +328,24 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             $errors['last_name'] = 'Last name is required';
         }
 
-        // Validate role: a real, selectable role the signed-in user may administer.
-        $role_id = static::_validate_role_id($params['role_id'] ?? null, $errors);
+        $site_id = Session::get_site_id();
+
+        // The target's CURRENT role first: a caller who may not administer it changes
+        // nothing about this user - not the role, the email, the second-factor rule or
+        // API access.
+        $user = static::__administrable_user($user_id);
+
+        if (!$user instanceof User_Model) {
+            return $user;
+        }
+
+        // Then the NEW role: a real role the signed-in user may administer, selectable
+        // unless it is the role the user already holds.
+        $role_id = static::_validate_role_id($params['role_id'] ?? null, (int) $user->role_id, $errors);
 
         // Return validation errors if any
         if (!empty($errors)) {
             return response_form_error('Please correct the errors below.', $errors);
-        }
-
-        $site_id = Session::get_site_id();
-
-        // Load user
-        $user = User_Model::where('site_id', $site_id)
-            ->where('id', $user_id)
-            ->first();
-
-        if (!$user) {
-            return response_error(Ajax::ERROR_NOT_FOUND, 'User not found in this site');
         }
 
         // Check if email is being changed to one that already exists
@@ -384,6 +403,12 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
      * Generates new invite code and expiration for pending/expired invitations.
      * Used for both initial invites (after user creation) and resending.
      *
+     * Re-sending is open to every user manager - the email goes to the invitee, not to the
+     * caller. The LINK is returned only when the caller may administer the invitee's role:
+     * an invitation a superior created for a higher role is delivered, but its link never
+     * reaches a caller below that role (accepting it would hand them that role). Instead the
+     * response carries invite_url_hidden, and the modal says why.
+     *
      * @param Request $request
      * @param array $params
      * @return array
@@ -391,23 +416,10 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
     #[Ajax_Endpoint]
     public static function send_invite(Request $request, array $params = [])
     {
-        $user_id = $params['user_id'] ?? null;
+        $user = static::__site_user($params['user_id'] ?? null, 'user_id');
 
-        if (!$user_id) {
-            return response_form_error('User ID is required', [
-                'user_id' => 'User ID is required',
-            ]);
-        }
-
-        $site_id = Session::get_site_id();
-
-        // Load user
-        $user = User_Model::where('site_id', $site_id)
-            ->where('id', $user_id)
-            ->first();
-
-        if (!$user) {
-            return response_error(Ajax::ERROR_NOT_FOUND, 'User not found in this site');
+        if (!$user instanceof User_Model) {
+            return $user;
         }
 
         // Check if user account is enabled
@@ -435,10 +447,57 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
 
         (new User_Invitation_Email($user, $invite_url))->to($user)->send();
 
+        if (!Session::get_user()->can_admin_role((int) $user->role_id)) {
+            return [
+                'message' => 'Invitation sent successfully',
+                'invite_url' => null,
+                'invite_url_hidden' => true,
+                'user_id' => $user->id,
+            ];
+        }
+
         return [
             'message' => 'Invitation sent successfully',
             'invite_url' => $invite_url,
+            'invite_url_hidden' => false,
             'user_id' => $user->id,
+        ];
+    }
+
+    /**
+     * Ajax endpoint: switch a user's membership of this site on or off.
+     *
+     * users.is_enabled is the ONE disable lever: the framework refuses a disabled membership
+     * at sign-in and ends a live session of it on that session's next request. The role and
+     * ACL rows are left as they are, so re-enabling restores exactly what the user had.
+     * The caller may not switch themselves off (that would lock them out of the screen that
+     * switches them back on), and may only switch users whose role they administer.
+     */
+    #[Ajax_Endpoint]
+    public static function set_user_enabled(Request $request, array $params = [])
+    {
+        $user = static::__administrable_user($params['id'] ?? null);
+
+        if (!$user instanceof User_Model) {
+            return $user;
+        }
+
+        $is_enabled = !empty($params['is_enabled']);
+
+        if (!$is_enabled && (int) $user->id === (int) Session::get_user_id()) {
+            return response_unauthorized('You cannot disable your own account');
+        }
+
+        // User_Model::save() pushes a realtime refresh to the user's open tabs on a confirmed
+        // change of is_enabled, so a disabled member is signed out at once.
+        $user->is_enabled = $is_enabled ? 1 : 0;
+        $user->save();
+
+        Flash_Alert::success($is_enabled ? 'User enabled' : 'User disabled');
+
+        return [
+            'id' => $user->id,
+            'is_enabled' => (bool) $user->is_enabled,
         ];
     }
 
@@ -452,29 +511,20 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
     #[Ajax_Endpoint]
     public static function get_user(Request $request, array $params = [])
     {
-        $user_id = $params['id'] ?? null;
+        $user = static::__site_user($params['id'] ?? null);
 
-        if (!$user_id) {
-            return response_form_error('User ID is required', [
-                'id' => 'User ID is required',
-            ]);
+        if (!$user instanceof User_Model) {
+            return $user;
         }
 
         $site_id = Session::get_site_id();
 
-        // Load user
-        $user = User_Model::where('site_id', $site_id)
-            ->where('id', $user_id)
-            ->first();
-
-        if (!$user) {
-            return response_error(Ajax::ERROR_NOT_FOUND, 'User not found');
-        }
-
-        // Get recent sessions for this login user
+        // Recent sessions of this login identity ON THIS SITE. The identity may belong to
+        // other sites too; their sessions (address, device) are none of this site's business.
         $recent_sessions = [];
         if ($user->login_user_id) {
             $sessions = \App\RSpade\Core\Session\Session::where('login_user_id', $user->login_user_id)
+                ->where('site_id', $site_id)
                 ->orderBy('last_active', 'desc')
                 ->limit(10)
                 ->get();
@@ -536,6 +586,8 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             'api_last_used_at' => $api_last_used_at,
             'role_id' => $user->role_id,
             'role_id__label' => $user->role_id__label ?? 'Member',
+            'can_administer' => Session::get_user()->can_admin_role((int) $user->role_id),
+            'is_self' => (int) $user->id === (int) Session::get_user_id(),
             'invitation_status' => $user->get_invitation_status(),
             'created_at' => $user->created_at,
             'profile_photo_attachment_id' => $profile_photo_attachment_id,
@@ -600,12 +652,12 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
 
     /**
      * The role a user-management form may assign: present, a member of the role_id enum,
-     * selectable (Root Admin is assigned by the system only), and one the
-     * signed-in user may administer - the same set the form offered, enforced here
-     * because the form is presentation. Fills $errors['role_id'] and returns null when
-     * the value fails.
+     * selectable (Root Admin is assigned by the system only) unless it is the role the
+     * target already holds ($current_role_id), and one the signed-in user may administer -
+     * the same set the form offered, enforced here because the form is presentation. Fills
+     * $errors['role_id'] and returns null when the value fails.
      */
-    private static function _validate_role_id($value, array &$errors): ?int
+    private static function _validate_role_id($value, ?int $current_role_id, array &$errors): ?int
     {
         if ($value === null || $value === '') {
             $errors['role_id'] = 'Role is required';
@@ -615,7 +667,8 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         $role_id = (int) $value;
         $roles = User_Model::role_id__enum();
 
-        if (!isset($roles[$role_id]) || ($roles[$role_id]['selectable'] ?? true) === false) {
+        if (!isset($roles[$role_id])
+            || (($roles[$role_id]['selectable'] ?? true) === false && $role_id !== $current_role_id)) {
             $errors['role_id'] = 'Invalid role';
             return null;
         }

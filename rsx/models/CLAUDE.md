@@ -18,7 +18,11 @@ the grouping is for readers only):
 - **Portal** — `Portal_Membership_Model`, `Portal_Invitation_Model`,
   `Portal_Password_Reset_Model`, `Portal_Project_Model`, `Shared_Item_Model`, and the
   request-thread set (`Portal_Request_Thread_Model` plus its `_Message_`, `_Document_` and
-  `_Event_` siblings).
+  `_Event_` siblings). `Portal_Membership_Model`'s portal-access readers (`has_membership`,
+  `find_for_user_and_client`, `get_for_user`) count a row only while its client is
+  portal-enabled and not deleted; `has_membership_row` / `get_all_for_user` /
+  `get_for_client` read every row, for staff screens and for code that creates one.
+  `Shared_Item_Model` is per contact and expires: `find_valid_share()` is the one share check.
 - **Activity** — `Action_Log_Model`, `Action_Log_Related_Model`, `Notification_Model`,
   `Announcement_Model`.
 - **Misc** — `User_Group_Model`, `Demo_Product_Model` (a fixture; delete it with the demo
@@ -39,7 +43,10 @@ the grouping is for readers only):
   abstract for its table, with its migration in `rsx/resource/migrations/`.
 - **Give it a gated `fetch()`** if JavaScript must load it; a model with no `fetch()` is
   unreachable from the client on purpose, and a separate controller endpoint that fetches
-  one record is the anti-pattern.
+  one record is the anti-pattern. A data model's staff `fetch()` adds
+  `#[Auth('can_view_data')]` to the class gate (`Action_Log_Model`: `can_view_user_activity`)
+  - method-level, because a class-level staff check would also land on the model's
+  realm-`any` relationship surfaces and the portal realm has no such check.
 - **Changing an existing `fetch()` changes a security boundary** — it is not the place to
   rename a field or format a date, and a change there wants the developer's explicit
   agreement.

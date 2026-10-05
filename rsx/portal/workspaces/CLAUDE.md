@@ -10,8 +10,8 @@ request-thread screen beneath one of them.
 | `overview/` | `Portal_Workspace_Overview_Action` | `/workspace/:id` | The default tab: a summary and a few client vitals derived from portal-safe fields. |
 | `requests/` | `Portal_Workspace_Requests_Action` + `portal_request_threads_controller.php` | `/workspace/:id/requests` | The client's request threads. |
 | `requests/thread/` | `Portal_Request_Thread_Action` | one thread | Two columns: the timeline (messages as chat cards, status changes as centred event cards) plus a reply composer, and a vitals rail with participants and the Awaiting Review / Accepted document buckets. Its two modals live beside it: `portal_document_detail_modal` (download plus read-only review state) and `portal_participant_card_modal`. |
-| `documents/` | `Portal_Workspace_Documents_Action` + `portal_documents_controller.php` | `/workspace/:id/documents` | Documents the firm shared with this client. |
-| (root) | `portal_workspaces_controller.php` | — | `list()` and `get()`, the membership-gated source every screen here reads. |
+| `documents/` | `Portal_Workspace_Documents_Action` + `portal_documents_controller.php` | `/workspace/:id/documents` | Documents of this client shared with the signed-in user's OWN contact by an unexpired share (`Shared_Item_Model::find_valid_share()`) - another member's shares are not listed, and the file routes apply the same rule. |
+| (root) | `portal_workspaces_controller.php` | — | `list()` and `get()`, the membership-gated source every screen here reads. A membership counts only while its client is portal-enabled and not deleted, so a closed or deleted client's workspace disappears from the list and its screens refuse. |
 
 ## HOW IT IS USED
 

@@ -10,7 +10,7 @@ use Rsx\Models\Project_Model;
 
 /**
  */
-#[Auth('is_logged_in')]
+#[Auth('is_logged_in', 'can_view_data')]
 class Frontend_Reports_Controller extends Rsx_Controller_Abstract
 {
     /**

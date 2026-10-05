@@ -12,7 +12,7 @@ controller is class-level `#[Auth('public')]` with a written justification in it
 | Passkey sign-in | `Login_Controller::passkey_login` | an `#[Ajax_Endpoint]` | The endpoint `<Passkey_Sign_In>` on the login page posts to: `Rsx_Two_Factor::verify_passkey_login()`, then `post_login_destination()`. Passwordless - no password stage, no second factor after it. |
 | 2FA setup | `Login_Controller::two_factor_setup` | `/login/two_factor_setup` GET | The forced-enrollment interstitial, the one method-level `#[Auth('is_logged_in')]` in this module. |
 | Logout | `Login_Controller::logout` | `/logout` | `RsxAuth::logout()` then `Login_Redirect::consume($default)`. |
-| Signup | `Signup_Controller` (`signup/`) | `/signup` GET + an `#[Ajax_Endpoint]` `submit` | Gated by `config('rsx.auth.signup_mode')` (`invite_only` by default, also `disabled` / open). Creates the `Login_User_Model`. |
+| Signup | `Signup_Controller` (`signup/`) | `/signup` GET + an `#[Ajax_Endpoint]` `submit` | Gated by `config('rsx.auth.signup_mode')` (`invite_only` by default, also `disabled` / open) on BOTH the page and `submit` - a POST never succeeds where the page would refuse. Creates the `Login_User_Model`; an address that already has an account gets the same answer and nothing is written, so the form reveals no existing address. |
 | Accept invite | `Accept_Invite_Controller` (`accept_invite/`) | `/accept-invite`, `/accept-invite/create-account`, `/accept-invite/success` | Six states (invalid, expired, email mismatch, already accepted, not logged in, logged in) plus the create-account form for an invitee with no login account. |
 | Site selection | `Site_Selection_Controller` | `/login/select-site`, `/login/site/:id` | `select` accepts only an active membership (`->active()`, error card otherwise) and sets the site. The picker page itself is a stub. |
 | Site unauthorized | `Site_Unauthorized_Controller` | `/login/site-unauthorized` | The signed-in identity's session names a site it is not a member of; offers the sites it does have. Nothing in this mono-site template routes to it - the framework ends such a session itself (see SITE MEMBERSHIP below), so it is kept as the pattern for an app that declares the requested site from the host. |
@@ -117,21 +117,13 @@ no query string and no extra fields, so `index()` parks the code under
 it once. Both paths then call the ONE destination function, `post_login_destination()` -
 invite, site selector, or dashboard - because a destination computed twice drifts.
 
-**Federated sign-in reaches this module twice.** `Sso_Handlers` answers the framework's
-`sso.identity.unlinked` hook, and its two outcomes both land here: a VERIFIED provider email
-matching a `login_users` row is signed straight in (destination from
-`Login_Controller::post_login_destination()`, which the handler calls as its third caller —
-that is why the method is public), and an address with an OPEN INVITATION is sent to
-`/accept-invite?code=...` with the provider identity still parked as pending.
-`Accept_Invite_Controller::create_account_submit()` then connects it with
-`Rsx_Sso::link_pending()`, **inside the transaction that creates the account** — and because
-that connection becomes the account's credential, the password is OPTIONAL on that one
-submit (blank stores an unusable hash; a password that IS typed is validated exactly as
-always). The match is the invitation's own address, compared case-insensitively; a pending
-identity for any other address is left alone. `create_account.blade.php` says
-"You're signing up with {provider}" from the `sso_identity` the controller passes it, and
-re-computes it on submit — a page rendered inside the pending window and submitted outside
-it asks for a password after all.
+**Federated sign-in signs in existing accounts only.** `Sso_Handlers` answers the
+framework's `sso.identity.unlinked` hook: a VERIFIED provider email matching a `login_users`
+row is signed straight in (destination from `Login_Controller::post_login_destination()`,
+which the handler calls as its third caller — that is why the method is public), and
+everything else declines. Accounts are created in advance - an administrator's invitation,
+accepted on `/accept-invite` with a password - so the accept-invite flow never sees a
+provider identity.
 
 **The forced-enrollment interstitial.** `users.is_2fa_required` is an APP column (added by
 `rsx/resource/migrations/2026_09_02_133139_add_is_2fa_required_to_users.php`, set from the

@@ -27,10 +27,12 @@ use Rsx\Models\Task_Model;
  * headless Session identity, so the global site scope filters every read automatically -
  * there is NO manual site_id handling here, and a cross-site id simply comes back null.
  *
- * AUTH. Gated 'is_logged_in', matching the other v1 controllers: the key's staff identity
- * plus the automatic site scope IS the authorization boundary for v1.
+ * AUTH. The Bearer key establishes a headless staff identity; the class gates are
+ * can_use_api (PERM_API_ACCESS, also required of every bearer request by Main::pre_dispatch)
+ * and can_view_data, and every write adds can_edit_data - the same data checks the staff
+ * screens apply. The automatic site scope bounds every record.
  */
-#[Auth('is_logged_in')]
+#[Auth('is_logged_in', 'can_use_api', 'can_view_data')]
 class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
 {
     /**
@@ -210,6 +212,7 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
      *   "urls": { "download": "...", "inline": "...", "thumbnail": "...", "preview": "..." }
      * }
      */
+    #[Auth('can_edit_data')]
     #[Api_Endpoint('/api/v1/tasks/:id/attachments/attach', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Task ID')]
     #[Api_Param('key', type: 'string', required: true, description: 'File key returned by POST /api/v1/files')]
@@ -250,6 +253,7 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
      * @api-response
      * (empty body, HTTP 204)
      */
+    #[Auth('can_edit_data')]
     #[Api_Endpoint('/api/v1/tasks/:id/attachments/:attachment_id/delete', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Task ID')]
     #[Api_Param('attachment_id', type: 'int', required: true, description: 'Attachment ID to remove')]

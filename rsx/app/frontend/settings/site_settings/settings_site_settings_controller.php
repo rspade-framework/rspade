@@ -7,7 +7,7 @@ use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 
 /**
  */
-#[Auth('is_logged_in')]
+#[Auth('is_logged_in', 'can_manage_site_settings')]
 class Frontend_Settings_Site_Settings_Controller extends Rsx_Controller_Abstract
 {
     /**

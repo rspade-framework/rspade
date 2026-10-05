@@ -1,7 +1,9 @@
 # rsx/app/ssr_test — the server-render harness, deletable
 
-**A test page, not a feature.** `SSR_Test_Controller` (`#[Auth('public')]`, by design) renders
-one jqhtml component two ways for comparison: `/ssr-test` server-side through
+**A test page, not a feature.** `SSR_Test_Controller` is gated
+`#[Auth('is_framework_developer')]` - the framework check that passes only on a box whose
+`IS_FRAMEWORK_DEVELOPER` is true, for every caller there, signed in or not - so on an ordinary
+install every route here is refused. It renders one jqhtml component two ways for comparison: `/ssr-test` server-side through
 `Rsx_SSR::render_component()` with PHP and Node timings in a footer bar, and `/ssr-test-csr`
 client-side. Three further routes are session-cookie probes asserting which calls do and do
 not mint a session; they answer a loopback caller only (`is_loopback_ip()`), which is how the
@@ -17,6 +19,8 @@ theme components `Card`, `Card_Header`, `Card_Footer` (`rsx/theme/components/car
 `Page`, `Page_Header` and `Page_Title` stay until `../dev/` goes too.
 
 **Keep it** if you intend to server-render pages: it is the only place SSR is exercised, and
-the probes are how the session-cookie contract is verified.
+the probes are how the session-cookie contract is verified (the framework's http tests that
+drive them therefore run only on a framework-development box). To use it on your own install,
+change the class gate to a check your application declares.
 
 **Related:** `../CLAUDE.md` · `rsx/theme/components/card/CLAUDE.md` · `rsx/theme/components/page/CLAUDE.md`

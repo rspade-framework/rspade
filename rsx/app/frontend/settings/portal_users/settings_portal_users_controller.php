@@ -20,7 +20,7 @@ use Rsx\App\Frontend\Settings\PortalUsers\List\Portal_Users_DataGrid;
  * implementation. Per-client access is controlled on the per-client members table
  * (Disable Access), not here.
  */
-#[Auth('is_logged_in')]
+#[Auth('is_logged_in', 'can_view_data')]
 class Frontend_Settings_Portal_Users_Controller extends Rsx_Controller_Abstract
 {
     /**

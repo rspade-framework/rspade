@@ -119,6 +119,7 @@ class Portal_Notifications_Test extends Rsx_Test_Abstract
     {
         $client = new Client_Model();
         $client->name = 'Activity Client';
+        $client->portal_enabled = true; // a membership grants portal access only while the portal is open
         $client->save();
         static::__assert_null($client->portal_last_activity_at, 'starts unstamped');
 

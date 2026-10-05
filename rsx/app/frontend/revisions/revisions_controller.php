@@ -26,7 +26,7 @@ use Rsx\Models\Task_Model;
  *
  * See: php artisan rsx:man revisions
  */
-#[Auth('is_logged_in')]
+#[Auth('is_logged_in', 'can_view_data')]
 class Frontend_Revisions_Controller extends Rsx_Controller_Abstract
 {
     /**

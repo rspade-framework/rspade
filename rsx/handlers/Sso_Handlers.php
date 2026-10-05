@@ -3,12 +3,10 @@
 namespace Rsx\Handlers;
 
 use App\RSpade\Core\Models\Login_User_Model;
-use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Sso\Rsx_Sso;
 use App\RSpade\Core\Sso\Sso_Failed_Exception;
 use App\RSpade\Lib\Flash\Flash_Alert;
-use Rsx\App\Login\Invite_Helper;
 use Rsx\App\Login\Login_Controller;
 
 /**
@@ -35,22 +33,16 @@ use Rsx\App\Login\Login_Controller;
 class Sso_Handlers
 {
     /**
-     * THE POLICY: this application connects a provider identity to an account it can prove
-     * belongs to the same person, and to nothing else.
+     * THE POLICY: a federated sign-in signs in an account that ALREADY EXISTS, and does
+     * nothing else. Accounts are created in advance by an administrator (an invitation,
+     * accepted with a password); a provider is only ever a way into one of them.
      *
-     * Two ways in, in order:
-     *
-     *   1. A VERIFIED provider email that matches a login_users row. The provider asserted
-     *      that this person controls that address, and controlling the address is how this
-     *      application already lets people prove who they are. The identity is connected and
-     *      signed in in one step.
-     *   2. An OPEN INVITATION to that address. The invitee has not made an account yet, so
-     *      there is nothing to match - they are sent into the ordinary accept-invite flow
-     *      with the pending identity still parked, and Accept_Invite_Controller connects it
-     *      when the account is created. That is what makes "Continue with Google" work as a
-     *      SIGN-UP button for an invitee without also making it one for a stranger.
-     *
-     * Anything else declines, and the framework's fail-closed refusal is the answer.
+     * The one way in: a VERIFIED provider email that matches a login_users row. The provider
+     * asserted that this person controls that address, and controlling the address is how
+     * this application already lets people prove who they are. The identity is connected and
+     * signed in in one step. Anything else declines, and the framework's fail-closed refusal
+     * ("No account is connected to this sign-in.") is the answer - an open invitation to the
+     * address included: an invitee accepts the invitation link they were emailed.
      *
      * AN UNVERIFIED EMAIL IS NEVER MATCHED, AND THIS IS THE ACCOUNT-TAKEOVER RULE OF THE
      * WHOLE SUBSYSTEM. A provider that lets a user type any address into a profile and hands
@@ -59,70 +51,52 @@ class Sso_Handlers
      * in as you, with no password and no notification. Facebook can withhold email entirely
      * and X may return none at all, so the null case is ordinary here rather than exotic.
      * The email_verified flag is the provider's own assertion, and it is the only thing that
-     * makes branch 1 safe. Never widen this condition to "we have an email".
+     * makes the match safe. Never widen this condition to "we have an email".
      *
-     * THE OTHER THREE MODES an application can implement here, all of them a rewrite of this
-     * one method (recipes in full: php artisan rsx:man sso):
+     * THE OTHER MODES an application can implement here, each a rewrite of this one method
+     * (recipes in full: php artisan rsx:man sso):
      *
      *   AUTO-PROVISION - any provider identity gets an account. Create the Login_User_Model
      *     (and this application's User_Model site profile) from the identity, then
      *     Rsx_Sso::consume_pending_and_login() it. Open signup, expressed through SSO.
-     *   INVITE-ONLY STRICT - drop branch 1 entirely and keep branch 2. Nobody signs in until
-     *     an administrator has invited their address, and a provider identity is only ever
-     *     connected during an invite acceptance.
-     *   FINISH REGISTRATION - decline neither: redirect to a page of your own that shows the
-     *     pending identity (Rsx_Sso::pending() is safe to render), collects whatever the
-     *     product needs beyond an email address, and calls Rsx_Sso::link_pending() on submit.
+     *   FINISH REGISTRATION - redirect to a page of your own that shows the pending identity
+     *     (Rsx_Sso::pending() is safe to render), collects whatever the product needs beyond
+     *     an email address, and calls Rsx_Sso::link_pending() on submit.
      *
      * @param array $data {provider_key, provider_user_key, email, email_verified, name, avatar_url}
      * @return string|null The URL to send the browser to, or null to decline.
      */
     #[OnEvent('sso.identity.unlinked', priority: 10)]
-    public static function match_verified_email_or_open_invitation($data)
+    public static function match_verified_email_of_existing_account($data)
     {
         // X can return no address at all, and Facebook can withhold one. There is nothing to
         // match on, so there is nothing to decide.
         $email = isset($data['email']) ? trim((string) $data['email']) : '';
 
-        if ($email === '') {
+        if ($email === '' || empty($data['email_verified'])) {
             return null;
         }
 
-        // 1. A VERIFIED address that already has an account.
-        if (!empty($data['email_verified'])) {
-            $login_user = Login_User_Model::where('email', $email)->first();
+        $login_user = Login_User_Model::where('email', $email)->first();
 
-            if ($login_user !== null) {
-                try {
-                    return Rsx_Sso::consume_pending_and_login($login_user);
-                } catch (Sso_Failed_Exception $e) {
-                    // The pending window closed while the user was deciding, the provider
-                    // account was connected elsewhere in the meantime, or sso.login.authorize
-                    // below denied the sign-in. All three carry a user-safe sentence by
-                    // contract, and all three end at the login page - returning null here
-                    // would replace that sentence with the framework's generic refusal.
-                    Flash_Alert::error($e->getMessage());
-
-                    return Rsx::Route('Login_Controller::index');
-                }
-            }
+        if ($login_user === null) {
+            // No account at that address. The framework discards the pending identity and
+            // says so.
+            return null;
         }
 
-        // 2. AN OPEN INVITATION to that address, verified or not.
-        //
-        // No verification is required for this branch and none is needed: it grants nothing.
-        // It sends the browser to a page that already accepts anyone holding the invitation
-        // link, and the identity is still only PENDING - Accept_Invite_Controller connects it
-        // when the account is created, and only when the address the invitation names is the
-        // address the provider asserted.
-        $invitation = self::_open_invitation_for($email);
+        try {
+            return Rsx_Sso::consume_pending_and_login($login_user);
+        } catch (Sso_Failed_Exception $e) {
+            // The pending window closed while the user was deciding, the provider account
+            // was connected elsewhere in the meantime, or sso.login.authorize below denied
+            // the sign-in. All three carry a user-safe sentence by contract, and all three
+            // end at the login page - returning null here would replace that sentence with
+            // the framework's generic refusal.
+            Flash_Alert::error($e->getMessage());
 
-        if ($invitation !== null) {
-            return Rsx::Route('Accept_Invite_Controller::index', ['code' => $invitation->invite_code]);
+            return Rsx::Route('Login_Controller::index');
         }
-
-        // Nothing matched. The framework discards the pending identity and says so.
-        return null;
     }
 
     /**
@@ -180,8 +154,8 @@ class Sso_Handlers
      * is its third caller. A destination computed twice drifts, and the drift would show up
      * as "signing in with Google skips the site picker", which is a bug nobody reports as one.
      *
-     * There is no invite code on this path: the accept-invite flow reaches an account through
-     * Accept_Invite_Controller, not through a provider callback carrying a code.
+     * There is no invite code on this path: an invitation is accepted through
+     * Accept_Invite_Controller, never through a provider callback.
      *
      * @param array $data {login_user: Login_User_Model}
      * @return string
@@ -207,46 +181,5 @@ class Sso_Handlers
     public static function link_destination($data)
     {
         return Rsx::Route('Settings_Password_Security_Action');
-    }
-
-    /**
-     * The newest open invitation to one address, or null.
-     *
-     * SEARCHED WITHOUT SITE SCOPE, exactly as Accept_Invite_Controller searches: the visitor
-     * has no session and no site, and an invitation to site 7 must be findable by somebody
-     * whose request has no tenant at all.
-     *
-     * The candidates are narrowed in SQL to invitation rows for this address, and the
-     * DECISION about each one is Invite_Helper::validate_invitation() - the same validator
-     * every other rung of the ladder uses, so "expired" and "already accepted" can never mean
-     * two different things in two places. Email matching is not required of it here because
-     * the address IS the search key, and requiring it would compare the invitation against
-     * whoever happens to be signed in.
-     *
-     * @param string $email
-     * @return User_Model|null
-     */
-    private static function _open_invitation_for(string $email): ?User_Model
-    {
-        return User_Model::without_site_scope(function () use ($email) {
-            $candidates = User_Model::where('email', $email)
-                ->whereNotNull('invite_code')
-                ->whereNull('invite_accepted_at')
-                ->orderBy('id', 'desc')
-                ->result_set();
-
-            foreach ($candidates as $candidate) {
-                $validation = Invite_Helper::validate_invitation(
-                    (string) $candidate->invite_code,
-                    require_email_match: false
-                );
-
-                if ($validation['valid']) {
-                    return $candidate;
-                }
-            }
-
-            return null;
-        });
     }
 }

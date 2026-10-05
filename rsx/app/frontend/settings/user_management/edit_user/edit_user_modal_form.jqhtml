@@ -12,10 +12,14 @@ waits behind, never a placeholder standing in for the form.
 --%>
 <Define:Edit_User_Modal_Form>
 
-  <%-- Roles come from the User_Model enum (selectable ones only), narrowed to the
-       roles the signed-in user may administer - the same rule the endpoint enforces. --%>
-  <% const _role_options = User_Model.role_id__enum_select()
-       .filter(o => Permission.can_admin_role(int(o.value))); %>
+  <%-- Roles come from the User_Model enum, narrowed to the roles the signed-in user may
+       administer - the same rule the endpoint enforces. Every role is listed (not only the
+       selectable ones) so a user already holding a system-assigned role, such as Root
+       Admin, keeps it on save; the endpoint refuses ASSIGNING a non-selectable role to
+       anyone who does not already hold it. --%>
+  <% const _role_options = Object.entries(User_Model.role_id__enum_labels())
+       .map(([value, label]) => ({value: int(value), label: label}))
+       .filter(o => Permission.can_admin_role(o.value)); %>
 
   <Rsx_Form $controller="Frontend_Settings_User_Management_Controller" $method="save_user">
 

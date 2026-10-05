@@ -8,7 +8,7 @@
 @layout('Settings_Layout')
 @spa('Frontend_Spa_Controller::index')
 @title('API Keys')
-@auth('is_logged_in')
+@auth('is_logged_in', 'can_use_api')
 class Settings_Api_Keys_Action extends Spa_Action {
     scaffolded = true;
 

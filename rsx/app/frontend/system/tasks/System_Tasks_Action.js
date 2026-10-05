@@ -3,7 +3,7 @@
 @layout('System_Layout')
 @spa('Frontend_Spa_Controller::index')
 @title('Scheduled Tasks')
-@auth('is_logged_in')
+@auth('is_logged_in', 'can_manage_site_settings')
 class System_Tasks_Action extends Spa_Action {
     scaffolded = true;
 

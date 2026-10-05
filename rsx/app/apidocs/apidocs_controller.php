@@ -7,6 +7,7 @@ use App\RSpade\Core\Api\Rsx_Api_Docs;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Errors\Error_Screens;
 use App\RSpade\Core\Session\Session;
+use Rsx\Permission;
 
 /**
  * Apidocs_Controller - this template application's API reference console.
@@ -22,9 +23,9 @@ use App\RSpade\Core\Session\Session;
  * console does not exist on your install.
  *
  * THE GATE HERE IS API ACCESS, NOT A ROLE. The class stays #[Auth('public')] because the
- * gate this console actually wants is not a question about a user's ROLE - it is the same
- * question the API itself asks of a Bearer key, Session::has_api_access(), reading
- * users.is_api_access_enabled. An #[Auth] check answers "may this user use this surface"
+ * gate this console actually wants is the same question the API itself asks of a Bearer
+ * key: Session::has_api_access() (users.is_api_access_enabled) AND the can_use_api
+ * permission Main::pre_dispatch requires - __may_use_api() below. An #[Auth] check answers "may this user use this surface"
  * from the auth realm's vocabulary; this predicate is identity state that the API layer,
  * the settings page and this console all consult, so all three read the one predicate and
  * the console cannot drift from what the API will actually accept. has_api_access() creates
@@ -54,7 +55,7 @@ class Apidocs_Controller extends Rsx_Controller_Abstract
     #[Route('/apidocs', methods: ['GET'])]
     public static function index(Request $request, array $params = [])
     {
-        if (!Session::has_api_access()) {
+        if (!static::__may_use_api()) {
             return Error_Screens::unauthorized($request);
         }
 
@@ -72,7 +73,7 @@ class Apidocs_Controller extends Rsx_Controller_Abstract
     #[Route('/apidocs/openapi.json', methods: ['GET'])]
     public static function openapi(Request $request, array $params = [])
     {
-        if (!Session::has_api_access()) {
+        if (!static::__may_use_api()) {
             return Error_Screens::unauthorized($request);
         }
 
@@ -80,5 +81,17 @@ class Apidocs_Controller extends Rsx_Controller_Abstract
             'Content-Type' => 'application/json; charset=utf-8',
             'Content-Disposition' => 'attachment; filename="openapi.json"',
         ], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    }
+
+    /**
+     * May the signed-in user use the API: the framework's identity switch
+     * (Session::has_api_access(), users.is_api_access_enabled) AND this application's
+     * permission (can_use_api, PERM_API_ACCESS) - the same pair a bearer-key request must
+     * pass. The identity switch is asked first; it creates no session, so an anonymous
+     * visitor is refused without one being minted.
+     */
+    private static function __may_use_api(): bool
+    {
+        return Session::has_api_access() && Permission::can_use_api();
     }
 }

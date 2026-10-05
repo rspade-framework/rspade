@@ -19,14 +19,12 @@ use Rsx\Models\Client_Model;
  * The staff form's free-form "tags" array is not exposed here: v1 #[Api_Param] types
  * are scalar only (array/json params are backlogged), so tags are left unchanged.
  *
- * AUTH. Gated 'is_logged_in': the Bearer key establishes a headless staff identity,
- * and that identity plus the automatic site scope IS the authorization boundary for
- * v1. The 'can_use_api' gate (PERM_API_ACCESS) exists in rsx/permission.php and is
- * the natural tightening, but is deliberately NOT applied here - keys minted before
- * the permission existed belong to users who may not carry it, and adding it would
- * silently break live keys.
+ * AUTH. The Bearer key establishes a headless staff identity; the class gates are
+ * can_use_api (PERM_API_ACCESS, also required of every bearer request by Main::pre_dispatch)
+ * and can_view_data, and every write adds can_edit_data - the same data checks the staff
+ * screens apply. The automatic site scope bounds every record.
  */
-#[Auth('is_logged_in')]
+#[Auth('is_logged_in', 'can_use_api', 'can_view_data')]
 class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
 {
     /**
@@ -143,6 +141,7 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
      *   "__MODEL": "Client_Model"
      * }
      */
+    #[Auth('can_edit_data')]
     #[Api_Endpoint('/api/v1/clients/create', methods: ['POST'])]
     #[Api_Param('name', type: 'string', required: true, description: 'Company name')]
     #[Api_Param('email', type: 'string', description: 'Primary email address')]
@@ -237,6 +236,7 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
      *   "__MODEL": "Client_Model"
      * }
      */
+    #[Auth('can_edit_data')]
     #[Api_Endpoint('/api/v1/clients/:id/update', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Client ID')]
     #[Api_Param('name', type: 'string', description: 'Company name')]
@@ -372,6 +372,7 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
      * @api-response
      * (empty body, HTTP 204)
      */
+    #[Auth('can_edit_data')]
     #[Api_Endpoint('/api/v1/clients/:id/delete', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Client ID')]
     public static function delete(Request $request, array $params = [])
@@ -471,6 +472,7 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
      *   "urls": { "download": "...", "inline": "...", "thumbnail": "...", "preview": "..." }
      * }
      */
+    #[Auth('can_edit_data')]
     #[Api_Endpoint('/api/v1/clients/:id/attachments/attach', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Client ID')]
     #[Api_Param('key', type: 'string', required: true, description: 'File key returned by POST /api/v1/files')]
@@ -486,7 +488,7 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
 
         // can_user_assign_this_file() is STRUCTURAL: the file is still unclaimed and is in
         // this tenant. It is not a per-user permission check - that is this endpoint's job,
-        // and here it is the class-level #[Auth] gate plus the site scope that found the
+        // and here it is the can_edit_data gate plus the site scope that found the
         // client. A missing key and an already-claimed one are ONE answer, so a caller
         // cannot probe for which keys exist.
         if (!$attachment || !$attachment->can_user_assign_this_file()) {
@@ -513,6 +515,7 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
      * @api-response
      * (empty body, HTTP 204)
      */
+    #[Auth('can_edit_data')]
     #[Api_Endpoint('/api/v1/clients/:id/attachments/:attachment_id/delete', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Client ID')]
     #[Api_Param('attachment_id', type: 'int', required: true, description: 'Attachment ID to remove')]

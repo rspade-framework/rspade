@@ -59,6 +59,7 @@ class Portal_Client_Authorization_Test extends Rsx_Test_Abstract
     {
         $client = new Client_Model();
         $client->name = $name;
+        $client->portal_enabled = true; // a membership grants portal access only while the portal is open
         $client->save();
 
         return $client;

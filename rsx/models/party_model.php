@@ -144,6 +144,7 @@ class Party_Model extends Rsx_Site_Model_Abstract
      * eager-embedded by toArray(), so the JS detail accessor resolves with no extra fetch.
      * Unrestricted for development/testing - no auth required.
      */
+    #[Auth('can_view_data')]
     #[Ajax_Endpoint_Model_Fetch]
     public static function fetch($id)
     {

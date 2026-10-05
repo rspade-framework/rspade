@@ -10,6 +10,7 @@ namespace Rsx;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Base\Main_Abstract;
 use App\RSpade\Core\Session\Session;
+use Rsx\Permission;
 
 /**
  * Main - Application-wide middleware hooks
@@ -57,10 +58,17 @@ class Main extends Main_Abstract
      * bearer identity and the gates). If a non-null value is returned, dispatch is halted:
      * a page answers with that value, an API call with 403 account_refused.
      *
-     * One interception lives here, scoped to the frontend SPA module: an identity an
-     * administrator has flagged is_2fa_required with no second factor enrolled goes to the
-     * forced-enrollment interstitial. Site membership is not checked here - users.is_enabled
-     * is the framework's switch and the framework enforces it before dispatch.
+     * Two interceptions live here:
+     *   - API ACCESS. A bearer-key request (Session::is_api_request()) whose user lacks the
+     *     can_use_api permission (User_Model::PERM_API_ACCESS) is refused - the framework
+     *     answers it with 403 account_refused. users.is_api_access_enabled is the framework's
+     *     own switch and is checked before this hook; the permission is this application's,
+     *     and an API caller needs both.
+     *   - Scoped to the frontend SPA module: an identity an administrator has flagged
+     *     is_2fa_required with no second factor enrolled goes to the forced-enrollment
+     *     interstitial.
+     * Site membership is not checked here - users.is_enabled is the framework's switch and
+     * the framework enforces it before dispatch.
      *
      * @param Request $request The current request
      * @param array $params Combined GET values and URL parameters
@@ -75,6 +83,12 @@ class Main extends Main_Abstract
         // now Dispatcher::__handle_dev_auth() (framework-side, mirroring the portal's),
         // because the declarative #[Auth] gates run before this hook and must see the
         // identity the harness asserts. See: php artisan rsx:man auth_gates
+
+        // API ACCESS: the permission, on every bearer-key request - the /api/vN surface and
+        // the file routes alike. Any non-null answer is the API's 403 account_refused.
+        if (Session::is_api_request() && !Permission::can_use_api()) {
+            return 'api_access_not_granted';
+        }
 
         // Check if user is authorized for frontend routes
         $handler = $params['_handler'] ?? '';

@@ -138,13 +138,12 @@ class Permission extends Permission_Abstract
     /**
      * May use the external REST API.
      *
-     * Wraps User_Model::PERM_API_ACCESS. DEFINED but deliberately NOT applied to
-     * the template's #[Api_Endpoint] surfaces: API keys minted before this gate
-     * existed belong to users who may not carry the permission, and gating them
-     * on it would silently break live keys. The template's API endpoints ship
-     * with 'is_logged_in' (the bearer key establishes a staff identity); an
-     * application that mints keys with the permission in mind names this gate
-     * on its own endpoints.
+     * Wraps User_Model::PERM_API_ACCESS - a supplementary permission no role holds
+     * by default, so API access is GRANTED per user. Gates key minting (the API
+     * Keys settings screen and the /apidocs console), and Main::pre_dispatch
+     * refuses every bearer-key request whose user lacks it. The framework's own
+     * switch, users.is_api_access_enabled, is asked as well: an API caller needs
+     * both.
      */
     #[Auth_Check]
     public static function can_use_api(): bool

@@ -256,12 +256,13 @@ class Contact_Model extends Rsx_Site_Model_Abstract
     /**
      * Ajax model fetch - allows JavaScript to load contact records.
      *
-     * Surface gating is declarative: the class-level #[Auth('is_logged_in')] is evaluated
+     * Surface gating is declarative: the class-level #[Auth('is_logged_in')] plus can_view_data on this method are evaluated
      * at the ORM seam BEFORE this body runs, and a denial returns the same generic
      * "not found" a missing row does. Record-level rules (ownership, membership scoping,
      * record state) belong HERE, returning false. This model has none beyond the site
      * scope the site-model abstract already applies.
      */
+    #[Auth('can_view_data')]
     #[Ajax_Endpoint_Model_Fetch]
     public static function fetch($id)
     {

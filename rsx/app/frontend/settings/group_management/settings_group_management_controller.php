@@ -279,7 +279,6 @@ class Frontend_Settings_Group_Management_Controller extends Rsx_Controller_Abstr
         // Get active users
         $query = User_Model::where('site_id', $site_id)
             ->where('is_enabled', true)
-            ->where('role_id', '!=', User_Model::ROLE_DISABLED)
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->orderBy('email');
@@ -320,7 +319,7 @@ class Frontend_Settings_Group_Management_Controller extends Rsx_Controller_Abstr
                 'id' => $user->id,
                 'display_name' => $display_name,
                 'email' => $user->email,
-                'is_active' => $user->is_enabled && $user->role_id !== User_Model::ROLE_DISABLED,
+                'is_active' => (bool) $user->is_enabled,
             ];
         })->values()->toArray();
 

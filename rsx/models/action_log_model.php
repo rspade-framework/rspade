@@ -303,6 +303,7 @@ class Action_Log_Model extends Rsx_Site_Model_Abstract
     /**
      * Ajax model fetch - allows JavaScript to load action log records
      */
+    #[Auth('can_view_user_activity')]
     #[Ajax_Endpoint_Model_Fetch]
     public static function fetch($id)
     {

@@ -87,7 +87,7 @@ class Dev_Acl_Controller extends Rsx_Controller_Abstract
             ['email' => 'manager@rspade.test', 'first_name' => 'Test', 'last_name' => 'Manager', 'role_id' => User_Model::ROLE_MANAGER],
             ['email' => 'user@rspade.test', 'first_name' => 'Test', 'last_name' => 'User', 'role_id' => User_Model::ROLE_USER],
             ['email' => 'viewer@rspade.test', 'first_name' => 'Test', 'last_name' => 'Viewer', 'role_id' => User_Model::ROLE_VIEWER],
-            ['email' => 'disabled@rspade.test', 'first_name' => 'Test', 'last_name' => 'Disabled', 'role_id' => User_Model::ROLE_DISABLED],
+            ['email' => 'disabled@rspade.test', 'first_name' => 'Test', 'last_name' => 'Disabled', 'role_id' => User_Model::ROLE_VIEWER, 'is_enabled' => false],
         ];
 
         foreach ($test_users as $test_user) {
@@ -120,7 +120,7 @@ class Dev_Acl_Controller extends Rsx_Controller_Abstract
             $user->last_name = $test_user['last_name'];
             $user->email = $test_user['email'];
             $user->role_id = $test_user['role_id'];
-            $user->is_enabled = true;
+            $user->is_enabled = $test_user['is_enabled'] ?? true;
             $user->save();
 
             $created[] = $test_user['email'];

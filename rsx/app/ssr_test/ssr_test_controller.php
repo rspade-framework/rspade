@@ -2,7 +2,7 @@
 /**
  * SSR Test Controller
  *
- * Public test page for jqhtml server-side rendering.
+ * Framework harness page for jqhtml server-side rendering.
  * Renders jqhtml components via the @jqhtml/ssr Node server
  * and returns fully-rendered HTML without client-side JavaScript.
  */
@@ -17,10 +17,13 @@ use App\RSpade\Core\SSR\Rsx_SSR;
 use App\RSpade\Core\View\PageData;
 
 /**
- * Public by design: an anonymous-reachable SSR/session smoke page (the session
- * endpoints exist precisely to observe cookie behavior without a login).
+ * A framework harness, reachable only on a framework-development box
+ * (IS_FRAMEWORK_DEVELOPER): the framework's own http tests drive it, and an install
+ * running the template has no use for a page that spawns the SSR daemon on demand.
+ * The gate is a property of the box, not of the visitor, so no login is involved and
+ * the session probes still observe cookie behaviour for an anonymous caller.
  */
-#[Auth('public')]
+#[Auth('is_framework_developer')]
 class SSR_Test_Controller extends Rsx_Controller_Abstract
 {
     #[FPC]
@@ -51,7 +54,7 @@ class SSR_Test_Controller extends Rsx_Controller_Abstract
         } catch (\Exception $e) {
             $total_ms = round((microtime(true) - $start) * 1000, 1);
 
-            // The page is public: the renderer's message (paths, the Node server's
+            // The page has no login: the renderer's message (paths, the Node server's
             // address) is shown only to a caller Rsx_Diagnostics admits.
             $error = Rsx_Diagnostics::caller_sees_detail()
                 ? $e->getMessage()
@@ -133,11 +136,11 @@ class SSR_Test_Controller extends Rsx_Controller_Abstract
     }
 
     // -----------------------------------------------------------------
-    // Public data endpoint
+    // Page data endpoint
     // -----------------------------------------------------------------
 
     /**
-     * Public API endpoint returning page data for SSR test
+     * Fixture page data for the SSR test page
      */
     #[Ajax_Endpoint]
     public static function get_page_data(Request $request, array $params = [])

@@ -239,7 +239,7 @@ php artisan rsx:debug /_portal/settings --portal --portal-user=1 --screenshot-pa
 
 ## Security Considerations
 
-1. **Property Isolation**: there is ONE session per browser (one `rsx` cookie, one `_sessions` row).
+1. **Property Isolation**: there is ONE session per browser (one session cookie, one `_sessions` row).
    The portal identity lives in its own columns (`portal_user_id`, `portal_site_id`,
    `impersonator_user_id`); the staff identity in its own (`login_user_id`, `site_id`). Both set at
    once is normal. Never read or write the other experience's properties.

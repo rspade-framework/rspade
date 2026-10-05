@@ -23,6 +23,8 @@ class Settings_User_Management_View_Action extends Spa_Action {
             is_2fa_required: false,
             is_2fa_enrolled: false,
             role_id__label: '',
+            can_administer: false,
+            is_self: false,
             invitation_status: null,
             created_at: null,
             profile_photo_attachment_id: null,
@@ -56,6 +58,39 @@ class Settings_User_Management_View_Action extends Spa_Action {
         that.$sid('btn_resend_invite').click(async function () {
             await that.handle_resend_invite();
         });
+
+        // Handle Enable / Disable button click
+        that.$sid('btn_set_enabled').click(async function () {
+            const $button = $(this);
+            await that.handle_set_enabled($button.attr('data-enabled') === '1');
+        });
+    }
+
+    /**
+     * Enable / disable workflow: confirm a disable, then switch users.is_enabled
+     *
+     * @param {boolean} is_enabled - the state to switch the membership to
+     */
+    async handle_set_enabled(is_enabled) {
+        let that = this;
+
+        if (!is_enabled) {
+            const confirmed = await Modal.confirm(
+                'Disable User',
+                'This user will be signed out and unable to sign in to this site until re-enabled.'
+            );
+
+            if (!confirmed) {
+                return;
+            }
+        }
+
+        await Frontend_Settings_User_Management_Controller.set_user_enabled({
+            id: that.data.user.id,
+            is_enabled: is_enabled ? 1 : 0,
+        });
+
+        that.reload();
     }
 
     /**

@@ -14,7 +14,7 @@ has no assets of its own), plus one loose file.
 | `apidocs/` | A CONTROLLER AND NOTHING ELSE: two methods mounting the framework's API reference console and its OpenAPI document. The console, including its bundle, is framework property - `Rsx_Api_Docs::page()` renders the whole page. Gate is `public`, with `Session::has_api_access()` decided in the body. | Live. |
 | `backend/` | A minimal Blade admin shell. Own `CLAUDE.md`. | **Skeleton — deletable.** |
 | `dev/` | The framework showcase: modals, flash alerts, ACL, ORM, SPA, attachments, document preview. Own `CLAUDE.md`. | **Ships `#[Auth('closed')]` — reachable by nobody. Deletable.** |
-| `ssr_test/` | The server-render smoke page and its session-cookie probes. Own `CLAUDE.md`. | **Harness — deletable.** |
+| `ssr_test/` | The server-render smoke page and its session-cookie probes, gated `is_framework_developer` (refused on an ordinary install). Own `CLAUDE.md`. | **Harness — deletable.** |
 | `index_controller.php` | `/` — redirects to the dashboard when signed in, to login otherwise. | Live. |
 
 Only the API-keys settings screen links out of `frontend/` into another module (a button

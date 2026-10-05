@@ -19,6 +19,17 @@ class Send_User_Invite_Modal extends Modal_Abstract {
             // Call backend to send/resend invite
             const result = await Frontend_Settings_User_Management_Controller.send_invite({user_id});
 
+            // The endpoint withholds the link of an invitation whose role is above the
+            // signed-in user's own: the email still went to the invitee, but the link would
+            // hand the caller that role. Say so rather than showing nothing.
+            if (result.invite_url_hidden) {
+                await Modal.alert(
+                    'Invitation Sent',
+                    'The invitation was emailed to the user. The invitation link is hidden because the selected user\'s access level exceeds your own.'
+                );
+                return result;
+            }
+
             // Show invite URL for testing (until email system implemented)
             if (result.invite_url) {
                 // Create component instance (setter returns $element, call .component() to get instance)

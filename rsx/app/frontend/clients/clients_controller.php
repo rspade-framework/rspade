@@ -41,7 +41,7 @@ use Rsx\Models\Shared_Item_Model;
 
 /**
  */
-#[Auth('is_logged_in')]
+#[Auth('is_logged_in', 'can_view_data')]
 class Frontend_Clients_Controller extends Rsx_Controller_Abstract
 {
     /**
@@ -160,6 +160,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * @param array $params
      * @return mixed
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function save(Request $request, array $params = [])
     {
@@ -266,6 +267,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * @param array $params
      * @return mixed
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function delete(Request $request, array $params = [])
     {
@@ -302,12 +304,13 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * complete. Every row goes through the model layer one at a time - a raw bulk DELETE would
      * skip the soft delete, the audit stamp, the realtime frame and the action log.
      *
-     * Gate: the class-level 'is_logged_in', the same gate the single-record delete() carries.
+     * Gate: can_edit_data, the same gate the single-record delete() carries.
      *
      * @param Request $request
      * @param array $params
      * @return mixed
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function bulk_delete(Request $request, array $params = [])
     {
@@ -479,6 +482,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * @param array $params
      * @return mixed
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function restore(Request $request, array $params = [])
     {
@@ -537,6 +541,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
     /**
      * Ajax endpoint: Toggle portal enabled/disabled for a client
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function toggle_portal(Request $request, array $params = [])
     {
@@ -616,7 +621,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             }
 
             $portal_user = static::_resolve_contact_portal_user($contact, (int) $client->site_id);
-            if ($portal_user && Portal_Membership_Model::has_membership($portal_user->id, (int) $client_id)) {
+            if ($portal_user && Portal_Membership_Model::has_membership_row($portal_user->id, (int) $client_id)) {
                 continue; // already a member - not a pending invite
             }
 
@@ -638,15 +643,20 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
     /**
      * Ajax endpoint: Add a portal member to a client
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function portal_add_member(Request $request, array $params = [])
     {
         $client_id = $params['client_id'] ?? null;
         $contact_id = $params['contact_id'] ?? null;
-        $role_id = $params['role_id'] ?? Portal_Membership_Model::ROLE_VIEWER;
+        $role_id = static::__portal_role_id($params['role_id'] ?? Portal_Membership_Model::ROLE_VIEWER);
 
         if (!$client_id || !$contact_id) {
             return response_error(Ajax::ERROR_VALIDATION, 'Client ID and Contact ID are required');
+        }
+
+        if ($role_id === null) {
+            return response_error(Ajax::ERROR_VALIDATION, 'Invalid portal role');
         }
 
         $client = Client_Model::find($client_id);
@@ -658,24 +668,21 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             return response_error(Ajax::ERROR_VALIDATION, 'Portal is not enabled for this client');
         }
 
+        // The contact must be one of THIS client's contacts: a membership grants the
+        // client's portal, so it may only be handed to the client's own people.
         $contact = Contact_Model::find($contact_id);
-        if (!$contact) {
-            return response_error(Ajax::ERROR_NOT_FOUND, 'Contact not found');
+        if (!$contact || (int) $contact->client_id !== (int) $client->id) {
+            return response_error(Ajax::ERROR_NOT_FOUND, 'Contact not found for this client');
         }
 
-        // Find or create portal user for this contact
-        $portal_user = Portal_User_Model::where('contact_id', $contact_id)->first();
-        if (!$portal_user) {
-            // Check if portal user exists by email
-            $portal_user = Portal_User_Model::find_by_email($client->site_id, $contact->email);
-        }
+        $portal_user = static::_resolve_contact_portal_user($contact, (int) $client->site_id);
 
         if (!$portal_user) {
             return response_error(Ajax::ERROR_VALIDATION, 'This contact does not have a portal account yet. Send them an invitation first.');
         }
 
         // Check for existing membership
-        if (Portal_Membership_Model::has_membership($portal_user->id, $client_id)) {
+        if (Portal_Membership_Model::has_membership_row($portal_user->id, $client_id)) {
             return response_error(Ajax::ERROR_VALIDATION, 'This contact is already a portal member for this client');
         }
 
@@ -697,6 +704,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * per-client access control, NOT an account suspension (that is the global ban
      * on the Portal Users admin screen).
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function portal_remove_member(Request $request, array $params = [])
     {
@@ -719,14 +727,15 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
     /**
      * Ajax endpoint: Update a portal member's role
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function portal_update_role(Request $request, array $params = [])
     {
         $membership_id = $params['membership_id'] ?? null;
-        $role_id = $params['role_id'] ?? null;
+        $role_id = static::__portal_role_id($params['role_id'] ?? null);
 
-        if (!$membership_id || !$role_id) {
-            return response_error(Ajax::ERROR_VALIDATION, 'Membership ID and role are required');
+        if (!$membership_id || $role_id === null) {
+            return response_error(Ajax::ERROR_VALIDATION, 'Membership ID and a valid role are required');
         }
 
         $membership = Portal_Membership_Model::find($membership_id);
@@ -775,7 +784,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             $portal_user = static::_resolve_contact_portal_user($contact, (int) $client->site_id);
 
             $is_member = $portal_user
-                && Portal_Membership_Model::has_membership($portal_user->id, (int) $client_id);
+                && Portal_Membership_Model::has_membership_row($portal_user->id, (int) $client_id);
 
             $pending = Portal_Invitation_Model::find_pending_for_contact_client((int) $contact->id, (int) $client_id);
 
@@ -814,15 +823,19 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * Idempotent: contacts already members, or with a live pending invite, are
      * skipped. Returns per-bucket counts.
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function portal_bulk_invite(Request $request, array $params = [])
     {
         $client_id = $params['client_id'] ?? null;
         $contact_ids = $params['contact_ids'] ?? [];
-        $role_id = $params['role_id'] ?? Portal_Membership_Model::ROLE_VIEWER;
+        $role_id = static::__portal_role_id($params['role_id'] ?? Portal_Membership_Model::ROLE_VIEWER);
 
         if (!$client_id) {
             return response_error(Ajax::ERROR_VALIDATION, 'Client ID is required');
+        }
+        if ($role_id === null) {
+            return response_error(Ajax::ERROR_VALIDATION, 'Invalid portal role');
         }
         if (!is_array($contact_ids) || empty($contact_ids)) {
             return response_error(Ajax::ERROR_VALIDATION, 'Select at least one contact to invite');
@@ -854,7 +867,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             $portal_user = static::_resolve_contact_portal_user($contact, (int) $client->site_id);
 
             // Already a member of this client -> nothing to do.
-            if ($portal_user && Portal_Membership_Model::has_membership($portal_user->id, (int) $client_id)) {
+            if ($portal_user && Portal_Membership_Model::has_membership_row($portal_user->id, (int) $client_id)) {
                 $skipped++;
                 continue;
             }
@@ -895,6 +908,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * Re-sends the appropriate invite email (new-account registration link vs.
      * existing-account "you've been invited") and refreshes the invitation expiry.
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function portal_resend_invite(Request $request, array $params = [])
     {
@@ -942,6 +956,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * instead of registering, expiring, or hitting a dead "invalid" error. find()
      * is site-scoped, so an admin can only revoke invitations within their site.
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function portal_revoke_invite(Request $request, array $params = [])
     {
@@ -972,7 +987,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      */
     private static function _resolve_contact_portal_user(Contact_Model $contact, int $site_id): ?Portal_User_Model
     {
-        $portal_user = Portal_User_Model::where('contact_id', $contact->id)->first();
+        $portal_user = Portal_User_Model::where('site_id', $site_id)->where('contact_id', $contact->id)->first();
         if ($portal_user) {
             return $portal_user;
         }
@@ -1050,6 +1065,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
     /**
      * Ajax endpoint: Toggle project visibility on client portal
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function portal_toggle_project(Request $request, array $params = [])
     {
@@ -1111,6 +1127,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * portal notification (T4) per active portal member of the client - landing the
      * announcement in each recipient's activity feed (T5).
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function portal_post_announcement(Request $request, array $params = [])
     {
@@ -1160,7 +1177,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
     // Portal-user lifecycle management (shared by the global Settings >
     // Portal Users screen and the per-client portal members table).
     //
-    // Staff-only: gated by this controller's pre_dispatch (Session::is_logged_in).
+    // Staff-only: reads gated can_view_data (class), writes can_edit_data (method).
     // Each action loads the portal user scoped to the staff member's current
     // site, so a staff user can only act on portal users of their own site.
     // =====================================================================
@@ -1191,7 +1208,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             $contact = $portal_user->contact_id ? Contact_Model::find($portal_user->contact_id) : null;
 
             $memberships = [];
-            foreach (Portal_Membership_Model::get_for_user($portal_user->id) as $membership) {
+            foreach (Portal_Membership_Model::get_all_for_user($portal_user->id) as $membership) {
                 $client = Client_Model::find($membership->client_id);
                 $memberships[] = [
                     'membership_id' => $membership->id,
@@ -1217,6 +1234,23 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
         }
 
         return ['users' => $users];
+    }
+
+    /**
+     * A portal membership role from a request: an id of Portal_Membership_Model's role_id
+     * enum, or null when it is not one. Every portal-role write goes through it, because
+     * Portal_Permission::can_collaborate() reads the role as an ordered number and an
+     * arbitrary integer would read as a role nobody granted.
+     */
+    private static function __portal_role_id($value): ?int
+    {
+        if ($value === null || $value === '' || !is_numeric($value)) {
+            return null;
+        }
+
+        $role_id = (int) $value;
+
+        return array_key_exists($role_id, Portal_Membership_Model::role_id__enum()) ? $role_id : null;
     }
 
     /**
@@ -1247,6 +1281,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * already treats as a login block) and terminates all of the user's active
      * portal sessions so the suspension takes effect immediately.
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function portal_user_suspend(Request $request, array $params = [])
     {
@@ -1275,6 +1310,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      *
      * Sets status_id back to STATUS_ACTIVE, restoring login ability.
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function portal_user_reactivate(Request $request, array $params = [])
     {
@@ -1304,7 +1340,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
     // then emits a portal notification + sends the shared-content email to each
     // recipient that has a portal account.
     //
-    // Staff-only: gated by this controller's pre_dispatch (Session::is_logged_in).
+    // Staff-only: reads gated can_view_data (class), writes can_edit_data (method).
     // =====================================================================
 
     /**
@@ -1347,6 +1383,8 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
                     'shared_item_id' => $share->id,
                     'contact_id' => $contact->id,
                     'contact_name' => $contact->full_name(),
+                    'expires_at' => $share->expires_at,
+                    'is_expired' => $share->is_expired(),
                     'has_portal_account' => $portal_user !== null,
                     'shared_at' => $share->created_at,
                     'is_expired' => $share->is_expired(),
@@ -1373,8 +1411,9 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * The browser uploads the file to /_upload first (unattached), then calls this with
      * the returned key. can_user_assign_this_file() is STRUCTURAL, not a per-user check:
      * it proves the file is still unclaimed and belongs to this tenant. WHO may claim it
-     * is this endpoint's decision, and here that is the class-level #[Auth] gate.
+     * is this endpoint's decision, and here that is its can_edit_data gate.
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function documents_add(Request $request, array $params = [])
     {
@@ -1418,6 +1457,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      *
      * Returns per-bucket counts.
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function documents_share(Request $request, array $params = [])
     {
@@ -1471,14 +1511,19 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
                 continue;
             }
 
-            // Idempotent: skip if this exact document is already shared with the contact.
+            // Idempotent: skip if this exact document is already shared with the contact
+            // by a LIVE share. An expired share grants nothing, so sharing again replaces
+            // it with a fresh one (new expiry, new notification).
             $existing = Shared_Item_Model::where('item_type', 'File_Attachment_Model')
                 ->where('item_id', $attachment->id)
                 ->where('contact_id', $contact->id)
-                ->first();
-            if ($existing) {
+                ->get();
+            if ($existing->contains(fn ($share) => $share->is_valid())) {
                 $already++;
                 continue;
+            }
+            foreach ($existing as $expired_share) {
+                $expired_share->forceDelete();
             }
 
             Shared_Item_Model::create_share(
@@ -1532,6 +1577,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
     /**
      * Ajax endpoint: remove a single share (Shared_Item) of a document.
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function documents_unshare(Request $request, array $params = [])
     {
@@ -1560,6 +1606,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * (rsx:man file_disposal). All Shared_Item rows are removed here, so a restored document
      * comes back UNshared (re-share as needed) and no portal user can reach it meanwhile.
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function document_delete(Request $request, array $params = [])
     {
@@ -1623,6 +1670,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * (undelete). Throws through undelete() if the document has already been permanently
      * destroyed or its bytes are gone. The restored document returns UNshared.
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function document_restore(Request $request, array $params = [])
     {
@@ -1761,7 +1809,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
     // attached in a thread are File_Attachments (fileable = the thread, category
     // DOCUMENTS_THREAD_CATEGORY) plus a Portal_Request_Document_Model review row.
     //
-    // Staff-only: gated by this controller's pre_dispatch (Session::is_logged_in).
+    // Staff-only: reads gated can_view_data (class), writes can_edit_data (method).
     // No notifications here yet (Stage 4).
     // =====================================================================
 
@@ -1835,6 +1883,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * the firm's opening ask as the first message. Returns a redirect to the staff thread
      * view.
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function request_thread_create(Request $request, array $params = [])
     {
@@ -1985,6 +2034,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * AFTER the message. The body may be empty only when there is at least one
      * attachment or a status change.
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function request_thread_reply(Request $request, array $params = [])
     {
@@ -2074,6 +2124,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * (moves to the Accepted bucket); Reject -> REJECTED + optional reason (stays in
      * the thread with its badge/reason). Returns the updated review state.
      */
+    #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
     public static function request_document_review(Request $request, array $params = [])
     {
