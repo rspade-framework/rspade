@@ -139,6 +139,7 @@ class Sidebar_Nav extends Component {
                     label: item.label,
                     icon: item.icon,
                     href: item.href,
+                    target: item.target || null,
                     active: that.is_url_active(item.href),
                     subitems: [],
                     has_active_child: false,

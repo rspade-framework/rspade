@@ -34,6 +34,8 @@ BEHAVIOR:
     - Automatically detects active items based on current URL
     - Expands parent items if child is active (no animation on initial load)
     - Supports nested navigation up to one level deep
+    - An item with `target` (e.g. target: "_blank") renders it on the link, with
+      rel="noopener" - the link opens outside the SPA (top-level items without subitems)
 --%>
 <Define:Sidebar_Nav class="navbar-collapse d-desktop-block collapse" id="sidebarNav">
     <% for (const section of this.data.sections) { %>
@@ -63,7 +65,7 @@ BEHAVIOR:
                     </div>
                 <% } else { %>
                     <%-- Regular item --%>
-                    <a href="<%= item.href %>" class="Sidebar_Nav__link<%= item.active ? ' active' : '' %>">
+                    <a href="<%= item.href %>" class="Sidebar_Nav__link<%= item.active ? ' active' : '' %>" <% if (item.target) { %>target="<%= item.target %>" rel="noopener"<% } %>>
                         <% if (item.icon) { %>
                             <i class="<%= 'bi ' + item.icon %>"></i>
                         <% } %>

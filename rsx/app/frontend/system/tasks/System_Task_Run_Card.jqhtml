@@ -1,0 +1,35 @@
+<%--
+System_Task_Run_Card - one background task run in the user's list: name, status badge,
+progress bar (live while it runs; afterwards only if it reported progress); opened, its reports (Task_Report_Browser) and live output
+(Task_Output), and a Stop button while it runs or Run again once it finished. The buttons
+call Rsx_Task; the application's control gate (Task_Gate_Handlers) allows or refuses them.
+
+$task - the run's status (an Rsx_Task.find()/page() row) (required)
+$open - start opened
+--%>
+<Define:System_Task_Run_Card class="card mb-2">
+    <% const _t = this.args.task; %>
+    <div class="card-body">
+        <div class="System_Task_Run_Card__head" $sid="toggle">
+            <span class="System_Task_Run_Card__name"><%= _t.name %></span>
+            <span class="text-muted small">#<%= _t.id %> &middot; <%= Rsx_Time.format_datetime(_t.started_at || _t.scheduled_for) %></span>
+            <Task_Status_Badge $task_id=_t.id />
+        </div>
+        <% if (_t.is_live || _t.progress_percent !== null || _t.progress_count) { %>
+            <Task_Report class="System_Task_Run_Card__progress" $task_id=_t.id $kind="progress_text" $bar=true />
+        <% } %>
+        <% if (this.state.open) { %>
+            <div class="System_Task_Run_Card__actions">
+                <% if (_t.is_live) { %>
+                    <button type="button" class="btn btn-secondary btn-sm" data-task-action="stop">Stop</button>
+                <% } else { %>
+                    <button type="button" class="btn btn-secondary btn-sm" data-task-action="rerun">Run again</button>
+                <% } %>
+            </div>
+            <div class="System_Task_Run_Card__detail">
+                <Task_Report_Browser class="System_Task_Run_Card__reports" $task_id=_t.id />
+                <Task_Output class="System_Task_Run_Card__output" $task_id=_t.id />
+            </div>
+        <% } %>
+    </div>
+</Define:System_Task_Run_Card>

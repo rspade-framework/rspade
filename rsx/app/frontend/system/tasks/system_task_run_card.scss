@@ -1,0 +1,36 @@
+.System_Task_Run_Card {
+    &__head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        cursor: pointer;
+    }
+
+    &__name {
+        font-weight: 600;
+    }
+
+    &__progress {
+        margin-top: 8px;
+    }
+
+    &__actions {
+        margin-top: 10px;
+    }
+
+    &__detail {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 10px;
+    }
+
+    &__reports {
+        height: 280px;
+    }
+
+    &__output {
+        height: 320px;
+    }
+}

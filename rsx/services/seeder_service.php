@@ -88,10 +88,10 @@ class Seeder_Service extends Rsx_Service_Abstract
             $clients_created++;
         }
 
-        return [
-            'message' => 'Successfully seeded clients',
-            'clients_created' => $clients_created,
-        ];
+        $task->state(['clients_created' => $clients_created]);
+        $task->summary("Seeded {$clients_created} client(s).");
+
+        return null;
     }
 
     #[Task('Seed 5-15 test contacts for each client')]
@@ -154,11 +154,10 @@ class Seeder_Service extends Rsx_Service_Abstract
             });
         }
 
-        return [
-            'message' => 'Successfully seeded contacts',
-            'clients_processed' => $clients->count(),
-            'contacts_created' => $contacts_created,
-        ];
+        $task->state(['clients_processed' => $clients->count(), 'contacts_created' => $contacts_created]);
+        $task->summary("Seeded {$contacts_created} contact(s) across {$clients->count()} client(s).");
+
+        return null;
     }
 
     #[Task('Seed 2-3 projects for each client that has none')]
@@ -275,13 +274,15 @@ class Seeder_Service extends Rsx_Service_Abstract
             }
         }
 
-        return [
-            'message' => 'Successfully seeded projects',
+        $task->state([
             'projects_created' => $projects_created,
             'subprojects_created' => $subprojects_created,
             'contact_pivots_created' => $contact_pivots,
             'user_pivots_created' => $user_pivots,
-        ];
+        ]);
+        $task->summary("Seeded {$projects_created} project(s) and {$subprojects_created} subproject(s).");
+
+        return null;
     }
 
     #[Task('Seed 3-5 tasks for each project that has none')]
@@ -445,12 +446,14 @@ class Seeder_Service extends Rsx_Service_Abstract
             $chains_created++;
         }
 
-        return [
-            'message' => 'Successfully seeded tasks',
+        $task->state([
             'tasks_created' => $tasks_created,
             'project_id_backfilled' => $backfilled,
             'chain_tasks_created' => $chains_created,
-        ];
+        ]);
+        $task->summary("Seeded {$tasks_created} task(s) and {$chains_created} dependency-chain task(s).");
+
+        return null;
     }
 
     /**
@@ -458,11 +461,13 @@ class Seeder_Service extends Rsx_Service_Abstract
      *
      *     php artisan rsx_app:seed
      *
-     * is `php artisan rsx:task:run Seeder_Service seed_all` under a friendlier name, with
-     * the same parameters, the same JSON on stdout and the same exit codes. The narration
-     * below (info() and update_progress()) is written live to STDERR while it runs, so the
-     * value on stdout stays pipeable: `php artisan rsx_app:seed 2>/dev/null | jq`.
-     * See rsx:man task_commands.
+     * is `php artisan rsx:task:run Seeder_Service seed_all` under a friendlier name, with the
+     * same parameters, output and exit codes: what the task writes to stdout is the command's
+     * stdout, its stderr (each status() change included) is the command's stderr, and its
+     * return value is the exit code. See rsx:man task_commands.
+     *
+     * Each step runs as its own inline run (Task::internal()), recorded with its own state and
+     * summary; this run reports its progress as steps done of four.
      */
     #[Task('Seed clients, contacts, projects and tasks (full demo dataset)')]
     #[Command('rsx_app:seed', 'Seed the demo dataset - clients, contacts, projects and tasks')]
@@ -473,32 +478,29 @@ class Seeder_Service extends Rsx_Service_Abstract
             throw new \Exception("Cannot run seeders in production environment. Seeders are for development only.");
         }
 
-        $task->info('Seeding the full demo dataset');
-
-        // Execute seed_clients task
-        $task->update_progress(0, 'Clients');
-        $clients_result = Task::internal('Seeder_Service', 'seed_clients', $params);
-
-        // Execute seed_contacts task
-        $task->update_progress(25, 'Contacts');
-        $contacts_result = Task::internal('Seeder_Service', 'seed_contacts', $params);
-
-        // Execute seed_projects task (needs clients)
-        $task->update_progress(50, 'Projects');
-        $projects_result = Task::internal('Seeder_Service', 'seed_projects', $params);
-
-        // Execute seed_tasks task (needs projects)
-        $task->update_progress(75, 'Tasks');
-        $tasks_result = Task::internal('Seeder_Service', 'seed_tasks', $params);
-
-        $task->update_progress(100, 'Done');
-
-        return [
-            'message' => 'Successfully seeded all data',
-            'clients' => $clients_result,
-            'contacts' => $contacts_result,
-            'projects' => $projects_result,
-            'tasks' => $tasks_result,
+        $steps = [
+            'seed_clients' => 'Seeding clients',
+            'seed_contacts' => 'Seeding contacts',
+            'seed_projects' => 'Seeding projects',
+            'seed_tasks' => 'Seeding tasks',
         ];
+
+        $summaries = [];
+        $done = 0;
+        foreach ($steps as $method => $label) {
+            $task->status($label);
+            $task->progress_count($done, count($steps));
+
+            $run = Task::internal('Seeder_Service', $method, $params);
+            $summaries[] = $run->summary();
+            $task->stdout($run->summary());
+            $done++;
+        }
+
+        $task->progress_count($done, count($steps));
+        $task->status('Done');
+        $task->summary(implode(' ', $summaries));
+
+        return null;
     }
 }

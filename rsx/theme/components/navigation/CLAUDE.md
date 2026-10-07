@@ -33,7 +33,10 @@ chrome, not view vocabulary. The portal has its own nav in `rsx/portal/`.
 
 - **Add a nav item**: an entry in `Frontend_Spa_Layout.js`'s `nav_sections` with a `route`
   (the action's class name, used for both active detection and the gate check) and an
-  `href` from `Rsx.Route(...)`. Never hardcode the URL.
+  `href` from `Rsx.Route(...)`. Never hardcode the URL. An optional `target` (e.g.
+  `'_blank'`, rendered with `rel="noopener"`) opens a top-level item outside the SPA - the
+  Administration section's Developer link to `/_sys` (`route:
+  '_Sys_Dashboard_Action'`, so only developers see it) is the example.
 - **Restyle the sidebar**: `sidebar/sidebar_nav.scss`. It is one of the sanctioned places
   for a deliberately dark surface in both themes — if you fix a colour there, say so in a
   comment so the next reader does not "fix" it back to a token.

@@ -106,6 +106,16 @@ class Frontend_Spa_Layout extends Spa_Layout {
                             route: 'Settings_General_Action',
                             href: Rsx.Route('Settings_General_Action'),
                         },
+                        {
+                            // The framework's developer console (/_sys). Its gate is
+                            // is_sysadmin (a developer), so the nav filter below shows it
+                            // to developers only; it opens in its own tab.
+                            label: 'Developer',
+                            icon: 'bi-terminal',
+                            route: '_Sys_Dashboard_Action',
+                            href: Rsx.Route('_Sys_Dashboard_Action'),
+                            target: '_blank',
+                        },
                     ],
                 },
                 {

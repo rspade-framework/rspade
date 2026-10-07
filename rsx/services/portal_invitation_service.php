@@ -38,9 +38,11 @@ class Portal_Invitation_Service extends Rsx_Service_Abstract
         );
 
         if ($expired > 0) {
-            $task->info("Expired {$expired} stale portal invitation(s).");
+            $task->stdout("Expired {$expired} stale portal invitation(s).");
         }
 
-        return ['expired' => $expired];
+        $task->state(['expired' => $expired]);
+
+        return null;
     }
 }

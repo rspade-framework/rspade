@@ -81,8 +81,8 @@ password reset), `errors/` (the portal realm's own error pages), `dashboard/`,
 |---|---|
 | `rsx/theme/` | The component library (`components/`), SCSS variables, composition tokens, badges, responsive mixins, Bootstrap overrides. Each component group carries its own `CLAUDE.md`. |
 | `rsx/lib/` | App utilities: `action_log/`, `notification/`, `modal/`, `topics/`, `analytics/`, `formatters.{php,js}`. |
-| `rsx/services/` | `Rsx_Service_Abstract` background work: `portal_invitation_service.php`, `seeder_service.php`. A `#[Task]` here becomes an artisan command by adding `#[Command]` - see `rsx_app:seed`. |
-| `rsx/handlers/` | Event handlers: `File_Upload_Handlers` (the mandatory upload gate), `Portal_File_Access_Handlers`. |
+| `rsx/services/` | `Rsx_Service_Abstract` background work: `portal_invitation_service.php`, `seeder_service.php`, `task_showcase_service.php` (every task report, for the task widgets). A `#[Task]` here becomes an artisan command by adding `#[Command]` - see `rsx_app:seed`. |
+| `rsx/handlers/` | Event handlers: `File_Upload_Handlers` (the mandatory upload gate), `Portal_File_Access_Handlers`, `Task_Gate_Handlers` (who sees and controls background task runs). |
 | `rsx/emails/` | Email classes (`X_Email extends Rsx_Email_Abstract`) beside their blade templates and `email.scss`. |
 | `rsx/tests/` | The application test suite (`php artisan rsx:test`). |
 | `rsx/resource/` | Framework-ignored. `config/` (config overrides), `man/` (project man pages), `docs/`, `skills/`, `audits/prelaunch_checklist.md`, `conventions/`, `migrations/` (app-owned migrations). |

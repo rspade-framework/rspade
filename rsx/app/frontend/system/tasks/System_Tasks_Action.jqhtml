@@ -1,10 +1,34 @@
+<%--
+System_Tasks_Action - the signed-in user's background task runs.
+
+Lists the runs this user started (the application's task scope, Task_Gate_Handlers), newest
+first, each as a System_Task_Run_Card: its status, progress, and - opened - its reports and
+live output, with the stop actions the gates allow. "Start a showcase task" dispatches
+Task_Showcase_Service::walk, which reports every kind of status there is.
+
+Live: Task_List_Changed_Topic reloads the list when one of the runs starts or finishes.
+--%>
 <Define:System_Tasks_Action>
 <Page_Scaffold>
     <Slot:main>
-        <Placeholder_Card $icon="bi bi-list-task">
-            <Slot:title>Task monitoring coming soon</Slot:title>
-            <Slot:body>Registered tasks, schedules, last-run times, and execution logs will appear here.</Slot:body>
-        </Placeholder_Card>
+        <Section $title="My background tasks" $icon="bi bi-list-task" $count=(this.data.tasks ? this.data.tasks.length : null)>
+            <Slot:actions>
+                <button type="button" class="btn btn-primary btn-sm" $sid="start">Start a showcase task</button>
+            </Slot:actions>
+            <Slot:body>
+                <% if (this.data.error_data) { %>
+                    <div class="text-danger">The task list could not be loaded.</div>
+                <% } else if (!this.data.tasks) { %>
+                    <Spinner />
+                <% } else if (!this.data.tasks.length) { %>
+                    <p class="text-muted mb-0">You have not started a background task yet.</p>
+                <% } else { %>
+                    <% for (const task of this.data.tasks) { %>
+                        <System_Task_Run_Card $task=task $open=(task.id === this.state.open_id) />
+                    <% } %>
+                <% } %>
+            </Slot:body>
+        </Section>
     </Slot:main>
 </Page_Scaffold>
 </Define:System_Tasks_Action>

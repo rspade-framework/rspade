@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Six classes, each a plain `public static` class in `Rsx\Handlers` discovered by the
+Seven classes, each a plain `public static` class in `Rsx\Handlers` discovered by the
 manifest from its `#[OnEvent]` attributes. There is no registration step.
 
 - **`File_Upload_Handlers`** — `#[OnEvent('file.upload.authorize', priority: 10)]`. Returns
@@ -53,6 +53,14 @@ manifest from its `#[OnEvent]` attributes. There is no registration step.
   (b) an attachment on a request thread of such a client. A staff session on a portal file
   URL gets nothing. These are the template's only read-gate handlers, and the framework
   refuses every file read when a read gate has none (`Rsx_File_Gates`).
+- **`Task_Gate_Handlers`** — the background-task gates, all priority 10:
+  `#[OnEvent('task.view.authorize')]` (one run: visible when its `dispatched_by` is the
+  signed-in staff user's `User_Model`), `#[OnEvent('task.view.scope')]` (a list of runs:
+  the same rule as a `where` on `dispatched_by_type` / `dispatched_by_id`, or `0 = 1` with
+  nobody signed in) and `#[OnEvent('task.control.authorize')]` (stop, force stop, cancel
+  or rerun a run the user started - `OWN_RUN_ACTIONS`; never force kill, which stays a
+  developer's call in `/_sys`). No `portal.task.*` handler exists, so the portal realm sees
+  no runs. A developer passes every task gate without these being asked.
 
 ## HOW IT IS USED
 
@@ -63,9 +71,9 @@ upload endpoint — so `File_Upload_Handlers` is not optional scaffolding. Its p
 `tmp_path`, so a stricter policy can read the real bytes and reject before anything persists.
 
 **Gate semantics**: every handler must return `true`; the first non-`true` return denies. The
-three FILE gates are the exception to "a gate with no handlers is open": the framework asks
-them fail-closed (`Rsx_File_Gates`), so removing a handler here switches that kind of file
-access off.
+three FILE gates and the TASK gates are the exception to "a gate with no handlers is open":
+the framework asks them fail-closed (`Rsx_File_Gates`, `Task_Gates`), so removing a handler
+here switches that kind of access off - for tasks, nobody but a developer would see a run.
 
 **Handlers run inline, in the request.** Anything slow belongs in `Task::dispatch()`.
 
@@ -91,6 +99,9 @@ screen and for the test-suite baseline seed, so a test may rely on the group exi
   decision. Adding an account-state rule (suspended, pending approval) goes in
   `Sso_Handlers::authorize_login()` **and** in `Login_Controller::index()`, in the same
   change: a check that exists on one door only leaves the other one open.
+- **Change who sees and controls background tasks** in `Task_Gate_Handlers` - keep the
+  view gate and the view scope the SAME rule (the gate answers for one run, the scope for a
+  list), and add `portal.task.*` handlers only when portal users should see runs.
 - **Change what the founder gets** in `Initial_User_Handlers` — extra rows for the first
   account go here, never in a migration keyed to user id 1.
 - **Add a handler**: a new class or method in this directory with `#[OnEvent('name')]`.
@@ -101,5 +112,6 @@ screen and for the test-suite baseline seed, so a test may rely on the group exi
 ## RELATED
 
 `rsx/services/CLAUDE.md` · `rsx/app/login/CLAUDE.md` (the ladder `Sso_Handlers` routes
-into) · skills `rspade:event-hooks`, `rspade:file-attachments`, `rspade:portal-core` ·
-`rsx:man event_hooks`, `rsx:man file_upload`, `rsx:man initial_user`, `rsx:man sso`
+into) · skills `rspade:event-hooks`, `rspade:file-attachments`, `rspade:portal-core`,
+`rspade:background-tasks` · `rsx:man event_hooks`, `rsx:man file_upload`,
+`rsx:man initial_user`, `rsx:man sso`, `rsx:man tasks`

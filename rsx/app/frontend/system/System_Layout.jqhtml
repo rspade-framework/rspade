@@ -16,7 +16,7 @@
                 <a class="system-sidebar__item" data-page="tasks"
                     href="<%= Rsx.Route('System_Tasks_Action') %>">
                     <i class="bi bi-list-task"></i>
-                    <span>Scheduled Tasks</span>
+                    <span>Background Tasks</span>
                 </a>
             </div>
 

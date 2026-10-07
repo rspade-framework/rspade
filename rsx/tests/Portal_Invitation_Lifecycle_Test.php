@@ -6,7 +6,6 @@
 namespace Rsx\Tests;
 
 use App\RSpade\Core\Models\Site_Model;
-use App\RSpade\Core\Task\Task_Instance;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
 use Rsx\Models\Portal_Invitation_Model;
 use Rsx\Services\Portal_Invitation_Service;
@@ -119,8 +118,7 @@ class Portal_Invitation_Lifecycle_Test extends Rsx_Test_Abstract
         $used->expires_at = now()->subDay();
         $used->mark_used();
 
-        $task = new Task_Instance('Portal_Invitation_Service', 'expire_stale', [], 'default', true);
-        $result = Portal_Invitation_Service::expire_stale($task, []);
+        $result = static::__run_task_method(Portal_Invitation_Service::class, 'expire_stale');
 
         static::__assert_true(($result['expired'] ?? 0) >= 1, 'at least the stale pending invite was expired');
         static::__assert_equals(Portal_Invitation_Model::STATUS_EXPIRED, (int) $stale->fresh()->status_id, 'stale pending -> expired');
@@ -146,8 +144,7 @@ class Portal_Invitation_Lifecycle_Test extends Rsx_Test_Abstract
         $stale->save();
         static::__acting_as_site(self::SITE_ID);
 
-        $task = new Task_Instance('Portal_Invitation_Service', 'expire_stale', [], 'default', true);
-        Portal_Invitation_Service::expire_stale($task, []);
+        static::__run_task_method(Portal_Invitation_Service::class, 'expire_stale');
 
         $stored = Portal_Invitation_Model::without_site_scope(fn () => Portal_Invitation_Model::find($stale->id));
         static::__assert_equals(Portal_Invitation_Model::STATUS_EXPIRED, (int) $stored->status_id, 'the second site\'s stale invite expired');
