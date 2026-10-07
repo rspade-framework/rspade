@@ -10,7 +10,7 @@ screen but Background Tasks is `scaffolded = true`:
 | Screen | Action | Route | What it reads |
 |---|---|---|---|
 | Status | `System_Status_Action` | `/frontend/system/status` | Nothing — a `<Placeholder_Card>` standing in for an unbuilt feature. |
-| Background Tasks | `System_Tasks_Action` | `/frontend/system/tasks` | The signed-in user's own task runs through the framework's `Rsx_Task` API - `Rsx_Task.page({}, null, 50)`, which the application's `task.view.scope` handler narrows to the runs the user started (`rsx/handlers/Task_Gate_Handlers.php`) - each a `System_Task_Run_Card`. Reloads on `Task_List_Changed_Topic`. "Start a showcase task" dispatches `Task_Showcase_Service::walk` (`rsx/services/`) through `System_Tasks_Controller::start_showcase` and opens the new run's card. |
+| Background Tasks | `System_Tasks_Action` | `/frontend/system/tasks` | The signed-in user's own task runs through the framework's `Rsx_Task` API - `Rsx_Task.page({}, null, 50)`, which the application's `task.view.scope` handler narrows to the runs the user started of the tasks it lists (`rsx/handlers/Task_Gate_Handlers.php`, `USER_TASKS`) - each a `System_Task_Run_Card`. Reloads on `Task_List_Changed_Topic`. "Start a showcase task" dispatches `Task_Showcase_Service::walk` (`rsx/services/`) through `System_Tasks_Controller::start_showcase` and opens the new run's card. |
 | Email Configuration | `System_Email_Config_Action` | `/frontend/system/email_config` | `Rsx_Mail_Transport::delivery_mode()`/`describe()`, `Rsx::is_dev_site()`, the `rsx.mail.*` config keys (driver, from address, dev-site catchall and whitelists, retry, retention) and per-status counts on `Email_Queue_Model`. |
 | Email Queue | `System_Email_Queue_Action` | `/frontend/system/email_queue` | `Email_Queue_Model`, paginated, status filter + search on recipient/subject; per-row resend. |
 | Email (one message) | `System_Email_View_Action` | `/frontend/system/email_queue/view/:id` | One `Email_Queue_Model` row plus its rendered HTML through `Rsx_Mail::displayable_html()` (inline `cid:` images become `data:` URIs of the bytes recorded on the row), shown in an iframe `srcdoc`, and its `attachments()` rows (file name, mime type, attachment-vs-inline, and the blob's size) when the message carries any; resend returns it to `STATUS_PENDING`. |
@@ -69,8 +69,9 @@ mailed to a thousand people is one blob, and that blob's size is the honest numb
 - **Finish the placeholder**: Status is a `<Placeholder_Card>` body with no backing
   endpoint — replace the card with real content or delete the directory and its nav anchor.
 - **Background Tasks** shows whatever the task gates let the user see: widen or narrow it in
-  `rsx/handlers/Task_Gate_Handlers.php`, never with a filter here. Replace the showcase
-  button with the application's own tasks once it has them.
+  `rsx/handlers/Task_Gate_Handlers.php` (`USER_TASKS`), never with a filter here. Replace the
+  showcase button with the application's own tasks once it has them, and give each of those
+  tasks its own `USER_TASKS` entry - the showcase's entry goes with the showcase.
 - **The whole console is an administrative surface.** `System_Email_Controller` and every
   action here are gated `can_manage_site_settings`, because a rendered message body carries
   whatever bearer links the message did - staff invitations, portal password resets, portal

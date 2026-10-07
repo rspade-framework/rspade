@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Forty-four test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Forty-five test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -66,7 +66,10 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   (saves refuse another site's ids, grids print no foreign row),
   `Self_Registration_Policy_Test` (`/signup` POST honours `signup_mode` and answers an
   existing address like a new one; SSO declines an open invitation, an unverified and an
-  unknown address).
+  unknown address),
+  `Task_Gate_Handlers_Test` (least privilege: a user sees and acts on only the runs they
+  started of the tasks `USER_TASKS` lists, with only each entry's actions - their own run of
+  an unlisted task stays invisible, and `force_kill` is never granted).
 - **Two-factor**: `Two_Factor_Login_Verify_Test` — this application's
   `Login_Controller::verify_2fa`, the endpoint `<Two_Factor_Challenge>` is pointed at.
   The framework deliberately ships no verification endpoint (the post-login destination is
