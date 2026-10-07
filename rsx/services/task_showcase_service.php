@@ -14,10 +14,12 @@ use App\RSpade\Core\Task\Task_Instance;
  * Task_Showcase_Service - a background task that uses every report a task can make, so the
  * task widgets and the developer console have something to show.
  *
- * It walks a short work list, one item a second: the status line, a percentage and a count,
- * an ETA, a heartbeat, a JSON state object, the remaining queue as a list, stdout and stderr
- * lines, a message per milestone, a small CSV attachment and a completion summary. It checks
- * for a stop request before every item, so a graceful stop ends it cleanly (STOPPED).
+ * It walks a short work list, one item a second: the status line, ONE progress indicator (a
+ * count; the percentage is derived from it), an ETA, a heartbeat, a JSON state object, the
+ * remaining queue as a list, stdout and stderr lines, a message per milestone, a small CSV
+ * attachment and a completion summary. It checks for a stop request and beats its heartbeat
+ * on every item, so a graceful stop ends it cleanly (STOPPED). The CSV is the one shape an
+ * attachment is for: a file the user who started the run is waiting to download.
  *
  * Started by a user from the Tasks screen (System_Tasks_Controller::start_showcase),
  * which is what makes it "theirs" to the application's task gates (rsx/handlers).
@@ -67,7 +69,6 @@ class Task_Showcase_Service extends Rsx_Service_Abstract
                 $task->message("{$done} of {$items} done");
             }
 
-            $task->progress($done * 100 / $items);
             $task->progress_count($done, $items);
             $task->eta($items - $done);
             $task->heartbeat();
