@@ -8,17 +8,17 @@
 @section('content')
     {{-- The whole screen is the framework component: it loads the pending challenge itself,
          offers the code box and the passkey button, posts to the endpoint named here, and
-         follows the {redirect} that endpoint answers with. This page owns only the chrome.
+         follows the {redirect} that endpoint answers with. $cancel_url adds Cancel, which
+         discards the pending challenge and returns to the sign-in form. This page owns only
+         the chrome.
 
          No <Turnstile_Input /> here, and none is wanted: the component posts {code} or
          {assertion} and nothing else, and the challenge is already gated by the pending
          state on this session plus the framework's brute-force budget. --}}
-    <Two_Factor_Challenge $controller="Login_Controller" $method="verify_2fa" />
+    <Two_Factor_Challenge $controller="Login_Controller" $method="verify_2fa"
+                          $cancel_url="{{ Rsx::Route('Login_Controller::index') }}" />
 
     <div class="mt-3 text-center">
-        <small class="text-muted">
-            Lost your device? Use one of your recovery codes above, or
-            <a href="{{ Rsx::Route('Login_Controller::logout') }}">start over</a>.
-        </small>
+        <small class="text-muted">Lost your device? Enter one of your recovery codes instead.</small>
     </div>
 @endsection

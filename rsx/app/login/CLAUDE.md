@@ -8,7 +8,7 @@ controller is class-level `#[Auth('public')]` with a written justification in it
 | Rung | Class / file | Route | What it does |
 |---|---|---|---|
 | Login | `Login_Controller` (`login_controller.php`) | `/login` GET+POST | Turnstile, then `RsxAuth::attempt($credentials, record: false, touch_last_login: false)` - the PASSWORD stage only. A failure records `STATUS_FAILED_PASSWORD` itself. On success: a second factor issues the challenge, otherwise `RsxAuth::login()` + `record_success()` and `post_login_destination()`. |
-| 2FA challenge | `Login_Controller::verify` + `verify_2fa` | `/login/verify` GET + an `#[Ajax_Endpoint]` | The screen hosting `<Two_Factor_Challenge>`, and the endpoint it posts to. Nothing pending redirects back to `/login`. |
+| 2FA challenge | `Login_Controller::verify` + `verify_2fa` | `/login/verify` GET + an `#[Ajax_Endpoint]` | The screen hosting `<Two_Factor_Challenge>` (with `$cancel_url` = `/login`: Cancel discards the challenge and returns to the form), and the endpoint it posts to. Nothing pending redirects back to `/login`. |
 | Passkey sign-in | `Login_Controller::passkey_login` | an `#[Ajax_Endpoint]` | The endpoint `<Passkey_Sign_In>` on the login page posts to: `Rsx_Two_Factor::verify_passkey_login()`, then `post_login_destination()`. Passwordless - no password stage, no second factor after it. |
 | 2FA setup | `Login_Controller::two_factor_setup` | `/login/two_factor_setup` GET | The forced-enrollment interstitial, the one method-level `#[Auth('is_logged_in')]` in this module. |
 | Logout | `Login_Controller::logout` | `/logout` | `RsxAuth::logout()` then `Login_Redirect::consume($default)`. |

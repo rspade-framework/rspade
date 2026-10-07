@@ -224,7 +224,7 @@ User self-service page (composed from the shared theme components — see
 - **Login** (`/login`) — email/password (no credential autofill: a portal account belongs to a
   client), plus passkey sign-in and, when enabled, federated sign-in
 - **Two-factor challenge** (`/login/verify`) — `<Two_Factor_Challenge>` for a portal user
-  holding a second factor
+  holding a second factor; its Cancel (`$cancel_url`) returns to `/login`
 - **Registration** (`/register?code=X`) — invitation-based account creation
 - **Password Reset** (`/password/reset`) — request + reset token flow
 - **Logout** (`/logout`) — clears portal session, redirects to login
