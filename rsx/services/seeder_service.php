@@ -61,6 +61,13 @@ class Seeder_Service extends Rsx_Service_Abstract
         ];
 
         for ($i = 1; $i <= 20; $i++) {
+            if ($task->is_stop_requested()) {
+                $task->summary("Stopped after seeding {$clients_created} of 20 client(s).");
+
+                return null;
+            }
+            $task->heartbeat();
+
             // One revision-history entry per seeded client, not one for the whole task run.
             Revision::begin_unit_of_work("Seeded client {$i}");
 
@@ -86,6 +93,7 @@ class Seeder_Service extends Rsx_Service_Abstract
             $client->save();
 
             $clients_created++;
+            $task->progress_count($i, 20);
         }
 
         $task->state(['clients_created' => $clients_created]);
@@ -118,7 +126,15 @@ class Seeder_Service extends Rsx_Service_Abstract
         $last_names = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Wilson', 'Anderson', 'Taylor'];
         $titles = ['CEO', 'CTO', 'CFO', 'VP of Operations', 'Director of IT', 'Project Manager', 'Account Manager', 'Sales Director', 'Operations Manager', 'IT Manager'];
 
+        $clients_done = 0;
         foreach ($clients as $client) {
+            if ($task->is_stop_requested()) {
+                $task->summary("Stopped after seeding {$contacts_created} contact(s) across {$clients_done} of {$clients->count()} client(s).");
+
+                return null;
+            }
+            $task->heartbeat();
+
             // Create 5-15 contacts per client, each client's batch its own unit of work in
             // revision history (the closure form hands the task's own unit back afterwards).
             $contact_count = rand(5, 15);
@@ -152,6 +168,9 @@ class Seeder_Service extends Rsx_Service_Abstract
                     $contacts_created++;
                 }
             });
+
+            $clients_done++;
+            $task->progress_count($clients_done, $clients->count());
         }
 
         $task->state(['clients_processed' => $clients->count(), 'contacts_created' => $contacts_created]);
@@ -184,8 +203,17 @@ class Seeder_Service extends Rsx_Service_Abstract
             Project_Model::STATUS_COMPLETED,
         ];
 
+        $task->status('Seeding projects');
         $projects_created = 0;
+        $subprojects_created = 0;
         foreach ($clients as $client) {
+            if ($task->is_stop_requested()) {
+                $task->summary("Stopped after seeding {$projects_created} project(s) and {$subprojects_created} subproject(s).");
+
+                return null;
+            }
+            $task->heartbeat();
+
             if (Project_Model::where('client_id', $client->id)->exists()) {
                 continue; // already has projects - leave it alone
             }
@@ -209,12 +237,21 @@ class Seeder_Service extends Rsx_Service_Abstract
             }
         }
 
-        // --- Subprojects (1 level). Idempotent: seed only when NO subproject exists yet. ---
-        $subprojects_created = 0;
+        // --- Subprojects (1 level). Idempotent: seed only when NO subproject exists yet, so
+        //     the stop is checked before the batch rather than inside it - a half-seeded batch
+        //     would never be completed by a re-run. ---
+        if ($task->is_stop_requested()) {
+            $task->summary("Stopped after seeding {$projects_created} project(s) and {$subprojects_created} subproject(s).");
+
+            return null;
+        }
+        $task->status('Seeding subprojects');
         if (Project_Model::whereNotNull('parent_project_id')->count() === 0) {
             // Give a handful of top-level projects one child project each.
             $parents = Project_Model::whereNull('parent_project_id')->limit(5)->get();
             foreach ($parents as $parent) {
+                $task->heartbeat();
+
                 $child = new Project_Model();
                 $child->site_id = $parent->site_id;
                 $child->name = $parent->name . ' - Phase 2';
@@ -239,7 +276,15 @@ class Seeder_Service extends Rsx_Service_Abstract
         $contact_pivots = 0;
         $user_pivots = 0;
 
+        $task->status('Assigning project contacts and users');
         foreach (Project_Model::all() as $project) {
+            if ($task->is_stop_requested()) {
+                $task->summary("Stopped after seeding {$projects_created} project(s) and {$subprojects_created} subproject(s).");
+
+                return null;
+            }
+            $task->heartbeat();
+
             // Contacts: 1-2 from this project's client.
             if (!Project_Contact_Model::where('project_id', $project->id)->exists()) {
                 $client_contact_ids = Contact_Model::where('client_id', $project->client_id)
@@ -309,8 +354,17 @@ class Seeder_Service extends Rsx_Service_Abstract
             Task_Model::STATUS_COMPLETED,
         ];
 
+        $task->status('Seeding tasks');
         $tasks_created = 0;
+        $chains_created = 0;
         foreach ($projects as $project) {
+            if ($task->is_stop_requested()) {
+                $task->summary("Stopped after seeding {$tasks_created} task(s) and {$chains_created} dependency-chain task(s).");
+
+                return null;
+            }
+            $task->heartbeat();
+
             if (Task_Model::where('taskable_type', 'Project_Model')->where('taskable_id', $project->id)->exists()) {
                 continue;
             }
@@ -345,8 +399,16 @@ class Seeder_Service extends Rsx_Service_Abstract
 
         // --- Backfill DERIVED project_id for any task whose value is stale/null (idempotent:
         //     resolve_chain_project_id is a pure function of the current chain). ---
+        $task->status('Backfilling derived task projects');
         $backfilled = 0;
         foreach (Task_Model::all() as $t) {
+            if ($task->is_stop_requested()) {
+                $task->summary("Stopped after seeding {$tasks_created} task(s) and {$chains_created} dependency-chain task(s).");
+
+                return null;
+            }
+            $task->heartbeat();
+
             $chain = $t->resolve_chain_project_id();
             if ($chain !== null && (int) $t->project_id !== (int) $chain) {
                 $t->project_id = $chain;
@@ -361,8 +423,15 @@ class Seeder_Service extends Rsx_Service_Abstract
         }
 
         // --- Task -> task chains + varied non-project parents. Idempotent: seed only when no
-        //     task yet has a non-project parent (Task/Client/User taskable). ---
-        $chains_created = 0;
+        //     task yet has a non-project parent (Task/Client/User taskable), so the stop is
+        //     checked before the batch rather than inside it - a half-seeded batch would never
+        //     be completed by a re-run. ---
+        if ($task->is_stop_requested()) {
+            $task->summary("Stopped after seeding {$tasks_created} task(s) and {$chains_created} dependency-chain task(s).");
+
+            return null;
+        }
+        $task->status('Seeding task chains');
         $has_non_project_parent = Task_Model::where('taskable_type', '!=', 'Project_Model')
             ->orWhereNull('taskable_type')
             ->exists();
@@ -372,6 +441,8 @@ class Seeder_Service extends Rsx_Service_Abstract
             // through the chain.
             $parent_tasks = Task_Model::where('taskable_type', 'Project_Model')->limit(8)->get();
             foreach ($parent_tasks as $parent_task) {
+                $task->heartbeat();
+
                 $sub = new Task_Model();
                 $sub->site_id = $parent_task->site_id;
                 $sub->title = 'Subtask of: ' . $parent_task->title;
@@ -488,6 +559,13 @@ class Seeder_Service extends Rsx_Service_Abstract
         $summaries = [];
         $done = 0;
         foreach ($steps as $method => $label) {
+            if ($task->is_stop_requested()) {
+                $task->summary(trim("Stopped after {$done} of " . count($steps) . ' step(s). ' . implode(' ', $summaries)));
+
+                return null;
+            }
+            $task->heartbeat();
+
             $task->status($label);
             $task->progress_count($done, count($steps));
 

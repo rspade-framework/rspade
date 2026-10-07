@@ -16,7 +16,9 @@ use App\RSpade\Core\Task\Task_Instance;
  *
  * It walks a short work list, one item a second: the status line, ONE progress indicator (a
  * count; the percentage is derived from it), an ETA, a heartbeat, a JSON state object, the
- * remaining queue as a list, stdout and stderr lines, a message per milestone, a small CSV
+ * remaining queue as a list, a stdout line per item, a stderr line for every seventh item (a
+ * simulated transient failure, retried - stderr is for what went wrong without stopping the
+ * run), a message per milestone, a small CSV
  * attachment and a completion summary. It checks for a stop request and beats its heartbeat
  * on every item, so a graceful stop ends it cleanly (STOPPED). The CSV is the one shape an
  * attachment is for: a file the user who started the run is waiting to download.
@@ -63,9 +65,11 @@ class Task_Showcase_Service extends Rsx_Service_Abstract
 
             $done++;
             $csv .= "{$item}," . date('c') . "\n";
+            if ($done % 7 === 0) {
+                $task->stderr("{$item}: simulated transient failure, retried");
+            }
             $task->stdout("Processed {$item}");
             if ($done % 5 === 0) {
-                $task->stderr("Checkpoint at {$done} of {$items} (written to stderr)");
                 $task->message("{$done} of {$items} done");
             }
 

@@ -11,7 +11,7 @@ return value is the run's return code, never data.
   Bulk-marks pending portal invitations past their window as expired, so a followed link
   lands on the "expired, you can still create an account" page instead of a dead error and
   admin screens show accurate status. Writes a stdout line only when it expired
-  something, and always records `{expired: N}` as its state.
+  something, and always records `{expired: N}` as its state and a one-line summary.
   It sweeps EVERY site (`without_site_scope`): the worker running it serves no tenant, and
   a site-scoped sweep would only ever expire the invitations of whichever site the CLI
   process happened to declare. Any sweep added here that is install policy rather than
@@ -22,7 +22,12 @@ return value is the run's return code, never data.
   reports the steps as `progress_count()` of four, a `status()` per step and one stdout
   line per step's summary. Each step reports its counts with `summary()`. Every one
   refuses to run in production and every one is additive and idempotent (an entity that
-  already has children is skipped). `seed_tasks` also backfills the derived `tasks.project_id` and builds
+  already has children is skipped). Every one is stoppable: it checks `is_stop_requested()`
+  and beats `heartbeat()` per client, project or task (`seed_all` per step) and ends with a
+  "Stopped after ..." summary; the two all-or-nothing batches (subprojects, task chains) are
+  checked before they start, never inside, since their idempotency check would leave a
+  half-seeded batch incomplete forever. `seed_clients` and `seed_contacts` also report a
+  `progress_count()` (clients). `seed_tasks` also backfills the derived `tasks.project_id` and builds
   polymorphic parent chains so that code path gets exercised. `seed_clients` and
   `seed_contacts` declare one revision unit of work per client
   (`Revision::begin_unit_of_work()` / `Revision::unit_of_work()`), so the history shows one
@@ -33,8 +38,10 @@ return value is the run's return code, never data.
 
 - **`Task_Showcase_Service::walk`** — `#[Task]` that walks a short work list (`items`,
   default 20, 1 to 500; one second per item) using EVERY report a task can make: status,
-  percentage and count, ETA, heartbeat, a JSON state object, the remaining queue as a
-  `state_list()`, stdout and stderr lines, a message every five items, a CSV attachment
+  a `progress_count()`, ETA, heartbeat, a JSON state object, the remaining queue as a
+  `state_list()`, a stdout line per item, a stderr line for every seventh item (a simulated
+  transient failure, retried - stderr is for what went wrong without stopping the run), a
+  message every five items, a CSV attachment
   (`attach_bytes()`) and a summary. It checks `is_stop_requested()` before each item, so a
   graceful stop ends it STOPPED. An out-of-range `items` writes a stderr line and returns
   `2`. It exists so the task widgets have something to show: the Background Tasks screen
