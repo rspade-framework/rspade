@@ -62,6 +62,7 @@ class Seeder_Service extends Rsx_Service_Abstract
 
         for ($i = 1; $i <= 20; $i++) {
             if ($task->is_stop_requested()) {
+                $task->stdout("Stopped after seeding {$clients_created} of 20 client(s).");
                 $task->summary("Stopped after seeding {$clients_created} of 20 client(s).");
 
                 return null;
@@ -92,11 +93,13 @@ class Seeder_Service extends Rsx_Service_Abstract
             $client->owner_user_id = 1;
             $client->save();
 
+            $task->stdout("Created client #{$client->id} {$client->name} ({$client->city}, {$client->state})");
             $clients_created++;
             $task->progress_count($i, 20);
         }
 
         $task->state(['clients_created' => $clients_created]);
+        $task->stdout("Seeded {$clients_created} client(s).");
         $task->summary("Seeded {$clients_created} client(s).");
 
         return null;
@@ -129,6 +132,7 @@ class Seeder_Service extends Rsx_Service_Abstract
         $clients_done = 0;
         foreach ($clients as $client) {
             if ($task->is_stop_requested()) {
+                $task->stdout("Stopped after seeding {$contacts_created} contact(s) across {$clients_done} of {$clients->count()} client(s).");
                 $task->summary("Stopped after seeding {$contacts_created} contact(s) across {$clients_done} of {$clients->count()} client(s).");
 
                 return null;
@@ -169,11 +173,13 @@ class Seeder_Service extends Rsx_Service_Abstract
                 }
             });
 
+            $task->stdout("Created {$contact_count} contact(s) for {$client->name}");
             $clients_done++;
             $task->progress_count($clients_done, $clients->count());
         }
 
         $task->state(['clients_processed' => $clients->count(), 'contacts_created' => $contacts_created]);
+        $task->stdout("Seeded {$contacts_created} contact(s) across {$clients->count()} client(s).");
         $task->summary("Seeded {$contacts_created} contact(s) across {$clients->count()} client(s).");
 
         return null;
@@ -208,6 +214,7 @@ class Seeder_Service extends Rsx_Service_Abstract
         $subprojects_created = 0;
         foreach ($clients as $client) {
             if ($task->is_stop_requested()) {
+                $task->stdout("Stopped after seeding {$projects_created} project(s) and {$subprojects_created} subproject(s).");
                 $task->summary("Stopped after seeding {$projects_created} project(s) and {$subprojects_created} subproject(s).");
 
                 return null;
@@ -241,6 +248,7 @@ class Seeder_Service extends Rsx_Service_Abstract
         //     the stop is checked before the batch rather than inside it - a half-seeded batch
         //     would never be completed by a re-run. ---
         if ($task->is_stop_requested()) {
+            $task->stdout("Stopped after seeding {$projects_created} project(s) and {$subprojects_created} subproject(s).");
             $task->summary("Stopped after seeding {$projects_created} project(s) and {$subprojects_created} subproject(s).");
 
             return null;
@@ -279,6 +287,7 @@ class Seeder_Service extends Rsx_Service_Abstract
         $task->status('Assigning project contacts and users');
         foreach (Project_Model::all() as $project) {
             if ($task->is_stop_requested()) {
+                $task->stdout("Stopped after seeding {$projects_created} project(s) and {$subprojects_created} subproject(s).");
                 $task->summary("Stopped after seeding {$projects_created} project(s) and {$subprojects_created} subproject(s).");
 
                 return null;
@@ -325,6 +334,7 @@ class Seeder_Service extends Rsx_Service_Abstract
             'contact_pivots_created' => $contact_pivots,
             'user_pivots_created' => $user_pivots,
         ]);
+        $task->stdout("Seeded {$projects_created} project(s) and {$subprojects_created} subproject(s).");
         $task->summary("Seeded {$projects_created} project(s) and {$subprojects_created} subproject(s).");
 
         return null;
@@ -359,6 +369,7 @@ class Seeder_Service extends Rsx_Service_Abstract
         $chains_created = 0;
         foreach ($projects as $project) {
             if ($task->is_stop_requested()) {
+                $task->stdout("Stopped after seeding {$tasks_created} task(s) and {$chains_created} dependency-chain task(s).");
                 $task->summary("Stopped after seeding {$tasks_created} task(s) and {$chains_created} dependency-chain task(s).");
 
                 return null;
@@ -403,6 +414,7 @@ class Seeder_Service extends Rsx_Service_Abstract
         $backfilled = 0;
         foreach (Task_Model::all() as $t) {
             if ($task->is_stop_requested()) {
+                $task->stdout("Stopped after seeding {$tasks_created} task(s) and {$chains_created} dependency-chain task(s).");
                 $task->summary("Stopped after seeding {$tasks_created} task(s) and {$chains_created} dependency-chain task(s).");
 
                 return null;
@@ -427,6 +439,7 @@ class Seeder_Service extends Rsx_Service_Abstract
         //     checked before the batch rather than inside it - a half-seeded batch would never
         //     be completed by a re-run. ---
         if ($task->is_stop_requested()) {
+            $task->stdout("Stopped after seeding {$tasks_created} task(s) and {$chains_created} dependency-chain task(s).");
             $task->summary("Stopped after seeding {$tasks_created} task(s) and {$chains_created} dependency-chain task(s).");
 
             return null;
@@ -522,6 +535,7 @@ class Seeder_Service extends Rsx_Service_Abstract
             'project_id_backfilled' => $backfilled,
             'chain_tasks_created' => $chains_created,
         ]);
+        $task->stdout("Seeded {$tasks_created} task(s) and {$chains_created} dependency-chain task(s).");
         $task->summary("Seeded {$tasks_created} task(s) and {$chains_created} dependency-chain task(s).");
 
         return null;
@@ -560,6 +574,7 @@ class Seeder_Service extends Rsx_Service_Abstract
         $done = 0;
         foreach ($steps as $method => $label) {
             if ($task->is_stop_requested()) {
+                $task->stdout("Stop requested - stopped after {$done} of " . count($steps) . ' step(s).');
                 $task->summary(trim("Stopped after {$done} of " . count($steps) . ' step(s). ' . implode(' ', $summaries)));
 
                 return null;

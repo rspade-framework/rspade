@@ -37,9 +37,9 @@ class Portal_Invitation_Service extends Rsx_Service_Abstract
                 ->update(['status_id' => Portal_Invitation_Model::STATUS_EXPIRED])
         );
 
-        if ($expired > 0) {
-            $task->stdout("Expired {$expired} stale portal invitation(s).");
-        }
+        $task->stdout($expired > 0
+            ? "Expired {$expired} portal invitation(s) whose acceptance window had passed."
+            : 'No pending portal invitation is past its acceptance window; nothing expired.');
 
         $task->state(['expired' => $expired]);
         $task->summary("Expired {$expired} stale portal invitation(s).");
