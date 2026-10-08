@@ -181,6 +181,11 @@
             "created_at": "2026-09-25T19:39:30+00:00",
             "created_by": "root",
             "command": "php artisan make:migration:safe reindex_portal_and_sharing_tables"
+        },
+        "2026_10_08_225654_drop_is_2fa_required_from_users.php": {
+            "created_at": "2026-10-08T22:56:54+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe drop_is_2fa_required_from_users"
         }
     }
 }

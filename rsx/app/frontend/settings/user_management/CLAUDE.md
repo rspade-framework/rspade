@@ -46,25 +46,11 @@ other sites are not this site's business.
 
 ## TWO-FACTOR
 
-`users.is_2fa_required` is this application's own policy column (the framework decides only
-whether an identity HAS a factor). It is edited from the checkbox in
-`edit_user/edit_user_modal_form.jqhtml`, written by `save_user()` with the
-checkbox-absent-means-off idiom, and read by the login requirement
-`rsx/app/login/two_factor_enrollment_requirement.php`: a flagged identity with no factor reads
-as signed out everywhere but `/login/two_factor_setup` and the enrollment endpoints.
-
-**On a CONFIRMED change of the flag `save_user()` calls `Login_Requirements::recheck_user()` and
-pushes a realtime user refresh** - and only then. The recheck re-evaluates the requirement on
-every live session the user holds (otherwise it would apply only from their next sign-in); the
-push makes their open tabs ask again, and the first refused call sends them to the setup
-screen.
-
-The view page shows a **Two-Factor** row carrying two different facts: whether the account has
-a factor (`is_2fa_enrolled`, from `Rsx_Two_Factor::is_enabled()` on the `login_user_id`) and
-whether an administrator requires one (`is_2fa_required`). Enrollment state is the one
-authentication fact these screens show, and it is shown because a "Required" badge with no
-answer to "have they done it?" tells an administrator nothing actionable - see the privacy
-principle below, which it is a deliberate, narrow exception to.
+The view page shows a **Two-Factor** row: whether the account has a factor (`is_2fa_enrolled`,
+from `Rsx_Two_Factor::is_enabled()` on the `login_user_id`). Enrollment state is the one
+authentication fact these screens show - see the privacy principle below, which it is a
+deliberate, narrow exception to. This application has no "2FA required" setting: an
+administrator can see who has a factor, not require one.
 
 ## HOW TO CUSTOMIZE
 
@@ -99,8 +85,8 @@ Both are read-only facts an administrator cannot do their job without, and neith
 form field on these screens.
 
 1. **Two-factor enrollment state** (`Rsx_Two_Factor::is_enabled()` on the `login_user_id`) -
-   see TWO-FACTOR above: a "Required" badge with no answer to "have they done it yet?" tells
-   an administrator nothing actionable.
+   see TWO-FACTOR above: an administrator helping a locked-out user has to know whether a
+   factor is in play.
 2. **The developer flag** (`login_users.is_developer`) - DISPLAYED as a chip on the user list
    and the user view, because an administrator must know which accounts can reach a
    developer-only surface. It is set by hand in the database and by nothing else: no screen,

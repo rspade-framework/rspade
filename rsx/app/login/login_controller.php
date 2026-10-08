@@ -27,8 +27,8 @@ use Rsx\App\Login\Invite_Helper;
 /**
  * Login controller for RSX authentication
  *
- * Handles user authentication, login/logout, the second-factor challenge, the
- * forced-enrollment screen, and the destination every one of them leads to.
+ * Handles user authentication, login/logout, the second-factor challenge, and the
+ * destination every one of them leads to.
  *
  * Public by design: these are the routes an anonymous visitor arrives on.
  *
@@ -294,33 +294,6 @@ class Login_Controller extends Rsx_Controller_Abstract
         return [
             'redirect' => static::post_login_destination((int) $login_user->id, null),
         ];
-    }
-
-    /**
-     * The forced-enrollment screen: an administrator requires a second factor on this account
-     * and it does not have one yet.
-     *
-     * The class is public because most of this controller is; this ONE route needs a signed-in
-     * identity, because the enrollment endpoints it drives are themselves gated that way and
-     * enroll the SIGNED-IN identity and no other. Method gates are additive, so the two
-     * declarations read as "logged in".
-     *
-     * It is the screen() of Two_Factor_Enrollment_Requirement, a login requirement: the
-     * framework sends a flagged identity here from every other page, and to this route alone
-     * (and the enrollment endpoints) does that identity read as signed in. An identity that
-     * already has a factor has nothing to do on this page.
-     */
-    #[Route('/login/two_factor_setup', methods: ['GET'])]
-    #[Auth('is_logged_in')]
-    public static function two_factor_setup(Request $request, array $params = [])
-    {
-        $login_user_id = Session::get_login_user_id();
-
-        if ($login_user_id && Rsx_Two_Factor::is_enabled((int) $login_user_id)) {
-            return redirect('/');
-        }
-
-        return rsx_view('Login_Two_Factor_Setup');
     }
 
     /**

@@ -107,7 +107,8 @@ is NOT checked here - `users.is_enabled` is the framework's switch and the frame
 enforces it at login and before every dispatch); `unhandled_route()`
 is the 404 hook. Edit `init()` when tenancy changes; edit `pre_dispatch()` for a redirect
 or per-request setup. Something a signed-in user must DO before using the app (enroll a
-second factor, accept terms) is a login requirement instead - `rsx:man login_requirements`.
+second factor, accept terms) is that kind of redirect: the login function parks what is
+outstanding with `Session::put_value()` and `pre_dispatch()` sends page requests to its screen.
 
 **`permission.php`** (`Permission extends Permission_Abstract`) - the STAFF gate
 vocabulary. Every `#[Auth_Check]` method here is a name that `#[Auth('...')]` /

@@ -67,7 +67,6 @@ class User_Management_Authority_Test extends Rsx_Test_Abstract
         $user->last_name = 'Member';
         $user->role_id = $role_id;
         $user->is_enabled = true;
-        $user->is_2fa_required = 1;
         $user->invite_accepted_at = now();
         $user->save();
 
@@ -108,7 +107,6 @@ class User_Management_Authority_Test extends Rsx_Test_Abstract
             'first_name' => 'Changed',
             'last_name' => 'Name',
             'role_id' => $role_id,
-            'is_2fa_required' => 0,
         ];
     }
 
@@ -160,7 +158,6 @@ class User_Management_Authority_Test extends Rsx_Test_Abstract
         $reloaded = static::__reload($owner);
         static::__assert_equals(User_Model::ROLE_SITE_OWNER, (int) $reloaded->role_id, 'the role is untouched');
         static::__assert_equals($owner->email, $reloaded->email, 'the email is untouched');
-        static::__assert_equals(1, (int) $reloaded->is_2fa_required, 'the second-factor rule is untouched');
 
         static::__assert_unauthorized(
             Frontend_Settings_User_Management_Controller::get_user_for_edit(new Request(), ['user_id' => $owner->id]),

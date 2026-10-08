@@ -6,10 +6,8 @@ use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Api\Api_Key_Model;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
-use App\RSpade\Core\Login\Login_Requirements;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\User_Model;
-use App\RSpade\Core\Realtime\Realtime;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
@@ -285,7 +283,6 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             'phone' => $user->phone,
             'role_id' => $user->role_id,
             'is_api_access_enabled' => (bool) $user->is_api_access_enabled,
-            'is_2fa_required' => (bool) $user->is_2fa_required,
         ];
     }
 
@@ -371,23 +368,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         $user->role_id = $role_id;
         $user->is_api_access_enabled = !empty($params['is_api_access_enabled']) ? 1 : 0;
 
-        // An absent checkbox means OFF: every input serializes on every submit, so a key that
-        // did not arrive is an unticked box, not an untouched field.
-        $was_2fa_required = (bool) $user->is_2fa_required;
-        $user->is_2fa_required = !empty($params['is_2fa_required']) ? 1 : 0;
-        $flag_changed = $was_2fa_required !== (bool) $user->is_2fa_required;
-
         $user->save();
-
-        // Turning the requirement ON must reach the user's live sessions NOW, not at their next
-        // sign-in: recheck_user() re-evaluates Two_Factor_Enrollment_Requirement on every
-        // session they hold, and the push makes their open tabs ask again, which sends them
-        // to the setup screen. Only on a CONFIRMED change - a save that left the flag alone is
-        // not news.
-        if ($flag_changed) {
-            Login_Requirements::recheck_user($user);
-            Realtime::push_user_refresh((int) $user->site_id, (int) $user->id);
-        }
 
         // Flash success message for display after redirect
         Flash_Alert::success('User updated successfully');
@@ -582,7 +563,6 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             'phone' => $user->phone,
             'is_enabled' => $user->is_enabled,
             'is_api_access_enabled' => (bool) $user->is_api_access_enabled,
-            'is_2fa_required' => (bool) $user->is_2fa_required,
             'is_2fa_enrolled' => $is_2fa_enrolled,
             'is_developer' => $is_developer,
             'api_active_key_count' => $api_active_key_count,

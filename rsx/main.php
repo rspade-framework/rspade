@@ -65,9 +65,7 @@ class Main extends Main_Abstract
      *     own switch and is checked before this hook; the permission is this application's,
      *     and an API caller needs both.
      * Site membership is not checked here - users.is_enabled is the framework's switch and
-     * the framework enforces it before dispatch. An administrator-required second factor is
-     * not here either: it is a login requirement (rsx/app/login/
-     * two_factor_enrollment_requirement.php), which the framework enforces on every surface.
+     * the framework enforces it before dispatch.
      *
      * @param Request $request The current request
      * @param array $params Combined GET values and URL parameters

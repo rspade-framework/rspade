@@ -10,7 +10,6 @@ controller is class-level `#[Auth('public')]` with a written justification in it
 | Login | `Login_Controller` (`login_controller.php`) | `/login` GET+POST | Turnstile, then `RsxAuth::verify_credentials($credentials, record: false)` - the password is checked and NOBODY is signed in. A failure records `STATUS_FAILED_PASSWORD` itself. On success `__account_refusal()` is asked (the application's own account rules; it admits everybody as shipped), then a second factor issues the challenge, otherwise `RsxAuth::login()` + `record_success()` and `post_login_destination()`. `RsxAuth::login()` and a passed challenge are the only things that sign anybody in. |
 | 2FA challenge | `Login_Controller::verify` + `verify_2fa` | `/login/verify` GET + an `#[Ajax_Endpoint]` | The screen hosting `<Two_Factor_Challenge>` (with `$cancel_url` = `/login`: Cancel discards the challenge and returns to the form), and the endpoint it posts to. Nothing pending redirects back to `/login`. |
 | Passkey sign-in | `Login_Controller::passkey_login` | an `#[Ajax_Endpoint]` | The endpoint `<Passkey_Sign_In>` on the login page posts to: `Rsx_Two_Factor::verify_passkey_login()`, then `post_login_destination()`. Passwordless - no password stage, no second factor after it. |
-| 2FA setup | `Login_Controller::two_factor_setup` | `/login/two_factor_setup` GET | The forced-enrollment screen - the `screen()` of `Two_Factor_Enrollment_Requirement` - and the one method-level `#[Auth('is_logged_in')]` in this module. |
 | Logout | `Login_Controller::logout` | `/logout` | `RsxAuth::logout()` then `Login_Redirect::consume($default)`. |
 | Signup | `Signup_Controller` (`signup/`) | `/signup` GET + an `#[Ajax_Endpoint]` `submit` | Gated by `config('rsx.auth.signup_mode')` (`invite_only` by default, also `disabled` / open) on BOTH the page and `submit` - a POST never succeeds where the page would refuse. Creates the `Login_User_Model`; an address that already has an account gets the same answer and nothing is written, so the form reveals no existing address. |
 | Accept invite | `Accept_Invite_Controller` (`accept_invite/`) | `/accept-invite`, `/accept-invite/create-account`, `/accept-invite/success` | Six states (invalid, expired, email mismatch, already accepted, not logged in, logged in) plus the create-account form for an invitee with no login account. |
@@ -125,17 +124,9 @@ everything else declines. Accounts are created in advance - an administrator's i
 accepted on `/accept-invite` with a password - so the accept-invite flow never sees a
 provider identity.
 
-**The forced-enrollment requirement.** `users.is_2fa_required` is an APP column (added by
-`rsx/resource/migrations/2026_09_02_133139_add_is_2fa_required_to_users.php`, set from the
-edit-user modal). `two_factor_enrollment_requirement.php` declares it as a LOGIN REQUIREMENT
-(`rsx:man login_requirements`): while a flagged identity has no factor it is signed in but
-reads as signed OUT everywhere except `/login/two_factor_setup` and the four enrollment
-endpoints the class lists - every other page redirects there, every other Ajax call answers
-`requirement_pending` and the browser follows it. Impersonation is exempt (the framework
-default), and so is a bearer-key API call. `rsx:debug` as a flagged user lands on the setup
-screen, exactly as the user would. `login_two_factor_setup.js` mounts the chosen framework
-enrollment component and sends the user to `/` on `enrolled`/`registered`, which re-evaluates
-the requirement and admits them.
+**No forced enrollment.** This application requires nobody to enroll a second factor: a user
+adds one from Settings > Password & Security, and the login flow challenges whoever has one.
+There is no "2FA required" setting and no screen that holds a signed-in user until they enroll.
 
 **`Login_Redirect`.** One call site: `login_controller.php:281`, `consume($default)` on
 logout. Login itself does not round-trip the parameter — see HOW TO CUSTOMIZE.
@@ -149,8 +140,7 @@ default and the secure state.
 **The Blade page guard.** A static `on_app_ready()` fires for every page in the bundle, so
 it must guard first: `login_layout.js` is `if (!$('.Login_Layout').exists()) return;` and
 then the anti-FOUC reveal paired with the `.preload` rule in `login_layout.scss`. Every
-Blade page's JS in this module needs that guard. `login_two_factor_setup.js` is the second
-one: `if (!$('.Login_Two_Factor_Setup').exists()) return;`.
+Blade page's JS in this module needs that guard.
 
 ## HOW TO CUSTOMIZE
 
@@ -169,11 +159,12 @@ one: `if (!$('.Login_Two_Factor_Setup').exists()) return;`.
   the provider buttons from this page is the `@if` in `login_index.blade.php`; switching the
   feature off entirely is `SSO_*_ENABLED` in `.env`, and every trace of it disappears from
   both this page and the settings screen.
-- **Change the forced-2FA policy**: the flag is `users.is_2fa_required` and the rule is
-  `is_satisfied()` in `two_factor_enrollment_requirement.php`. Requiring it for a whole role
-  instead of per user is a change to that one condition.
-- **Add another requirement** (accept terms, a profile picture): a `Login_Requirement_Abstract`
-  class beside its screen - `rsx:man login_requirements`.
+- **Require a second factor, or add any step a signed-in user must do first** (accept terms,
+  a profile picture): work out what the person still owes in `index()` / `verify_2fa()` after
+  the sign-in, park it with `Session::put_value()`, and redirect page requests to the step's
+  screen from `Main::pre_dispatch()` while it is set. A step skipped for good is recorded with
+  `$login_user->set_variable()`. `rsx:man two_factor` (REQUIRING A SECOND FACTOR),
+  `rsx:man user_preference_variables`.
 - **Wire `?redirect=` through login.** The framework captures it onto `/login`, but the
   form does not re-emit `{!! Login_Redirect::hidden_input() !!}` and the success branches
   hard-code their destinations, so only `/logout` honours it. The portal login blade shows
@@ -189,7 +180,7 @@ one: `if (!$('.Login_Two_Factor_Setup').exists()) return;`.
 
 ## RELATED
 
-`two_factor_enrollment_requirement.php` (the administrator-required 2FA, a login requirement) · `rsx/permission.php` ·
+`rsx/permission.php` ·
 `rsx/portal/CLAUDE.md` (the portal's own auth ladder) · skills `rspade:session-auth`,
 `rspade:turnstile`, `rspade:blade-views`, `rspade:auth-gates` · `rsx:man session`,
-`rsx:man turnstile`, `rsx:man auth_gates`, `rsx:man two_factor`, `rsx:man sso`, `rsx:man login_requirements`
+`rsx:man turnstile`, `rsx:man auth_gates`, `rsx:man two_factor`, `rsx:man sso`, `rsx:man user_preference_variables`

@@ -113,9 +113,7 @@ class Sso_Handlers
      * correct password, plus at least one ENABLED site membership - users.is_enabled is the
      * FRAMEWORK's switch, refused by RsxAuth::verify_credentials() and by RsxAuth::login(), so it already
      * applies to a federated sign-in with nothing written here. Nothing else. This application
-     * adds no suspended flag, no activation gate and no email-verification gate on the way in;
-     * users.is_2fa_required is a login requirement (Rsx\App\Login\Two_Factor_Enrollment_Requirement),
-     * which the framework applies to every sign-in, a federated one included.
+     * adds no suspended flag, no activation gate and no email-verification gate on the way in.
      *
      * This handler therefore permits, and its value is the SEAM: the one place to add an
      * account-state rule, and the reminder that adding it here alone leaves the password
