@@ -100,14 +100,14 @@ runs once per process, before anything asks a question of the session, and is wh
 this application DECLARES ITS SITE (`Session::set_site_id(1)` - mono-site; a
 multi-tenant app resolves the site from the host or the signed-in user here instead).
 `pre_dispatch()` runs before every staff route and is where cross-cutting request work
-lives (this app bounces an identity an administrator flagged `users.is_2fa_required`
-with no second factor enrolled to the forced-enrollment interstitial, and refuses a
+lives (this app refuses a
 bearer-key request whose user lacks `can_use_api` - the framework answers it 403
 `account_refused`, on the file routes as on `/api/vN`; site membership
 is NOT checked here - `users.is_enabled` is the framework's switch and the framework
 enforces it at login and before every dispatch); `unhandled_route()`
-is the 404 hook. Edit `init()` when tenancy changes; edit `pre_dispatch()` for an
-interstitial, a redirect or per-request setup.
+is the 404 hook. Edit `init()` when tenancy changes; edit `pre_dispatch()` for a redirect
+or per-request setup. Something a signed-in user must DO before using the app (enroll a
+second factor, accept terms) is a login requirement instead - `rsx:man login_requirements`.
 
 **`permission.php`** (`Permission extends Permission_Abstract`) - the STAFF gate
 vocabulary. Every `#[Auth_Check]` method here is a name that `#[Auth('...')]` /

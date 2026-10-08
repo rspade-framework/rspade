@@ -49,12 +49,15 @@ other sites are not this site's business.
 `users.is_2fa_required` is this application's own policy column (the framework decides only
 whether an identity HAS a factor). It is edited from the checkbox in
 `edit_user/edit_user_modal_form.jqhtml`, written by `save_user()` with the
-checkbox-absent-means-off idiom, and read by `Rsx\Main::pre_dispatch()`, which bounces a
-flagged identity with no factor to `/login/two_factor_setup`.
+checkbox-absent-means-off idiom, and read by the login requirement
+`rsx/app/login/two_factor_enrollment_requirement.php`: a flagged identity with no factor reads
+as signed out everywhere but `/login/two_factor_setup` and the enrollment endpoints.
 
-**`save_user()` pushes a realtime user refresh on a CONFIRMED change of the flag** - and only
-then. Without it, a user sitting on an SPA screen would keep working until their next full
-page load, because `pre_dispatch()` runs on document requests and an SPA does not make them.
+**On a CONFIRMED change of the flag `save_user()` calls `Login_Requirements::recheck_user()` and
+pushes a realtime user refresh** - and only then. The recheck re-evaluates the requirement on
+every live session the user holds (otherwise it would apply only from their next sign-in); the
+push makes their open tabs ask again, and the first refused call sends them to the setup
+screen.
 
 The view page shows a **Two-Factor** row carrying two different facts: whether the account has
 a factor (`is_2fa_enrolled`, from `Rsx_Two_Factor::is_enabled()` on the `login_user_id`) and

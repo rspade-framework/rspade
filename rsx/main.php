@@ -58,17 +58,16 @@ class Main extends Main_Abstract
      * bearer identity and the gates). If a non-null value is returned, dispatch is halted:
      * a page answers with that value, an API call with 403 account_refused.
      *
-     * Two interceptions live here:
+     * One interception lives here:
      *   - API ACCESS. A bearer-key request (Session::is_api_request()) whose user lacks the
      *     can_use_api permission (User_Model::PERM_API_ACCESS) is refused - the framework
      *     answers it with 403 account_refused. users.is_api_access_enabled is the framework's
      *     own switch and is checked before this hook; the permission is this application's,
      *     and an API caller needs both.
-     *   - Scoped to the frontend SPA module: an identity an administrator has flagged
-     *     is_2fa_required with no second factor enrolled goes to the forced-enrollment
-     *     interstitial.
      * Site membership is not checked here - users.is_enabled is the framework's switch and
-     * the framework enforces it before dispatch.
+     * the framework enforces it before dispatch. An administrator-required second factor is
+     * not here either: it is a login requirement (rsx/app/login/
+     * two_factor_enrollment_requirement.php), which the framework enforces on every surface.
      *
      * @param Request $request The current request
      * @param array $params Combined GET values and URL parameters
@@ -88,60 +87,6 @@ class Main extends Main_Abstract
         // the file routes alike. Any non-null answer is the API's 403 account_refused.
         if (Session::is_api_request() && !Permission::can_use_api()) {
             return 'api_access_not_granted';
-        }
-
-        // Check if user is authorized for frontend routes
-        $handler = $params['_handler'] ?? '';
-        if (str_starts_with($handler, 'Rsx\App\Frontend')) {
-            // User must be logged in and have access to current site
-            $login_user_id = Session::get_login_user_id();
-            $site_id = Session::get_site_id();
-
-            if ($login_user_id && $site_id) {
-                // The membership itself is the FRAMEWORK's question, and it has already been
-                // asked: Session::enforce_enabled_membership() runs ahead of every dispatch and
-                // ends a session whose users row for this site is missing or disabled. Reaching
-                // this line with an identity and a site therefore means the row exists and is
-                // enabled - the app neither repeats the check nor routes anywhere on it.
-                // See: php artisan rsx:man session
-                $user = \User_Model::where('login_user_id', $login_user_id)
-                    ->where('site_id', $site_id)
-                    ->first();
-
-                if (!$user) {
-                    shouldnt_happen(
-                        'A dispatched staff request carries login user ' . $login_user_id . ' and site '
-                        . $site_id . ' with no users row - Session::enforce_enabled_membership() should '
-                        . 'have ended this session before pre_dispatch.'
-                    );
-                }
-
-                // ADMINISTRATOR-REQUIRED SECOND FACTOR.
-                //
-                // users.is_2fa_required is this application's own policy (the framework
-                // decides only whether an identity HAS a factor), and the whole point of a
-                // requirement is that the app is unusable until it is met - so the check
-                // sits here, ahead of every frontend screen, rather than on a page the user
-                // can decline to visit. The handler prefix above already excludes the login
-                // module, so the interstitial itself is reachable and there is no loop.
-                //
-                // TWO EXEMPTIONS, both deliberate:
-                //   - IMPERSONATION: the impersonator has already authenticated as
-                //     themselves, and they cannot enroll a factor for their victim anyway -
-                //     the framework refuses every enrollment path while impersonating.
-                //   - TYPE_PLAYWRIGHT: rsx:debug's dev-auth declares an identity without a
-                //     password or a challenge, so a harness run would bounce into the
-                //     interstitial and every frontend page would become untestable for a
-                //     flagged user. A real browser session is never this type.
-                if (
-                    $user->is_2fa_required
-                    && !\App\RSpade\Core\TwoFactor\Rsx_Two_Factor::is_enabled((int) $login_user_id)
-                    && !Session::is_impersonating()
-                    && Session::get_session()->type_id !== Session::TYPE_PLAYWRIGHT
-                ) {
-                    return redirect(\Rsx::Route('Login_Controller::two_factor_setup'));
-                }
-            }
         }
 
         // Return null to continue normal dispatch

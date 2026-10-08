@@ -23,6 +23,7 @@ use Rsx\Portal\Auth\Portal_Login_Controller;
  *                                     portal user on this site is connected to it. Now what?
  *   portal.sso.login.authorize        may THIS portal user sign in at all?
  *   portal.sso.two_factor.verify_url  where is the portal's second-factor challenge page?
+ *   portal.sso.two_factor.accepts     must this sign-in answer a challenge, and with what?
  *   portal.sso.login.destination      where does a signed-in portal user land?
  *   portal.sso.link.destination       where does a completed Connect land?
  *
@@ -105,6 +106,24 @@ class Portal_Sso_Handlers
     public static function two_factor_verify_url($data)
     {
         return Rsx_Portal::Route('Portal_Login_Controller::verify');
+    }
+
+    /**
+     * The portal's second-step policy for a federated sign-in - the same policy the password
+     * form applies, from the one function that holds it
+     * (Portal_Login_Controller::challenge_accepts()). With emailed sign-in codes on, a
+     * Google sign-in owes the emailed code too; otherwise this declines (null) and the
+     * framework's default applies - a challenge only for a portal user holding a factor.
+     *
+     * @param array $data {portal_user: Portal_User_Model}
+     * @return array|null
+     */
+    #[OnEvent('portal.sso.two_factor.accepts', priority: 10)]
+    public static function two_factor_accepts($data)
+    {
+        $accepts = Portal_Login_Controller::challenge_accepts($data['portal_user']);
+
+        return is_array($accepts) ? $accepts : null;
     }
 
     /**

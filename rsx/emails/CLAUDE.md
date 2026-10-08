@@ -2,14 +2,16 @@
 
 ## WHAT IS HERE
 
-Six `X_Email extends Rsx_Email_Abstract` classes, each beside its own blade, plus one
-stylesheet. All six are `const CATEGORY = self::TRANSACTIONAL`.
+Seven `X_Email extends Rsx_Email_Abstract` classes, each beside its own blade, plus one
+stylesheet. Six are `const CATEGORY = self::TRANSACTIONAL`; `Portal_Sign_In_Code_Email` is
+`SECURITY`.
 
 | Class | Sent from |
 |---|---|
 | `Portal_Invitation_Email` | `Frontend_Clients_Controller` (new-account and existing-account invites) and `Portal_Request_Access_Controller` (resend). Its subject branches on whether the recipient already has an account. |
 | `Portal_Password_Reset_Email` | `Portal_Password_Reset_Controller` — only when the user can log in, while the page reports success either way (no enumeration). |
 | `Portal_Request_Reply_Email` | `Portal_Request_Threads_Controller` — tells the staff owner a client replied; the body is a truncated snippet, never the whole message. |
+| `Portal_Sign_In_Code_Email` | `Portal_Login_Controller::send_code()` — the six-digit code that completes a portal sign-in, only when `rsx.portal.emailed_sign_in_codes` is on (off as shipped). `SECURITY`: it reaches an address on the site block list and ignores the opt-out, because the recipient asked for it a moment ago and cannot get in without it. |
 | `Portal_Shared_Content_Email` | `Frontend_Clients_Controller` when a document is shared. Carries a link, never bytes. |
 | `User_Invitation_Email` | `Frontend_Settings_User_Management_Controller`, on create and on resend. |
 | `Welcome_Email` | **Nothing sends it.** It is the reference example — the smallest complete email in the tree. |
@@ -53,7 +55,8 @@ silently in somebody else's inbox with the queue row still saying SENT).
 - **Add an email**: a class with `const CATEGORY`, `subject()`, `data()` and a DB-free
   `sample()`, plus a blade declaring `@rsx_id` with the class basename. Pick the category
   honestly — `TRANSACTIONAL` ignores unsubscribe, so a message a recipient could reasonably
-  want to stop is `NOTIFICATION`.
+  want to stop is `NOTIFICATION`; `SECURITY` is only for a notice the recipient set in motion
+  and cannot get in without (a sign-in code).
 - **Format datetimes in `data()`** rather than in the blade, so the value is frozen into the
   queue row exactly as it will be read.
 - `Welcome_Email` is unwired: send it from your signup flow or delete both its files.

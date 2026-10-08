@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Api\Api_Key_Model;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Login\Login_Requirements;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Realtime\Realtime;
@@ -378,11 +379,13 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
 
         $user->save();
 
-        // Turning the requirement ON must reach the user's open tabs NOW, not at their next
-        // full page load: pre_dispatch() bounces them to the setup interstitial, and a tab
-        // sitting on an SPA screen would otherwise never ask. Pushed only on a CONFIRMED
-        // change - a save that left the flag alone is not news.
+        // Turning the requirement ON must reach the user's live sessions NOW, not at their next
+        // sign-in: recheck_user() re-evaluates Two_Factor_Enrollment_Requirement on every
+        // session they hold, and the push makes their open tabs ask again, which sends them
+        // to the setup screen. Only on a CONFIRMED change - a save that left the flag alone is
+        // not news.
         if ($flag_changed) {
+            Login_Requirements::recheck_user($user);
             Realtime::push_user_refresh((int) $user->site_id, (int) $user->id);
         }
 

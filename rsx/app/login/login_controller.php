@@ -27,7 +27,7 @@ use Rsx\App\Login\Invite_Helper;
  * Login controller for RSX authentication
  *
  * Handles user authentication, login/logout, the second-factor challenge, the
- * forced-enrollment interstitial, and the destination every one of them leads to.
+ * forced-enrollment screen, and the destination every one of them leads to.
  *
  * Public by design: these are the routes an anonymous visitor arrives on.
  *
@@ -264,16 +264,18 @@ class Login_Controller extends Rsx_Controller_Abstract
     }
 
     /**
-     * The forced-enrollment interstitial: an administrator requires a second factor on this
-     * account and it does not have one yet.
+     * The forced-enrollment screen: an administrator requires a second factor on this account
+     * and it does not have one yet.
      *
      * The class is public because most of this controller is; this ONE route needs a signed-in
      * identity, because the enrollment endpoints it drives are themselves gated that way and
      * enroll the SIGNED-IN identity and no other. Method gates are additive, so the two
      * declarations read as "logged in".
      *
-     * Rsx\Main::pre_dispatch() is what sends people here. An identity that already has a
-     * factor has nothing to do on this page.
+     * It is the screen() of Two_Factor_Enrollment_Requirement, a login requirement: the
+     * framework sends a flagged identity here from every other page, and to this route alone
+     * (and the enrollment endpoints) does that identity read as signed in. An identity that
+     * already has a factor has nothing to do on this page.
      */
     #[Route('/login/two_factor_setup', methods: ['GET'])]
     #[Auth('is_logged_in')]

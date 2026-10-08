@@ -20,6 +20,7 @@ use App\RSpade\Core\Turnstile\Rsx_Turnstile;
 use App\RSpade\Core\TwoFactor\Rsx_Portal_Two_Factor;
 use App\RSpade\Core\TwoFactor\Two_Factor_Failed_Exception;
 use App\RSpade\Lib\Flash\Flash_Alert;
+use Rsx\Emails\Portal_Sign_In_Code_Email;
 use Rsx\Models\Portal_Membership_Model;
 
 /**
@@ -37,6 +38,15 @@ use Rsx\Models\Portal_Membership_Model;
  * three land on the ONE destination function, post_auth_destination(), which the federated
  * sign-in handlers (Rsx\Handlers\Portal_Sso_Handlers) call too.
  *
+ * EMAILED SIGN-IN CODES (config rsx.portal.emailed_sign_in_codes, off by default). When on,
+ * EVERY password sign-in owes a second step - not only an identity holding a factor - and the
+ * challenge accepts a six-digit code emailed to the account (Rsx_Portal_Two_Factor::
+ * ANSWER_ISSUED_CODE) as well as any factor the portal user holds. challenge_accepts() is that
+ * policy, in one place; send_code() issues and emails each code. The framework supplies the
+ * code, its storage, the attempt caps and the verification; everything else here is this
+ * application's choice. A passkey sign-in owes nothing, so a client with a passkey never
+ * waits for an email.
+ *
  * See: php artisan rsx:man two_factor, rsx:man sso, rsx:man portal
  */
 #[Auth('public')]
@@ -50,6 +60,13 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
      * through it, so it rides the SESSION with the challenge's own expiry and is consumed once.
      */
     const CLIENT_ID_KEY = 'portal_login_pending_client_id';
+
+    /**
+     * Codes one sign-in may have emailed. An application rule, not a security one - the
+     * framework's attempt caps bound guessing - it keeps "Send a new code" from mailing an
+     * inbox without limit. Reaching it means signing in again.
+     */
+    const MAX_CODES_PER_SIGN_IN = 5;
 
     /**
      * Show portal login form and handle login
@@ -113,6 +130,10 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
                 $portal_user = Portal_User_Model::find_by_email($site_id, $posted_email);
 
                 if ($portal_user && $portal_user->check_password($password)) {
+                    // What this sign-in's second step accepts, or false for none -
+                    // this application's policy, from the one function that holds it.
+                    $accepts = static::challenge_accepts($portal_user);
+
                     // Check if user can log in (active and verified)
                     if (!$portal_user->can_login()) {
                         if (!$portal_user->is_verified) {
@@ -120,14 +141,14 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
                         } else {
                             $error = 'Your account is not active. Please contact support.';
                         }
-                    } elseif (Rsx_Portal_Two_Factor::is_enabled($portal_user)) {
-                        // A SECOND FACTOR IS OWED. Nothing is signed in: the portal user is
+                    } elseif ($accepts !== false) {
+                        // A SECOND STEP IS OWED. Nothing is signed in: the portal user is
                         // parked half-authenticated and the challenge page answers for them.
                         // The invited-client destination is parked FIRST, for the reason the
                         // facade writes its own pending value before signing out.
                         Portal_Session::put_value(static::CLIENT_ID_KEY, $client_id, Rsx_Portal_Two_Factor::challenge_expires_at());
 
-                        Rsx_Portal_Two_Factor::begin_challenge($portal_user);
+                        Rsx_Portal_Two_Factor::begin_challenge($portal_user, $accepts);
 
                         return redirect(Rsx_Portal::Route('Portal_Login_Controller::verify'));
                     } else {
@@ -200,6 +221,69 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
         Portal_Session::forget_value(static::CLIENT_ID_KEY);
 
         return ['redirect' => static::post_auth_destination($portal_user, $client_id)];
+    }
+
+    /**
+     * Issue a sign-in code for the pending challenge and email it - the send endpoint
+     * <Two_Factor_Challenge> calls for the first code and for "Send a new code".
+     *
+     * Public like the rest of the challenge: the session is deliberately signed out, and the
+     * endpoint acts only on the challenge parked on the caller's own session. The address is
+     * the pending portal user's own, read server-side - nothing the browser sends chooses
+     * where a code goes.
+     *
+     * @return null
+     */
+    #[Ajax_Endpoint]
+    public static function send_code(Request $request, array $params = [])
+    {
+        $pending = Rsx_Portal_Two_Factor::challenge_pending();
+        $portal_user = Rsx_Portal_Two_Factor::pending_identity();
+
+        if ($pending === null || $portal_user === null) {
+            return response_error(Ajax::ERROR_VALIDATION, 'Your verification window has expired. Please sign in again.');
+        }
+
+        if (!$pending['has_issued_code']) {
+            return response_error(Ajax::ERROR_VALIDATION, 'This sign-in does not use emailed codes.');
+        }
+
+        if ($pending['codes_issued'] >= static::MAX_CODES_PER_SIGN_IN) {
+            return response_error(Ajax::ERROR_VALIDATION, 'Too many codes have been sent. Please sign in again.');
+        }
+
+        $code = Rsx_Portal_Two_Factor::issue_code();
+
+        (new Portal_Sign_In_Code_Email($portal_user, $code))->to($portal_user->email)->send();
+
+        return null;
+    }
+
+    /**
+     * What a portal sign-in's challenge accepts, or false when it owes none.
+     *
+     * THE ONE PLACE this application's second-step policy lives - the password form above
+     * and the federated sign-in (Rsx\Handlers\Portal_Sso_Handlers) both ask it:
+     *   - emailed sign-in codes on: always a challenge, accepting an emailed code or any
+     *     factor the portal user holds;
+     *   - off: a challenge only for a portal user holding a factor, accepting what they hold
+     *     (null - the framework's default list).
+     *
+     * @param Portal_User_Model $portal_user
+     * @return array|null|false The $accepts for begin_challenge(), or false for no challenge.
+     */
+    public static function challenge_accepts(Portal_User_Model $portal_user): array|null|false
+    {
+        if (config('rsx.portal.emailed_sign_in_codes')) {
+            return [
+                Rsx_Portal_Two_Factor::ANSWER_ISSUED_CODE,
+                Rsx_Portal_Two_Factor::ANSWER_TOTP,
+                Rsx_Portal_Two_Factor::ANSWER_PASSKEY,
+                Rsx_Portal_Two_Factor::ANSWER_RECOVERY_CODE,
+            ];
+        }
+
+        return Rsx_Portal_Two_Factor::is_enabled($portal_user) ? null : false;
     }
 
     /**

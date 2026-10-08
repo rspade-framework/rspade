@@ -190,6 +190,15 @@ in here. How this app uses them:
   a second factor is parked with `Rsx_Portal_Two_Factor::begin_challenge()` (the invited-client
   id rides the session under `CLIENT_ID_KEY`) and sent to `/login/verify`, where
   `<Two_Factor_Challenge>` posts to `verify_2fa`.
+- **Emailed sign-in codes** (`rsx.portal.emailed_sign_in_codes`, OFF as shipped - a fresh
+  install usually sends no mail): when on, EVERY password sign-in owes a second step, accepting
+  a six-digit code emailed to the account or any factor the user holds.
+  `Portal_Login_Controller::challenge_accepts()` is that policy in one place (the password
+  form and `Portal_Sso_Handlers::two_factor_accepts()` both ask it); `send_code()` issues each
+  code and emails `Portal_Sign_In_Code_Email` (`SECURITY`), capped at `MAX_CODES_PER_SIGN_IN`;
+  the challenge screen sends the first code itself and offers "Send a new code". A passkey
+  sign-in owes nothing, so a client who registers a passkey never waits for the email.
+  `rsx:man two_factor_codes`.
 - **Passwordless**: the login page's `<Passkey_Sign_In>` posts to `passkey_login`, which calls
   `Rsx_Portal_Two_Factor::verify_passkey_login()` - a complete sign-in, no second factor after.
 - **Federated sign-in** appears on the login page only when `rsx.sso.portal_enabled` is true
@@ -224,7 +233,8 @@ User self-service page (composed from the shared theme components — see
 - **Login** (`/login`) — email/password (no credential autofill: a portal account belongs to a
   client), plus passkey sign-in and, when enabled, federated sign-in
 - **Two-factor challenge** (`/login/verify`) — `<Two_Factor_Challenge>` for a portal user
-  holding a second factor; its Cancel (`$cancel_url`) returns to `/login`
+  holding a second factor, or for everyone when emailed sign-in codes are on (with the
+  `send_code` endpoint); its Cancel (`$cancel_url`) returns to `/login`
 - **Registration** (`/register?code=X`) — invitation-based account creation
 - **Password Reset** (`/password/reset`) — request + reset token flow
 - **Logout** (`/logout`) — clears portal session, redirects to login

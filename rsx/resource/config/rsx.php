@@ -556,6 +556,17 @@ return [
 
         // Default expiry for shared content links (days)
         'shared_link_default_expiry_days' => 30,
+
+        // EMAILED SIGN-IN CODES - off, because a fresh install usually has no outbound mail
+        // configured, and with this on nobody could sign in. When true, every PASSWORD (or
+        // federated) portal sign-in owes a second step: a six-digit code emailed to the
+        // account's address, or any second factor the portal user holds. A passkey sign-in
+        // owes nothing, so a client who registers a passkey skips the email entirely.
+        // The whole policy is this application's code, built on the framework's challenge
+        // primitives: rsx/portal/auth/Portal_Login_Controller.php (begin_challenge with
+        // $accepts, send_code), rsx/emails/portal_sign_in_code_email.php (CATEGORY =
+        // SECURITY) and rsx/handlers/Portal_Sso_Handlers.php. See rsx:man two_factor_codes.
+        'emailed_sign_in_codes' => false,
     ],
 
     /*

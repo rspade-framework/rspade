@@ -39,7 +39,10 @@ manifest from its `#[OnEvent]` attributes. There is no registration step.
   through `Rsx_Portal_Sso::consume_pending_and_login()`; anything else declines - a portal
   account is created only by an invitation, never by a provider. `portal.sso.login.authorize`
   permits (the framework already applies `can_login()`), `portal.sso.two_factor.verify_url`
-  returns the portal `/login/verify` page, `portal.sso.login.destination` delegates to
+  returns the portal `/login/verify` page, `portal.sso.two_factor.accepts` answers
+  `Portal_Login_Controller::challenge_accepts()` (an emailed code when
+  `rsx.portal.emailed_sign_in_codes` is on, else the framework default),
+  `portal.sso.login.destination` delegates to
   `Portal_Login_Controller::post_auth_destination()`, and `portal.sso.link.destination`
   returns to portal Settings.
 - **`Portal_File_Access_Handlers`** — `#[OnEvent('file.thumbnail.authorize')]` and
