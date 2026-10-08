@@ -13,6 +13,7 @@ use App\RSpade\Core\Auth\Auth_Throttled_Exception;
 use App\RSpade\Core\Auth\RsxAuth;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Login\Login_Redirect;
+use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Login_History;
@@ -75,17 +76,16 @@ class Login_Controller extends Rsx_Controller_Abstract
 
             // Validate email
             //
-            // THROTTLE: RsxAuth::attempt() refuses a client IP that has spent its
+            // THROTTLE: RsxAuth::verify_credentials() refuses a client IP that has spent its
             // failure budget by THROWING Auth_Throttled_Exception (rsx:man session,
             // LOGIN THROTTLE) - a refusal is not a wrong password, so it must not be
-            // reported as one. Catch it around the attempt and show its message; it
+            // reported as one. Catch it around the check and show its message; it
             // is already the user-facing string and deliberately says nothing about
             // which accounts exist or when to try again.
             $throttled = null;
+            $login_user = null;
 
             try {
-                $authenticated = false;
-
                 if (empty($posted_email)) {
                     $error = 'Email address is required';
                 } elseif (!filter_var($posted_email, FILTER_VALIDATE_EMAIL)) {
@@ -93,18 +93,21 @@ class Login_Controller extends Rsx_Controller_Abstract
                 } elseif (empty($request->input('password'))) {
                     $error = 'Password is required';
                 } else {
-                    // THE PASSWORD STAGE ONLY. record: false and touch_last_login: false
-                    // suppress both halves of "this was a login", because it is not one yet
-                    // - a second factor may still be owed. Nothing is recorded and
-                    // last_login is not stamped until the identity is all the way in.
-                    $authenticated = RsxAuth::attempt($credentials, record: false, touch_last_login: false);
+                    // THE PASSWORD IS CHECKED AND NOBODY IS SIGNED IN. verify_credentials()
+                    // answers the identity the pair proves and touches no session; only
+                    // RsxAuth::login() - or a passed second factor - signs anybody in. So
+                    // everything between here and there runs for a visitor who is still
+                    // signed OUT, and a request that dies part-way leaves them that way.
+                    //
+                    // record: false because this is not a login yet - a second factor may
+                    // still be owed - and a recorded SUCCESS must mean the identity is all
+                    // the way in.
+                    $login_user = RsxAuth::verify_credentials($credentials, record: false);
 
-                    if (!$authenticated) {
-                        // attempt() distinguishes an unknown address from a wrong password
-                        // only when it is recording for itself; with record: false NOTHING
-                        // is written, so the outcome is recorded here as the generic
-                        // password failure. record_failure() feeds the throttle - the
-                        // counter is never touched directly.
+                    if ($login_user === null) {
+                        // With record: false NOTHING is written, so the outcome is recorded
+                        // here as the generic password failure. record_failure() feeds the
+                        // throttle - the counter is never touched directly.
                         Login_History::record_failure($posted_email, Login_History::STATUS_FAILED_PASSWORD);
                     }
                 }
@@ -112,17 +115,24 @@ class Login_Controller extends Rsx_Controller_Abstract
                 $throttled = $e->getMessage();
             }
 
+            // THE APPLICATION'S OWN QUESTIONS ABOUT THE ACCOUNT GO HERE - a status your
+            // application defines, an agreement not yet accepted. Nobody is signed in, so a
+            // refusal is just an error on the form: there is no session to undo and no
+            // logout() to remember.
+            $refusal = $login_user !== null ? static::__account_refusal($login_user) : null;
+
             if ($throttled !== null) {
                 $error = $throttled;
-            } elseif ($authenticated) {
-                $login_user = Session::get_login_user();
+            } elseif ($refusal !== null) {
+                $error = $refusal;
+            } elseif ($login_user !== null) {
                 $invite_code = $request->input('code');
 
                 if (Rsx_Two_Factor::is_enabled($login_user)) {
-                    // The invite code is parked BEFORE begin_challenge() for the same reason
-                    // the facade writes its own pending value before logging out: put_value()
-                    // is a writer, so it establishes the session row the value hangs off, and
-                    // the logout that follows clears the identity but not the row.
+                    // The invite code is parked on the session (put_value() is a writer, so
+                    // it establishes the row the value hangs off); the challenge parks the
+                    // pending identity beside it. The session carries both and is signed in
+                    // as nobody.
                     static::__park_invite_code($invite_code);
 
                     Rsx_Two_Factor::begin_challenge($login_user);
@@ -130,13 +140,13 @@ class Login_Controller extends Rsx_Controller_Abstract
                     return redirect(Rsx::Route('Login_Controller::verify'));
                 }
 
-                // No second factor: this IS the login. login() stamps last_login (attempt()
-                // was told not to), and the success row is written here because nothing
+                // No second factor: this IS the login. login() establishes the session and
+                // stamps last_login, and the success row is written here because nothing
                 // beneath this line records one.
                 //
                 // login() also refuses an identity with no enabled site membership, and its
-                // return is not branched on: the attempt() above asked the same question two
-                // statements ago, so a false here is unreachable.
+                // return is not branched on: verify_credentials() asked the same question a
+                // few statements ago, so a false here is unreachable.
                 RsxAuth::login($login_user);
                 Login_History::record_success((int) $login_user->id, $posted_email);
 
@@ -167,6 +177,24 @@ class Login_Controller extends Rsx_Controller_Abstract
             'prefill_email' => $email_value,
             'error' => $error,
         ]);
+    }
+
+    /**
+     * May this identity sign in, by THIS APPLICATION's own rules? Null admits; a string is
+     * the error shown on the login form.
+     *
+     * The framework has already answered its own three questions (a live identity, the right
+     * password, an enabled membership on an enabled site - RsxAuth::verify_credentials()).
+     * What is left is whatever the application itself means by an account that may not sign
+     * in: login_users.status_id, is_activated and is_verified are application vocabulary, and
+     * this is the login-time half of enforcing them (Main::pre_dispatch() is the other, for a
+     * session that is already open).
+     *
+     * This application has no such rule, so everybody the framework admits is admitted.
+     */
+    private static function __account_refusal(Login_User_Model $login_user): ?string
+    {
+        return null;
     }
 
     /**
@@ -212,6 +240,11 @@ class Login_Controller extends Rsx_Controller_Abstract
         } catch (Auth_Throttled_Exception $e) {
             return response_error(Ajax::ERROR_VALIDATION, $e->getMessage());
         } catch (Two_Factor_Failed_Exception $e) {
+            // The message and nothing else - never how many attempts are left. A count tells
+            // an attacker exactly how much budget remains and when to stop before the
+            // account locks. ($e->reason() says which failure this was, for code that must
+            // act on one; the account owner is told about an exhausted challenge by
+            // Two_Factor_Notice_Handlers, off the framework's own event.)
             return response_error(Ajax::ERROR_VALIDATION, $e->getMessage());
         }
 
@@ -365,7 +398,7 @@ class Login_Controller extends Rsx_Controller_Abstract
         // site is disabled) on another lands on the usable one instead of a picker naming
         // both. ->active() is the framework's one definition of a usable membership, so this
         // list and the framework's enforcement cannot drift. Authorization is the
-        // framework's - RsxAuth::attempt() refuses an identity holding no active membership
+        // framework's - RsxAuth::verify_credentials() refuses an identity holding no active membership
         // exactly as it refuses a wrong password, and every request re-checks it - so every
         // caller of this function is past a successful sign-in and at least one active
         // membership is guaranteed to exist; there is no zero-sites branch.

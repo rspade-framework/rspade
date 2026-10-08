@@ -103,8 +103,8 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
                 $error = 'Password is required';
             } else {
                 // BRUTE-FORCE THROTTLE. The portal verifies the password itself rather
-                // than going through RsxAuth::attempt(), so it does the two things
-                // attempt() would have done: refuse a client IP that has spent its
+                // than going through RsxAuth::verify_credentials(), so it does the two things
+                // that call does for staff: refuse a client IP that has spent its
                 // failure budget BEFORE the lookup (no enumeration from a locked-out
                 // address), and count the miss afterwards. Nothing here records to
                 // Login_History - that store is the staff identity's - so the throttle

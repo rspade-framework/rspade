@@ -108,10 +108,10 @@ class Sso_Handlers
      * only is worse than no check, because the weaker door is the one nobody remembers.
      *
      * So what does this application's password login actually enforce? Read
-     * Login_Controller::index() and RsxAuth::attempt() together and the answer is: a LIVE
+     * Login_Controller::index() and RsxAuth::verify_credentials() together and the answer is: a LIVE
      * login_users row (SoftDeletes' global scope makes a trashed identity a not-found) and a
      * correct password, plus at least one ENABLED site membership - users.is_enabled is the
-     * FRAMEWORK's switch, refused by RsxAuth::attempt() and by RsxAuth::login(), so it already
+     * FRAMEWORK's switch, refused by RsxAuth::verify_credentials() and by RsxAuth::login(), so it already
      * applies to a federated sign-in with nothing written here. Nothing else. This application
      * adds no suspended flag, no activation gate and no email-verification gate on the way in;
      * users.is_2fa_required is a login requirement (Rsx\App\Login\Two_Factor_Enrollment_Requirement),

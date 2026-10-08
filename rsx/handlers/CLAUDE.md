@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Seven classes, each a plain `public static` class in `Rsx\Handlers` discovered by the
+Eight classes, each a plain `public static` class in `Rsx\Handlers` discovered by the
 manifest from its `#[OnEvent]` attributes. There is no registration step.
 
 - **`File_Upload_Handlers`** — `#[OnEvent('file.upload.authorize', priority: 10)]`. Returns
@@ -19,6 +19,12 @@ manifest from its `#[OnEvent]` attributes. There is no registration step.
   the user-management detail screen for anyone else, each resolved through
   `Auth_Gates::accessible_route()` so the link exists exactly when the viewer may follow it;
   null in the portal realm. With no answer `<Record_Author>` renders plain text.
+- **`Two_Factor_Notice_Handlers`** — `#[OnEvent('two_factor.challenge.spent')]` and
+  `#[OnEvent('portal.two_factor.challenge.spent')]` (actions). The framework fires them when
+  a second-factor challenge is destroyed by wrong answers, with `{identity, email, failures}`;
+  each queues one `Two_Factor_Challenge_Spent_Email` to the account's address. Reaching a
+  challenge means the password was right, so this is the notice that somebody who knows it
+  is guessing the second factor.
 - **`Sso_Handlers`** — the federated-sign-in hooks. `sso.identity.unlinked`
   (`match_verified_email_of_existing_account()`) is the policy decision, and the policy is
   that SSO signs in an account that ALREADY EXISTS and does nothing else: a **verified**

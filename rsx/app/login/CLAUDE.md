@@ -7,7 +7,7 @@ controller is class-level `#[Auth('public')]` with a written justification in it
 
 | Rung | Class / file | Route | What it does |
 |---|---|---|---|
-| Login | `Login_Controller` (`login_controller.php`) | `/login` GET+POST | Turnstile, then `RsxAuth::attempt($credentials, record: false, touch_last_login: false)` - the PASSWORD stage only. A failure records `STATUS_FAILED_PASSWORD` itself. On success: a second factor issues the challenge, otherwise `RsxAuth::login()` + `record_success()` and `post_login_destination()`. |
+| Login | `Login_Controller` (`login_controller.php`) | `/login` GET+POST | Turnstile, then `RsxAuth::verify_credentials($credentials, record: false)` - the password is checked and NOBODY is signed in. A failure records `STATUS_FAILED_PASSWORD` itself. On success `__account_refusal()` is asked (the application's own account rules; it admits everybody as shipped), then a second factor issues the challenge, otherwise `RsxAuth::login()` + `record_success()` and `post_login_destination()`. `RsxAuth::login()` and a passed challenge are the only things that sign anybody in. |
 | 2FA challenge | `Login_Controller::verify` + `verify_2fa` | `/login/verify` GET + an `#[Ajax_Endpoint]` | The screen hosting `<Two_Factor_Challenge>` (with `$cancel_url` = `/login`: Cancel discards the challenge and returns to the form), and the endpoint it posts to. Nothing pending redirects back to `/login`. |
 | Passkey sign-in | `Login_Controller::passkey_login` | an `#[Ajax_Endpoint]` | The endpoint `<Passkey_Sign_In>` on the login page posts to: `Rsx_Two_Factor::verify_passkey_login()`, then `post_login_destination()`. Passwordless - no password stage, no second factor after it. |
 | 2FA setup | `Login_Controller::two_factor_setup` | `/login/two_factor_setup` GET | The forced-enrollment screen - the `screen()` of `Two_Factor_Enrollment_Requirement` - and the one method-level `#[Auth('is_logged_in')]` in this module. |
@@ -68,7 +68,7 @@ feature is off), so validating it is not optional.
 **Site membership is the framework's, not this module's.** `users.is_enabled` and
 `sites.is_enabled` are the framework's switches for "may this identity use this site", and
 a membership is usable only when both are on (`User_Model::is_active()`, the `->active()`
-scope): `RsxAuth::attempt()` refuses an identity holding no active membership exactly as it
+scope): `RsxAuth::verify_credentials()` refuses an identity holding no active membership exactly as it
 refuses a wrong password (recording `STATUS_FAILED_DISABLED`), `RsxAuth::login()` refuses it
 on the second-factor and federated paths, and `Session::enforce_enabled_membership()` ends a
 live session whose membership or site is disabled or deleted, before every dispatch and every
@@ -84,7 +84,7 @@ See `rsx:man session`.
 
 **The throttle.** `login_controller.php` catches `Auth_Throttled_Exception` around the
 whole attempt and surfaces `$e->getMessage()` verbatim ahead of the wrong-password branch,
-so a lockout is never reported as bad credentials. `RsxAuth::attempt()` throws it as its
+so a lockout is never reported as bad credentials. `RsxAuth::verify_credentials()` throws it as its
 own first statement, and `verify_2fa` catches the same exception from
 `Rsx_Two_Factor::verify_challenge()` and answers it as an `ERROR_VALIDATION` the challenge
 component renders inline. Nothing here counts failures itself: `Login_History::record_failure()`

@@ -2,9 +2,9 @@
 
 ## WHAT IS HERE
 
-Seven `X_Email extends Rsx_Email_Abstract` classes, each beside its own blade, plus one
-stylesheet. Six are `const CATEGORY = self::TRANSACTIONAL`; `Portal_Sign_In_Code_Email` is
-`SECURITY`.
+Eight `X_Email extends Rsx_Email_Abstract` classes, each beside its own blade, plus one
+stylesheet. Six are `const CATEGORY = self::TRANSACTIONAL`; `Portal_Sign_In_Code_Email` and
+`Two_Factor_Challenge_Spent_Email` are `SECURITY`.
 
 | Class | Sent from |
 |---|---|
@@ -13,6 +13,7 @@ stylesheet. Six are `const CATEGORY = self::TRANSACTIONAL`; `Portal_Sign_In_Code
 | `Portal_Request_Reply_Email` | `Portal_Request_Threads_Controller` — tells the staff owner a client replied; the body is a truncated snippet, never the whole message. |
 | `Portal_Sign_In_Code_Email` | `Portal_Login_Controller::send_code()` — the six-digit code that completes a portal sign-in, only when `rsx.portal.emailed_sign_in_codes` is on (off as shipped). `SECURITY`: it reaches an address on the site block list and ignores the opt-out, because the recipient asked for it a moment ago and cannot get in without it. |
 | `Portal_Shared_Content_Email` | `Frontend_Clients_Controller` when a document is shared. Carries a link, never bytes. |
+| `Two_Factor_Challenge_Spent_Email` | `Two_Factor_Notice_Handlers` — tells an account owner (staff or portal) that somebody entered their password and then failed the second factor until the challenge was destroyed. `SECURITY`: a required notice about the recipient's own account. |
 | `User_Invitation_Email` | `Frontend_Settings_User_Management_Controller`, on create and on resend. |
 | `Welcome_Email` | **Nothing sends it.** It is the reference example — the smallest complete email in the tree. |
 
