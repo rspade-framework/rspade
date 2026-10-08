@@ -49,7 +49,15 @@ class Task_Showcase_Service extends Rsx_Service_Abstract
         $task->status('Starting');
         $task->stdout("Walking {$items} item(s)");
 
-        foreach ($queue as $index => $item) {
+        // THE QUEUE: what is ahead, declared once and then advanced with the work. Each
+        // finished item is one queue_pop(), so a watcher sees the head move - and a head that
+        // has stopped moving is a run that is stuck. This list is short, so it is pushed
+        // whole; a task with tens of thousands of items ahead pushes a window of the next
+        // hundred and adds one item for each it pops (rsx:man tasks, THE QUEUE).
+        $task->queue_clear();
+        $task->queue_push_many($queue);
+
+        foreach ($queue as $item) {
             if ($task->is_stop_requested()) {
                 $task->status("Stopped after {$done} of {$items}");
                 $task->summary("Stopped on request after {$done} of {$items} item(s).");
@@ -58,12 +66,12 @@ class Task_Showcase_Service extends Rsx_Service_Abstract
             }
 
             $task->status("Processing {$item}");
-            $task->state_list(array_slice($queue, $index));
 
             // The work itself: one second per item, so a watcher can follow it.
             sleep(1);
 
             $done++;
+            $task->queue_pop();
             $csv .= "{$item}," . date('c') . "\n";
             if ($done % 7 === 0) {
                 $task->stderr("{$item}: simulated transient failure, retried");
@@ -84,7 +92,6 @@ class Task_Showcase_Service extends Rsx_Service_Abstract
             ]);
         }
 
-        $task->state_list([]);
         $task->attach_bytes('processed.csv', $csv, 'processed.csv', 'text/csv');
         $task->status('Done');
         $task->summary("Walked all {$items} item(s).");

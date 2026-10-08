@@ -38,8 +38,8 @@ return value is the run's return code, never data.
 
 - **`Task_Showcase_Service::walk`** — `#[Task]` that walks a short work list (`items`,
   default 20, 1 to 500; one second per item) using EVERY report a task can make: status,
-  a `progress_count()`, ETA, heartbeat, a JSON state object, the remaining queue as a
-  `state_list()`, a stdout line per item, a stderr line for every seventh item (a simulated
+  a `progress_count()`, ETA, heartbeat, a JSON state object, the queue (the whole list pushed
+  once with `queue_push_many()`, then one `queue_pop()` per finished item), a stdout line per item, a stderr line for every seventh item (a simulated
   transient failure, retried - stderr is for what went wrong without stopping the run), a
   message every five items, a CSV attachment
   (`attach_bytes()`) and a summary. It checks `is_stop_requested()` before each item, so a
