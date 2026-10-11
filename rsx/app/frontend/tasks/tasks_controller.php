@@ -15,6 +15,7 @@ use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
 use Rsx\App\Frontend\Tasks\List\Tasks_DataGrid;
 use Rsx\Lib\ActionLog\Action_Log;
+use Rsx\Lib\Attachments\Record_Attachment_List;
 use Rsx\Models\Action_Log_Model;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Project_Model;
@@ -365,6 +366,52 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
         Action_Log::record(Action_Log_Model::TYPE_TASK_DELETED, $task);
 
         return ['deleted' => true];
+    }
+
+    /**
+     * Ajax endpoint: the files attached to a task, for the view page's Attachments section.
+     *
+     * Returns {attachments: [Record_Attachment_List::row(), ...]}, oldest first.
+     */
+    #[Ajax_Endpoint]
+    public static function task_attachments(Request $request, array $params = [])
+    {
+        $task = Task_Model::find($params['id'] ?? 0);
+        if (!$task) {
+            return response_error(Ajax::ERROR_NOT_FOUND, 'Task not found');
+        }
+
+        return ['attachments' => Record_Attachment_List::rows($task)];
+    }
+
+    /**
+     * Ajax endpoint: attach uploaded files to a task.
+     *
+     * The browser sends each file through Ajax.upload() first and posts the returned keys
+     * here as `keys`. The claim is all-or-nothing. The task's realtime frame is emitted so
+     * every open view of the task picks the new files up.
+     */
+    #[Auth('can_edit_data')]
+    #[Ajax_Endpoint]
+    public static function attachments_add(Request $request, array $params = [])
+    {
+        $task = Task_Model::find($params['id'] ?? 0);
+        if (!$task) {
+            return response_error(Ajax::ERROR_NOT_FOUND, 'Task not found');
+        }
+
+        $keys = $params['keys'] ?? null;
+        if (!is_array($keys) || count($keys) === 0) {
+            return response_error(Ajax::ERROR_VALIDATION, 'No files were named');
+        }
+
+        if (!Record_Attachment_List::claim($task, $keys)) {
+            return response_error(Ajax::ERROR_VALIDATION, 'A file could not be attached. Please upload it again.');
+        }
+
+        $task->realtime_emit();
+
+        return ['attachments' => Record_Attachment_List::rows($task)];
     }
 
     /**

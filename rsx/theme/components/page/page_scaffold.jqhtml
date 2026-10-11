@@ -3,6 +3,9 @@ Page_Scaffold - view-page shell: 2300px centered, main + optional sidebar
 
 $ratio="8/4" - desktop main:sidebar column split (8/4, 9/3, 7/5, 6/6)
 
+$flush=true - full-bleed: no outer page padding and no max-width. For a page that is ONE
+              surface edge to edge - a list page whose whole content is a datagrid.
+
 <Slot:main> - primary column content (required)
 <Slot:sidebar> - entity sidebar column (optional; main spans full width when absent)
 
@@ -21,6 +24,10 @@ Usage:
         <Slot:sidebar>
             <Detail_Sidebar> ...kpis, fields, actions... </Detail_Sidebar>
         </Slot:sidebar>
+    </Page_Scaffold>
+
+    <Page_Scaffold $flush=true>
+        <Slot:main><Contacts_DataGrid /></Slot:main>
     </Page_Scaffold>
 --%>
 <Define:Page_Scaffold>

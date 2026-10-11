@@ -1,0 +1,77 @@
+// Record_Attachments - a record's file list with upload by button or by drop.
+.Record_Attachments {
+    position: relative;
+
+    &__list {
+        list-style: none;
+        margin: 0;
+        padding: $spacing-2 0;
+    }
+
+    // One file: icon, name, size. A real button, so it is reachable by keyboard.
+    &__item {
+        display: flex;
+        align-items: center;
+        gap: $spacing-3;
+        width: 100%;
+        padding: $spacing-2 var(--card-pad-x);
+        border: 0;
+        background: none;
+        color: var(--bs-body-color);
+        font-size: $font-size-sm;
+        text-align: left;
+
+        &:hover,
+        &:focus-visible {
+            background-color: var(--bs-tertiary-bg);
+        }
+
+        &--uploading {
+            color: var(--bs-secondary-color);
+
+            &:hover {
+                background: none;
+            }
+        }
+    }
+
+    &__icon {
+        flex: 0 0 auto;
+        font-size: 20px;
+        color: var(--bs-secondary-color);
+    }
+
+    &__name {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__size {
+        flex: 0 0 auto;
+        color: var(--bs-secondary-color);
+        white-space: nowrap;
+    }
+
+    // Shown over the section only while files are being dragged onto it.
+    &__drop_hint {
+        display: none;
+        position: absolute;
+        inset: 0;
+        align-items: center;
+        justify-content: center;
+        gap: $spacing-2;
+        border: 2px dashed var(--bs-primary);
+        border-radius: $card-border-radius;
+        background-color: rgba(var(--bs-body-bg-rgb), 0.9);
+        color: var(--bs-primary);
+        font-weight: $font-weight-semibold;
+        pointer-events: none;
+    }
+
+    &.rsx-drop-target &__drop_hint {
+        display: flex;
+    }
+}

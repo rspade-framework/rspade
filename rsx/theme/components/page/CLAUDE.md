@@ -35,6 +35,11 @@ The `Page_*` header family predates the scaffold and survives only in
 - The page's max-width, outer padding and column gutter live in `page_scaffold.scss` and
   the tokens it reads (`--page-pad`, `--col-gutter` in `rsx/theme/composition_tokens.scss`).
   Change them ONCE here; a page never sets its own width or page padding.
+- **A page that is one datagrid passes `$flush=true`** (`<Page_Scaffold $flush=true>`): no
+  outer padding, no max-width, and the grid's card loses its border, radius and shadow so it
+  meets the navigation and the window edge. The six list pages (clients, contacts,
+  projects, parties, tasks, action log) use it. A page with anything beside the grid - an
+  intro line, an Add button, a sidebar - stays on the padded default.
 - A new column split is a curated modifier: add the ratio to the class list in
   `page_scaffold.js` and the matching grid rule in `page_scaffold.scss`. Arbitrary ratios
   are deliberately not accepted.

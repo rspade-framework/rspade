@@ -4,7 +4,8 @@
  * The five-entity view archetype (matches Clients_View / Contacts_View / Party_View):
  * Page_Scaffold / Card_Widget / Entity_Header / Tab_Bar / Tab_Panels / Section /
  * View_Fields / Record_Table / Feed_Row / Detail_Sidebar / Action_Menu. Tabs:
- * Overview / Subtasks / Activity, with a KPI sidebar. The parent-chain idiom
+ * Overview / Subtasks / Activity, with a KPI sidebar. The Overview tab carries the
+ * task's file attachments (Record_Attachments). The parent-chain idiom
  * ("Part of: <parent>") renders the polymorphic parent via Entity_Link.
  */
 @route('/tasks/view/:id')
@@ -20,6 +21,7 @@ class Tasks_View_Action extends Spa_Action {
         this.data.task = { title: '' };
         this.data.subtasks = [];
         this.data.activity = [];
+        this.data.attachments = [];
         this.data.error_data = null;
         this.data.loading = true;
 
@@ -37,15 +39,17 @@ class Tasks_View_Action extends Spa_Action {
         try {
             // One parallel batch: every call keys off this.args.id, so none of them
             // depends on another's RESULT. The task is FATAL - the page IS this record -
-            // and carries no .catch(); the two side lists are non-fatal and degrade to
+            // and carries no .catch(); the three side lists are non-fatal and degrade to
             // empty so a failing tab cannot blank the record.
-            const [task, subtasks_result, activity_result] = await Promise.all([
+            const [task, subtasks_result, activity_result, attachments_result] = await Promise.all([
                 Task_Model.fetch(this.args.id),
                 Frontend_Tasks_Controller.task_subtasks({ id: this.args.id }).catch(() => ({ subtasks: [] })),
                 Frontend_Tasks_Controller.task_activity({ id: this.args.id }).catch(() => ({ activity: [] })),
+                Frontend_Tasks_Controller.task_attachments({ id: this.args.id }).catch(() => ({ attachments: [] })),
             ]);
             this.data.task = task;
             this.data.subtasks = subtasks_result.subtasks;
+            this.data.attachments = attachments_result.attachments;
             // Decorate each activity entry with its Feed_Row icon/variant (shared map).
             this.data.activity = activity_result.activity.map(a => ({ ...a, ...Activity_Feed.decorate(a.type_id) }));
         } catch (e) {
@@ -88,6 +92,13 @@ class Tasks_View_Action extends Spa_Action {
             const tab_bar = this.sid('tabs');
             if (tab && tab_bar) tab_bar.activate(tab);
         });
+
+        // Files were attached: refetch and repaint. The server also emits the task's
+        // realtime frame, which is what updates every OTHER open view of this task.
+        const attachments = this.sid('attachments');
+        if (attachments) {
+            attachments.on('changed', () => this.refresh());
+        }
 
         // Destructive action lives inside the overflow Action_Menu, never as a peer button.
         if (this.$sid('delete-task').exists()) {

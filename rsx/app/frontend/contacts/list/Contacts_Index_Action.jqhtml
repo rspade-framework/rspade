@@ -1,5 +1,5 @@
 <Define:Contacts_Index_Action>
-<Page_Scaffold>
+<Page_Scaffold $flush=true>
     <Slot:main>
         <Contacts_DataGrid $sid="grid" />
     </Slot:main>

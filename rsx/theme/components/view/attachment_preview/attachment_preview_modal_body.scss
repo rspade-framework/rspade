@@ -1,0 +1,48 @@
+// Attachment_Preview_Modal_Body - preview pane beside a details sidebar.
+.Attachment_Preview_Modal_Body {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-lg;
+    text-align: left; // the dialog body centres its content by default
+
+    // A bounded height is what lets a paginated preview fit a whole page ($fit="contain").
+    &__preview {
+        height: 60vh;
+        min-width: 0;
+        border: $border-width solid var(--bs-border-color);
+        border-radius: $border-radius-md;
+        background-color: var(--bs-tertiary-bg);
+        overflow: hidden;
+    }
+
+    &__details {
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-lg;
+    }
+
+    // One fact per line in the sidebar, whatever the grid would otherwise fit.
+    &__fields {
+        grid-template-columns: 1fr;
+        overflow-wrap: anywhere;
+    }
+
+    @include desktop {
+        flex-direction: row;
+        // The dialog shrinks to its content, so the body states the size it wants. Both
+        // numbers are derived from the dialog's own limits (rsx_modal.js _apply_sizing):
+        // opened `wide`, it is at most 80% of the viewport wide and its body at most 80vh - 150px tall,
+        // padding included. Staying inside them is what keeps the dialog from scrolling.
+        width: calc(80vw - 90px);
+        max-width: 1200px;
+
+        &__preview {
+            flex: 1 1 auto;
+            height: calc(80vh - 210px);
+        }
+
+        &__details {
+            flex: 0 0 280px;
+        }
+    }
+}

@@ -27,6 +27,7 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   class in `rsx/` would override it out of the run.
 - **UI seams**: `Datagrid_Mass_Actions_Test` (selection modes and CSV export),
   `Revision_History_Test` (the history endpoint's allowlist and its no-enumeration rule),
+  `Task_Record_Attachments_Test` (a task's file list: claim, all-or-nothing, single claim, row shape),
   `Timezone_Settings_Test`, `Api_Key_Scope_Ui_Test` (presets re-derived by name, so a
   tampering browser cannot widen a key), `Api_Key_Read_Only_Ui_Test` (only the literal
   '1' mints a read-only key, so a garbled form can never mint the wider one).

@@ -1,0 +1,81 @@
+<%--
+Record_Attachments - a record's file list: upload by button or by drop, click to preview
+
+$attachments (array)  - rows from Record_Attachment_List::rows() (PHP) [required]
+$record_id (int)      - the record the files belong to [required]
+$controller (string)  - the controller holding the claim endpoint [required to upload]
+$method (string)      - that endpoint's name; called with {id: $record_id, keys: [...]}
+$can_upload (bool)    - show the Upload button and accept dropped files [optional]
+$title (string)       - section title (default "Attachments") [optional]
+
+Event OUT:
+  'changed' - files were attached. The host refetches its attachment rows and re-renders.
+
+The section draws what it is given and never fetches: the host page loads the rows with the
+rest of its data and passes them in. Uploading sends each file through Ajax.upload(), then
+posts every returned key to $controller::$method in ONE call. Clicking a row opens
+Attachment_Preview_Modal.
+
+Dropping files anywhere on the section uploads them (rsx:man droppable). The section is the
+drop target only when $can_upload is set.
+
+Usage:
+    <Record_Attachments $sid="attachments" $attachments=this.data.attachments
+        $record_id=_task.id $controller="Frontend_Tasks_Controller" $method="attachments_add"
+        $can_upload=Permission.can_access('Tasks_Edit_Action') />
+--%>
+<Define:Record_Attachments tag="div">
+    <%
+        const _rows = this.args.attachments || [];
+        const _uploading = this.state.uploading || [];
+        const _can_upload = !!this.args.can_upload;
+    %>
+    <Section $title="<%= this.args.title || 'Attachments' %>" $count=_rows.length $flush=true>
+        <Slot:actions>
+            <% if (_can_upload) { %>
+                <button $sid="upload_button" type="button" class="btn btn-sm btn-primary">
+                    <i class="bi bi-upload"></i> Upload
+                </button>
+                <input $sid="file_input" type="file" multiple class="d-none" />
+            <% } %>
+        </Slot:actions>
+        <Slot:body>
+            <% if (_rows.length === 0 && _uploading.length === 0) { %>
+                <% if (_can_upload) { %>
+                    <Empty_State $icon="bi bi-paperclip">
+                        <Slot:title>No attachments yet</Slot:title>
+                        <Slot:body>Drop files here, or use Upload. Maximum file size: <%= Ajax.max_file_size_human() %>.</Slot:body>
+                    </Empty_State>
+                <% } else { %>
+                    <Empty_State $icon="bi bi-paperclip">
+                        <Slot:title>No attachments yet</Slot:title>
+                    </Empty_State>
+                <% } %>
+            <% } else { %>
+                <ul class="Record_Attachments__list">
+                    <% for (const row of _rows) { %>
+                        <li>
+                            <button type="button" class="Record_Attachments__item" data-attachment-id="<%= row.file_attachment_id %>">
+                                <File_Type_Icon class="Record_Attachments__icon" $file_name=row.file_name />
+                                <span class="Record_Attachments__name"><%= row.file_name %></span>
+                                <span class="Record_Attachments__size"><%= bytes_to_human(row.size, 1) %></span>
+                            </button>
+                        </li>
+                    <% } %>
+                    <% for (const name of _uploading) { %>
+                        <li>
+                            <div class="Record_Attachments__item Record_Attachments__item--uploading">
+                                <File_Type_Icon class="Record_Attachments__icon" $file_name=name />
+                                <span class="Record_Attachments__name"><%= name %></span>
+                                <span class="Record_Attachments__size">Uploading...</span>
+                            </div>
+                        </li>
+                    <% } %>
+                </ul>
+            <% } %>
+            <% if (_can_upload) { %>
+                <div class="Record_Attachments__drop_hint"><i class="bi bi-upload"></i> Drop files to attach</div>
+            <% } %>
+        </Slot:body>
+    </Section>
+</Define:Record_Attachments>

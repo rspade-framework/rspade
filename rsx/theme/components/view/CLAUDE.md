@@ -35,6 +35,14 @@ One subdirectory per component (template + SCSS, `.js` only where behaviour exis
 - `entity_link/` — `Entity_Link`: a fetched entity reference (type icon + name + link).
 - `revision_history/` — `Revision_History`: one record's change timeline, grouped by the
   transaction that made it.
+- `record_attachments/` — `Record_Attachments`: a record's file list as a Section. Upload
+  by button or by dropping files on it; each file is a name with its type icon; a click
+  opens the preview dialog. It draws the rows it is given and fires `changed` after an
+  upload; the host page loads the rows and names the claim endpoint (`$controller`,
+  `$method`). Server half: `Record_Attachment_List` in `rsx/lib/attachments/`.
+- `attachment_preview/` — `Attachment_Preview_Modal.show(row)` and its body: the file
+  through `<Document_Preview>` on the left; name, type, size, uploader, upload time and a
+  Download button on the right.
 
 ## HOW IT IS USED
 
@@ -62,6 +70,11 @@ of them (`Feed_Row` vs `Author_Meta_Row`, `Empty_State` vs `Empty_Value`, `Kpi_C
   a model instance defeats the post-load re-render and the name never paints.
 - `Person_Avatar` takes a `file_attachment_id`, never an image URL; the thumbnail
   component fetches the picture so a re-uploaded photo replaces itself everywhere.
+- **Giving another record type attachments is three steps and no new component**: two
+  endpoints on its controller (list with `Record_Attachment_List::rows()`, claim with
+  `::claim()` — copy `Frontend_Tasks_Controller::task_attachments()` / `attachments_add()`),
+  load the rows in the view action's `on_load()` batch, and mount `<Record_Attachments>`.
+  `rsx/app/frontend/tasks/view/` is the worked example.
 - `Revision_History` reads only the record types `Frontend_Revisions_Controller`
   publishes — adding a type is a controller change, not a component change.
 - Before adding a component here, run `php artisan rsx:jqhtml:glossary --missing` and read

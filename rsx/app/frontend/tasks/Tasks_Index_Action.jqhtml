@@ -1,5 +1,5 @@
 <Define:Tasks_Index_Action>
-<Page_Scaffold>
+<Page_Scaffold $flush=true>
     <Slot:main>
         <Tasks_DataGrid />
     </Slot:main>

@@ -110,6 +110,14 @@ const picked = await Modal.show({
 **`return null` CLOSES the dialog.** Only a literal `false` holds it open. A callback
 that returns `null` "to keep the modal open" discards whatever the user had entered.
 
+## Dialog width
+
+A dialog is as wide as its content, up to `max_width` (px, default 800) and never more than
+80% of the viewport; on desktop it is further held to 60% of the viewport, which reads
+better for forms and messages. **`wide: true` on `Modal.show()` lifts that 60% preference**
+for a dialog whose content wants the room - a document preview, a side-by-side comparison.
+`Attachment_Preview_Modal` is the example.
+
 ## The Enter key
 
 **Enter accepts the open dialog** - it activates the button declared `default: true`, whatever that button does. Every dialog this library builds declares it on exactly one button, so one rule covers all of them: `alert`/`error` acknowledge, `confirm` confirms, `prompt`/`select` answer, and `Modal.form()` submits, because its default button is the footer button whose callback drives the hosted `<Rsx_Form>`. The modal never inspects its own contents. A custom `Modal.show({buttons})` gets the behavior by marking its accept button - **an accept button with no `default: true` means Enter does nothing in that dialog.**

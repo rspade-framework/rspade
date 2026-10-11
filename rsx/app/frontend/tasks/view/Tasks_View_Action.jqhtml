@@ -108,6 +108,12 @@
                         </Section>
                         <% } %>
 
+                        <%-- Loaded with the page and passed in; an upload fires 'changed'
+                             and the action refetches (see Tasks_View_Action.on_ready). --%>
+                        <Record_Attachments $sid="attachments" $attachments=this.data.attachments
+                            $record_id=_task.id $controller="Frontend_Tasks_Controller" $method="attachments_add"
+                            $can_upload=Permission.can_access('Tasks_Edit_Action') />
+
                         <% if (_task.notes) { %>
                         <Section $title="Internal Notes">
                             <%br= _task.notes %>

@@ -1,5 +1,5 @@
 <Define:Projects_Index_Action>
-<Page_Scaffold>
+<Page_Scaffold $flush=true>
     <Slot:main>
         <Projects_DataGrid $sid="grid" />
     </Slot:main>

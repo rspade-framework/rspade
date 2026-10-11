@@ -6,6 +6,7 @@
  *
  * JavaScript responsibilities:
  * - Stamp the column-ratio modifier from $ratio (default 8/4).
+ * - Stamp the flush modifier from $flush.
  * - Detect an empty sidebar slot and collapse the main column to full width.
  */
 class Page_Scaffold extends Component {
@@ -15,6 +16,10 @@ class Page_Scaffold extends Component {
         // attribute-interpolation pitfall on the root tag.
         const ratio = str(this.args.ratio || '8/4').replace('/', '-');
         this.$.addClass(`Page_Scaffold--ratio-${ratio}`);
+
+        // A full-bleed page (a list page that is one datagrid) drops the outer padding
+        // and the max-width.
+        this.$.toggleClass('Page_Scaffold--flush', !!this.args.flush);
     }
 
     on_render() {

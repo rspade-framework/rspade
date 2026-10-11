@@ -81,8 +81,8 @@ class Task_Showcase_Service extends Rsx_Service_Abstract
                 $task->message("{$done} of {$items} done");
             }
 
+            // The ETA follows from this: every progress report re-estimates it.
             $task->progress_count($done, $items);
-            $task->eta($items - $done);
             $task->heartbeat();
             $task->state([
                 'done' => $done,

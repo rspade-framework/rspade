@@ -1,0 +1,33 @@
+<%--
+Attachment_Preview_Modal_Body - the two panes of Attachment_Preview_Modal
+
+$attachment (object) - one Record_Attachment_List row [required]
+
+Left: the file itself through <Document_Preview> (a PDF, an Office document's rendition, an
+image, a spreadsheet, markdown or text; an icon for anything with no viewer). Right: the
+details and the Download button. On a narrow screen the details stack under the preview.
+--%>
+<Define:Attachment_Preview_Modal_Body tag="div">
+    <% const _file = this.args.attachment; %>
+    <div class="Attachment_Preview_Modal_Body__preview">
+        <Document_Preview $attachment_id=_file.file_attachment_id $fit="contain" />
+    </div>
+    <div class="Attachment_Preview_Modal_Body__details">
+        <View_Fields class="Attachment_Preview_Modal_Body__fields">
+            <View_Field $label="Name"><%= _file.file_name %></View_Field>
+            <View_Field $label="Type">
+                <% if (_file.file_type_label) { %><%= _file.file_type_label %><% } else { %><Empty_Value /><% } %>
+            </View_Field>
+            <View_Field $label="Size"><%= bytes_to_human(_file.size, 1) %></View_Field>
+            <View_Field $label="Uploaded by">
+                <% if (_file.created_by_name) { %><%= _file.created_by_name %><% } else { %><Empty_Value /><% } %>
+            </View_Field>
+            <View_Field $label="Uploaded">
+                <% if (_file.created_at) { %><%= Rsx_Time.format_datetime(_file.created_at) %><% } else { %><Empty_Value /><% } %>
+            </View_Field>
+        </View_Fields>
+        <a class="btn btn-primary" href="<%= _file.download_url %>" download>
+            <i class="bi bi-download"></i> Download
+        </a>
+    </div>
+</Define:Attachment_Preview_Modal_Body>

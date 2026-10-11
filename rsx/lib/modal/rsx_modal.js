@@ -13,6 +13,7 @@ class Rsx_Modal extends Component {
             buttons: [],
             closable: true,
             max_width: 800,
+            wide: false,
             close_on_submit: true,
             is_visible: false,
             result_promise: null,
@@ -136,6 +137,7 @@ class Rsx_Modal extends Component {
         this.state.title = options.title || '';
         this.state.closable = options.closable !== undefined ? options.closable : true;
         this.state.max_width = options.max_width || 800;
+        this.state.wide = !!options.wide;
         this.state.close_on_submit = options.close_on_submit !== undefined ? options.close_on_submit : true;
         this.state.buttons = options.buttons || [];
         this.state.skip_backdrop = skip_backdrop;
@@ -312,8 +314,10 @@ class Rsx_Modal extends Component {
 
         max_width = Math.min(max_width, viewport_limit);
 
-        // Try to constrain to 60% width for better proportions on desktop
-        if (!is_mobile) {
+        // Try to constrain to 60% width for better proportions on desktop. A dialog opened
+        // with `wide: true` (a document preview, a side-by-side comparison) keeps the full
+        // viewport limit instead.
+        if (!is_mobile && !this.state.wide) {
             const preferred_width = viewport_width * 0.6;
             if (preferred_width < max_width) {
                 max_width = preferred_width;

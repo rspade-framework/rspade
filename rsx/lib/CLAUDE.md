@@ -9,6 +9,7 @@ found by name, so a subdirectory is organisation only.
 |---|---|
 | `action_log/` | `Action_Log` (record + read), `Action_Log_Renderer` (per-type HTML summaries), `Activity_Feed` (JS icon/variant map). Own `CLAUDE.md`. |
 | `notification/` | `Notification` (send, unread count, dropdown feed, expiry) and `Notification_Renderer` (per-type text + link). Own `CLAUDE.md`. |
+| `attachments/` | `Record_Attachment_List` — the files attached to one record: `rows()` for a view page's `<Record_Attachments>` section, `claim()` to attach uploaded keys (all-or-nothing), and the one `CATEGORY` every record's list is filed under. Any controller uses it; tasks are the worked example. |
 | `modal/` | `Modal`, `Modal_Abstract` and the `Rsx_Modal` chrome component — every dialog in the app, plus the application's ONE registered handler for server-driven form questions (`Modal.on_app_modules_define()`). Own `CLAUDE.md`. |
 | `text_types/` | `Raw_Text` and `Rich_Text` - the declared TEXT column types. Each is a PHP class (the encoding) plus a JS class of the same name (which component prints it, which one edits it). Own `CLAUDE.md`. |
 | `topics/` | `Portal_Notification_Topic` — the realtime topic `Portal_Notification_Model::emit()` publishes on. `can_subscribe()` is fail-closed: the filter's `portal_user_id` must equal the caller's. |

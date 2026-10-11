@@ -753,6 +753,7 @@ class Modal {
             body: '',
             buttons: [],
             max_width: 800,
+            wide: false,
             closable: true,
             close_on_submit: true,
         };

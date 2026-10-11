@@ -43,6 +43,19 @@
         }
     }
 
+    // Flush ($flush=true): a page that IS one full-bleed surface - a list page whose whole
+    // content is a datagrid. No outer padding and no max-width, so the surface meets the
+    // navigation and the window edge; the card it sits in loses its frame, which would
+    // otherwise draw a rounded border against those edges.
+    &--flush {
+        max-width: none;
+        padding: 0;
+        --bs-card-border-width: 0;
+        --bs-card-border-radius: 0;
+        --bs-card-inner-border-radius: 0;
+        --bs-card-box-shadow: none;
+    }
+
     // No sidebar content: main spans the full width at every breakpoint.
     &--no-sidebar {
         .Page_Scaffold__columns {
