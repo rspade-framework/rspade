@@ -66,10 +66,15 @@ and unlinking while impersonating, and the refusal surfaces as an error dialog.
                     <% } %>
                 </div>
 
-                <% if (this.data.two_factor.is_enabled) { %>
+                <%-- The count is what the user HOLDS; the button is whether this deployment
+                     issues recovery codes (rsx.two_factor.recovery_codes). --%>
+                <% const _tf = this.data.two_factor; %>
+                <% if (_tf.is_enabled && (_tf.issues_recovery_codes || _tf.recovery_codes_remaining > 0)) { %>
                     <div class="Portal_Settings_Security__recovery">
-                        <%= this.data.two_factor.recovery_codes_remaining %> recovery codes left.
-                        <button class="btn btn-sm btn-outline-secondary" $sid="regenerate">New recovery codes</button>
+                        <%= _tf.recovery_codes_remaining %> recovery codes left.
+                        <% if (_tf.issues_recovery_codes) { %>
+                            <button class="btn btn-sm btn-outline-secondary" $sid="regenerate">New recovery codes</button>
+                        <% } %>
                     </div>
                 <% } %>
             </Slot:body>

@@ -221,7 +221,7 @@ User self-service page (composed from the shared theme components — see
 `rsx/theme/components/view/CLAUDE.md`) with:
 - **Change Password** — current password verification, min length, confirmation
 - **Passkeys** — `Portal_Settings_Security`: the portal user's passkeys and authenticator app
-  (remove), `<Passkey_Register />`, an on-demand `<Totp_Enrollment />`, the recovery-code count
+  (remove), `<Passkey_Register />`, an on-demand `<Totp_Enrollment />`, the recovery-code count (with its regenerate button only where `issues_recovery_codes` says the deployment issues them)
   and regeneration
 - **Connected Accounts** — same region, only when the portal realm offers federated sign-in:
   connections (disconnect) and `<Sso_Buttons $intent="link" />`
