@@ -503,22 +503,17 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
 
         $site_id = Session::get_site_id();
 
-        // Recent sessions of this login identity ON THIS SITE. The identity may belong to
+        // Where this login identity is signed in ON THIS SITE. The identity may belong to
         // other sites too; their sessions (address, device) are none of this site's business.
+        // Asked of the framework: the session table is its own, not this application's.
         $recent_sessions = [];
         if ($user->login_user_id) {
-            $sessions = \App\RSpade\Core\Session\Session::where('login_user_id', $user->login_user_id)
-                ->where('site_id', $site_id)
-                ->orderBy('last_active', 'desc')
-                ->limit(10)
-                ->get();
-
-            foreach ($sessions as $session) {
+            foreach (Session::get_sessions_for_user((int) $user->login_user_id, $site_id) as $session) {
                 $recent_sessions[] = [
-                    'last_active' => $session->last_active->format('M j, Y g:i A'),
-                    'ip_address' => $session->ip_address,
-                    'user_agent' => \Illuminate\Support\Str::limit($session->user_agent, 50),
-                    'active' => $session->active,
+                    'last_active' => $session['last_active']->format('M j, Y g:i A'),
+                    'ip_address' => $session['ip_address'],
+                    'device_summary' => $session['device_summary'],
+                    'user_agent' => $session['user_agent'],
                 ];
             }
         }

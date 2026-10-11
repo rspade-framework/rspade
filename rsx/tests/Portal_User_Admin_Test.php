@@ -67,26 +67,28 @@ class Portal_User_Admin_Test extends Rsx_Test_Abstract
      *
      * A portal session is a browser's _sessions row carrying a portal identity. There
      * is no public API for minting one on another user's behalf (a session is created
-     * by that user's own login), so the fixture inserts the row directly - the same
-     * way a test seeds any other table it does not own the writer for.
+     * by that user's own login), so the fixture builds the row through the framework's
+     * Session model.
      *
      * @return int The new session row id
      */
     private static function __make_session(Portal_User_Model $user): int
     {
-        return (int) DB::table('_sessions')->insertGetId([
-            'site_id'       => 0,
-            'type_id'       => Session::TYPE_WEB,
-            'portal_user_id' => $user->id,
-            'portal_site_id' => $user->site_id,
-            'session_token' => Str::random(64),
-            'csrf_token'    => Str::random(64),
-            'ip_address'    => '127.0.0.1',
-            'user_agent'    => 'portal-user-admin-test',
-            'last_active'   => now(),
-            'active'        => 1,
-            'version'       => 1,
-        ]);
+        $session = new Session();
+        $session->site_id = 0;
+        $session->type_id = Session::TYPE_WEB;
+        $session->portal_user_id = $user->id;
+        $session->portal_site_id = $user->site_id;
+        $session->session_token = Str::random(64);
+        $session->csrf_token = Str::random(64);
+        $session->ip_address = '127.0.0.1';
+        $session->user_agent = 'portal-user-admin-test';
+        $session->last_active = now();
+        $session->active = true;
+        $session->version = 1;
+        $session->save();
+
+        return (int) $session->id;
     }
 
     /**

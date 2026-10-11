@@ -144,26 +144,19 @@
                     </View_Fields>
                 </Section>
 
-                <Section $title="Recent Activity" $count=_session_count $flush=true>
+                <Section $title="Active Sessions" $count=_session_count $flush=true>
                     <Slot:body>
                         <% if (_u.recent_sessions && _u.recent_sessions.length > 0) { %>
                             <Record_Table>
                                 <thead>
-                                    <tr><th>Date</th><th>IP Address</th><th>Device</th><th>Status</th></tr>
+                                    <tr><th>Last Active</th><th>IP Address</th><th>Device</th></tr>
                                 </thead>
                                 <tbody>
                                     <% for (const session of _u.recent_sessions) { %>
                                     <tr>
                                         <td><%= session.last_active %></td>
                                         <td><%= session.ip_address %></td>
-                                        <td><span class="text-muted small"><%= session.user_agent %></span></td>
-                                        <td>
-                                            <% if (session.active) { %>
-                                                <Status_Badge $label="Active" $badge="bg-success" />
-                                            <% } else { %>
-                                                <Status_Badge $label="Inactive" $badge="bg-secondary" />
-                                            <% } %>
-                                        </td>
+                                        <td><span class="text-muted small" title="<%= session.user_agent || '' %>"><%= session.device_summary %></span></td>
                                     </tr>
                                     <% } %>
                                 </tbody>

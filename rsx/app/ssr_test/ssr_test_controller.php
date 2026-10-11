@@ -135,6 +135,20 @@ class SSR_Test_Controller extends Rsx_Controller_Abstract
         return response('session_id=' . $session_id, 200, ['Content-Type' => 'text/plain']);
     }
 
+    /**
+     * Calls Session::get_audit_session_id(), which records the acting context and
+     * creates no session. Should NOT produce a Set-Cookie header for a caller with
+     * no cookie.
+     */
+    #[Route('/ssr-test/session-get-audit-session-id', methods: ['GET'])]
+    public static function session_get_audit_session_id(Request $request, array $params = [])
+    {
+        static::_require_loopback();
+
+        $audit_session_id = \App\RSpade\Core\Session\Session::get_audit_session_id();
+        return response('audit_session_id=' . $audit_session_id, 200, ['Content-Type' => 'text/plain']);
+    }
+
     // -----------------------------------------------------------------
     // Page data endpoint
     // -----------------------------------------------------------------

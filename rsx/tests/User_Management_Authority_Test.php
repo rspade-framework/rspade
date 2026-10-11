@@ -13,6 +13,7 @@ use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Response\Error_Response;
+use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
 use Rsx\App\Frontend\Settings\UserManagement\Frontend_Settings_User_Management_Controller;
 
@@ -283,19 +284,18 @@ class User_Management_Authority_Test extends Rsx_Test_Abstract
         $admin = static::__member(User_Model::ROLE_SITE_ADMIN, 'admin');
 
         foreach ([self::SITE_ID, self::SITE_ID + 4242] as $site_id) {
-            DB::table('_sessions')->insert([
-                'session_token' => bin2hex(random_bytes(16)),
-                'csrf_token' => bin2hex(random_bytes(16)),
-                'active' => 1,
-                'site_id' => $site_id,
-                'version' => 1,
-                'ip_address' => '10.9.' . ($site_id % 250) . '.1',
-                'user_agent' => 'authority-test',
-                'login_user_id' => $owner->login_user_id,
-                'last_active' => now(),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            $session = new Session();
+            $session->session_token = bin2hex(random_bytes(16));
+            $session->csrf_token = bin2hex(random_bytes(16));
+            $session->active = true;
+            $session->site_id = $site_id;
+            $session->type_id = Session::TYPE_WEB;
+            $session->version = 1;
+            $session->ip_address = '10.9.' . ($site_id % 250) . '.1';
+            $session->user_agent = 'authority-test';
+            $session->login_user_id = $owner->login_user_id;
+            $session->last_active = now();
+            $session->save();
         }
 
         static::__act_as($admin);

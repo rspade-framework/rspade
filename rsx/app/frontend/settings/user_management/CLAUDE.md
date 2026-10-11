@@ -41,8 +41,9 @@ selected user's access level exceeds the caller's own.
 a disabled membership at sign-in and ends its live sessions, while the role and ACL rows are
 kept so re-enabling restores them. Nobody disables themselves.
 
-`get_user` lists the user's recent sessions ON THIS SITE only - an identity's sessions on
-other sites are not this site's business.
+`get_user` lists where the user is signed in ON THIS SITE only - an identity's sessions on
+other sites are not this site's business. It asks `Session::get_sessions_for_user($login_user_id,
+$site_id)`; the session table is the framework's and is never queried here.
 
 ## TWO-FACTOR
 
