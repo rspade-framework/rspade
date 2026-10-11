@@ -141,14 +141,15 @@ class Dev_Document_Preview_Controller extends Rsx_Controller_Abstract
      * Push this attachment's blob back to un-indexed - the "(Extracting Text...)" state - WITHOUT
      * spawning a worker.
      *
-     * There is no requeue_extraction() on the model to call: the extraction queue IS
-     * _file_storage.is_indexed = 0 with no _search_indexes row, and nothing in the framework ever
-     * un-does a completed extraction (rsx:search:reindex re-extracts, it does not reset). This
-     * demo page is the one place that wants the un-indexed state back, so it writes it here rather
-     * than adding a framework verb with a single dev caller.
+     * There is no requeue_extraction() on the model to call: text is owed when
+     * _file_storage.is_indexed = 0, "never attempted" is that with no _search_indexes row, and
+     * nothing in the framework ever un-does a completed extraction (rsx:search:reindex
+     * re-extracts, it does not reset). This demo page is the one place that wants the
+     * un-indexed state back, so it writes it here - and then says the blob owes work
+     * (mark_work_owed()), which is what puts it in the worker's queue.
      *
-     * The no-kick argument is the whole point: a detached worker would extract the document a
-     * fraction of a second later and there would be nothing to watch.
+     * Not kicking the worker is the whole point: it would extract the document a fraction of a
+     * second later and there would be nothing to watch. The sweeper is the backstop.
      *
      * @param Request $request
      * @param array $params Requires attachment_id.
@@ -171,6 +172,7 @@ class Dev_Document_Preview_Controller extends Rsx_Controller_Abstract
 
         $storage->is_indexed = 0;
         $storage->save();
+        $storage->mark_work_owed();
 
         // The state that changed lives on the BLOB, and _file_storage is not a realtime model (it
         // has no site_id for a frame to carry). Say it on the attachment, exactly the way the
@@ -182,11 +184,12 @@ class Dev_Document_Preview_Controller extends Rsx_Controller_Abstract
     }
 
     /**
-     * Run the render/extract pass for this attachment's blob INLINE, in this request.
+     * Run the render/extract pass for this attachment's blob NOW, and wait for it.
      *
-     * Same unit of work the background worker runs (rendition, text extraction, thumbnail-cache
-     * purge, realtime emission on the referencing attachments) - just synchronous, so the caller
-     * knows exactly when the frame went out.
+     * The same route the background worker takes for every blob - process_storage() charges
+     * the attempt and runs the document in a child process of its own (rendition, text
+     * extraction, thumbnail-cache purge, realtime emission on the referencing attachments) -
+     * just synchronous, so the caller knows exactly when the frame went out.
      *
      * @param Request $request
      * @param array $params Requires attachment_id.
@@ -202,7 +205,7 @@ class Dev_Document_Preview_Controller extends Rsx_Controller_Abstract
         }
 
         $storage = File_Storage_Model::find($attachment->file_storage_id);
-        Document_Render_Service::render_storage($storage);
+        Document_Render_Service::process_storage($storage);
 
         return ['is_indexed' => (int) File_Storage_Model::find($storage->id)->is_indexed];
     }

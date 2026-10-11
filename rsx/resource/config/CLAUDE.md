@@ -72,9 +72,8 @@ $auto_rename = config('rsx.development.auto_rename_files');
 // Get entire section
 $dev_settings = config('rsx.development');
 
-// Get with default fallback. NOTE: rsx.libreoffice.timeout is a SANCTIONED timeout
-// bounding one external soffice/pdftotext call - see `rsx:man libreoffice`, TIMEOUT.
-$timeout = config('rsx.libreoffice.timeout', 120);
+// Get with default fallback
+$max_text_bytes = config('rsx.search.max_text_bytes', 2 * 1024 * 1024);
 ```
 
 The merge happens transparently at boot time - you don't need to do anything special.

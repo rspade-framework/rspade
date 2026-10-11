@@ -67,6 +67,11 @@ how it tolerates a second writer. `#[Exclusive]` and `#[Debounce]` guard one ide
 against itself, never a shared table — that needs a lock. Never add a timeout to your own
 work here.
 
+**A task that may run long reports as it goes.** A task has no limit on how long it runs so
+long as it keeps reporting; one that reports nothing for 30 minutes is taken for stuck and
+killed. Every loop here calls `$task->heartbeat()` and a progress report on every item, as
+the seeders do — copy that shape into any service that works through a list.
+
 ## HOW TO CUSTOMIZE
 
 - **Add a service**: a class in this directory extending `Rsx_Service_Abstract`, one

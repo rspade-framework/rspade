@@ -81,11 +81,12 @@ class Dev_Attachment_Thumbnail_Controller extends Rsx_Controller_Abstract
     }
 
     /**
-     * Run the render for this attachment's blob INLINE, in this request.
+     * Run the render for this attachment's blob NOW, and wait for it.
      *
-     * Same unit of work the background worker runs (rendition, text extraction, thumbnail-cache
-     * purge, realtime emission on the referencing attachments) - just synchronous, so the caller
-     * knows exactly when the frame went out.
+     * The same route the background worker takes for every blob - process_storage() charges
+     * the attempt and runs the document in a child process of its own (rendition, text
+     * extraction, thumbnail-cache purge, realtime emission on the referencing attachments) -
+     * just synchronous, so the caller knows exactly when the frame went out.
      *
      * @param Request $request
      * @param array $params Requires attachment_id.
@@ -100,7 +101,7 @@ class Dev_Attachment_Thumbnail_Controller extends Rsx_Controller_Abstract
             return $storage;
         }
 
-        Document_Render_Service::render_storage($storage);
+        Document_Render_Service::process_storage($storage);
 
         $fresh = File_Storage_Model::find($storage->id);
 

@@ -3,7 +3,7 @@
  *
  * Pick an attachment; it is mounted twice, as a thumbnail and as a full Document_Preview. Reset
  * pushes the blob back to PENDING (no worker) so both mounts fall to their placeholder states;
- * Render runs the render inline, and both mounts swap over realtime with no reload.
+ * Render runs the render and waits for it, and both mounts swap over realtime with no reload.
  */
 @route('/dev/attachment_thumbnail')
 @layout('Dev_Spa_Layout')
@@ -90,7 +90,7 @@ class Dev_Attachment_Thumbnail_Action extends Spa_Action {
         const id = this.state.current_id;
         if (!id) return;
 
-        this.$sid('status').text('Rendering inline...');
+        this.$sid('status').text('Rendering...');
         try {
             const res = await Dev_Attachment_Thumbnail_Controller.run_render({ attachment_id: id });
             that.$sid('status').text('render_status_id = ' + res.render_status_id + ' (rendered_at ' + (res.rendered_at || 'null') + ')');

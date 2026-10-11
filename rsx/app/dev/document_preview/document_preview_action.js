@@ -12,7 +12,7 @@
  * option shows the raw score - the score orders results and means nothing on its own scale.
  *
  * The two buttons beside the text make the async extraction observable: Reset Extraction pushes the
- * blob back to un-indexed (no worker), Extract Now runs the pass inline. Neither reloads the page -
+ * blob back to un-indexed (no worker), Extract Now runs the pass and waits for it. Neither reloads the page -
  * the notice swaps to the text over the realtime frame the pass emits.
  */
 @route('/dev/document_preview')

@@ -25,8 +25,10 @@ controller here, because the framework's `Rsx_Task_Controller` asks the applicat
 gates. The Status placeholder has no controller at all.
 
 `tasks/System_Task_Run_Card` (`$task` = a status row from `Rsx_Task.page()`, `$open`) is one
-run: name, id, start time and a live `Task_Status_Badge`; a `Task_Report` progress bar
-(`$kind="progress_text"`) while the run is live or once it reported progress; opened (click
+run: name, id, start time and a live `Task_Status_Badge`; for a queued run (`task.waiting`
+is set) a `Task_Report` `$kind="status_text"`, which shows what the run is waiting for - a
+time, an exclusive lock and the task holding it, or a free worker; otherwise a `Task_Report`
+progress bar (`$kind="progress_text"`) while the run is live or once it reported progress; opened (click
 the head), Stop (a live run, `Rsx_Task.stop()`) or Run again (a finished one,
 `Rsx_Task.rerun()`), then the run's `Task_Report_Browser` and its live `Task_Output`
 console. The framework's control gate allows or refuses each button's action.
