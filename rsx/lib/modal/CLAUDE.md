@@ -296,6 +296,23 @@ Add a kind by adding a branch. The worked endpoint is
 `rsx/app/frontend/contacts/contacts_controller.php::save()`. Protocol and the recommended
 question shapes: `rsx:man form_conventions`, QUESTIONS.
 
+## The "you have been signed out" dialog
+
+The framework ends a sign-in at its session limits (`rsx.sessions.staff` / `.portal`) and
+notices one that was ended elsewhere, but it ships no dialog. It calls the handler this
+directory registers - `Modal.on_app_modules_define()` passes `Modal._on_session_expired` to
+`Rsx.set_session_expired_handler()` - ONCE per page, with `{message}`.
+
+The dialog is `Modal.show()` with `closable: false` and one button, "Return to Login", whose
+callback reloads the page and returns `false` so the dialog stays up meanwhile. The reload is
+the whole mechanism: the server sees a signed-out browser, redirects to the sign-in screen with
+this URL captured, and returns the user here afterwards. The handler also calls `Spa.disable()`,
+so a navigation that still happens is a full page load and reaches the same redirect.
+
+It cannot be dismissed on purpose - the page behind it is a signed-in page nobody is signed in
+to - but what is on screen stays readable behind it, so unsaved text can still be copied out.
+`rsx:man session`, SESSION LIFETIME.
+
 ## Error Handling in Modals
 
 There is nothing to write. The form owns it:

@@ -48,6 +48,52 @@ class Modal {
     static _QUESTION_NO = Object.freeze({ modal_question_no: true });
 
     /**
+     * Register this application's two framework handlers: the form question dialog and
+     * the "you have been signed out" dialog.
+     */
+    static on_app_modules_define() {
+        Modal._register_question_handler();
+        Rsx.set_session_expired_handler(Modal._on_session_expired);
+    }
+
+    /**
+     * The sign-in this page was rendered for is gone - it outlived the session limits,
+     * or it was ended from another device or by an administrator. The framework calls
+     * this once per page (Rsx.set_session_expired_handler()).
+     *
+     * The page behind the dialog is a signed-in page nobody is signed in to, so the
+     * dialog cannot be dismissed: its one button reloads, and the server sends the
+     * browser to the sign-in screen with this URL captured, to return to afterwards.
+     * Whatever is on screen stays readable behind it until then.
+     *
+     * Spa.disable() makes any navigation that still happens a full page load, which
+     * reaches the same redirect.
+     * @private
+     */
+    static _on_session_expired(info) {
+        Spa.disable();
+
+        Modal.show({
+            title: 'You have been signed out',
+            body: info.message || 'Your session has ended. Please sign in again.',
+            closable: false,
+            max_width: 480,
+            buttons: [
+                {
+                    label: 'Return to Login',
+                    class: 'btn-primary',
+                    default: true,
+                    callback: function () {
+                        window.location.reload();
+
+                        return false;   // keep the dialog up while the page reloads
+                    },
+                },
+            ],
+        });
+    }
+
+    /**
      * Present a server-driven form question. The application's ONE question handler.
      *
      * An endpoint that returns response_form_question() reaches here through
@@ -57,7 +103,7 @@ class Modal {
      *
      * See: php artisan rsx:man form_conventions (QUESTIONS)
      */
-    static on_app_modules_define() {
+    static _register_question_handler() {
         Rsx_Form.set_question_handler(async (question) => {
             const title = question.title || '';
             const body = question.body || '';
