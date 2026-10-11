@@ -1,10 +1,10 @@
 /**
  * Settings User Settings Action
  *
- * User preferences. ONE section is real: the timezone preference, which reads and
- * writes the framework's own Rsx_Timezone_Controller (the same setter the early-boot
- * auto-set uses - see Rsx_Timezone_Auto). Everything else on this page is still the
- * original static scaffolding.
+ * User preferences. The timezone and appearance sections are real: they read and write
+ * the framework's own Rsx_Timezone_Controller (the same setter the early-boot auto-set
+ * uses - see Rsx_Timezone_Auto) and Rsx_Dark_Mode_Controller. Everything else on this
+ * page is still the original static scaffolding.
  */
 @route('/frontend/settings/user_settings')
 @layout('Frontend_Spa_Layout')
@@ -134,24 +134,12 @@ class Settings_User_Settings_Action extends Spa_Action {
     }
 
     /**
-     * The theme is rendered SERVER-SIDE onto <body> (that is what stops a dark-mode user
-     * seeing a white flash), so a saved change cannot be applied to the page currently on
-     * screen - only a real request can paint it.
-     *
-     * Spa.disable() is how that is arranged: the SPA keeps working, but the next
-     * navigation - a link click or a programmatic redirect alike - becomes a full page
-     * load, which re-renders <body> in the new theme. Deliberately not a reload here: the
-     * user may still be changing other settings on this page, and yanking the page out
-     * from under them to recolour it would be worse than the mismatch.
+     * Switch the page on screen to the mode the server just stored. No reload: the theme
+     * is a class and attributes on <html>, and Rsx_Dark_Mode.set_mode() rewrites them in
+     * place (and, under auto, resumes following the operating system).
      */
     _on_theme_saved(result) {
-        if (result && result.changed === true) {
-            Spa.disable();
-            Flash_Alert.success('Theme saved. The app will switch over when you navigate away.');
-
-            return;
-        }
-
+        Rsx_Dark_Mode.set_mode(result.mode);
         Flash_Alert.success('Theme saved.');
     }
 

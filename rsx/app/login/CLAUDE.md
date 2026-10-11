@@ -46,16 +46,13 @@ the theme already defines, so the auth ladder follows light and dark exactly as 
 dashboard does. A page under this layout writes ordinary Bootstrap markup - `.alert`,
 `.form-control`, `.btn-primary`, `.d-grid` - and gets the frontend's own look for free.
 
-**Light and dark are resolved by the framework, not by this module.**
-`rsx_body_class()` and `rsx_body_attributes()` on the `<body>` tag are the whole
-mechanism, the same pair `Spa_App.blade.php` uses for the authenticated shell:
-`Rsx_Dark_Mode` paints an explicit light/dark preference server-side in the first bytes of
-HTML, and `data-bs-theme` comes from `config('rsx.theme.dark_mode.attributes')`. An
-anonymous visitor has no stored preference, so the configured default applies - AUTO by
-default, which means the body carries `rsx-theme-auto` with no theme, and
-`Rsx_Dark_Mode.js` resolves `prefers-color-scheme` at boot and keeps following it. A
-visitor who signs in and then returns to a login page sees their own stored choice,
-because the same class answers for both. Nothing about the mode lives in this directory.
+**Light and dark are resolved by the framework, not by this module.** The theme is a
+class and `data-bs-theme` on `<html>`, put there before first paint by the autotheme
+script `Login_Bundle::render()` emits - the same script the authenticated shell gets. An
+anonymous visitor has no stored preference, so the configured default applies: AUTO by
+default, which follows the operating system, live. A visitor who signs in and then
+returns to a login page sees their own stored choice. Nothing about the mode lives in
+this directory.
 
 **Turnstile.** `<Turnstile_Input />` sits in `login_index.blade.php` and
 `signup/signup_index.blade.php`; the endpoint answers it as the FIRST statement of the POST

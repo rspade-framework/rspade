@@ -1,7 +1,7 @@
 <%--
 Pin_Verification_Form
 
-The PIN-entry worked example: an <Rsx_Form> around a single Pin_Input. It shows that a
+The PIN-entry worked example: an <Rsx_Form> around a single Code_Input. It shows that a
 one-field form is still a form - the code is checked by the endpoint, and a wrong or
 incomplete code comes back as a validation error pinned on the `pin` field.
 --%>
@@ -11,7 +11,7 @@ incomplete code comes back as a validation error pinned on the `pin` field.
 
         <Form_Errors />
 
-        <Pin_Input $name="pin" $length=6 />
+        <Code_Input $name="pin" $length=6 $align="center" />
 
         <div class="text-center text-muted small mt-2">
             Enter the 6-digit PIN code

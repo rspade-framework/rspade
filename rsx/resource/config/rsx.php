@@ -699,7 +699,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | THIS APP'S theme vocabulary. The framework resolves the user's preference and
-    | renders these attributes onto <body> before the SPA shell loads; it has no idea
+    | sets these attributes on <html> before the page first paints; it has no idea
     | what they mean, which is what keeps RSpade free of any one UI toolkit.
     |
     | This template is built on Bootstrap 5.3, whose colour modes are driven by

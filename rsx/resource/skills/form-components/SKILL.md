@@ -1,6 +1,6 @@
 ---
 name: form-components
-description: "Composing a form in this application from its own field chrome and input roster - Form_Field / Form_Field_Abstract (label, $required asterisk, $help, the Slot:label rule), Rsx_Tabs / Rsx_Tab error badges, and the shipped inputs (Text_Input and its $max_length rule, Select_Input / Select_With_Description_Input / Select_Ajax_Input / Select_Country_Input / Select_State_Input, Checkbox_Input, Checkbox_Multiselect_Input, Tag_List_Input, Repeater_Simple, Pin_Input, Wysiwyg_Input, Raw_Text_Input, Profile_Photo_Input, Hidden_Input, Currency_Input, Time_Entry_Input, Phone_Text_Input). Use when laying out a form's fields, adding a new input to the roster, wiring a date or time field, choosing between two existing inputs, or hitting \"Text_Input with $name=... requires $max_length\", \"edits Rich_Text values, but was given string\", \"Form_Field_Abstract has no Form_Input_Abstract child\", or \"Form_Field_Abstract child input has no data-name attribute\"."
+description: "Composing a form in this application from its own field chrome and input roster - Form_Field / Form_Field_Abstract (label, $required asterisk, $help, the Slot:label rule), Rsx_Tabs / Rsx_Tab error badges, and the shipped inputs (Text_Input and its $max_length rule, Select_Input / Select_With_Description_Input / Select_Ajax_Input / Select_Country_Input / Select_State_Input, Checkbox_Input, Checkbox_Multiselect_Input, Tag_List_Input, Repeater_Simple, the framework's Code_Input, Wysiwyg_Input, Raw_Text_Input, Profile_Photo_Input, Hidden_Input, Currency_Input, Time_Entry_Input, Phone_Text_Input). Use when laying out a form's fields, adding a new input to the roster, wiring a date or time field, choosing between two existing inputs, or hitting \"Text_Input with $name=... requires $max_length\", \"edits Rich_Text values, but was given string\", \"Form_Field_Abstract has no Form_Input_Abstract child\", or \"Form_Field_Abstract child input has no data-name attribute\"."
 ---
 
 # Form chrome and the input roster
@@ -129,7 +129,7 @@ Every one extends `Form_Input_Abstract` and lives under `rsx/theme/components/in
 | `Checkbox_Multiselect_Input` | `checkbox_multiselect_input/` | a checkbox list; the value is an array of ids |
 | `Tag_List_Input` | `tag_list/` | a list of short strings as ONE value |
 | `Repeater_Simple` | `repeater/` | a list of values built with any other input as the row editor |
-| `Pin_Input` | `pin/` | a short numeric code shown as N single-character boxes |
+| `Code_Input` | framework core | a one-time numeric code, one digit per box (`$length`, `$align="center"`); `rsx:man form_input` |
 | `Wysiwyg_Input` | `wysiwyg/` | Quill rich text. Edits a `Rich_Text` VALUE, not a string |
 | `Raw_Text_Input` | `raw_text/` | textarea editing a `Raw_Text` value |
 | `Profile_Photo_Input` | `photo/` | thumbnail + upload, backed by the file-attachment flow |

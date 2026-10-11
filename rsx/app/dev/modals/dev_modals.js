@@ -293,7 +293,7 @@ class Dev_Modals {
             }
         });
 
-        // A one-field form is still a form: Pin_Input owns the value, the endpoint
+        // A one-field form is still a form: Code_Input owns the value, the endpoint
         // owns the rules (all six digits, and the right ones).
         $('#test-form-pin').on('click', async () => {
             const result = await Modal.form({

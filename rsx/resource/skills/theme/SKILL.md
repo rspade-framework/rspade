@@ -79,9 +79,9 @@ everything else is a runtime token.
 
 ### Dark mode
 
-The body carries `rsx-dark` server-side before first paint. A token that must FLIP and has
-no Bootstrap equivalent is declared twice in `composition_tokens.scss` - the light value on
-`:root`, the dark value under `body.rsx-dark`. That is how `--rsx-form-veil` works: framework
+`<html>` carries `rsx-dark` (and `data-bs-theme`) before first paint. A token that must FLIP
+and has no Bootstrap equivalent is declared twice in `composition_tokens.scss` - the light
+value on `:root`, the dark value under `html.rsx-dark`. That is how `--rsx-form-veil` works: framework
 core has no palette, so `Rsx_Form` reads the token and a dark page that does not declare it
 flashes white. Skill `rspade:dark-mode`.
 

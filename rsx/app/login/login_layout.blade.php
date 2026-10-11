@@ -12,13 +12,11 @@
     {!! Login_Bundle::render() !!}
 </head>
 
-{{-- The theme is painted here, in the first bytes of HTML: rsx_body_class() carries the
-     mode class and the dark class when dark is definitely on, and rsx_body_attributes()
-     carries this application's own vocabulary (data-bs-theme). An anonymous visitor has
-     no stored preference, so the configured default applies - AUTO by default, which
-     Rsx_Dark_Mode.js resolves against the operating system at boot. Exactly what the
-     authenticated SPA shell does; there is no login-only theme rule. --}}
-<body class="Login_Layout preload {{ rsx_body_class() }}"{!! rsx_body_attributes() !!}>
+{{-- The theme is on <html>, put there before first paint by the autotheme script the
+     bundle emits. An anonymous visitor has no stored preference, so the configured
+     default applies - AUTO by default, which follows the operating system. Exactly what
+     the authenticated SPA shell does; there is no login-only theme rule. --}}
+<body class="Login_Layout preload {{ rsx_body_class() }}">
     <main class="Login_Layout__viewport">
         <div class="card Login_Layout__card">
             @hasSection('card_title')

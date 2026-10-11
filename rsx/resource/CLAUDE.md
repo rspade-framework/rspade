@@ -198,7 +198,7 @@ exactly one `<Form_Errors />` where its layout wants the failure feedback),
 `Select_Country_Input`, `Select_State_Input`, `Select_With_Description_Input`,
 `Checkbox_Input`, `Checkbox_Multiselect_Input`,
 `Hidden_Input`, `Profile_Photo_Input`, `Repeater_Simple_Input`, `Tag_List_Input`,
-`Pin_Input`, `Wysiwyg_Input`.
+`Wysiwyg_Input`. (`Code_Input`, the one-digit-per-box code entry, is the framework's.)
 
 **Navigation and chrome** - `Sidebar_Nav`, `Search_Bar`, `Search_Input`,
 `Search_Button`, `Notification_Dropdown`, `Realtime_Status_Badge`,

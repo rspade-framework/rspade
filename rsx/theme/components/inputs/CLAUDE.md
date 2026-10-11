@@ -18,7 +18,6 @@ One subdirectory per input family; every input extends the framework's
   array value.
 - `tag_list/` — `Tag_List_Input`, free-form tags.
 - `repeater/` — `Repeater_Simple_Input`, a repeating row of sub-values.
-- `pin/` — `Pin_Input`, a fixed-length code entry.
 - `photo/` — `Profile_Photo_Input`, an upload that stores a file-attachment id.
 - `wysiwyg/` — `Wysiwyg_Input`, async-initialised rich text. Edits a `Rich_Text` VALUE,
   not a string (`static ACCEPTS = Rich_Text`).
@@ -46,7 +45,8 @@ the getter, the setter and blur, leaving the colon form as typed while the field
 focused. `decimals` is forced to 2 there, so `Time_Entry_Input` takes no `$decimals` and
 its class body is the single call, exactly like `Currency_Input`'s.
 
-`Pin_Input` is deliberately not one of these: a code is a string of digits rather than a
+The framework's `Code_Input` (a one-time code, one digit per box - core, not in this
+directory) is deliberately not one of these: a code is a string of digits rather than a
 number, and `0042` is not `42`.
 
 Contract and options: `php artisan rsx:man jquery` (Numeric Fields), skill

@@ -197,7 +197,7 @@
             </Section>
 
             <%-- Decorative: these two drive the scaffolded sections above (notifications,
-             privacy, language/theme/date format), which have no persistence layer.
+             privacy, language/date format), which have no persistence layer.
              The timezone section saves itself with its own button. --%>
             <div class="d-flex gap-2">
                 <button type="button" class="btn btn-primary">Save All Settings</button>

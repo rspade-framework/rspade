@@ -12,11 +12,9 @@
     {!! Errors_Bundle::render() !!}
 </head>
 
-{{-- The theme is painted here, in the first bytes of HTML, exactly as Login_Layout and
-     the authenticated SPA shell paint it: rsx_body_class() carries the mode class and
-     rsx_body_attributes() this application's own vocabulary (data-bs-theme). An error
-     page has no JavaScript of its own, so there is no anti-FOUC reveal to wait for. --}}
-<body class="Errors_Layout {{ rsx_body_class() }}"{!! rsx_body_attributes() !!}>
+{{-- The theme is on <html>, put there before first paint by the autotheme script the
+     bundle emits, exactly as on Login_Layout and the authenticated SPA shell. --}}
+<body class="Errors_Layout {{ rsx_body_class() }}">
     <main class="Errors_Layout__viewport">
         <div class="card Errors_Layout__card">
             <div class="card-body Errors_Layout__body">
