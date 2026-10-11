@@ -156,7 +156,12 @@
                                     <tr>
                                         <td><%= session.last_active %></td>
                                         <td><%= session.ip_address %></td>
-                                        <td><span class="text-muted small" title="<%= session.user_agent || '' %>"><%= session.device_summary %></span></td>
+                                        <td>
+                                            <span class="text-muted small" title="<%= session.user_agent || '' %>"><%= session.device_summary %></span>
+                                            <% if (session.is_impersonation) { %>
+                                                <span class="badge badge-outline-warning">Impersonation</span>
+                                            <% } %>
+                                        </td>
                                     </tr>
                                     <% } %>
                                 </tbody>

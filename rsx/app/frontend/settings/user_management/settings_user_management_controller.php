@@ -508,12 +508,15 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         // Asked of the framework: the session table is its own, not this application's.
         $recent_sessions = [];
         if ($user->login_user_id) {
-            foreach (Session::get_sessions_for_user((int) $user->login_user_id, $site_id) as $session) {
+            // An administrator's view, so a session on which somebody is impersonating this
+            // user is included and labelled; the user's own security screen never lists one.
+            foreach (Session::get_sessions_for_user((int) $user->login_user_id, $site_id, true) as $session) {
                 $recent_sessions[] = [
                     'last_active' => $session['last_active']->format('M j, Y g:i A'),
                     'ip_address' => $session['ip_address'],
                     'device_summary' => $session['device_summary'],
                     'user_agent' => $session['user_agent'],
+                    'is_impersonation' => $session['is_impersonation'],
                 ];
             }
         }
