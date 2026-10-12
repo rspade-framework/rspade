@@ -27,12 +27,33 @@ framework's (`/_sso/...`), and this application's policy lives in
 
 `invite_helper.php` (`Invite_Helper`) is the shared validator — **an invitation is a
 `User_Model` row** carrying `invite_code` / `invite_expires_at` / `invite_accepted_at`, not
-a separate table. `login_bundle.php` is the module bundle, and it carries the SAME theme set as
-`Frontend_Bundle`: `rsx/theme/variables.scss`, `rsx/theme/responsive.scss`,
-`Bootstrap5_Src_Bundle`, the whole `rsx/theme` tree (composition tokens, layout, badges
-and the component library, not just `components/`), `rsx/lib`, then this directory. That
-is what makes the auth ladder look like the staff application rather than like a separate
-product.
+a separate table.
+
+**`login_bundle.php` is served to visitors who have not signed in, so it names its assets
+BY FILE.** Every page here is anonymous, and whatever the bundle includes is downloaded by
+anyone who loads `/login` - so it includes no directory of the shared trees (`rsx/theme`,
+`rsx/lib`, `rsx/models`), which would publish the component library, every model's ORM
+definition and every controller's Ajax stubs. It lists:
+
+- the theme's global stylesheets - `rsx/theme/variables.scss`, `rsx/theme/responsive.scss`,
+  `Bootstrap5_Src_Bundle`, then `'rsx/theme/*.scss'` (the theme directory's own
+  stylesheets: composition tokens, layout, badges - not its subdirectories, which are the
+  component library). That is what makes the auth ladder look like the staff application
+  rather than like a separate product;
+- `Form_Field` with its parent `Form_Field_Abstract`, `Text_Input` and `Hidden_Input`
+  (signup, create-account) - the `.jqhtml` and `.js` of each;
+- `Phone_Text_Input` (signup) with what it calls: `rsx/lib/formatters.js` and the
+  `Phone_Libphonenumber_Bundle` npm asset bundle;
+- the modal library (`rsx/lib/modal/modal.js`, `rsx_modal.{jqhtml,js,scss}`) - invite
+  acceptance reports a failure with `Modal.alert()`, and the framework shows an unhandled
+  Ajax error through it. `Modal.select()` does not work here: `Select_Input` is not in the
+  bundle;
+- this directory.
+
+The framework's own components on these pages (`Rsx_Form`, `Form_Errors`,
+`Turnstile_Input`, `Two_Factor_Challenge`, `Passkey_Sign_In`, `Sso_Buttons`) arrive with
+the framework's core bundle and are not listed. No model is included: nothing in this
+module's JavaScript reads one.
 
 ## HOW IT IS USED
 
@@ -149,6 +170,15 @@ Blade page's JS in this module needs that guard.
   only the SSO "or" divider; `signup/signup_index.scss` is an empty placeholder.
 - **Add a rung**: a controller with `#[Auth('public')]` and a justification, a blade
   extending `Login_Layout`, and Turnstile validated first in any POST branch.
+- **Use a component, model or script on one of these pages that the bundle does not
+  list**: add its files to `login_bundle.php` - the component's `.jqhtml` and `.js` (and
+  `.scss`), both halves of every parent (the JS base class, the `<Define:X extends="Y">`
+  template), each model its JavaScript reads, each script it calls. A tag whose files are
+  missing renders an empty element with only a console warning; a missing stylesheet or
+  parent template renders a page that looks wrong with a clean console - so LOOK at the
+  page, in light and dark. `rsx/tests/Public_Bundle_Contents_Test.php` fails when this
+  bundle's compiled output carries anything of the application it does not name. Skill
+  `rspade:bundles`.
 - **Change where a signed-in user lands**: `post_login_destination()` in
   `login_controller.php`, and nowhere else - the password-only path, the second-factor
   endpoint and `Sso_Handlers::login_destination()` all read it.

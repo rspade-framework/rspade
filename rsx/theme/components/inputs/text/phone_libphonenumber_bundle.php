@@ -11,8 +11,9 @@
  * produce identical international/national formatting.
  *
  * Co-located with phone_text_input.js so it is auto-discovered by every Module
- * Bundle that ships the component: Frontend_Bundle / Portal_Bundle /
- * Dev_Bundle (scan `rsx/theme`) and Login_Bundle (scans `rsx/theme/components`).
+ * Bundle that scans `rsx/theme` (Frontend_Bundle, Portal_Bundle, Dev_Bundle).
+ * Login_Bundle names its files one by one and includes this bundle by class name
+ * beside phone_text_input.js.
  *
  * The global is a CommonJS default export (module.exports = phonenumbers namespace),
  * so the default-import form below yields the object carrying PhoneNumberUtil and

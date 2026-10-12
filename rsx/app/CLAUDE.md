@@ -27,6 +27,15 @@ to `Apidocs_Controller`, which is why `frontend_bundle.php` includes `rsx/app/ap
 first, then bootstrap, then whatever shared trees it needs (`rsx/theme`, `rsx/lib`,
 `rsx/models`), then `__DIR__`. A module never reaches into another module's directory.
 
+**`login/` and `errors/` are the exception to "whatever shared trees it needs", because
+their pages need no sign-in.** A bundle is downloaded by everybody who can load any page
+that renders it, so `Login_Bundle` and `Errors_Bundle` include NO shared directory: each
+names the theme's global stylesheets (`'rsx/theme/*.scss'`) and every component, model
+and script its pages use by file. Adding a feature to a login or error page means adding
+its files to that bundle. `frontend/`, `backend/`, `dev/` and `ssr_test/` are behind a
+sign-in (or closed) and keep their directory includes. `rsx/tests/Public_Bundle_Contents_Test.php`
+holds the line; skill `rspade:bundles`.
+
 **`#[Auth]` on every dispatchable surface, `@auth` on every `@route` action.** Modules are
 closed by default; the manifest build fails on an ungated surface, and `public` and
 `closed` are both explicit declarations carrying a written justification.
@@ -57,4 +66,4 @@ one; browsing such a URL previews the page in development and 404s in a sealed b
 
 `frontend/CLAUDE.md` · `login/CLAUDE.md` · `errors/CLAUDE.md` · `api/CLAUDE.md` · `../portal/CLAUDE.md` ·
 skills `rspade:spa`, `rspade:blade-views`, `rspade:bundles`, `rspade:auth-gates` ·
-`rsx:man spa`, `rsx:man routing`, `rsx:man auth_gates`, `rsx:man bundles`
+`rsx:man spa`, `rsx:man routing`, `rsx:man auth_gates`, `rsx:man bundle_api`

@@ -4,6 +4,10 @@
  * Pick an attachment; it is mounted twice, as a thumbnail and as a full Document_Preview. Reset
  * pushes the blob back to PENDING (no worker) so both mounts fall to their placeholder states;
  * Render runs the render and waits for it, and both mounts swap over realtime with no reload.
+ *
+ * Under each mount is a readout of its last 'preview_loaded' event - the one way a host learns
+ * what a preview widget put on screen. Both widgets report every state, so the readouts follow
+ * the placeholder ('preparing') and the swap ('loaded') without this page touching their DOM.
  */
 @route('/dev/attachment_thumbnail')
 @layout('Dev_Spa_Layout')
@@ -50,6 +54,8 @@ class Dev_Attachment_Thumbnail_Action extends Spa_Action {
         this.state.current_id = null;
         this.$sid('host').html('');
         this.$sid('preview_host').html('');
+        this.$sid('thumbnail_event').text('');
+        this.$sid('preview_event').text('');
         this.$sid('status').text('No attachment selected');
         this.$sid('reset').prop('disabled', true);
         this.$sid('render').prop('disabled', true);
@@ -59,10 +65,30 @@ class Dev_Attachment_Thumbnail_Action extends Spa_Action {
         this.state.current_id = id;
 
         this.$sid('host').html('<div></div>');
-        this.$sid('host').children().first().component('Attachment_Thumbnail', { attachment_id: id, width: 160 });
+        const $thumbnail = this.$sid('host').children().first();
+        $thumbnail.component('Attachment_Thumbnail', { attachment_id: id, width: 160 });
 
         this.$sid('preview_host').html('<div style="width:100%;height:100%;"></div>');
-        this.$sid('preview_host').children().first().component('Document_Preview', { attachment_id: id, page: 1 });
+        const $preview = this.$sid('preview_host').children().first();
+        $preview.component('Document_Preview', { attachment_id: id, page: 1 });
+
+        // Each mount is a new component, so its subscription is new with it. The readouts are
+        // cleared here and filled by the event alone: it arrives for every state, and a report
+        // made before this line ran is delivered anyway.
+        const that = this;
+        this.$sid('thumbnail_event').text('');
+        this.$sid('preview_event').text('');
+        $thumbnail.component().on('preview_loaded', (component, data) => {
+            that.$sid('thumbnail_event').text(
+                data.state + ' - variant ' + (data.variant || 'none') + ', '
+                + data.natural_width + 'x' + data.natural_height + ', render_status ' + data.render_status
+            );
+        });
+        $preview.component().on('preview_loaded', (component, data) => {
+            that.$sid('preview_event').text(
+                data.state + ' - ' + data.pages + ' page(s), render_status ' + data.render_status
+            );
+        });
 
         this.$sid('status').text('Mounted attachment #' + id);
         this.$sid('reset').prop('disabled', false);

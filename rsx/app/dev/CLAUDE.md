@@ -15,7 +15,10 @@ ranks the attachment picker by extracted-text relevance through
 because the score belongs to the deduplicated blob rather than to any one attachment. Its Fit toggle
 demonstrates `Document_Preview`'s `$fit` arg against a deliberately BOUNDED host (800px x 70vh):
 `width` (the default) overflows the host vertically and scrolls, `contain` fits the whole page
-inside it. Changing the toggle re-mounts the component, because `$fit` is read in `on_create`. The modals and
+inside it. Changing the toggle re-mounts the component, because `$fit` is read in `on_create`. The
+attachment thumbnail page mounts `Attachment_Thumbnail` and `Document_Preview` on one attachment and
+prints each one's last `preview_loaded` event under it - the readouts follow Reset to Pending
+(`preparing`) and Render Now (`loaded`) from the event alone, never from the widgets' markup. The modals and
 flash pages are the fullest exercises; `modals/test_modal_form.jqhtml` and
 `pin_verification_form.jqhtml` are the canonical "a modal is chrome around a form" examples.
 

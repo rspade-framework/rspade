@@ -24,6 +24,13 @@
 - Reskinning the app's card look is `components/section/view_section_abstract.scss`;
   re-spacing the page rhythm is `composition_tokens.scss`; recolouring is the runtime
   token table below, not a Sass colour variable.
+- **A new GLOBAL stylesheet goes at the top of this directory.** The bundles served to
+  visitors who have not signed in (`Login_Bundle`, `Errors_Bundle`, `Portal_Auth_Bundle`)
+  take this directory's own stylesheets with `'rsx/theme/*.scss'` and nothing beneath it,
+  so a global placed here reaches every page, and one placed in a subdirectory reaches
+  the signed-in bundles only - a login page then renders without it, with no error. A
+  component under `components/` is likewise absent from those three bundles until its
+  files are named in them (skill `rspade:bundles`).
 - Add a breakpoint or a mixin in `responsive.scss` only — Bootstrap's own `-md-`/`-lg-`
   infixes do not exist in this app.
 - The framework's own SCSS rules (the single-class wrap, BEM prefixes, no `<style>` tags,

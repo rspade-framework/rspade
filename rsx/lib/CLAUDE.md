@@ -25,7 +25,11 @@ A `lib` class is `public static` and namespaced under `Rsx\Lib\...`; nothing her
 request state or renders a page. `text_types/` is the one exception to the static rule:
 a text value is an instance because each one IS a distinct value, which is the whole
 point of it. The JS files are plain classes and free functions picked
-up by whichever bundle includes `rsx/lib` — every module bundle does.
+up by whichever bundle includes `rsx/lib` — every signed-in module bundle does. The
+bundles served to visitors who have not signed in (`Login_Bundle`, `Errors_Bundle`,
+`Portal_Auth_Bundle`) include no shared directory: `Login_Bundle` names the files it uses
+from here (`formatters.js`, the modal library) one by one, and a page of theirs that
+starts using another needs that file added to its bundle.
 
 **Before adding anything here, check the framework's standard library first**
 (`rsx:man helpers`, `rsx:man js_functions`, skill `rspade:rsx-stdlib`). Debouncing, deep

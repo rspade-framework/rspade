@@ -9,7 +9,7 @@
     <title>@yield('title', 'Portal') - Client Portal</title>
 
     {{-- Bundle includes --}}
-    {!! Portal_Bundle::render() !!}
+    {!! Portal_Auth_Bundle::render() !!}
 </head>
 
 <body class="Portal_Auth_Layout preload {{ rsx_body_class() }}">

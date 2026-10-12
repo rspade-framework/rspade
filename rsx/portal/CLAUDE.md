@@ -6,14 +6,17 @@ The parallel application tree for external users, running beside `rsx/app/` with
 dispatcher, bundle, layout, routing attributes and permission facade.
 
 - `Portal_Spa_Controller.php` — the `@portal_spa` bootstrap; `Portal_Layout.{js,jqhtml}` +
-  `portal_layout.scss` — the persistent chrome; `portal_bundle.php` — the module bundle.
+  `portal_layout.scss` — the persistent chrome; `portal_bundle.php` — `Portal_Bundle`,
+  the bundle of the SIGNED-IN portal (the whole theme, `rsx/models`, `rsx/lib`, this tree).
 - `auth/` — the server-rendered ladder: `Portal_Login_Controller`,
   `Portal_Logout_Controller`, `Portal_Register_Controller` (invite-based),
   `Portal_Password_Reset_Controller`, `Portal_Request_Access_Controller`,
   `Portal_Impersonate_Controller` (the staff "View as Client" stop; starting one is the
   framework's `Portal_Session::begin_impersonation_from_staff()`), plus
   `portal_auth_layout.blade.php` and the eleven blades of their outcome states (the second-
-  factor challenge page `portal_login_verify.blade.php` among them).
+  factor challenge page `portal_login_verify.blade.php` among them), and
+  `portal_auth_bundle.php` — `Portal_Auth_Bundle`, the bundle those pages and the error
+  pages render (see TWO BUNDLES below).
 - `dashboard/` — `Portal_Dashboard_Action`, the landing page.
 - `workspaces/` — the per-client area: a sublayout plus Overview / Requests / Documents and
   the request-thread screen. Own `CLAUDE.md`.
@@ -51,10 +54,30 @@ dispatcher, bundle, layout, routing attributes and permission facade.
   pass (`has_client_access()`, `can_collaborate()`, `client_role()`,
   `accessible_client_ids()`), all defined in `rsx/portal_permission.php`.
 
+## TWO BUNDLES: SIGNED-IN AND SIGN-IN
+
+**The portal's sign-in pages and error pages are reachable without signing in, so they do
+not render `Portal_Bundle`.** A bundle is downloaded by everybody who can load any page
+that renders it; `Portal_Bundle` carries every portal screen, every model and the component
+library, and is for portal users who HAVE signed in. `auth/portal_auth_layout.blade.php`
+prints `Portal_Auth_Bundle` instead, which names its assets by file: the theme's global
+stylesheets (`rsx/theme/variables.scss`, `responsive.scss`, the Bootstrap build, then
+`'rsx/theme/*.scss'`), `auth/` and `errors/`. It includes no shared directory, no
+application component and no model - those pages use framework components only
+(`Turnstile_Input`, `Two_Factor_Challenge`, `Passkey_Sign_In`, `Sso_Buttons`).
+
+- **Adding an application component, model or script to a sign-in or error page** means
+  adding its files to `auth/portal_auth_bundle.php` - both halves of the component and of
+  every parent. A missing stylesheet or parent template fails silently, so look at the page.
+- **`Portal_Bundle` is deliberately wide** and stays that way: its users are identified,
+  and a screen added to the signed-in portal needs no bundle edit.
+- `rsx/tests/Public_Bundle_Contents_Test.php` fails when `Portal_Auth_Bundle`'s compiled
+  output carries anything of the application it does not name. Skill `rspade:bundles`.
+
 ## PORTAL ERROR PAGES
 
 A failure picks its realm from the FAILING request, so a portal URL that 404s, denies or
-crashes renders `rsx/portal/errors/` — the portal bundle, the portal's auth chrome, and
+crashes renders `rsx/portal/errors/` — `Portal_Auth_Bundle`, the portal's auth chrome, and
 `home_url` pointing at the portal rather than at the staff application. The staff twins in
 `rsx/app/errors/` are a separate declaration and are never shared.
 
@@ -96,7 +119,7 @@ framework's own page.
 | Session | Session class | Portal_Session class |
 | Routes | `#[Route]`, `#[SPA]` | `#[Portal_Route]`, `@portal_spa()` |
 | URL Helper | `Rsx::Route()` / `Rsx.Route()` | `Rsx_Portal::Route()` / `Rsx_Portal.Route()` |
-| Bundle | Frontend_Bundle, etc. | Portal_Bundle |
+| Bundle | Frontend_Bundle, etc. | Portal_Bundle (signed in), Portal_Auth_Bundle (sign-in and error pages) |
 
 ## Routing
 
@@ -134,7 +157,7 @@ class Portal_Settings_Action extends Spa_Action { }
 
 ### JS Route Resolution
 
-`Rsx_Portal.Route()` resolves both PHP controller routes and SPA action routes. PHP `#[Portal_Route]` attributes are automatically compiled into the Portal_Bundle during bundle compilation — no `include_routes` configuration needed.
+`Rsx_Portal.Route()` resolves both PHP controller routes and SPA action routes. PHP `#[Portal_Route]` attributes of the controllers a portal bundle includes are automatically compiled into it during bundle compilation — no `include_routes` configuration needed.
 
 ```javascript
 // PHP controller routes

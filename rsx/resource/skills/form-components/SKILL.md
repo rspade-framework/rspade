@@ -160,7 +160,8 @@ column's declared type which component edits it.
 ### Vendor libraries these inputs bring with them
 
 Asset bundles co-located with the component, auto-discovered by every module bundle that
-scans `rsx/theme`:
+scans `rsx/theme` (a bundle that names its files one by one instead - `Login_Bundle` -
+includes the asset bundle by class name beside the input):
 
 - `select/tom_select_bundle.php` - TomSelect from CDN, for the select family.
 - `text/phone_libphonenumber_bundle.php` - `google-libphonenumber` as a global, the JS

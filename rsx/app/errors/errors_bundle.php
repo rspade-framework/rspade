@@ -1,13 +1,26 @@
 <?php
 /**
- * Errors_Bundle - Bundle for the staff error pages
+ * Errors_Bundle - the bundle for the staff error pages
  *
- * The SAME theme set as Login_Bundle and Frontend_Bundle - variables, responsive, the
- * custom Bootstrap build and the whole rsx/theme tree - so a 404 is painted by the
- * staff application's own design system and follows dark mode with the rest of it.
+ * THIS BUNDLE IS SERVED TO VISITORS WHO HAVE NOT SIGNED IN. A 404 is answered for
+ * anybody, so whatever is listed below is published to anyone who requests a URL that
+ * does not exist - and a bundle that includes a shared directory publishes everything in
+ * it: the whole component library, every model's ORM definition, every controller's
+ * route and Ajax stubs.
  *
- * An error page is the last thing a broken request renders, so this bundle names the
- * theme and this directory and nothing else: no models, no feature module.
+ * So it names its assets BY FILE: the theme's global stylesheets, the Bootstrap build
+ * they configure, and this directory. No directory from the shared trees (rsx/theme,
+ * rsx/lib, rsx/models) appears here; the one directory is this module's own, which a
+ * bundle must include to cover the Blade views it serves.
+ *
+ * An error page is the last thing a broken request renders, so it uses no application
+ * component, model or script at all. ADDING ONE MEANS ADDING ITS FILES HERE - a
+ * component's .jqhtml and .js (and .scss), and its parents, both halves: the JS base
+ * class it extends and the template its <Define:X extends="Y"> names.
+ *
+ * LOOK AT THE PAGE AFTER CHANGING THIS LIST. A missing JS class throws and names
+ * itself. A missing stylesheet, and a missing extends="" parent template, throw nothing:
+ * the page renders with a clean console and looks wrong.
  */
 
 namespace Rsx\App\Errors;
@@ -24,12 +37,12 @@ class Errors_Bundle extends Rsx_Module_Bundle_Abstract
         return [
             'include' => [
                 // jQuery and Lodash are automatically included as required bundles
-                'rsx/theme/variables.scss',     // Global SCSS variables (must be first)
-                'rsx/theme/responsive.scss',    // Responsive mixins and utilities (after variables, before Bootstrap)
-                'Bootstrap5_Src_Bundle',        // Bootstrap 5 SCSS source bundle (explicit: has watch dirs)
-                'rsx/theme',                    // The whole theme - identical to Frontend_Bundle
-                'rsx/lib',                      // Global shared library (Formatters, etc.)
-                __DIR__,                        // Errors module directory
+                'rsx/theme/variables.scss',     // The Sass scale and Bootstrap overrides (must be first)
+                'rsx/theme/responsive.scss',    // Breakpoint mixins and utilities (after variables, before Bootstrap)
+                'Bootstrap5_Src_Bundle',        // The custom Bootstrap build: .card, .btn
+                'rsx/theme/*.scss',             // The theme's remaining own stylesheets - NOT its subdirectories,
+                                                // which are the component library
+                __DIR__,                        // This module (required: it covers the views served)
             ],
         ];
     }

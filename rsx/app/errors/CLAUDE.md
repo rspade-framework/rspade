@@ -9,7 +9,7 @@ finds the page for the status the request ended on, and invokes the method itsel
 
 | File | What it is |
 |---|---|
-| `errors_bundle.php` | `Errors_Bundle` — the same theme set as `Login_Bundle` (variables, responsive, the Bootstrap build, the whole `rsx/theme` tree, `rsx/lib`, this directory). |
+| `errors_bundle.php` | `Errors_Bundle` — served to visitors who have not signed in (a 404 is answered for anybody), so it names its assets by file: the theme's global stylesheets (`variables.scss`, `responsive.scss`, the Bootstrap build, then `'rsx/theme/*.scss'`) and this directory. No shared directory, no application component, model or script. |
 | `errors_layout.blade.php` | `Errors_Layout` — the card shell: status chip, heading, content, an action row, and a detail region the generic page fills. |
 | `errors_layout.scss` | Its geometry, under `.Errors_Layout` in BEM. No palette: every colour is a runtime token. |
 | `errors_controller.php` | `Errors_Controller`, class-level `#[Auth('public')]`, four routes: `/error/404`, `/error/403`, `/error/419`, `/error/generic`. |

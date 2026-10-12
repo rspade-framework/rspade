@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Forty-five test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Forty-eight test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -71,6 +71,16 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   `Task_Gate_Handlers_Test` (least privilege: a user sees and acts on only the runs they
   started of the tasks `USER_TASKS` lists, with only each entry's actions - their own run of
   an unlisted task stays invisible, and `force_kill` is never granted).
+- **Public bundles**: `Public_Bundle_Contents_Test` — the three bundles served to visitors
+  who have not signed in (`Login_Bundle`, `Errors_Bundle`, `Portal_Auth_Bundle`) publish
+  none of this application's internals. It derives the internals from the manifest - every
+  class, component, model and gated-Ajax controller under `rsx/`, minus what the bundle's
+  own file list declares - compiles each bundle, and fails when the output NAMES such a
+  controller or model or DEFINES such a class, component or component stylesheet. It also
+  fails on a shared directory (`rsx/theme`, `rsx/lib`, `rsx/models`) in one of those
+  include lists, on an application model the bundle includes without declaring it in the
+  test, and on a bundle printed by a layout beside a public page route that the test does
+  not list - the case of a public page inheriting a signed-in module's bundle.
 - **Two-factor**: `Two_Factor_Login_Verify_Test` — this application's
   `Login_Controller::verify_2fa`, the endpoint `<Two_Factor_Challenge>` is pointed at.
   The framework deliberately ships no verification endpoint (the post-login destination is
