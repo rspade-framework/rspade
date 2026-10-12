@@ -117,7 +117,7 @@
                     </Section>
 
                     <div class="d-flex justify-content-end gap-2">
-                        <a href="<%= Rsx.Route('Projects_Index_Action') %>" class="btn btn-secondary">
+                        <a href="<%= Rsx.Route('Projects_Index_Action') %>" class="btn btn-secondary" @click=this.discard_changes>
                             <i class="bi bi-x-circle"></i> Cancel
                         </a>
                         <button type="submit" class="btn btn-primary">

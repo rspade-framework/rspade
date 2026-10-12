@@ -257,6 +257,13 @@ class Contacts_Edit_Action extends Spa_Action {
 }
 ```
 
+**Unsaved changes.** The contacts, tasks and projects edit actions also turn the
+navigation guard on at the user's first change and off again, so the browser asks before
+an edited form is left: the form's `'input'` calls `Rsx.set_navigation_guard()`,
+`'submitted'` and the Cancel link (`@click=this.discard_changes`) call
+`Rsx.clear_navigation_guard()`, and so does `on_stop()`. The commented copy is
+`rsx/app/frontend/contacts/edit/Contacts_Edit_Action.js`; skill `rspade:navigation-guard`.
+
 ```jqhtml
 <Define:Contacts_Edit_Action tag="div">
     <% if (this.data.error) { %>

@@ -50,7 +50,7 @@ class Contacts_Edit_Action extends Spa_Action {
 
         this.data.error_data = null;
         this._record_settled = false;
-        this._guarded_form = null;
+        this._watched_form = null;
     }
 
     async on_load() {
@@ -131,40 +131,53 @@ class Contacts_Edit_Action extends Spa_Action {
             this._set_form_loading(false);
         }
 
-        this._arm_navigation_guard();
+        this._watch_form_for_changes();
     }
 
     /**
-     * The worked example of Rsx.set_navigation_guard(): once the user has touched a
-     * field, leaving this page asks first. The framework shows no dialog of its own -
-     * the callback below is the whole prompt, and resolving true allows the departure.
-     * A real page exit (refresh, tab close) gets the browser's native dialog instead,
-     * which set_navigation_guard() installs on its own.
+     * The worked example of the navigation guard. The guard is a toggle that says
+     * "this page has changes that would be lost", and it follows the form:
+     *
+     *   ON   at the first change        - the form's 'input' event
+     *   OFF  when the change is saved   - the form's 'submitted' event
+     *   OFF  when it is discarded       - discard_changes(), the Cancel link
+     *   OFF  when the page is torn down - on_stop()
+     *
+     * While it is on the BROWSER asks before the user leaves: its own "Leave site?"
+     * dialog for a link click, refresh or tab close, and its confirm box for a
+     * Back/Forward to another page of the application. There is no dialog to write.
      *
      * A re-render replaces the form component, so this wires the instance it is given
-     * and only that one; registering again on a later instance is harmless anyway,
-     * because the guard is one slot where the last registration wins.
+     * and only that one.
      */
-    _arm_navigation_guard() {
+    _watch_form_for_changes() {
         const $form = this.$.find('.Rsx_Form').first();
         if (!$form.exists()) {
             return;
         }
         const form = $form.component();
-        if (form === this._guarded_form) {
+        if (form === this._watched_form) {
             return;
         }
-        this._guarded_form = form;
+        this._watched_form = form;
 
-        form.on('input', () => {
-            Rsx.set_navigation_guard(async () => Modal.confirm(
-                'Unsaved changes',
-                'You have unsaved changes on this contact. Leave without saving?',
-                'Leave',
-                'Stay'
-            ));
-        });
+        form.on('input', () => Rsx.set_navigation_guard());
         form.on('submitted', () => Rsx.clear_navigation_guard());
+    }
+
+    /**
+     * The Cancel link: the user has chosen to throw the changes away, so there is
+     * nothing left to ask about. The guard goes off and the link then navigates as any
+     * other link does.
+     */
+    discard_changes() {
+        Rsx.clear_navigation_guard();
+    }
+
+    on_stop() {
+        // A page that is gone has nothing to lose. Without this, a guard left on would
+        // ask on every exit from whatever page came next.
+        Rsx.clear_navigation_guard();
     }
 
     // Breadcrumb methods

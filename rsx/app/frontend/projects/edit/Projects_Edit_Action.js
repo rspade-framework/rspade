@@ -65,6 +65,7 @@ class Projects_Edit_Action extends Spa_Action {
 
         this.data.error_data = null;
         this._record_settled = false;
+        this._watched_form = null;
     }
 
     async on_load() {
@@ -154,6 +155,42 @@ class Projects_Edit_Action extends Spa_Action {
             }
             this._set_form_loading(false);
         }
+
+        this._watch_form_for_changes();
+    }
+
+    /**
+     * The navigation guard, as the project form uses it (the fully commented example is
+     * Contacts_Edit_Action): ON at the first change the user makes - the form's
+     * 'input' event, which a fill from the loaded record does not fire - OFF once the
+     * change is saved ('submitted'), discarded (the Cancel link) or the page is gone
+     * (on_stop()). While it is on, the browser asks before the user leaves.
+     *
+     * A re-render replaces the form component, so this wires the instance it is given
+     * and only that one.
+     */
+    _watch_form_for_changes() {
+        const $form = this.$.find('.Rsx_Form').first();
+        if (!$form.exists()) {
+            return;
+        }
+        const form = $form.component();
+        if (form === this._watched_form) {
+            return;
+        }
+        this._watched_form = form;
+
+        form.on('input', () => Rsx.set_navigation_guard());
+        form.on('submitted', () => Rsx.clear_navigation_guard());
+    }
+
+    /** The Cancel link: the changes are being thrown away, so nothing is left to ask about. */
+    discard_changes() {
+        Rsx.clear_navigation_guard();
+    }
+
+    on_stop() {
+        Rsx.clear_navigation_guard();
     }
 
     // Breadcrumb methods
