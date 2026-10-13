@@ -349,7 +349,7 @@ class Select_Ajax_Input extends Select_Input {
 
 **Subclasses are exempt.** Components extending `Text_Input` (like `Phone_Text_Input`, `Currency_Input`, `Time_Entry_Input`) bypass this check since they have intrinsic limits.
 
-The `field_length()` API is auto-generated from database schema:
+`field_length()` answers from the live database schema (the page's field-length script):
 ```javascript
 User_Model.field_length('email')    // 255 (varchar length)
 User_Model.field_length('id')       // null (not a varchar)
