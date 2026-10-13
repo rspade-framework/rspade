@@ -37,7 +37,9 @@ class Profile_Photo_Input extends Form_Input_Abstract {
             // Safe, because the widget only ever holds an IMAGE: an image's thumbnail is rendered
             // straight from the blob (render state NOT_REQUIRED), so there is no pending state to
             // wait for and nothing that would later swap. The URL still goes through the single
-            // builder - no app code spells '/_thumbnail/' - and the builder needs only .key.
+            // builder - no app code spells '/_thumbnail/'. A record holding only a key has no
+            // content version to offer, so this one picture is served uncacheable: always the
+            // attachment's current bytes, fetched each time the form is shown.
             const width = this.args.width || 96;
             const height = this.args.height || 96;
             this.state.thumbnail_url = File_Attachment_Model.thumbnail_url(

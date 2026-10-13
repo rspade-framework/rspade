@@ -53,7 +53,6 @@ class Dev_Attachments {
                 // Mount a thumbnail component per box. Nothing here builds a URL: the
                 // component is handed the attachment id and owns the picture from there,
                 // including the swap when an Office document finishes rendering.
-                const key = response.attachment.key;
                 const attachment_id = response.attachment.id;
                 const extension = response.attachment.file_extension;
 
@@ -64,9 +63,13 @@ class Dev_Attachments {
                 // Use icon endpoint for file type icon
                 $('#thumb-icon').attr('src', `/_icon_by_extension/${extension}?width=100&height=100`);
 
-                // Set download/inline URLs
-                $('#btn-view-inline').attr('href', `/_inline/${key}`);
-                $('#btn-view-download').attr('href', `/_download/${key}`);
+                // Set download/inline URLs. They come from the model's builders, which need
+                // the record: a file URL carries the attachment's content version, and one
+                // concatenated from the key is served uncacheable.
+                File_Attachment_Model.fetch(attachment_id).then((record) => {
+                    $('#btn-view-inline').attr('href', File_Attachment_Model.inline_url(record));
+                    $('#btn-view-download').attr('href', File_Attachment_Model.download_url(record));
+                });
 
                 // Hide spinner, restore opacity
                 $('#spinner-profile').addClass('d-none');

@@ -301,7 +301,7 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
                 'download' => $attachment->get_download_url(),
                 'inline' => $attachment->get_url(),
                 'thumbnail' => $attachment->get_thumbnail_url(),
-                'preview' => '/_preview/pdf/' . $attachment->key,
+                'preview' => $attachment->get_preview_url(),
             ],
         ];
     }

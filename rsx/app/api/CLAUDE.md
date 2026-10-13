@@ -107,7 +107,11 @@ client document goes through `Client_Model::remove_document()`, which revokes it
 shares before soft-deleting.
 
 Downloads need no app endpoint: the URLs in the payload (`/_download`, `/_inline`,
-`/_thumbnail/*`, `/_preview/pdf`) accept the same `Authorization: Bearer` key.
+`/_thumbnail/*`, `/_preview/pdf`) accept the same `Authorization: Bearer` key. Every one of
+them comes from the model's builders (`get_download_url()`, `get_url()`,
+`get_thumbnail_url()`, `get_preview_url()`), never from the key by concatenation: a builder's
+URL carries the attachment's content version (`?v=`), and a file URL without the current one
+is served `Cache-Control: no-store`.
 
 ## Response contract
 

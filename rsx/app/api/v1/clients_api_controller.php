@@ -420,10 +420,10 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
      *       "size": 51200,
      *       "uploaded_at": "2026-08-27T15:30:00.000Z",
      *       "urls": {
-     *         "download": "/_download/191dc2fb...",
-     *         "inline": "/_inline/191dc2fb...",
-     *         "thumbnail": "/_thumbnail/dynamic/191dc2fb.../fit/400",
-     *         "preview": "/_preview/pdf/191dc2fb..."
+     *         "download": "/_download/191dc2fb...?v=14-0",
+     *         "inline": "/_inline/191dc2fb...?v=14-0",
+     *         "thumbnail": "/_thumbnail/dynamic/191dc2fb.../fit/400?v=14-0",
+     *         "preview": "/_preview/pdf/191dc2fb...?v=14-0"
      *       }
      *     }
      *   ],
@@ -563,7 +563,7 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
                 'download' => $attachment->get_download_url(),
                 'inline' => $attachment->get_url(),
                 'thumbnail' => $attachment->get_thumbnail_url(),
-                'preview' => '/_preview/pdf/' . $attachment->key,
+                'preview' => $attachment->get_preview_url(),
             ],
         ];
     }
