@@ -69,7 +69,7 @@ a code block) is a fixed colour with a comment saying so, or the next reader wil
 it. And contrast ink on a brand-coloured button or badge is `color: #fff`, because the
 surface under it does not flip.
 
-`components/inputs/select/select_input.scss` is the worked example of the hard case: a
+`tom_select.scss` is the worked example of the hard case: a
 prebuilt third-party stylesheet with hardcoded colours, re-pointed rule by rule onto these
 tokens.
 

@@ -82,8 +82,9 @@ Which component edits which type is declared by the type itself (`static EDITOR`
   add its row to the table in the app skill `form-components`, and to the reference table
   in this file if it demonstrates something new.
 - **Restyle** in the input's own SCSS, single-class wrapped with its exact component-name
-  BEM prefix. `select_input.scss` is the worked example of the hard case — a prebuilt
-  third-party stylesheet re-pointed rule by rule onto the theme's runtime colour tokens.
+  BEM prefix. A third-party widget's own markup is restyled globally instead:
+  `rsx/theme/tom_select.scss` is the worked example — a prebuilt stylesheet re-pointed
+  rule by rule onto the theme's runtime colour tokens.
 - **A variant is a subclass, not a fork.** `Phone_Text_Input`, `Currency_Input` and
   `Time_Entry_Input` extend `Text_Input`; copying the file is how two inputs drift apart.
 - **Never implement `val()`**, never add a client-side required/format/length check, and

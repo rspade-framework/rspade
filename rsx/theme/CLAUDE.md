@@ -13,6 +13,8 @@
   `*-up` and `*-down` forms and the infixed utility classes.
 - `layout.scss` — the page-content width modifiers used by the unconverted pages.
 - `badges.scss` — the `.badge-outline-*` classification chips (the Rule of Two Chips).
+- `tom_select.scss` — Tom Select's control and dropdown re-pointed onto the runtime colour
+  tokens; global because every Tom Select in the app shares it.
 - `bootstrap5_src_bundle.php` — the asset bundle that compiles the custom Bootstrap build.
 - `components/` — the shared component library, one `CLAUDE.md` per group.
 - `vendor/` — the vendored upstream Bootstrap source; never edited.
@@ -89,7 +91,7 @@ block - is a fixed color, and says so in a comment so the next reader does not "
 contrast ink on a brand-colored button or badge is `color: #fff`, not a token: the surface beneath
 it is the brand color in both themes, so the text must stay white in both.
 
-`select_input.scss` is the worked example of the hard case - a prebuilt third-party stylesheet
+`tom_select.scss` is the worked example of the hard case - a prebuilt third-party stylesheet
 with hardcoded colors, re-pointed rule by rule onto these same tokens.
 
 Full treatment: `php artisan rsx:man scss` (COLOURS section) and `php artisan rsx:man dark_mode`.

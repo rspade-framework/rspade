@@ -22,8 +22,8 @@
      * rule and wins on specificity - Quill's own rules are (0,2,0) shapes like
      * `.ql-snow .ql-picker`, and the extra class makes these (0,3,0). Quill renders its
      * dropdowns and its link tooltip INSIDE the editor element, so nothing it draws
-     * escapes this block. (Contrast select_input.scss, which cannot nest: Tom Select
-     * appends its dropdown to <body>.)
+     * escapes this block. (Contrast rsx/theme/tom_select.scss, which cannot nest: a Tom
+     * Select dropdown may be appended to <body>.)
      *
      * DELIBERATELY NOT THEMED: the content colour classes (.ql-bg-*, .ql-color-*) and the
      * colour-picker swatches. Those are colours the AUTHOR chose for their text; re-mapping
