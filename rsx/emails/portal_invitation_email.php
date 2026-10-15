@@ -11,7 +11,8 @@ use App\RSpade\Core\Portal\Rsx_Portal;
  * Two shapes, one template. A NEW recipient gets a registration link that onboards and
  * joins in one step; somebody who already has a portal account gets a sign-in link and
  * finds the invitation waiting on their dashboard. $existing_account selects which, and
- * it changes the subject line as well as the body.
+ * it changes the subject line as well as the body - and tag() names which on the queue
+ * row, so the send history of each shape can be read on its own.
  *
  * TRANSACTIONAL: an invitation is a direct answer to somebody granting access.
  */
@@ -40,6 +41,14 @@ class Portal_Invitation_Email extends Rsx_Email_Abstract
         }
 
         return 'You\'re Invited to the ' . $this->portal_name . ' Portal';
+    }
+
+    /**
+     * Which of the two invitations this send is, frozen on the queue row as its tag.
+     */
+    public function tag(): ?string
+    {
+        return $this->existing_account ? 'existing_account' : 'new_account';
     }
 
     public function data(): array

@@ -8,7 +8,7 @@ stylesheet. Six are `const CATEGORY = self::TRANSACTIONAL`; `Portal_Sign_In_Code
 
 | Class | Sent from |
 |---|---|
-| `Portal_Invitation_Email` | `Frontend_Clients_Controller` (new-account and existing-account invites) and `Portal_Request_Access_Controller` (resend). Its subject branches on whether the recipient already has an account. |
+| `Portal_Invitation_Email` | `Frontend_Clients_Controller` (new-account and existing-account invites) and `Portal_Request_Access_Controller` (resend). Its subject branches on whether the recipient already has an account, and its `tag()` (`new_account` / `existing_account`) records which on the queue row. |
 | `Portal_Password_Reset_Email` | `Portal_Password_Reset_Controller` — only when the user can log in, while the page reports success either way (no enumeration). |
 | `Portal_Request_Reply_Email` | `Portal_Request_Threads_Controller` — tells the staff owner a client replied; the body is a truncated snippet, never the whole message. |
 | `Portal_Sign_In_Code_Email` | `Portal_Login_Controller::send_code()` — the six-digit code that completes a portal sign-in, only when `rsx.portal.emailed_sign_in_codes` is on (off as shipped). `SECURITY`: it reaches an address on the site block list and ignores the opt-out, because the recipient asked for it a moment ago and cannot get in without it. |
@@ -58,6 +58,12 @@ silently in somebody else's inbox with the queue row still saying SENT).
   honestly — `TRANSACTIONAL` ignores unsubscribe, so a message a recipient could reasonably
   want to stop is `NOTIFICATION`; `SECURITY` is only for a notice the recipient set in motion
   and cannot get in without (a sign-in code).
+- **One class, several kinds of message** (the invitation's two shapes): override `tag()` to
+  return the kind - a short string, at most 64 characters - so `rsx:mail:queue --tag=` and an
+  email-history screen can tell the kinds apart. An email that is one kind of message
+  declares nothing.
+- **Preview** any email without sending it: `Rsx_Mail::preview(X_Email::sample())` returns
+  the subject, the HTML exactly as a send renders it (images as data: URIs) and the text part.
 - **Format datetimes in `data()`** rather than in the blade, so the value is frozen into the
   queue row exactly as it will be read.
 - `Welcome_Email` is unwired: send it from your signup flow or delete both its files.
