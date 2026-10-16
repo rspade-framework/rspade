@@ -75,8 +75,14 @@ the seeders do — copy that shape into any service that works through a list.
 ## HOW TO CUSTOMIZE
 
 - **Add a service**: a class in this directory extending `Rsx_Service_Abstract`, one
-  `#[Task]` method per unit of work, `#[Schedule('daily at 3am')]` if it recurs, and
+  `#[Task]` method per unit of work, a `#[Schedule(...)]` if it recurs, and
   `#[Command('yourapp:verb', 'Description')]` if a human should be able to run it.
+- **A cleanup that runs once a day or less is a maintenance task**:
+  `#[Schedule('maintenance')]` (or `'maintenance weekly on <day>'` / `'maintenance monthly'`)
+  plus `#[Exclusive('maintenance')]`, reporting each phase with `status()`, a backlog with
+  `progress_count()`, and what it changed with a `stdout()` line and a `summary()`. The
+  window opens at `rsx.tasks.maintenance_hour` (default 2am; set it in
+  `rsx/resource/config/rsx.php`). `rsx:man tasks`, THE MAINTENANCE WINDOW.
 - **Delete `Task_Showcase_Service`** (and the Background Tasks screen's Start button that
   dispatches it) once the application has real tasks of its own to show.
 - **Delete `Seeder_Service` before launch**, or at least verify its production refusal
