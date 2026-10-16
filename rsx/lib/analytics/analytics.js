@@ -23,7 +23,8 @@
  *
  * DEVELOPMENT NEVER REPORTS. A developer's page loads are not traffic, and polluting a
  * production property with them is the classic analytics mistake, so the loader is gated on
- * Rsx.is_prod() (true in the sealed debug and production builds, false in development). To
+ * Rsx.is_prod() (window.rsxapp.mode: true in the sealed debug and production builds, false in
+ * development; Rsx.is_debug() narrows to the debug build, Rsx.is_dev() to development). To
  * exercise the loader in development, call Analytics._start('G-XXXXXXX') from the console.
  *
  * SCOPE OF THE EXAMPLE. This sends the initial page_view GA4 produces on config() and nothing
