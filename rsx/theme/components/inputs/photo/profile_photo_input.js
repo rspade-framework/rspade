@@ -128,8 +128,10 @@ class Profile_Photo_Input extends Form_Input_Abstract {
             processData: false,
             contentType: false,
             success: (response) => {
-                // Update attachment key (this will also update thumbnail)
-                this.val(response.attachment.key);
+                // Update attachment key (this will also update thumbnail). _set_value(), not
+                // val(): this is the user's change, and val() is a programmatic write that
+                // would make it the new unchanged state.
+                this._set_value(response.attachment.key);
 
                 // Hide spinner, restore opacity
                 this.$sid('spinner').addClass('d-none');
@@ -139,7 +141,7 @@ class Profile_Photo_Input extends Form_Input_Abstract {
                 this.$sid('file_input').val('');
 
                 // Announce the user's change ('input' then 'val').
-                this._notify_input(this.val());
+                this._notify_input(this._get_value());
             },
             error: (xhr, status, error) => {
                 console.error('Profile photo upload failed:', error);
@@ -159,11 +161,11 @@ class Profile_Photo_Input extends Form_Input_Abstract {
     }
 
     remove_photo() {
-        // Clear attachment key (sets to placeholder)
-        this.val('');
+        // Clear attachment key (sets to placeholder) - the user's change, so _set_value()
+        this._set_value('');
 
         // Announce the user's change ('input' then 'val').
-        this._notify_input(this.val());
+        this._notify_input(this._get_value());
     }
 
     async seed() {

@@ -14,7 +14,7 @@ Widget interface:
 --%>
 <Define:Checkbox_Input extends="Form_Input_Abstract">
     <div class="form-check">
-        <input $sid="input" class="form-check-input" type="checkbox" <% if (this.data.checked) { %>checked<% } %> <% if (this.args.disabled) { %>disabled<% } %>>
+        <input $sid="input" class="form-check-input" type="checkbox" <% if (this.args.disabled) { %>disabled<% } %>>
         <% if (this.args.label) { %>
             <label $sid="label" class="form-check-label">
                 <%= this.args.label %>

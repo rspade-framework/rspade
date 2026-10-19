@@ -1,8 +1,8 @@
 class Checkbox_Input extends Form_Input_Abstract {
     on_create() {
         super.on_create();
-        this.checked_value = this.args.checked_value || '1';
-        this.unchecked_value = this.args.unchecked_value || '0';
+        this.checked_value = this.args.checked_value ?? '1';
+        this.unchecked_value = this.args.unchecked_value ?? '0';
     }
 
     _get_value() {

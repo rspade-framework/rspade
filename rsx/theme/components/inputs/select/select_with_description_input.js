@@ -4,7 +4,7 @@ class Select_With_Description_Input extends Form_Input_Abstract {
     }
 
     _set_value(value) {
-        this.$sid('input').val(value || '');
+        this.$sid('input').val(value ?? '');
         this._update_description();
     }
 

@@ -13,19 +13,15 @@ That is the whole group: one component, three files.
 Mounted in BOTH shell headers, beside the notification and user chrome:
 `rsx/app/frontend/Frontend_Spa_Layout.jqhtml` and `rsx/portal/Portal_Layout.jqhtml`.
 
-It is a state OBSERVER, not a subscriber: it registers `Rsx_Realtime.on_state_change()` in
-`on_create()` (storing the unsubscribe), tears it down in `on_stop()`, and subscribes to no
-topic. Its visibility lives in `this.state` and is re-applied in `on_render()`, so a layout
-re-render never loses it.
+It is a connection OBSERVER, not a subscriber: it registers `Rsx_Realtime.watch_connection()`
+in `on_create()`, stops the monitor in `on_stop()`, and subscribes to no topic. It shows while
+the monitor reports `'disconnected'` and hides on `'connected'` or `'disabled'`. The framework
+reports `'disconnected'` only after the link has been down for its 5s grace window, so the
+badge needs no timer or state machine of its own. Its visibility lives in `this.state` and is
+re-applied in `on_render()`, so a layout re-render never loses it.
 
-**The state semantics are the load-bearing part.** The realtime client connects LAZILY, so
-an idle `disconnected` means "nothing is watching" and must never warn; a real drop passes
-through `reconnecting`, and a `disconnected` that FOLLOWS a trying state is the client's
-confirmed-outage announcement. The badge therefore arms a 5s grace timer on
-`connecting`/`reconnecting`, shows on a confirmed offline announcement or when the timer
-fires without a `connected`, and hides on `connected` or an idle `disconnected`. The full
-reasoning is the docblock at the top of `Realtime_Status_Badge.js` — read it before
-touching the state machine.
+A registered monitor holds the socket open. On the signed-in pages this badge is mounted on,
+the framework's session anchor already holds it, so the badge costs nothing extra.
 
 Registry row: `rsx/resource/conventions/semantic_component_registry.md` (it is filed as a
 state observer, not content vocabulary).
@@ -34,11 +30,8 @@ state observer, not content vocabulary).
 
 - **Restyle** in `realtime_status_badge.scss`; the wording lives in the template's `title`
   attribute and its `__text` span.
-- The 5s grace is a deliberate constant in the component, written down beside its value —
-  if you change it, change the comment that justifies it. It bounds only how long a silent
-  reconnect may run before the user is TOLD; it never bounds any work.
-- **Do not make it subscribe to a topic.** The moment it does, it stops being free and
-  starts holding a subscription open on every page.
+- **Do not make it subscribe to a topic.** It needs none, and a subscription would make every
+  page refetch on frames it does not care about.
 - Deleting it is two lines (one per layout template); nothing else references it.
 
 ## RELATED

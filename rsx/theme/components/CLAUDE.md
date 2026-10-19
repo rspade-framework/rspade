@@ -53,8 +53,9 @@ pass as any change here.
 - **Variables first.** Check `rsx/theme/variables.scss` before writing a color,
   spacing, or size literal.
 - Input components extend `Form_Input_Abstract` and follow their own rules — see
-  `inputs/CLAUDE.md`. They have no `on_load()`, so they never use `this.data`,
-  and they render EMPTY (the form calls `val()` after render).
+  `inputs/CLAUDE.md`. Their value never comes from `this.data` (only a fetched
+  option list may live there), and they render EMPTY (the form calls `val()`
+  after render).
 
 ## Pointers
 

@@ -230,6 +230,38 @@ class Client_Model extends Rsx_Site_Model_Abstract
     }
 
     /**
+     * The address codes are ISO: address_country an ISO 3166-1 alpha-2 code ('US'), state an
+     * ISO 3166-2 subdivision code of that country ('US-WA') or 'N/A' for a country with none -
+     * the vocabulary the country and state pickers, country_name() and region_name() share.
+     * Answers [field => message] for whichever does not conform; empty when both do or are
+     * blank. The one rule every write path (the staff form, the external API) checks.
+     *
+     * @param string|null $country
+     * @param string|null $state
+     * @return array<string, string>
+     */
+    public static function address_code_errors(?string $country, ?string $state): array
+    {
+        $errors = [];
+        $country = (string) $country;
+        $state = (string) $state;
+
+        if ($country !== '' && !Country_Model::where('alpha2', $country)->enabled()->exists()) {
+            $errors['address_country'] = 'Choose a country from the list (an ISO 3166-1 alpha-2 code such as US)';
+        }
+
+        if ($state !== '' && $state !== 'N/A') {
+            if ($country === '' || isset($errors['address_country'])) {
+                $errors['state'] = 'Choose a country before a state';
+            } elseif (!Region_Model::where('country_alpha2', $country)->where('code', $state)->enabled()->exists()) {
+                $errors['state'] = "Choose a state of the selected country (an ISO 3166-2 code such as {$country}-...)";
+            }
+        }
+
+        return $errors;
+    }
+
+    /**
      * Get human-readable region/state name from region code
      * @return string|null
      */
@@ -244,8 +276,9 @@ class Client_Model extends Rsx_Site_Model_Abstract
             return null;
         }
 
-        // A region code is unique only within its country (unique_country_code), so the
-        // country is part of the key: 'WA' is Washington in US and Western Australia in AU.
+        // state is an ISO 3166-2 code ('US-WA'), whose prefix already names the country;
+        // the country is part of the lookup too, so a state that does not belong to the
+        // client's country names no region.
         $region = Region_Model::where('country_alpha2', $this->address_country)
             ->where('code', $this->state)
             ->first();

@@ -12,7 +12,7 @@ Features:
 - Loads client list via Ajax automatically
 - Inherits all Select_Ajax_Input behavior (Tom Select, search, loading states, etc.)
 --%>
-<Define:Client_Selector_Input extends="Select_Ajax_Input" class="Widget">
+<Define:Client_Selector_Input extends="Select_Ajax_Input">
     <select $sid="input" <% if (this.args.disabled) { %>disabled<% } %>>
         <% if (!this.data.select_values || this.data.select_values.length === 0) { %>
             <option value=""><%= this.args.placeholder || 'Please wait...' %></option>

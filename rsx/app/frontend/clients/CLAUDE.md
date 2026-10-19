@@ -50,6 +50,12 @@ portal-enabled and not deleted. The staff panel reads every row (`has_membership
 re-inviting one creates no duplicate. `portal_add_member` accepts only one of THIS client's
 contacts, and every membership role write accepts only a `Portal_Membership_Model` role id.
 
+**The address codes are ISO.** `address_country` is an ISO 3166-1 alpha-2 code (`US`) and
+`state` an ISO 3166-2 code of that country (`US-WA`, or `N/A` for a country with none) - the
+values `Select_Country_Input` / `Select_State_Input` offer and `country_name()` /
+`region_name()` resolve. `Client_Model::address_code_errors()` is the one check, run by `save`
+and by both API writes; the exports print the region's name, never the code.
+
 **A document share is per contact and expires.** `documents_share` writes one
 `Shared_Item_Model` row per chosen contact with an expiry (`rsx.portal.shared_link_default_expiry_days`),
 and only that contact's portal user can see or download the document, only until it expires
@@ -166,8 +172,10 @@ hardcoded path (`URL-HARDCODE-01`), an interpolated one included.
   every NON-FATAL branch carries its own `.catch(() => <sane default>)` while the record
   the page IS about stays uncaught. Sequence only when the second call's ARGUMENTS come
   from the first call's result — say so in a comment when it is not obvious.
-- **Bind delegated handlers namespaced and idempotent** — one `this.$.off('.ns')` at the
-  top of `on_ready()`, then `this.$.on('click.ns', ...)`. Never a `if (!this._wired)`
+- **Bind delegated handlers namespaced and idempotent** — one `this.$.off('.ns')`, then
+  `this.$.on('click.ns', ...)`, in `on_render()` so the cached paint responds at once
+  (`on_ready()` only when the handler needs a child component or the final data; this
+  feature's screens still bind in `on_ready()`). Never a `if (!this._wired)`
   flag: the flag dies with the instance, the handler lives on the element.
 - **Content you hand to a child still resolves against this template** (a `<Slot:>` body
   included) - expressions, `$sid` ids and `@click=this.method` alike, so handlers are

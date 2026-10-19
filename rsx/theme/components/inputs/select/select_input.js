@@ -42,6 +42,13 @@ class Select_Input extends Form_Input_Abstract {
     on_ready() {
         const that = this;
 
+        // A reload() renders again and calls this again: the previous instance goes first, or
+        // its dropdown (parented to <body>) is left behind.
+        if (this.tom_select) {
+            this.tom_select.destroy();
+            this.tom_select = null;
+        }
+
         // Initialize Tom Select
         let config = {
             placeholder: this.args.placeholder || '',

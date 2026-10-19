@@ -12,8 +12,12 @@ class Ajax_Entity_Select_Input extends Select_Input {
 
     /**
      * Set the selected entity id. The base only calls this once ready (tom_select
-     * exists); a pre-ready val() is buffered and replayed here. When the id is not
-     * already an option, resolve its label so the preselection shows a name.
+     * exists); a pre-ready val() is buffered and replayed here.
+     *
+     * The value is SELECTED AT ONCE, so _get_value() reports it immediately - the form's
+     * change tracking and a submit both read it. When the id is not yet an option, a
+     * placeholder option carries it until the label lookup answers; the answer only
+     * relabels that option, and only while the id is still the selected value.
      */
     _set_value(value) {
         if (!this.tom_select) return;
@@ -29,12 +33,15 @@ class Ajax_Entity_Select_Input extends Select_Input {
             return;
         }
 
+        this.tom_select.addOption({ id: id, label: '#' + id });
+        this.tom_select.setValue(id, true);
+
         const that = this;
         Frontend_Tasks_Controller.search_parents({ type: this.args.parent_type, id: int(id) })
             .then((res) => {
                 const rec = (res.results || [])[0];
-                if (rec) that.tom_select.addOption(rec);
-                that.tom_select.setValue(id, true);
+                if (!rec || !that.tom_select || that.tom_select.getValue() !== id) return;
+                that.tom_select.updateOption(id, Object.assign({}, rec, { id: id }));
             });
     }
 

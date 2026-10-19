@@ -17,7 +17,7 @@ class Text_Input extends Form_Input_Abstract {
     }
 
     _set_value(value) {
-        this.$sid('input').val(value || '');
+        this.$sid('input').val(value ?? '');
     }
 
     on_ready() {

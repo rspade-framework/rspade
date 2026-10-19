@@ -60,22 +60,17 @@ class Repeater_Simple_Input extends Form_Input_Abstract {
         };
     }
 
+    /**
+     * The list is this.state.items. Reading it from the rendered display components
+     * instead would make the value move as those components load - the value is what
+     * was set or added, whatever the rows are still fetching for display.
+     */
     _get_value() {
-        const result = [];
-        this.$sid('list')
-            .find('.Repeater_Simple_Input__item-content')
-            .each((i, el) => {
-                const $child = $(el).children().first();
-                const component = $child.component();
-                if (component && typeof component.val === 'function') {
-                    result.push(component.val());
-                }
-            });
-        return result;
+        return this.state.items.slice();
     }
 
     _set_value(values) {
-        this.state.items = values || [];
+        this.state.items = is_array(values) ? values.slice() : [];
         this.state.adding = false;
         this._render_list();
     }
@@ -184,7 +179,7 @@ class Repeater_Simple_Input extends Form_Input_Abstract {
         this._hide_pending();
         this.$sid('empty').hide();
         this._append_item(value, index);
-        this._notify_input(this.val());
+        this._notify_input(this._get_value());
     }
 
     /**
@@ -208,7 +203,7 @@ class Repeater_Simple_Input extends Form_Input_Abstract {
             this.$sid('empty').show();
         }
 
-        this._notify_input(this.val());
+        this._notify_input(this._get_value());
     }
 
     /**
@@ -219,9 +214,9 @@ class Repeater_Simple_Input extends Form_Input_Abstract {
         const display_args = this.args.display_input_args || {};
 
         const $item = $(`
-            <div class="Repeater_Simple__item" data-index="${index}">
-                <div class="Repeater_Simple__item-content"></div>
-                <button type="button" class="Repeater_Simple__remove" data-index="${index}" title="Remove">
+            <div class="Repeater_Simple_Input__item" data-index="${index}">
+                <div class="Repeater_Simple_Input__item-content"></div>
+                <button type="button" class="Repeater_Simple_Input__remove" data-index="${index}" title="Remove">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M18 6 6 18"></path>
                         <path d="m6 6 12 12"></path>

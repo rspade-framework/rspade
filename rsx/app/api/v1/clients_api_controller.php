@@ -134,7 +134,7 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
      *   "name": "Globex",
      *   "email": "contact@globex.example.com",
      *   "website": "globex.com",
-     *   "address_country": "USA",
+     *   "address_country": "US",
      *   "status_id": 1,
      *   "status_id__label": "Active",
      *   "newsletter_opt_in": false,
@@ -150,9 +150,9 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
     #[Api_Param('fax', type: 'string', description: 'Fax number')]
     #[Api_Param('address_street', type: 'string', description: 'Street address')]
     #[Api_Param('city', type: 'string', description: 'City')]
-    #[Api_Param('state', type: 'string', description: 'State / region code')]
+    #[Api_Param('state', type: 'string', description: 'State / region: an ISO 3166-2 code of address_country (US-WA), or N/A for a country with none')]
     #[Api_Param('zip', type: 'string', description: 'ZIP / postal code')]
-    #[Api_Param('address_country', type: 'string', default: 'USA', description: 'Country code')]
+    #[Api_Param('address_country', type: 'string', default: 'US', description: 'Country: an ISO 3166-1 alpha-2 code (US)')]
     #[Api_Param('industry', type: 'string', description: 'Industry')]
     #[Api_Param('company_size', type: 'string', description: 'Company size')]
     #[Api_Param('established_year', type: 'int', description: 'Year established')]
@@ -181,6 +181,8 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
                 $errors['website'] = 'Please enter a valid website URL';
             }
         }
+
+        $errors += Client_Model::address_code_errors($params['address_country'], $params['state'] ?? null);
 
         if (!empty($errors)) {
             return Rsx_Api::validation_error($errors);
@@ -246,9 +248,9 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
     #[Api_Param('fax', type: 'string', description: 'Fax number')]
     #[Api_Param('address_street', type: 'string', description: 'Street address')]
     #[Api_Param('city', type: 'string', description: 'City')]
-    #[Api_Param('state', type: 'string', description: 'State / region code')]
+    #[Api_Param('state', type: 'string', description: 'State / region: an ISO 3166-2 code of address_country (US-WA), or N/A for a country with none')]
     #[Api_Param('zip', type: 'string', description: 'ZIP / postal code')]
-    #[Api_Param('address_country', type: 'string', description: 'Country code')]
+    #[Api_Param('address_country', type: 'string', description: 'Country: an ISO 3166-1 alpha-2 code (US)')]
     #[Api_Param('industry', type: 'string', description: 'Industry')]
     #[Api_Param('company_size', type: 'string', description: 'Company size')]
     #[Api_Param('established_year', type: 'int', description: 'Year established')]
@@ -284,6 +286,14 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
             if (!validate_short_url($website_value)) {
                 $errors['website'] = 'Please enter a valid website URL';
             }
+        }
+
+        // Either address code sent is checked against the pair it will form with the stored one.
+        if (array_key_exists('address_country', $params) || array_key_exists('state', $params)) {
+            $errors += Client_Model::address_code_errors(
+                array_key_exists('address_country', $params) ? $params['address_country'] : $client->address_country,
+                array_key_exists('state', $params) ? $params['state'] : $client->state
+            );
         }
 
         if (!empty($errors)) {

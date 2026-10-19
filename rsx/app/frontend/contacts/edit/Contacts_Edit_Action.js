@@ -136,12 +136,14 @@ class Contacts_Edit_Action extends Spa_Action {
 
     /**
      * The worked example of the navigation guard. The guard is a toggle that says
-     * "this page has changes that would be lost", and it follows the form:
+     * "this page has changes that would be lost", and it follows the form's 'dirty'
+     * event, which flips true when the user changes a value and false when every value
+     * is back as loaded or the save succeeds:
      *
-     *   ON   at the first change        - the form's 'input' event
-     *   OFF  when the change is saved   - the form's 'submitted' event
-     *   OFF  when it is discarded       - discard_changes(), the Cancel link
-     *   OFF  when the page is torn down - on_stop()
+     *   ON   when the form becomes dirty      - 'dirty' (true)
+     *   OFF  when it is clean again or saved  - 'dirty' (false)
+     *   OFF  when the changes are discarded   - discard_changes(), the Cancel link
+     *   OFF  when the page is torn down       - on_stop()
      *
      * While it is on the BROWSER asks before the user leaves: its own "Leave site?"
      * dialog for a link click, refresh or tab close, and its confirm box for a
@@ -161,8 +163,7 @@ class Contacts_Edit_Action extends Spa_Action {
         }
         this._watched_form = form;
 
-        form.on('input', () => Rsx.set_navigation_guard());
-        form.on('submitted', () => Rsx.clear_navigation_guard());
+        form.on('dirty', (form, dirty) => (dirty ? Rsx.set_navigation_guard() : Rsx.clear_navigation_guard()));
     }
 
     /**

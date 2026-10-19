@@ -36,6 +36,18 @@ class Select_Country_Input extends Select_Ajax_Input {
         // Call parent to initialize Select_Ajax_Input
         super.on_create();
 
+        // The State list follows this input's VALUE, by any path - a seed or a programmatic
+        // val() moves it as much as a pick does. 'input' (the user) fires just before 'val'.
+        const that = this;
+        this.on('input', () => {
+            that._user_changing = true;
+        });
+        this.on('val', () => {
+            const by_user = that._user_changing === true;
+            that._user_changing = false;
+            that._update_state_selector(by_user);
+        });
+
         // Handle default country value
         if (this.args.default_country && !this.data.value) {
             this.data.value = this.args.default_country;
@@ -46,29 +58,21 @@ class Select_Country_Input extends Select_Ajax_Input {
         // Call parent to initialize Tom Select and _mark_ready()
         super.on_ready();
 
-        // Update state selector with initial/default country
-        this._update_state_selector();
-
-        // Listen for country changes and update state selector
-        if (this.tom_select) {
-            this.tom_select.on('change', () => {
-                this._update_state_selector();
-            });
-        }
+        this._update_state_selector(false);
     }
 
     /**
      * Find Select_State_Input sibling and update its country code
      * @private
      */
-    _update_state_selector() {
+    _update_state_selector(by_user = false) {
         const current_country = this.val();
 
         // Find Select_State_Input component using closest_sibling
         const state_component = this.$.closest_sibling('.Select_State_Input').component();
 
         if (state_component && typeof state_component.set_country_code === 'function') {
-            state_component.set_country_code(current_country);
+            state_component.set_country_code(current_country, by_user);
         }
     }
 }

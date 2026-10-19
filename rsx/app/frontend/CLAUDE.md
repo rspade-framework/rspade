@@ -71,8 +71,11 @@ new feature, and copy its structure rather than inventing one.
   from the first's result — the test is the arguments, never the result — and say
   so in a comment where it is not obvious (`party/edit/`, `projects/edit/`).
   `dev/orm/` is the one deliberate exception, and it says why in place.
-- **Delegated handlers are namespaced and idempotent**: one `this.$.off('.ns')` at
-  the top of `on_ready()`, then `this.$.on('click.ns', selector, ...)`. Never guard
+- **Delegated handlers are namespaced and idempotent**: one `this.$.off('.ns')`, then
+  `this.$.on('click.ns', selector, ...)`, in `on_render()` - which runs on the cached paint,
+  so a revisited page responds before its load finishes (`on_ready()` only for a handler
+  that needs a child component or the final data). Many existing screens still bind in
+  `on_ready()`; conformance audit `jqhtml_component_design` lists them. Never guard
   a bind with a `this._wired`-style flag — the flag dies with the instance while
   the handler lives on the element, so it double-binds on a parent repaint and
   suppresses a rebind the surviving root element needed.

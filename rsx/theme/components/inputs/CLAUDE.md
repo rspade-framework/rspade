@@ -137,7 +137,7 @@ class My_Custom_Input extends Form_Input_Abstract {
     }
 
     _set_value(value) {
-        this.$sid('input').val(value || '');
+        this.$sid('input').val(value ?? '');
     }
 
     on_render() {
@@ -177,8 +177,8 @@ _get_value() {
 }
 
 _set_value(value) {
-    // Set the value on DOM
-    this.$sid('input').val(value || '');
+    // Set the value on DOM (?? not ||: 0 is a value)
+    this.$sid('input').val(value ?? '');
 }
 ```
 
@@ -242,9 +242,11 @@ expects the other.
 
 ### 6. Template Requirements
 
-- Templates render elements EMPTY (no value attribute)
+- Templates render elements EMPTY (no value attribute, no `selected`, no `checked`)
 - Forms populate values via `val()` after render
-- Do NOT use `this.data` - inputs have no `on_load()`
+- The VALUE never comes from `this.data`. Most inputs have no `on_load()` at all; one that
+  fetches its own option list (the `Select_Ajax_Input` family) loads it in `on_load()` into
+  `this.data.select_values`, and holds the value the form asked for until that list exists
 
 ```jqhtml
 <!-- CORRECT -->
@@ -257,6 +259,35 @@ expects the other.
   <input type="text" $sid="input" value="<%= this.data.value %>" />
 </Define:My_Input>
 ```
+
+### 8. Stay stable once ready - the form's change tracking reads you
+
+`Rsx_Form.dirty()` compares each input's `_get_value()` with a baseline read back at
+readiness and after every programmatic `val()` (`rsx:man form_input`, CHANGED). So once
+`_mark_ready()` has run, `_get_value()` must report the same value until the user or `val()`
+changes it:
+
+- **A value written is readable AT ONCE.** `Ajax_Entity_Select_Input`
+  (`rsx/app/frontend/tasks/edit/form/`) adds a placeholder option for an id it has no label
+  for, selects it, and only relabels it when the lookup answers. `Select_State_Input` keeps
+  the state it was given in `_wanted` and reports that, whether or not the current country's
+  list can show it.
+- **A filter or library goes on BEFORE `_mark_ready()`**, so the buffered value passes
+  through it: `Currency_Input` and `Time_Entry_Input` call `rsx_numeric()` before
+  `super.on_ready()`.
+- **Inside an input, a USER-driven write is `_set_value()` + `_notify_input()`, never
+  `this.val()`.** `val()` is the programmatic door: it makes the written value the new
+  unchanged state, so an upload or a removal written through it reads as no change at all
+  (`Profile_Photo_Input`).
+- **An edit the browser does not announce is announced by hand.** A keydown handler that
+  prevents the keystroke and rewrites the box, or a reformat on blur that changes the value,
+  dispatches a native `input` event (`Phone_Text_Input`; the framework's `rsx_numeric` does
+  the same for its intercepted Backspace).
+- **A wrapped library is destroyed before it is re-created.** `reload()` runs `on_ready()`
+  again; `Select_Input.on_ready()` destroys the previous TomSelect first, or its dropdown is
+  left in `<body>`.
+- **A composite reads its value from STATE**, never from child components that may still be
+  loading (`Repeater_Simple_Input` returns `this.state.items`).
 
 ## Event System
 
@@ -362,18 +393,26 @@ User_Model.field_length('id')       // null (not a varchar)
 
 2. **Forgetting _mark_ready()** - Without it a buffered value is never applied.
 
-3. **Using `this.data`** - Inputs have no `on_load()`, so `this.data` is always `{}`.
+3. **Reading the value from `this.data`** - the value always arrives through `val()`; only an
+   input's own option list may live in `this.data`.
 
 4. **Adding `class="Widget"`** - Not needed, `.Form_Input_Abstract` is automatic.
 
 5. **Hand-triggering 'input' + 'val'** - Call `_notify_input(value)` instead.
 
-6. **Calling _mark_ready() too early** - For async init, wait until actually ready.
+6. **Calling _mark_ready() too early** - For async init, wait until actually ready; and see
+   section 8 - an input whose value moves after readiness makes its form dirty on load.
 
 7. **Writing a client-side required/format/length check** - that rule is the server's.
 
 8. **Treating `null` as "no value"** - the buffer tracks presence with a boolean, so
-   `val(null)` buffers and applies `null`. Do not reintroduce a null sentinel.
+   `val(null)` buffers and applies `null`. Do not reintroduce a null sentinel, and write
+   `value ?? ''`, never `value || ''`, which turns `0` into blank.
+
+9. **Calling `this.val()` for the user's own change** - see section 8.
+
+The conformance audit `form_input_contract` (`php artisan rsx:conformance:show
+form_input_contract`) checks every input here against this file.
 
 ## See Also
 

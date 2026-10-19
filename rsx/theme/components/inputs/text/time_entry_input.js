@@ -22,13 +22,15 @@
  */
 class Time_Entry_Input extends Text_Input {
     on_ready() {
-        // The parent marks the input ready, which writes any buffered value into the
-        // box; the filter then formats whatever is there.
-        super.on_ready();
-
+        // The filter goes on FIRST, so the buffered value the parent writes when it marks
+        // the input ready already passes through it: what the box reads back at readiness
+        // is what it will read back afterwards (the form's baseline - rsx:man form_input,
+        // CHANGED).
         this.$sid('input').rsx_numeric({
             time: true,
             commas: false,
         });
+
+        super.on_ready();
     }
 }

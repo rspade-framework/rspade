@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Forty-eight test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Forty-nine test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -13,6 +13,8 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 - **Domain models**: `Party_Test` (class-table inheritance end to end),
   `Client_Region_Name_Test` (a client's region is resolved within its own country - two
   countries sharing a region code never borrow each other's name),
+  `Client_Address_Codes_Test` (a client's address codes are ISO: an enabled alpha-2 country,
+  a subdivision of THAT country or `N/A` - the rule the staff save and the API both check),
   `Polymorphic_Parents_Test` (type-ref pairs read through stock `morphTo()`),
   `Task_Derived_Project_Test` (the derived `project_id`, chain resolution and cycle guard),
   `Contact_Phone_Validation_Test` (server-side E.164 normalisation),

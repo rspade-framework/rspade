@@ -13,7 +13,7 @@ class Hidden_Input extends Form_Input_Abstract {
     }
 
     _set_value(value) {
-        this.$.val(value || '');
+        this.$.val(value ?? '');
     }
 
     on_ready() {

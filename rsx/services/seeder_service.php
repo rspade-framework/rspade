@@ -50,14 +50,14 @@ class Seeder_Service extends Rsx_Service_Abstract
         $company_names = ['Acme', 'Global', 'Premier', 'Alpha', 'Summit', 'Vertex', 'Apex', 'Elite', 'Prime', 'Unity'];
         $streets = ['Main St', 'Oak Ave', 'Maple Dr', 'Washington Blvd', 'Park Pl', 'Commerce Way', 'Tech Pkwy', 'Business Center Dr'];
         $cities = [
-            ['name' => 'San Francisco', 'state' => 'CA', 'zip_prefix' => '941'],
-            ['name' => 'Austin', 'state' => 'TX', 'zip_prefix' => '787'],
-            ['name' => 'Seattle', 'state' => 'WA', 'zip_prefix' => '981'],
-            ['name' => 'Boston', 'state' => 'MA', 'zip_prefix' => '021'],
-            ['name' => 'Chicago', 'state' => 'IL', 'zip_prefix' => '606'],
-            ['name' => 'Denver', 'state' => 'CO', 'zip_prefix' => '802'],
-            ['name' => 'Atlanta', 'state' => 'GA', 'zip_prefix' => '303'],
-            ['name' => 'Portland', 'state' => 'OR', 'zip_prefix' => '972'],
+            ['name' => 'San Francisco', 'state' => 'US-CA', 'zip_prefix' => '941'],
+            ['name' => 'Austin', 'state' => 'US-TX', 'zip_prefix' => '787'],
+            ['name' => 'Seattle', 'state' => 'US-WA', 'zip_prefix' => '981'],
+            ['name' => 'Boston', 'state' => 'US-MA', 'zip_prefix' => '021'],
+            ['name' => 'Chicago', 'state' => 'US-IL', 'zip_prefix' => '606'],
+            ['name' => 'Denver', 'state' => 'US-CO', 'zip_prefix' => '802'],
+            ['name' => 'Atlanta', 'state' => 'US-GA', 'zip_prefix' => '303'],
+            ['name' => 'Portland', 'state' => 'US-OR', 'zip_prefix' => '972'],
         ];
 
         for ($i = 1; $i <= 20; $i++) {
@@ -82,6 +82,7 @@ class Seeder_Service extends Rsx_Service_Abstract
             $client->address = rand(100, 9999) . ' ' . $streets[array_rand($streets)];
             $client->city = $location['name'];
             $client->state = $location['state'];
+            $client->address_country = 'US';
             $client->zip = $location['zip_prefix'] . str_pad(rand(0, 99), 2, '0', STR_PAD_LEFT);
             $client->phone = sprintf('(%03d) %03d-%04d', rand(200, 999), rand(200, 999), rand(1000, 9999));
             $client->phone_secondary = rand(0, 1) ? sprintf('(%03d) %03d-%04d', rand(200, 999), rand(200, 999), rand(1000, 9999)) : null;

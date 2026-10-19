@@ -1,54 +1,32 @@
 /**
  * Realtime_Status_Badge - Header "connection lost" indicator for the realtime link.
  *
- * Observes Rsx_Realtime.on_state_change() and warns ONLY when the realtime backend
- * is genuinely unreachable. Displays nothing at all in the normal case. Purely a
- * connection-state observer: it does NOT subscribe to any topic.
+ * Shows only while Rsx_Realtime.watch_connection() reports 'disconnected' - the framework
+ * says so only once the link has been down for its grace window (5s), so a blip never
+ * flashes the badge. 'connected' and 'disabled' (realtime not configured) both hide it.
+ * Purely a connection observer: it subscribes to no topic. Registering the monitor holds
+ * the socket open while the badge exists; on a signed-in page the framework's session
+ * anchor holds it anyway.
  *
- * STATE SEMANTICS (must match Rsx_Realtime's connection model exactly):
- *   - The client connects LAZILY: state stays 'disconnected' until the first
- *     watch()/subscribe(), and returns to 'disconnected' (intentionally, no
- *     reconnect) when the last watch stops. So an IDLE 'disconnected' means idle /
- *     lazy / realtime-disabled -- NOT unreachable, and it must never warn.
- *   - An UNINTENTIONAL drop passes through 'reconnecting' IMMEDIATELY (the app is
- *     told something is happening at once); a fresh attempt is 'connecting'.
- *   - 'disconnected' AFTER a trying state is the client's delayed offline
- *     announcement -- it is emitted only once a reconnect has failed to land inside
- *     Rsx_Realtime.OFFLINE_ANNOUNCE_GRACE_MS, so it means a CONFIRMED outage and the
- *     badge shows on it at once.
- *   - Therefore the warning arms a grace timer on 'connecting'/'reconnecting', shows
- *     the badge if 'connected' has not arrived by the time the timer fires or as soon
- *     as a confirmed offline announcement arrives, and hides on 'connected' or an
- *     IDLE 'disconnected'.
- *
- * GRACE_MS (5s) is a deliberate constant, not config: a connection that has been
- * trying for 5s continuously without succeeding is a real outage worth surfacing.
- *
- * Which 'disconnected' is which is read from the PREVIOUS state, not from a deferred
- * re-check: the client no longer flashes a transient 'disconnected' on the way into a
- * reconnect (that blip is exactly what the delayed announcement removed), so a
- * 'disconnected' preceded by 'connecting'/'reconnecting' is a real outage and one
- * preceded by anything else is the idle/terminal kind.
- *
- * The badge lives in the persistent SPA layout header, so it is created once. It
- * still unsubscribes and clears its timer in on_stop() for correctness.
+ * The badge lives in the persistent SPA layout header, so it is created once. It still
+ * stops its monitor in on_stop() for correctness.
  */
 class Realtime_Status_Badge extends Component {
-    // Continuous not-connected time before we surface the warning. Fade duration
-    // mirrors $transition-duration-base (200ms) in realtime_status_badge.scss.
-    static GRACE_MS = 5000;
+    // Fade duration mirrors $transition-duration-base (200ms) in realtime_status_badge.scss.
     static FADE_MS = 200;
 
     on_create() {
         this.state = { visible: false };
-        this._grace_timer = null;
         this._hide_timer = null;
         this._rendered = false;
-        this._last_state = null;
 
-        // Fires immediately with the current state, then on every transition. Store
-        // the unsubscribe fn for on_stop.
-        this._state_unsub = Rsx_Realtime.on_state_change((state) => this._on_state_change(state));
+        this._monitor = Rsx_Realtime.watch_connection((state) => {
+            if (state === 'disconnected') {
+                this._show();
+            } else {
+                this._hide();
+            }
+        });
     }
 
     on_render() {
@@ -59,63 +37,10 @@ class Realtime_Status_Badge extends Component {
     }
 
     on_stop() {
-        if (this._state_unsub) {
-            this._state_unsub();
-            this._state_unsub = null;
-        }
-        this._clear_grace_timer();
+        this._monitor.stop();
         if (this._hide_timer) {
             clearTimeout(this._hide_timer);
             this._hide_timer = null;
-        }
-    }
-
-    _on_state_change(state) {
-        const previous = this._last_state;
-        this._last_state = state;
-
-        if (state === 'connecting' || state === 'reconnecting') {
-            this._arm_grace_timer();
-        } else if (state === 'connected') {
-            this._hide();
-        } else if (state === 'disconnected') {
-            this._handle_disconnected(previous);
-        }
-    }
-
-    /**
-     * 'disconnected' carries two meanings, told apart by what preceded it. Following a
-     * trying state it is the client's CONFIRMED offline announcement (the grace window
-     * expired with no reconnect) -- show at once, the outage is real. Otherwise it is the
-     * idle / lazy / disabled kind -- hide and cancel any countdown.
-     */
-    _handle_disconnected(previous) {
-        if (previous === 'connecting' || previous === 'reconnecting') {
-            this._clear_grace_timer();
-            this._show();
-            return;
-        }
-
-        this._hide();
-    }
-
-    _arm_grace_timer() {
-        // Already showing, or already counting down -> nothing to do. Never reset a
-        // running timer, so the grace period measures continuous outage time across
-        // the whole reconnect backoff loop rather than restarting each attempt.
-        if (this.state.visible) return;
-        if (this._grace_timer) return;
-
-        this._grace_timer = setTimeout(() => {
-            this._grace_timer = null;
-            this._show();
-        }, Realtime_Status_Badge.GRACE_MS);
-    }
-
-    _clear_grace_timer() {
-        if (this._grace_timer) {
-            clearTimeout(this._grace_timer);
-            this._grace_timer = null;
         }
     }
 
@@ -126,7 +51,6 @@ class Realtime_Status_Badge extends Component {
     }
 
     _hide() {
-        this._clear_grace_timer();
         if (!this.state.visible) return;
         this.state.visible = false;
         this._apply_visibility(true);

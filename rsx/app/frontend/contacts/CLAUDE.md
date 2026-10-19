@@ -16,9 +16,10 @@ Follows `rsx/app/frontend/clients/CLAUDE.md` and the app skill `crud-patterns`: 
 - **`?client_id=` mode**: arriving from a client repoints the breadcrumb and Back link and swaps the client picker for a `Hidden_Input`.
 - **The edit action is the app's commented example of the navigation guard** (the tasks
   and projects edit actions carry the same lines). The guard is a toggle that follows the
-  form: `on_ready()` wires the form it was given so `'input'` - a change the user made,
-  never the fill from the loaded record - calls `Rsx.set_navigation_guard()` and
-  `'submitted'` calls `Rsx.clear_navigation_guard()`; the Cancel link clears it through
+  form: the action wires the form it was given so its `'dirty'` event - true when the user
+  has changed a value (never the fill from the loaded record), false when every value is
+  back or the save succeeds - calls `Rsx.set_navigation_guard()` /
+  `Rsx.clear_navigation_guard()`; the Cancel link clears it through
   `@click=this.discard_changes` and then navigates as an ordinary link; `on_stop()` clears
   it. While it is on the BROWSER asks - its unload dialog for a link (the header's Back
   link included), refresh or close, its confirm box for Back/Forward - and the page owns

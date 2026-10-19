@@ -161,10 +161,10 @@ class Projects_Edit_Action extends Spa_Action {
 
     /**
      * The navigation guard, as the project form uses it (the fully commented example is
-     * Contacts_Edit_Action): ON at the first change the user makes - the form's
-     * 'input' event, which a fill from the loaded record does not fire - OFF once the
-     * change is saved ('submitted'), discarded (the Cancel link) or the page is gone
-     * (on_stop()). While it is on, the browser asks before the user leaves.
+     * Contacts_Edit_Action): it follows the form's 'dirty' event - on when the user has
+     * changed a value (never the load of the record or of the option lists), off when
+     * every value is back or the save succeeds - and goes off on the Cancel link and in
+     * on_stop(). While it is on, the browser asks before the user leaves.
      *
      * A re-render replaces the form component, so this wires the instance it is given
      * and only that one.
@@ -180,8 +180,7 @@ class Projects_Edit_Action extends Spa_Action {
         }
         this._watched_form = form;
 
-        form.on('input', () => Rsx.set_navigation_guard());
-        form.on('submitted', () => Rsx.clear_navigation_guard());
+        form.on('dirty', (form, dirty) => (dirty ? Rsx.set_navigation_guard() : Rsx.clear_navigation_guard()));
     }
 
     /** The Cancel link: the changes are being thrown away, so nothing is left to ask about. */

@@ -185,6 +185,9 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             $params['website'] = $short_url;
         }
 
+        // The address codes are ISO (Client_Model::address_code_errors())
+        $errors += Client_Model::address_code_errors($params['address_country'] ?? null, $params['state'] ?? null);
+
         // Return validation errors if any
         if (!empty($errors)) {
             return response_form_error('Please correct the errors below.', $errors);
@@ -216,7 +219,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
         $client->city = $params['city'] ?? null;
         $client->state = $params['state'] ?? null;
         $client->zip = $params['zip'] ?? null;
-        $client->address_country = $params['address_country'] ?? 'USA';
+        $client->address_country = $params['address_country'] ?? 'US';
 
         // Business details
         $client->industry = $params['industry'] ?? null;
@@ -364,7 +367,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
                 $client->id,
                 $client->name,
                 $client->city,
-                $client->state,
+                $client->region_name(),
                 $client->phone,
                 $client->email,
                 $client->website,
@@ -432,7 +435,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
                 $client->id,
                 $client->name,
                 $client->city,
-                $client->state,
+                $client->region_name(),
                 $client->phone,
                 $client->email,
                 $client->website,

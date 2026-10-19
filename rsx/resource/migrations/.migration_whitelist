@@ -186,6 +186,11 @@
             "created_at": "2026-10-08T22:56:54+00:00",
             "created_by": "root",
             "command": "php artisan make:migration:safe drop_is_2fa_required_from_users"
+        },
+        "2026_10_19_111756_clients_address_codes_iso.php": {
+            "created_at": "2026-10-19T11:17:56+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe clients_address_codes_iso"
         }
     }
 }

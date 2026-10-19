@@ -84,9 +84,9 @@ class Phone_Text_Input extends Text_Input {
     }
 
     on_ready() {
-        // Call parent to _mark_ready and setup base input events
-        super.on_ready();
-
+        // The formatting handlers are bound FIRST and the parent (which marks the input
+        // ready and binds the announcement of the user's edit) LAST, so a keystroke is
+        // formatted before it is announced: 'input' carries what the box now holds.
         const $input = this.$sid('input');
 
         // Handle keydown to intercept backspace at end of string
@@ -123,6 +123,10 @@ class Phone_Text_Input extends Text_Input {
                             const new_digits = digits.substr(0, digits.length - 1);
                             const formatted = this._format_us_phone(new_digits);
                             $input.val(formatted);
+
+                            // The keystroke was prevented, so the browser fires no input
+                            // event for this edit - raise the one it would have.
+                            input_element.dispatchEvent(new Event('input', { bubbles: true }));
 
                             // Place cursor at end
                             setTimeout(() => {
@@ -217,7 +221,12 @@ class Phone_Text_Input extends Text_Input {
             }
 
             const formatted = this._format_us_phone(digits_to_format);
-            $input.val(formatted);
+            if (formatted !== raw) {
+                $input.val(formatted);
+
+                // A reformat on blur changes the value: announce it like the edit it finishes.
+                $input[0].dispatchEvent(new Event('input', { bubbles: true }));
+            }
         });
 
         // Initialize formatting if there's a value
@@ -225,5 +234,7 @@ class Phone_Text_Input extends Text_Input {
         if (initial_value) {
             this._set_value(initial_value);
         }
+
+        super.on_ready();
     }
 }
