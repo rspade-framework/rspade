@@ -54,9 +54,12 @@ class Main extends Main_Abstract
     /**
      * Pre-dispatch hook
      *
-     * Called before any route dispatch, and before every external API call (after the
-     * bearer identity and the gates). If a non-null value is returned, dispatch is halted:
-     * a page answers with that value, an API call with 403 account_refused.
+     * Called before any route dispatch, before every external API call (after the bearer
+     * identity and the gates), and before every Ajax call - once per call, with
+     * $params['controller'] / $params['action'] naming the endpoint. If a non-null value is
+     * returned, dispatch is halted: a page answers with that value, an API call with 403
+     * account_refused, an Ajax call with a coded result's envelope (response_unauthorized()
+     * keeps its reason) or otherwise unauthorized.
      *
      * One interception lives here:
      *   - API ACCESS. A bearer-key request (Session::is_api_request()) whose user lacks the
