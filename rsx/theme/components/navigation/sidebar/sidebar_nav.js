@@ -26,11 +26,14 @@ class Sidebar_Nav extends Component {
         };
     }
 
-    on_ready() {
+    on_render() {
         let that = this;
 
+        // Own markup, so bound in on_render(). Namespaced and idempotent: on_render()
+        // re-fires on every render.
+
         // Attach click handler to chevron icons (expand/collapse only)
-        that.$.find('.Sidebar_Nav__expand-icon').on('click', function (e) {
+        that.$.find('.Sidebar_Nav__expand-icon').off('click.sidebar_nav').on('click.sidebar_nav', function (e) {
             e.preventDefault();
             e.stopPropagation();
             const $icon = $(this);
@@ -50,7 +53,7 @@ class Sidebar_Nav extends Component {
         });
 
         // Attach click handler to expandable link labels (expand and navigate)
-        that.$.find('.Sidebar_Nav__link-expandable').on('click', function (e) {
+        that.$.find('.Sidebar_Nav__link-expandable').off('click.sidebar_nav').on('click.sidebar_nav', function (e) {
             e.preventDefault();
             const $link = $(this);
             const $parent = $link.parent();
@@ -77,6 +80,10 @@ class Sidebar_Nav extends Component {
                 }
             }
         });
+    }
+
+    on_ready() {
+        let that = this;
 
         // Update active state for current URL (handles both standard and SPA routes)
         that.on_action(window.location.pathname);

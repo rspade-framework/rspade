@@ -45,21 +45,24 @@ class Settings_User_Management_View_Action extends Spa_Action {
         this.data.loading = false;
     }
 
-    on_ready() {
+    on_render() {
+        // Own markup, bound in on_render() so the cached paint responds at once; the
+        // handlers read this.data when they fire. Namespaced and idempotent because
+        // on_render() re-fires on every render.
         let that = this;
 
         // Handle Edit User button click
-        that.$sid('btn_edit_user').click(async function () {
+        that.$sid('btn_edit_user').off('click.user_view').on('click.user_view', async function () {
             await that.handle_edit_user();
         });
 
         // Handle Resend Invite button click
-        that.$sid('btn_resend_invite').click(async function () {
+        that.$sid('btn_resend_invite').off('click.user_view').on('click.user_view', async function () {
             await that.handle_resend_invite();
         });
 
         // Handle Enable / Disable button click
-        that.$sid('btn_set_enabled').click(async function () {
+        that.$sid('btn_set_enabled').off('click.user_view').on('click.user_view', async function () {
             const $button = $(this);
             await that.handle_set_enabled($button.attr('data-enabled') === '1');
         });

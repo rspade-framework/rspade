@@ -74,11 +74,10 @@ new feature, and copy its structure rather than inventing one.
 - **Delegated handlers are namespaced and idempotent**: one `this.$.off('.ns')`, then
   `this.$.on('click.ns', selector, ...)`, in `on_render()` - which runs on the cached paint,
   so a revisited page responds before its load finishes (`on_ready()` only for a handler
-  that needs a child component or the final data). Many existing screens still bind in
-  `on_ready()`; conformance audit `jqhtml_component_design` lists them. Never guard
-  a bind with a `this._wired`-style flag — the flag dies with the instance while
-  the handler lives on the element, so it double-binds on a parent repaint and
-  suppresses a rebind the surviving root element needed.
+  that needs a child component or the final data). Never guard a bind with a
+  `this._wired`-style flag — the flag dies with the instance while the handler lives
+  on the element, so it double-binds on a parent repaint and suppresses a rebind the
+  surviving root element needed.
 - **Content handed to another component still resolves against its definer** (a
   `<Slot:>` body included): expressions, `$sid` ids and `@click=this.method` all run
   against the template that wrote them. Write handlers directly; a `Spa.action()`

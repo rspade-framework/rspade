@@ -31,10 +31,13 @@ class Checkbox_Input extends Form_Input_Abstract {
             const input_id = $input.attr('id');
             $label.attr('for', input_id);
         }
+    }
 
-        // Trigger events on user interaction
+    on_render() {
+        // Trigger events on user interaction. Namespaced and idempotent: on_render()
+        // re-fires on every render.
         const that = this;
-        $input.on('change', function() {
+        this.$sid('input').off('change.checkbox_input').on('change.checkbox_input', function() {
             that._notify_input(that.val());
         });
     }

@@ -8,14 +8,17 @@ class Select_With_Description_Input extends Form_Input_Abstract {
         this._update_description();
     }
 
-    on_ready() {
-        this._mark_ready();
-
+    on_render() {
+        // Namespaced and idempotent: on_render() re-fires on every render.
         const that = this;
-        this.$sid('input').on('change', function() {
+        this.$sid('input').off('change.select_with_description').on('change.select_with_description', function() {
             that._update_description();
             that._notify_input(that.val());
         });
+    }
+
+    on_ready() {
+        this._mark_ready();
 
         this._update_description();
     }

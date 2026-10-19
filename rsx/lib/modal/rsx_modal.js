@@ -423,26 +423,40 @@ class Rsx_Modal extends Component {
     async close(result) {
         const that = this;
 
-        // Mark as not visible
-        this.state.is_visible = false;
-        this.state.accepting = false;
-
-        // Remove event listeners
-        $(document).off('keydown.rsx_modal_' + this._cid);
-        $(window).off('resize.rsx_modal_' + this._cid);
-
         // Hide instantly (no fade out)
         this.$.hide();
         this.$sid('backdrop').hide();
 
+        // Release BEFORE removing: the removal stops the component, and on_stop() would
+        // otherwise settle the caller's promise as a cancel before this result.
+        this._release(result);
+
         // Remove from DOM
         this.$.remove();
         this.$sid('backdrop').remove();
+    }
 
-        // Resolve promise
+    /**
+     * Destroyed without close() - the page navigated away, or an ancestor re-rendered. The
+     * document and window handlers would outlive the dialog, and the caller awaiting it would
+     * wait forever: it is settled as a cancel (false), what dismissing a dialog answers.
+     */
+    on_stop() {
+        this._release(false);
+    }
+
+    /** Remove the dialog's page-level handlers and settle its promise, once. */
+    _release(result) {
+        this.state.is_visible = false;
+        this.state.accepting = false;
+
+        $(document).off('keydown.rsx_modal_' + this._cid);
+        $(window).off('resize.rsx_modal_' + this._cid);
+
         if (this.state.resolve_fn) {
-            this.state.resolve_fn(result);
+            const resolve = this.state.resolve_fn;
             this.state.resolve_fn = null;
+            resolve(result);
         }
     }
 }

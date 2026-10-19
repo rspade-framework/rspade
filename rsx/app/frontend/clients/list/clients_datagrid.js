@@ -6,9 +6,9 @@ class Clients_DataGrid extends DataGrid_Abstract {
 
     static record_noun_plural = 'clients';
 
-    on_ready() {
-        super.on_ready();
-
+    on_render() {
+        // The quick filters are this grid's own header markup, so they are set and bound in
+        // on_render() - re-run on every render, hence the namespaced .off() before .on().
         this._bind_quick_filter('status_filter', 'status_id');
         this._bind_quick_filter('priority_filter', 'priority');
     }
@@ -30,7 +30,7 @@ class Clients_DataGrid extends DataGrid_Abstract {
 
         $select.val(str(that.get_custom_filter(key) ?? ''));
 
-        $select.on('change', function () {
+        $select.off('change.cdg').on('change.cdg', function () {
             const $element = $(this);
             that.set_custom_filter(key, $element.val() || null);
         });

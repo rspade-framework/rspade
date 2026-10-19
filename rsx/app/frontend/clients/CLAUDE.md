@@ -174,9 +174,9 @@ hardcoded path (`URL-HARDCODE-01`), an interpolated one included.
   from the first call's result — say so in a comment when it is not obvious.
 - **Bind delegated handlers namespaced and idempotent** — one `this.$.off('.ns')`, then
   `this.$.on('click.ns', ...)`, in `on_render()` so the cached paint responds at once
-  (`on_ready()` only when the handler needs a child component or the final data; this
-  feature's screens still bind in `on_ready()`). Never a `if (!this._wired)`
-  flag: the flag dies with the instance, the handler lives on the element.
+  (`on_ready()` only when the handler needs a child component or the final data).
+  Never a `if (!this._wired)` flag: the flag dies with the instance, the handler lives
+  on the element.
 - **Content you hand to a child still resolves against this template** (a `<Slot:>` body
   included) - expressions, `$sid` ids and `@click=this.method` alike, so handlers are
   written directly where the markup is.

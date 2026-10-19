@@ -75,11 +75,12 @@ class Repeater_Simple_Input extends Form_Input_Abstract {
         this._render_list();
     }
 
-    on_ready() {
-        this._mark_ready();
+    on_render() {
+        // Namespaced and idempotent: on_render() re-fires on every render, and each
+        // $sid element is rebuilt with it.
 
         // Remove button handler (delegated)
-        this.$sid('list').on('click', '.Repeater_Simple_Input__remove', async (e) => {
+        this.$sid('list').off('click.repeater_simple').on('click.repeater_simple', '.Repeater_Simple_Input__remove', async (e) => {
             e.preventDefault();
             const $btn = $(e.currentTarget);
             const index = int($btn.data('index'));
@@ -93,14 +94,18 @@ class Repeater_Simple_Input extends Form_Input_Abstract {
         });
 
         // Add button handler
-        this.$sid('add_btn').on('click', () => {
+        this.$sid('add_btn').off('click.repeater_simple').on('click.repeater_simple', () => {
             this._show_pending();
         });
 
         // Cancel button handler
-        this.$sid('cancel_btn').on('click', () => {
+        this.$sid('cancel_btn').off('click.repeater_simple').on('click.repeater_simple', () => {
             this._hide_pending();
         });
+    }
+
+    on_ready() {
+        this._mark_ready();
     }
 
     /**

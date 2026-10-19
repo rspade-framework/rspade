@@ -31,7 +31,7 @@ class Clients_Index_Action extends Spa_Action {
     on_ready() {
         let that = this;
 
-        $(document).on('click.page_export_' + that._cid, '.js-page-export', function (e) {
+        $(document).off('click.page_export_' + that._cid).on('click.page_export_' + that._cid, '.js-page-export', function (e) {
             e.preventDefault();
 
             // "Export what I'm looking at": the whole filtered set, ticked rows or not.

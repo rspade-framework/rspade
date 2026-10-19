@@ -41,40 +41,40 @@ class Dev_Orm_Action extends Spa_Action {
         this.data.loading = false;
     }
 
-    on_ready() {
+    on_render() {
         const that = this;
 
-        // Wire up fetch buttons for manual testing
-        that.$sid('fetch_client').click(async () => {
+        // Wire up fetch buttons for manual testing. Own markup, so on_render(); namespaced
+        // and idempotent because on_render() re-fires on every render. A manual fetch is
+        // painted into its result panel directly - this.data holds only what on_load()
+        // fetched, and is frozen everywhere else.
+        that.$sid('fetch_client').off('click.dev_orm').on('click.dev_orm', async () => {
             const id = int(that.$sid('client_id').val());
             if (!id) return;
             try {
                 const result = await Client_Model.fetch(id);
-                that.data.results.client = result;
                 that._update_result('client', result);
             } catch (e) {
                 that._update_result('client', { error: e.message });
             }
         });
 
-        that.$sid('fetch_contact').click(async () => {
+        that.$sid('fetch_contact').off('click.dev_orm').on('click.dev_orm', async () => {
             const id = int(that.$sid('contact_id').val());
             if (!id) return;
             try {
                 const result = await Contact_Model.fetch(id);
-                that.data.results.contact = result;
                 that._update_result('contact', result);
             } catch (e) {
                 that._update_result('contact', { error: e.message });
             }
         });
 
-        that.$sid('fetch_project').click(async () => {
+        that.$sid('fetch_project').off('click.dev_orm').on('click.dev_orm', async () => {
             const id = int(that.$sid('project_id').val());
             if (!id) return;
             try {
                 const result = await Project_Model.fetch(id);
-                that.data.results.project = result;
                 that._update_result('project', result);
             } catch (e) {
                 that._update_result('project', { error: e.message });

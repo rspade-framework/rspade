@@ -66,9 +66,11 @@ class Portal_Dashboard_Action extends Spa_Action {
         this.data.loading = false;
     }
 
-    on_ready() {
-        // Accept / decline a pending per-client invitation, then refresh. Binds are
-        // namespaced + idempotent (on_ready re-fires after each reload()).
+    on_render() {
+        // Delegated on the root in on_render(), so the cached paint responds at once. Binds
+        // are namespaced + idempotent (on_render re-fires on every render).
+        //
+        // Accept / decline a pending per-client invitation, then refresh.
         this.$.off('click.accept').on('click.accept', '[data-accept-invite]', async (e) => {
             const invitation_id = int($(e.currentTarget).data('accept-invite'));
             try {

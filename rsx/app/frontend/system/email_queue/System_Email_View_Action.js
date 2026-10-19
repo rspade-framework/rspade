@@ -36,14 +36,16 @@ class System_Email_View_Action extends Spa_Action {
         if (iframe.exists() && this.data.preview_html) {
             iframe.get(0).srcdoc = this.data.preview_html;
         }
+    }
 
-        if (this.$sid('resend-btn').exists()) {
-            this.$sid('resend-btn').click(async () => {
-                if (!await Modal.confirm('Resend Email', 'Re-queue this email for delivery?')) return;
-                await System_Email_Controller.queue_resend({id: this.args.id});
-                this.reload();
-            });
-        }
+    on_render() {
+        // Own markup, bound in on_render() so the cached paint responds at once.
+        // Namespaced and idempotent because on_render() re-fires on every render.
+        this.$sid('resend-btn').off('click.email_view').on('click.email_view', async () => {
+            if (!await Modal.confirm('Resend Email', 'Re-queue this email for delivery?')) return;
+            await System_Email_Controller.queue_resend({id: this.args.id});
+            this.reload();
+        });
     }
 
     async breadcrumb_label_active() { return 'Preview'; }

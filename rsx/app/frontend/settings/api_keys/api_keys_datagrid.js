@@ -4,14 +4,13 @@
  * Handles the view-scope and revoke button clicks.
  */
 class Api_Keys_DataGrid extends DataGrid_Abstract {
-    on_ready() {
-        super.on_ready();
-
-        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
-        // render() while on_ready() re-fires on each one, so one .off('.akdg') here
-        // clears this component's prior binds before they are re-attached. A one-shot
-        // instance flag would be wrong in both directions - flags die with the
-        // instance, handlers live on the element.
+    on_render() {
+        // Delegated handlers, NAMESPACED AND IDEMPOTENT, bound in on_render(): they
+        // need no row to exist yet, since the rows the grid paints later are reached by
+        // delegation. this.$ survives every render() while on_render() re-fires on each
+        // one, so one .off('.akdg') here clears this component's prior binds before they
+        // are re-attached. A one-shot instance flag would be wrong in both directions -
+        // flags die with the instance, handlers live on the element.
         this.$.off('.akdg');
 
         // Handle view-scope button clicks

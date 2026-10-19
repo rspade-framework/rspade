@@ -10,11 +10,11 @@
                         <select class="form-select form-select-sm w-auto" data-status-filter>
                             <option value="">All Statuses</option>
                             <% for (const opt of Email_Queue_Model.status_id__enum_select()) { %>
-                                <option value="<%= opt.value %>"><%= opt.label %></option>
+                                <option value="<%= opt.value %>" <% if (str(opt.value) === str(this.args.status || '')) { %>selected<% } %>><%= opt.label %></option>
                             <% } %>
                         </select>
                         <div class="input-group input-group-sm">
-                            <input type="text" class="form-control" $sid="search-input" placeholder="Search recipient or subject...">
+                            <input type="text" class="form-control" $sid="search-input" value="<%= this.args.search || '' %>" placeholder="Search recipient or subject...">
                             <button class="btn btn-secondary" $sid="search-btn"><i class="bi bi-search"></i></button>
                         </div>
                     </div>

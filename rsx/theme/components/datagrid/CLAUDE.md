@@ -133,12 +133,12 @@ resets to page 1. A key outside `allowed_filters` is refused with a console erro
 
 Server side reads them straight off `$params` in `build_query()`.
 
-**Widget wiring** - widgets live in `Slot:DG_Card_Header` with a `$sid`, are bound in the grid's
-own `on_ready()` (call `super.on_ready()` first) and are set FROM state, never the reverse:
+**Widget wiring** - widgets live in `Slot:DG_Card_Header` with a `$sid`, are the grid's own
+markup and so are bound in its `on_render()` (namespaced and idempotent - it re-fires on every
+render), and are set FROM state, never the reverse:
 
 ```javascript
-on_ready() {
-    super.on_ready();
+on_render() {
     this._bind_quick_filter('status_filter', 'status_id');
 }
 
@@ -146,7 +146,7 @@ _bind_quick_filter(sid, key) {
     let that = this;
     const $select = that.$sid(sid);
     $select.val(str(that.get_custom_filter(key) ?? ''));
-    $select.on('change', function () {
+    $select.off('change.cdg').on('change.cdg', function () {
         const $element = $(this);
         that.set_custom_filter(key, $element.val() || null);
     });
@@ -154,7 +154,7 @@ _bind_quick_filter(sid, key) {
 ```
 
 `default_filters` and the hash restore have both already run in `on_create()`, so the state is
-authoritative by `on_ready()`. Never express a default as a `selected` attribute in markup.
+authoritative by the first `on_render()`. Never express a default as a `selected` attribute in markup.
 
 The free-text search is a `<Search_Input $sid="filter_input">` in the same slot; the abstract finds
 it by that `$sid` and debounces it at 200ms.

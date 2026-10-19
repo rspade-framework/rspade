@@ -39,7 +39,9 @@ class Settings_User_Management_Api_Keys_Action extends Spa_Action {
         this.data.loading = false;
     }
 
-    on_ready() {
+    on_render() {
+        // Delegated on the root, namespaced and idempotent, in on_render() so the cached
+        // paint responds at once; _revoke() reads this.data when the click lands.
         const that = this;
 
         this.$.off('click.keys').on('click.keys', '[data-action="revoke"]', async function () {

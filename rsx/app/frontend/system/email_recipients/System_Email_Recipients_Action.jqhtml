@@ -7,7 +7,7 @@
             <Section $title="Email Recipients" $count=this.data.total $flush=true>
                 <Slot:actions>
                     <div class="input-group input-group-sm">
-                        <input type="text" class="form-control" $sid="search-input" placeholder="Search by email...">
+                        <input type="text" class="form-control" $sid="search-input" value="<%= this.args.search || '' %>" placeholder="Search by email...">
                         <button class="btn btn-secondary" $sid="search-btn"><i class="bi bi-search"></i></button>
                     </div>
                 </Slot:actions>

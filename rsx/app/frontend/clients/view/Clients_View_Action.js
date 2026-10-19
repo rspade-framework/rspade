@@ -102,23 +102,26 @@ class Clients_View_Action extends Spa_Action {
         return Rsx.Route('Clients_Index_Action');
     }
 
-    on_ready() {
-        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
-        // render() while on_ready() re-fires on each one, so one .off('.cva') here
-        // clears this page's prior binds before they are re-attached. A one-shot
-        // instance flag would be wrong in both directions - flags die with the
-        // instance, handlers live on the element.
-        this.$.off('.cva');
-
+    on_render() {
+        // Delegated on the root, NAMESPACED AND IDEMPOTENT: this.$ survives every
+        // render() while on_render() re-fires on each one, so .off('.cva') clears the
+        // prior bind before it is re-attached. Bound here rather than in on_ready() so
+        // the cached paint responds at once. A one-shot instance flag would be wrong in
+        // both directions - flags die with the instance, handlers live on the element.
+        //
         // KPI cells that jump to a tab (Kpi_Cell $clickable $tab). This stays on the
         // SHELL because it crosses regions: the cells live in Clients_View_Sidebar and
-        // the Tab_Bar they drive lives in the main column.
-        this.$.on('click.cva', '.Kpi_Cell--clickable', (e) => {
+        // the Tab_Bar they drive lives in the main column. The Tab_Bar is looked up when
+        // the click lands, so nothing here waits for the children.
+        this.$.off('click.cva').on('click.cva', '.Kpi_Cell--clickable', (e) => {
             const tab = $(e.currentTarget).attr('data-kpi-tab');
             const tab_bar = this.sid('tabs');
             if (tab && tab_bar) tab_bar.activate(tab);
         });
+    }
 
+    on_ready() {
+        // on_ready: binds the sidebar CHILD component's event, ready only here.
         // The sidebar owns its own record actions and announces a mutation; repainting
         // the page is the shell's call, so the one fetch of the record stays here.
         // A COMPONENT event, not a DOM one: no namespace and no .off() exist for these,

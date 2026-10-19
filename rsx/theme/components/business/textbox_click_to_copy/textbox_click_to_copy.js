@@ -11,20 +11,23 @@
  * - Reset icon after delay
  */
 class Textbox_Click_To_Copy extends Component {
-    on_ready() {
+    on_render() {
+        // Own markup only, so bound in on_render(). Namespaced and idempotent: on_render()
+        // re-fires on every render.
+
         // Prevent focus on the input (including programmatic focus from modals)
         // This keeps it purely as a click-to-copy element, not a focusable input
-        this.$sid('input').on('focus', (e) => {
+        this.$sid('input').off('focus.click_to_copy').on('focus.click_to_copy', (e) => {
             e.target.blur();
         });
 
         // Handle click on input field - copy to clipboard
-        this.$sid('input').click(() => {
+        this.$sid('input').off('click.click_to_copy').on('click.click_to_copy', () => {
             this.copy_to_clipboard();
         });
 
         // Handle click on copy button
-        this.$sid('copy_btn').click(() => {
+        this.$sid('copy_btn').off('click.click_to_copy').on('click.click_to_copy', () => {
             this.copy_to_clipboard();
         });
     }

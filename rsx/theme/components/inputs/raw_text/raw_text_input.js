@@ -30,13 +30,16 @@ class Raw_Text_Input extends Form_Input_Abstract {
         this.$sid('input').val(value === null || value === undefined ? '' : value.to_storage());
     }
 
-    on_ready() {
-        this._mark_ready();
-
+    on_render() {
+        // Namespaced and idempotent: on_render() re-fires on every render.
         const that = this;
-        this.$sid('input').on('input', function () {
+        this.$sid('input').off('input.raw_text').on('input.raw_text', function () {
             that._notify_input(that.val());
         });
+    }
+
+    on_ready() {
+        this._mark_ready();
     }
 
     async seed() {

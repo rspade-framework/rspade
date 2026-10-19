@@ -55,11 +55,12 @@ class Portal_Request_Thread_Action extends Spa_Action {
         this.data.loading = false;
     }
 
-    on_ready() {
-        if (!this.data.thread) return;
+    on_render() {
+        // Own markup, bound in on_render() so the cached paint responds at once; each
+        // handler reads this.data when it FIRES. Namespaced + idempotent (on_render
+        // re-fires on every render).
 
-        // Open the document detail modal from any chip / sidebar card. Namespaced +
-        // idempotent (on_ready re-fires after each reload()).
+        // Open the document detail modal from any chip / sidebar card.
         this.$.off('click.doc').on('click.doc', '[data-document]', async (e) => {
             const id = int($(e.currentTarget).data('document'));
             const document = this._find_document(id);
@@ -67,20 +68,12 @@ class Portal_Request_Thread_Action extends Spa_Action {
             await Portal_Document_Detail_Modal.show(document);
         });
 
-        // Open the participant contact card from either People_List (client members /
-        // staff). The list hands back the exact person object, so no re-lookup. Both
-        // groups share one handler; child components are recreated per render, so the
-        // bind stays fresh across reload().
-        this.$.find('.People_List').each((i, el) => {
-            $(el).component().on('person_click', (c, d) => Portal_Participant_Card_Modal.show(d.person));
-        });
-
         // The composer only renders for a non-closed thread the caller can collaborate on.
         if (!this.$sid('send-btn').exists()) return;
 
         // Attach files: trigger the hidden input, upload to /_upload, stage the key.
-        this.$sid('attach-btn').click(() => this.$sid('reply-file-input').click());
-        this.$sid('reply-file-input').on('change', async (e) => {
+        this.$sid('attach-btn').off('click.composer').on('click.composer', () => this.$sid('reply-file-input').click());
+        this.$sid('reply-file-input').off('change.composer').on('change.composer', async (e) => {
             const files = Array.from(e.currentTarget.files || []);
             for (const file of files) {
                 await this._upload_attachment(file);
@@ -89,7 +82,18 @@ class Portal_Request_Thread_Action extends Spa_Action {
         });
 
         // Send the reply (message + staged attachments).
-        this.$sid('send-btn').click(() => this._send_reply());
+        this.$sid('send-btn').off('click.composer').on('click.composer', () => this._send_reply());
+    }
+
+    on_ready() {
+        // on_ready: binds the People_List CHILD components' events, ready only here.
+        // Open the participant contact card from either People_List (client members /
+        // staff). The list hands back the exact person object, so no re-lookup. Both
+        // groups share one handler; child components are recreated per render, so the
+        // bind stays fresh across reload().
+        this.$.find('.People_List').each((i, el) => {
+            $(el).component().on('person_click', (c, d) => Portal_Participant_Card_Modal.show(d.person));
+        });
     }
 
     /**

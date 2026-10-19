@@ -10,40 +10,30 @@ class System_Email_Queue_Action extends Spa_Action {
     on_create() {
         this.data.rows = [];
         this.data.total = 0;
-        this.data.page = 1;
-        this.data.per_page = 20;
         this.data.loading = true;
-        this.state = { search: '', status_filter: '' };
     }
 
+    // The search and the status filter are INPUTS to the load, so they are args: a change
+    // sets them and reload()s, and the template shows them.
     async on_load() {
         const result = await System_Email_Controller.queue_fetch({
-            page: this.data.page,
-            per_page: this.data.per_page,
+            page: 1,
+            per_page: 20,
+            search: this.args.search || null,
+            status: this.args.status || null,
         });
         this.data.rows = result.rows;
         this.data.total = result.total;
         this.data.loading = false;
     }
 
-    async _fetch() {
-        const result = await System_Email_Controller.queue_fetch({
-            page: this.data.page,
-            per_page: this.data.per_page,
-            search: this.state.search || null,
-            status: this.state.status_filter || null,
-        });
-        this.data.rows = result.rows;
-        this.data.total = result.total;
-        this.render();
-    }
-
-    on_ready() {
-        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
-        // render() while on_ready() re-fires on each one, so one .off('.seq') here
-        // clears this component's prior binds before they are re-attached. A one-shot
-        // instance flag would be wrong in both directions - flags die with the
-        // instance, handlers live on the element.
+    on_render() {
+        // NAMESPACED AND IDEMPOTENT, in on_render() so the cached paint responds at once
+        // and every render gets its search box rebound: this.$ survives every
+        // render() while on_render() re-fires on each one, so one .off('.seq') here
+        // clears this component's prior delegated binds, and each $sid element (rebuilt
+        // per render) is .off() before .on(). A one-shot instance flag would be wrong in
+        // both directions - flags die with the instance, handlers live on the element.
         this.$.off('.seq');
 
         this.$.on('click.seq', '[data-resend]', async (e) => {
@@ -53,24 +43,21 @@ class System_Email_Queue_Action extends Spa_Action {
             this.reload();
         });
 
-        this.$sid('search-btn').click(() => {
-            this.state.search = this.$sid('search-input').val();
-            this.data.page = 1;
-            this._fetch();
+        this.$sid('search-btn').off('click.seq').on('click.seq', () => {
+            this.args.search = this.$sid('search-input').val();
+            this.reload();
         });
 
-        this.$sid('search-input').on('keypress', (e) => {
+        this.$sid('search-input').off('keypress.seq').on('keypress.seq', (e) => {
             if (e.which === 13) {
-                this.state.search = this.$sid('search-input').val();
-                this.data.page = 1;
-                this._fetch();
+                this.args.search = this.$sid('search-input').val();
+                this.reload();
             }
         });
 
         this.$.on('change.seq', '[data-status-filter]', (e) => {
-            this.state.status_filter = $(e.currentTarget).val();
-            this.data.page = 1;
-            this._fetch();
+            this.args.status = $(e.currentTarget).val();
+            this.reload();
         });
     }
 

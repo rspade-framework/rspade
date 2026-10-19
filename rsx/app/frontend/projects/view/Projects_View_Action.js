@@ -85,21 +85,24 @@ class Projects_View_Action extends Spa_Action {
         return Rsx.Route('Projects_Index_Action');
     }
 
-    on_ready() {
-        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
-        // render() while on_ready() re-fires on each one, so one .off('.pva') here
-        // clears this component's prior binds before they are re-attached. A one-shot
-        // instance flag would be wrong in both directions - flags die with the
-        // instance, handlers live on the element.
-        this.$.off('.pva');
-
-        // KPI cells that jump to a tab (Kpi_Cell $clickable $tab).
-        this.$.on('click.pva', '.Kpi_Cell--clickable', (e) => {
+    on_render() {
+        // Delegated on the root, NAMESPACED AND IDEMPOTENT, in on_render() so the cached
+        // paint responds at once: this.$ survives every render() while on_render()
+        // re-fires on each one, so .off('click.pva') clears the prior bind before it is
+        // re-attached. A one-shot instance flag would be wrong in both directions - flags
+        // die with the instance, handlers live on the element.
+        //
+        // KPI cells that jump to a tab (Kpi_Cell $clickable $tab). The Tab_Bar is looked
+        // up when the click lands.
+        this.$.off('click.pva').on('click.pva', '.Kpi_Cell--clickable', (e) => {
             const tab = $(e.currentTarget).attr('data-kpi-tab');
             const tab_bar = this.sid('tabs');
             if (tab && tab_bar) tab_bar.activate(tab);
         });
+    }
 
+    on_ready() {
+        // on_ready: binds the People_List CHILD components' events, ready only here.
         // People_List rows: a clicked contact navigates to its view (the contacts list is
         // $clickable; the assigned-users list is display-only, so it never fires). The list
         // hands back the exact person object, so we route on its id/type.

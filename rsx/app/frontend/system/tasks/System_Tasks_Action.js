@@ -32,7 +32,9 @@ class System_Tasks_Action extends Spa_Action {
         }
     }
 
-    on_ready() {
+    on_render() {
+        // In on_render() so the cached paint responds at once; namespaced and idempotent
+        // because on_render() re-fires on every render.
         const that = this;
 
         this.$sid('start').off('click.start').on('click.start', async function () {

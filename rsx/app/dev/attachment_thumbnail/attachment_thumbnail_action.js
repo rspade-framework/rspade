@@ -31,7 +31,9 @@ class Dev_Attachment_Thumbnail_Action extends Spa_Action {
         this.data.loading = false;
     }
 
-    on_ready() {
+    on_render() {
+        // Own markup only, so bound in on_render() and the cached paint responds at once.
+        // Namespaced and idempotent: on_render() re-fires on every render.
         const that = this;
         if (this.data.error) return;
 

@@ -77,22 +77,17 @@ class Revision_History extends Component {
             this.state.expanded[key] = !this.state.expanded[key];
             this.render();
         });
-    }
 
-    on_ready() {
-        if (this.$sid('older').exists()) {
-            this.$sid('older').click(() => {
-                this.args.before_id = this.data.next_before_id;
-                this.reload();
-            });
-        }
+        // Paging buttons: next_before_id is read when the click lands, not at bind time.
+        this.$sid('older').off('click.revision_history').on('click.revision_history', () => {
+            this.args.before_id = this.data.next_before_id;
+            this.reload();
+        });
 
-        if (this.$sid('latest').exists()) {
-            this.$sid('latest').click(() => {
-                this.args.before_id = null;
-                this.reload();
-            });
-        }
+        this.$sid('latest').off('click.revision_history').on('click.revision_history', () => {
+            this.args.before_id = null;
+            this.reload();
+        });
     }
 
     // =========================================================================

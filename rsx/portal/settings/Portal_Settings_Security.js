@@ -24,8 +24,9 @@ class Portal_Settings_Security extends Component {
         this.data.sso_identities = sso_identities;
     }
 
-    on_ready() {
-        // Namespaced and idempotent: on_ready() re-fires on every render and this.$ survives.
+    on_render() {
+        // Own markup, bound in on_render() so the cached paint responds at once. Namespaced
+        // and idempotent: on_render() re-fires on every render and this.$ survives.
         this.$.off('.pss');
 
         this.$.on('click.pss', '[data-remove-credential]', async (e) => {
@@ -56,17 +57,20 @@ class Portal_Settings_Security extends Component {
             });
         }
 
-        const register = this.sid('register');
-        if (register) {
-            register.on('registered', () => this.reload());
-        }
-
         const $show_totp = this.$sid('show_totp');
         if ($show_totp.exists()) {
             $show_totp.off('click.pss').on('click.pss', () => {
                 this.state.show_totp = true;
                 this.render();
             });
+        }
+    }
+
+    on_ready() {
+        // on_ready: binds the enrollment CHILD components' events, ready only here.
+        const register = this.sid('register');
+        if (register) {
+            register.on('registered', () => this.reload());
         }
 
         const totp = this.sid('totp');

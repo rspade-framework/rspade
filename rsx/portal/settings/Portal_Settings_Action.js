@@ -23,17 +23,18 @@ class Portal_Settings_Action extends Spa_Action {
         this.data.loading = false;
     }
 
-    on_ready() {
-        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
-        // render() while on_ready() re-fires on each one, so one .off('.psa') here
-        // clears this component's prior binds before they are re-attached. A one-shot
-        // instance flag would be wrong in both directions - flags die with the
-        // instance, handlers live on the element.
+    on_render() {
+        // NAMESPACED AND IDEMPOTENT, in on_render() so the cached paint responds at once:
+        // this.$ survives every render() while on_render() re-fires on each one, so one
+        // .off('.psa') here clears this component's prior delegated binds, and the form
+        // (rebuilt per render) is .off() before .on(). A one-shot instance flag would be
+        // wrong in both directions - flags die with the instance, handlers live on the
+        // element.
         this.$.off('.psa');
 
         // Change password form
         if (this.$sid('password-form').exists()) {
-            this.$sid('password-form').on('submit', async (e) => {
+            this.$sid('password-form').off('submit.psa').on('submit.psa', async (e) => {
                 e.preventDefault();
                 const current = this.$sid('current-password').val();
                 const new_pw = this.$sid('new-password').val();

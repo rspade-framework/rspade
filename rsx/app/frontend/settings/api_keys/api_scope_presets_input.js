@@ -28,13 +28,17 @@ class Api_Scope_Presets_Input extends Form_Input_Abstract {
         });
     }
 
+    on_render() {
+        // The user's edit is announced from the first paint. Namespaced and idempotent:
+        // on_render() re-fires on every render and the list element is rebuilt each time.
+        const that = this;
+        this.$sid('list').off('change.api_scope_presets').on('change.api_scope_presets', '.Api_Scope_Presets_Input__checkbox', function () {
+            that._notify_input(that.val());
+        });
+    }
+
     on_ready() {
         // The earliest moment a write would stick: the checkboxes exist.
         this._mark_ready();
-
-        const that = this;
-        this.$sid('list').on('change', '.Api_Scope_Presets_Input__checkbox', function () {
-            that._notify_input(that.val());
-        });
     }
 }

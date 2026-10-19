@@ -21,12 +21,15 @@ class Checkbox_Multiselect_Input extends Form_Input_Abstract {
         });
     }
 
-    on_ready() {
-        this._mark_ready();
-
+    on_render() {
+        // Namespaced and idempotent: on_render() re-fires on every render.
         const that = this;
-        this.$sid('checkbox_list').on('change', '.multiselect-checkbox', function() {
+        this.$sid('checkbox_list').off('change.checkbox_multiselect').on('change.checkbox_multiselect', '.multiselect-checkbox', function() {
             that._notify_input(that.val());
         });
+    }
+
+    on_ready() {
+        this._mark_ready();
     }
 }

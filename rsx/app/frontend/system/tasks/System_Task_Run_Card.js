@@ -7,7 +7,9 @@ class System_Task_Run_Card extends Component {
         this.state.open = !!this.args.open;
     }
 
-    on_ready() {
+    on_render() {
+        // Own markup only, so bound in on_render(): the toggle's own render() rebuilds the
+        // head, and on_render() rebinds it. Namespaced and idempotent.
         const that = this;
 
         this.$sid('toggle').off('click.toggle').on('click.toggle', function () {

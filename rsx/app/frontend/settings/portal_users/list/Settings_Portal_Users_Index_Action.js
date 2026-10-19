@@ -19,10 +19,11 @@
 class Settings_Portal_Users_Index_Action extends Spa_Action {
     scaffolded = true;
 
-    on_ready() {
-        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
-        // render() while on_ready() re-fires on each one, so one .off('.spui') here
-        // clears this component's prior binds before they are re-attached. A one-shot
+    on_render() {
+        // Delegated handlers, NAMESPACED AND IDEMPOTENT, in on_render(): this.$ survives
+        // every render() while on_render() re-fires on each one, so one .off('.spui') here
+        // clears this component's prior binds before they are re-attached. The grid child
+        // is looked up when a click lands, never at bind time. A one-shot
         // instance flag would be wrong in both directions - flags die with the
         // instance, handlers live on the element.
         this.$.off('.spui');

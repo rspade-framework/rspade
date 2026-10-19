@@ -66,12 +66,12 @@ class Party_View_Action extends Spa_Action {
         }
     }
 
-    on_ready() {
-        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
-        // render() while on_ready() re-fires on each one, so one .off('.pav') here
-        // clears this component's prior binds before they are re-attached. A one-shot
-        // instance flag would be wrong in both directions - flags die with the
-        // instance, handlers live on the element.
+    on_render() {
+        // NAMESPACED AND IDEMPOTENT, in on_render() so the cached paint responds at once:
+        // this.$ survives every render() while on_render() re-fires on each one, so one
+        // .off('.pav') here clears this component's prior delegated binds before they are
+        // re-attached. A one-shot instance flag would be wrong in both directions - flags
+        // die with the instance, handlers live on the element.
         this.$.off('.pav');
 
         // KPI cells that jump to a tab (Kpi_Cell $clickable $tab).
@@ -82,14 +82,14 @@ class Party_View_Action extends Spa_Action {
         });
 
         // Destructive action lives inside the overflow Action_Menu, never as a peer button.
-        if (this.$sid('delete-party').exists()) {
-            this.$sid('delete-party').click(async () => {
-                const confirmed = await Modal.confirm('Delete Party', 'Are you sure you want to delete this party?\n\nThis can be undone by restoring it afterward.', 'Delete', 'Cancel');
-                if (!confirmed) return;
-                await Frontend_Party_Controller.delete({id: this.args.id});
-                Spa.dispatch(Rsx.Route('Party_Index_Action'));
-            });
-        }
+        // The menu item is this template's own markup (Action_Menu is template-only), and
+        // it is rebuilt per render, hence .off() before .on().
+        this.$sid('delete-party').off('click.pav').on('click.pav', async () => {
+            const confirmed = await Modal.confirm('Delete Party', 'Are you sure you want to delete this party?\n\nThis can be undone by restoring it afterward.', 'Delete', 'Cancel');
+            if (!confirmed) return;
+            await Frontend_Party_Controller.delete({id: this.args.id});
+            Spa.dispatch(Rsx.Route('Party_Index_Action'));
+        });
     }
 
     async page_title() {

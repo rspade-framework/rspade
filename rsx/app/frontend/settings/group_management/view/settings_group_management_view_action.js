@@ -38,16 +38,19 @@ class Settings_Group_Management_View_Action extends Spa_Action {
         this.data.loading = false;
     }
 
-    on_ready() {
+    on_render() {
+        // Own markup, bound in on_render() so the cached paint responds at once; the
+        // handlers read this.data when they fire. Namespaced and idempotent because
+        // on_render() re-fires on every render.
         let that = this;
 
         // Handle Edit Group button click
-        that.$sid('btn_edit_group').click(async function () {
+        that.$sid('btn_edit_group').off('click.group_view').on('click.group_view', async function () {
             await that.handle_edit_group();
         });
 
         // Handle Delete Group button click
-        that.$sid('btn_delete_group').click(async function () {
+        that.$sid('btn_delete_group').off('click.group_view').on('click.group_view', async function () {
             await that.handle_delete_group();
         });
     }

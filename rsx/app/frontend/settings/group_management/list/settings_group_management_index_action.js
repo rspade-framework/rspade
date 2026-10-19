@@ -13,11 +13,13 @@
 class Settings_Group_Management_Index_Action extends Spa_Action {
     scaffolded = true;
 
-    on_ready() {
+    on_render() {
+        // Own markup, bound in on_render(); namespaced and idempotent because on_render()
+        // re-fires on every render.
         let that = this;
 
         // Handle Add Group button click
-        that.$sid('btn_add_group').click(async function () {
+        that.$sid('btn_add_group').off('click.group_management').on('click.group_management', async function () {
             await that.handle_add_group();
         });
     }

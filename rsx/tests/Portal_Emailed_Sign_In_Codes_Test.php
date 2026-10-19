@@ -29,7 +29,14 @@ use Rsx\Portal\Auth\Portal_Login_Controller;
  * PINNED: switched off, a portal user without a factor signs straight in (the shipped
  * default); switched on, the same password sign-in is parked behind a challenge accepting an
  * emailed code; send_code() queues a SECURITY email to the pending user's own address and
- * stops at MAX_CODES_PER_SIGN_IN; the emailed code completes the sign-in.
+ * stops at MAX_CODES_PER_SIGN_IN; the emailed code completes the sign-in; and switched on
+ * while the code could not reach the user (Rsx_Mail::deliverable_to() false - here, delivery
+ * suppressed), a portal user holding no factor signs in on the password rather than being
+ * locked out.
+ *
+ * The cases that need a code to arrive declare deliverable mail: delivery live, and the
+ * fixture domain on the dev-site whitelist (the test host is a `.dev.` host). Nothing is
+ * drained - the suite spawns no workers - so the row stays queued.
  */
 class Portal_Emailed_Sign_In_Codes_Test extends Rsx_Test_Abstract
 {
@@ -37,13 +44,20 @@ class Portal_Emailed_Sign_In_Codes_Test extends Rsx_Test_Abstract
 
     private const PASSWORD = 'correct-horse-battery-staple';
 
+    private static array $__saved_mail = [];
+
     public static function setup(): void
     {
         static::__acting_as_site(self::SITE_ID);
+        static::$__saved_mail = [
+            'rsx.mail.delivery' => config('rsx.mail.delivery'),
+            'rsx.mail.dev_site.domain_whitelist' => config('rsx.mail.dev_site.domain_whitelist'),
+        ];
     }
 
     public static function teardown(): void
     {
+        config(static::$__saved_mail);
         config(['rsx.portal.emailed_sign_in_codes' => false]);
         Rsx_Turnstile::$force_verify_result_for_tests = null;
         Login_Throttle::reset('CLI');
@@ -91,6 +105,15 @@ class Portal_Emailed_Sign_In_Codes_Test extends Rsx_Test_Abstract
         return Portal_Login_Controller::index($request, []);
     }
 
+    /** Mail that reaches the fixture's addresses (see the class docblock). */
+    private static function __deliverable_mail(): void
+    {
+        config([
+            'rsx.mail.delivery' => 'live',
+            'rsx.mail.dev_site.domain_whitelist' => 'example.com',
+        ]);
+    }
+
     private static function __send_code()
     {
         return Portal_Login_Controller::send_code(Request::create(Rsx_Portal_Url::prefix() . '/_ajax/Portal_Login_Controller/send_code', 'POST'), []);
@@ -117,6 +140,7 @@ class Portal_Emailed_Sign_In_Codes_Test extends Rsx_Test_Abstract
     public static function test_switched_on_the_emailed_code_completes_the_sign_in()
     {
         config(['rsx.portal.emailed_sign_in_codes' => true]);
+        static::__deliverable_mail();
         $portal_user = static::__portal_user();
 
         static::__password_login($portal_user);
@@ -147,6 +171,7 @@ class Portal_Emailed_Sign_In_Codes_Test extends Rsx_Test_Abstract
     public static function test_send_code_stops_at_the_cap()
     {
         config(['rsx.portal.emailed_sign_in_codes' => true]);
+        static::__deliverable_mail();
         $portal_user = static::__portal_user();
 
         static::__password_login($portal_user);
@@ -156,5 +181,21 @@ class Portal_Emailed_Sign_In_Codes_Test extends Rsx_Test_Abstract
         }
 
         static::__assert_instance_of(Error_Response::class, static::__send_code(), 'refused past the cap');
+    }
+
+    /**
+     * On, but the code could not reach the user (delivery suppressed): a code nobody receives
+     * would lock the account, so a portal user holding no factor signs in on the password.
+     */
+    public static function test_switched_on_with_undeliverable_mail_does_not_lock_the_user_out()
+    {
+        config(['rsx.portal.emailed_sign_in_codes' => true, 'rsx.mail.delivery' => 'suppressed']);
+        $portal_user = static::__portal_user();
+
+        static::__assert_false(Portal_Login_Controller::challenge_accepts($portal_user), 'no challenge is owed');
+
+        static::__password_login($portal_user);
+
+        static::__assert_true(Portal_Session::is_logged_in(), 'signed in on the password');
     }
 }

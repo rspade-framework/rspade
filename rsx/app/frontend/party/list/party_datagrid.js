@@ -6,13 +6,12 @@ class Party_DataGrid extends DataGrid_Abstract {
 
     static record_noun_plural = 'parties';
 
-    on_ready() {
-        super.on_ready();
-
-        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
-        // render() while on_ready() re-fires on each one, so one .off('.pdg') here
-        // clears this component's prior binds before they are re-attached. A one-shot
-        // instance flag would be wrong in both directions - flags die with the
+    on_render() {
+        // NAMESPACED AND IDEMPOTENT, in on_render(): the quick filter is this grid's own
+        // header markup and the delete delegate needs no row to exist yet. this.$ survives
+        // every render() while on_render() re-fires on each one, so one .off('.pdg') here
+        // clears this component's prior delegated binds before they are re-attached. A
+        // one-shot instance flag would be wrong in both directions - flags die with the
         // instance, handlers live on the element.
         this.$.off('.pdg');
 
@@ -60,7 +59,7 @@ class Party_DataGrid extends DataGrid_Abstract {
 
         $select.val(str(that.get_custom_filter(key) ?? ''));
 
-        $select.on('change', function () {
+        $select.off('change.pdg').on('change.pdg', function () {
             const $element = $(this);
             that.set_custom_filter(key, $element.val() || null);
         });

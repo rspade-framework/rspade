@@ -81,10 +81,11 @@ class Contacts_View_Action extends Spa_Action {
         return Rsx.Route('Contacts_Index_Action');
     }
 
-    on_ready() {
-        // Delegated on the component root, NAMESPACED AND IDEMPOTENT: this.$ survives
-        // every render() while on_ready() re-fires on each one, so a bare .on() would
-        // stack a second handler per repaint. The .off('.ns').on('.ns') pair needs no
+    on_render() {
+        // Delegated on the component root, NAMESPACED AND IDEMPOTENT, in on_render() so
+        // the cached paint responds at once: this.$ survives every render() while
+        // on_render() re-fires on each one, so a bare .on() would stack a second handler
+        // per repaint. The Tab_Bar is looked up when the click lands. The .off('.ns').on('.ns') pair needs no
         // one-shot flag - flags live on the instance, handlers live on the element.
         // KPI cells that jump to a tab (Kpi_Cell $clickable $tab).
         this.$.off('click.contacts_view').on('click.contacts_view', '.Kpi_Cell--clickable', (e) => {

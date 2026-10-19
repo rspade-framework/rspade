@@ -61,10 +61,12 @@ class Clients_Portal_Panel extends Component {
         this.data.loading = false;
     }
 
-    on_ready() {
-        // Re-bind idempotently: clear THIS component's namespaced delegated handlers from
-        // any prior render before re-attaching, so a reload() cannot stack duplicate
-        // handlers. Delegated handlers use the '.cpp' namespace; $sid handlers .off() first.
+    on_render() {
+        // Bound in on_render() so the cached paint responds at once; every handler reads
+        // this.data when it FIRES, so none waits for the load. on_render() re-fires on
+        // every render, so binds are idempotent: one .off('.cpp') clears this component's
+        // delegated handlers on the surviving root, and each $sid element (rebuilt per
+        // render) is .off('click.cpp') before .on('click.cpp').
         this.$.off('.cpp');
 
         // Disable Access = remove this client's membership (account/login persist).
@@ -148,7 +150,7 @@ class Clients_Portal_Panel extends Component {
 
         // Add member button -> the redesigned checkbox-table modal.
         if (this.$sid('add-member-btn').exists()) {
-            this.$sid('add-member-btn').off('click').click(async () => {
+            this.$sid('add-member-btn').off('click.cpp').on('click.cpp', async () => {
                 if (await Add_Portal_Members_Modal.show(this.args.client_id)) this.reload();
             });
         }
@@ -164,15 +166,15 @@ class Clients_Portal_Panel extends Component {
 
         // Post announcement
         if (this.$sid('announcement-post-btn').exists()) {
-            this.$sid('announcement-post-btn').off('click').click(() => this._post_announcement());
+            this.$sid('announcement-post-btn').off('click.cpp').on('click.cpp', () => this._post_announcement());
         }
 
         // --- Documents ---
 
         // Upload Document: trigger the hidden file input.
         if (this.$sid('upload-doc-btn').exists()) {
-            this.$sid('upload-doc-btn').off('click').click(() => this.$sid('doc-file-input').click());
-            this.$sid('doc-file-input').off('change').on('change', (e) => {
+            this.$sid('upload-doc-btn').off('click.cpp').on('click.cpp', () => this.$sid('doc-file-input').click());
+            this.$sid('doc-file-input').off('change.cpp').on('change.cpp', (e) => {
                 const file = e.currentTarget.files[0];
                 if (file) this._upload_document(file);
             });
@@ -223,7 +225,7 @@ class Clients_Portal_Panel extends Component {
 
         // New Request: title + body -> request_thread_create, then open the new thread.
         if (this.$sid('new-request-btn').exists()) {
-            this.$sid('new-request-btn').off('click').click(async () => {
+            this.$sid('new-request-btn').off('click.cpp').on('click.cpp', async () => {
                 const thread_url = await New_Request_Thread_Modal.show(this.args.client_id);
                 if (thread_url) Spa.dispatch(thread_url);
             });

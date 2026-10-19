@@ -18,9 +18,10 @@ class Record_Attachments extends Component {
 
     on_render() {
         this.$.toggleClass('rsx-droppable', !!this.args.can_upload);
-    }
 
-    on_ready() {
+        // Own markup only, so bound here: the first paint responds at once, and the
+        // render() an upload makes gets its buttons rebound. Namespaced and idempotent:
+        // on_render() re-fires on every render.
         const that = this;
 
         this.$.off('.record_attachments');

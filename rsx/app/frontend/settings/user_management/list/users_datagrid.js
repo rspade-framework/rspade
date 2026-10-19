@@ -7,12 +7,11 @@
 class Users_DataGrid extends DataGrid_Abstract {
     static record_noun_plural = 'users';
 
-    on_ready() {
-        super.on_ready();
-
+    on_render() {
         // Export is the ONLY footer action here, and it is permission-gated in the template.
-        // Without that permission the dropdown would open on nothing, so drop the button
-        // rather than offer an empty menu.
+        // Without that permission the menu would open on nothing, so the button goes. This
+        // is formatting of the grid's own markup: on_render(), so the cached paint is right
+        // too, and every render re-checks it.
         if (this.$.find('.DataGrid_Abstract__footer-actions .dropdown-item').length === 0) {
             this.$.find('.DataGrid_Abstract__footer-actions').remove();
         }

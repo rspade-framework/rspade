@@ -19,7 +19,18 @@ class Rsx_Tabs extends Component {
         this.form = null;
     }
 
+    on_render() {
+        // Persist active tab to URL hash. Delegated on the nav element, which is this
+        // component's own markup, so the links _build_nav() adds later are covered.
+        // Namespaced and idempotent: on_render() re-fires on every render.
+        this.$sid('nav').off('click.rsx_tabs').on('click.rsx_tabs', 'a[data-bs-toggle="tab"]', (e) => {
+            const tab_id = $(e.currentTarget).data('tab-id');
+            Rsx.url_hash_set_single('tab', tab_id);
+        });
+    }
+
     on_ready() {
+        // on_ready: the nav is built from the Rsx_Tab CHILDREN, registered only by now.
         // Find parent form if it exists
         this.form = this.closest('.Rsx_Form');
 
@@ -33,12 +44,6 @@ class Rsx_Tabs extends Component {
         } else if (this.tabs.length > 0) {
             this.activate_tab(this.tabs[0].args.id);
         }
-
-        // Persist active tab to URL hash
-        this.$sid('nav').on('click', 'a[data-bs-toggle="tab"]', (e) => {
-            const tab_id = $(e.currentTarget).data('tab-id');
-            Rsx.url_hash_set_single('tab', tab_id);
-        });
     }
 
     register_tab(tab_component) {

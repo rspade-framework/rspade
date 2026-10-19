@@ -78,12 +78,12 @@ class Tasks_View_Action extends Spa_Action {
         return Rsx.Route('Tasks_Index_Action');
     }
 
-    on_ready() {
-        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
-        // render() while on_ready() re-fires on each one, so one .off('.tva') here
-        // clears this component's prior binds before they are re-attached. A one-shot
-        // instance flag would be wrong in both directions - flags die with the
-        // instance, handlers live on the element.
+    on_render() {
+        // NAMESPACED AND IDEMPOTENT, in on_render() so the cached paint responds at once:
+        // this.$ survives every render() while on_render() re-fires on each one, so one
+        // .off('.tva') here clears this component's prior delegated binds before they are
+        // re-attached. A one-shot instance flag would be wrong in both directions - flags
+        // die with the instance, handlers live on the element.
         this.$.off('.tva');
 
         // KPI cells that jump to a tab (Kpi_Cell $clickable $tab).
@@ -93,26 +93,29 @@ class Tasks_View_Action extends Spa_Action {
             if (tab && tab_bar) tab_bar.activate(tab);
         });
 
+        // Destructive action lives inside the overflow Action_Menu, never as a peer button.
+        // The menu item is this template's own markup (Action_Menu is template-only), and
+        // it is rebuilt per render, hence .off() before .on().
+        this.$sid('delete-task').off('click.tva').on('click.tva', async () => {
+            const confirmed = await Modal.confirm(
+                'Delete Task',
+                'Are you sure you want to delete this task?\n\nThis cannot be undone.',
+                'Delete',
+                'Cancel'
+            );
+            if (!confirmed) return;
+            await Frontend_Tasks_Controller.delete({ id: this.args.id });
+            Spa.dispatch(Rsx.Route('Tasks_Index_Action'));
+        });
+    }
+
+    on_ready() {
+        // on_ready: binds the Record_Attachments CHILD component's event, ready only here.
         // Files were attached: refetch and repaint. The server also emits the task's
         // realtime frame, which is what updates every OTHER open view of this task.
         const attachments = this.sid('attachments');
         if (attachments) {
             attachments.on('changed', () => this.refresh());
-        }
-
-        // Destructive action lives inside the overflow Action_Menu, never as a peer button.
-        if (this.$sid('delete-task').exists()) {
-            this.$sid('delete-task').click(async () => {
-                const confirmed = await Modal.confirm(
-                    'Delete Task',
-                    'Are you sure you want to delete this task?\n\nThis cannot be undone.',
-                    'Delete',
-                    'Cancel'
-                );
-                if (!confirmed) return;
-                await Frontend_Tasks_Controller.delete({ id: this.args.id });
-                Spa.dispatch(Rsx.Route('Tasks_Index_Action'));
-            });
         }
     }
 

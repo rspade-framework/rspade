@@ -129,10 +129,11 @@ class Settings_Password_Security_Action extends Spa_Action {
             });
     }
 
-    on_ready() {
-        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
-        // render() while on_ready() re-fires on each one, so one .off('.sps') here
-        // clears this component's prior binds before they are re-attached. A one-shot
+    on_render() {
+        // Delegated handlers, NAMESPACED AND IDEMPOTENT, bound in on_render() so the
+        // cached paint responds at once: this.$ survives every render() while
+        // on_render() re-fires on each one, so one .off('.sps') here clears this
+        // component's prior binds before they are re-attached. A one-shot
         // instance flag would be wrong in both directions - flags die with the
         // instance, handlers live on the element.
         this.$.off('.sps');

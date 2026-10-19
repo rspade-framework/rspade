@@ -55,7 +55,6 @@ async function await_spa_ready(page) {
             setTimeout(resolve, 3000);
         }
     }));
-    await page.evaluate(() => { if (typeof Rsx !== 'undefined') Rsx.validate_session = async () => true; });
 }
 
 /** Probe 1 - Modal.confirm resolves true on Enter. */

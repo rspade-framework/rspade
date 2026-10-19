@@ -52,7 +52,7 @@ from `rsx/theme/badges.scss`, not a second filled badge. Registry rows: Layer 4 
 - `$editable` (a click-to-change-status popover) is deliberately not built: a clickable
   status chip implies a transition endpoint. Add it in the same change that adds one.
 - `Action_Menu` items are authored by the caller and wired in the owning action's
-  `on_ready()` via their `$sid` — the component itself knows nothing about them, so a new
+  `on_render()` via their `$sid` (namespaced, `.off()` before `.on()`) — the component itself knows nothing about them, so a new
   kind of menu item needs no change here.
 - `Impersonation_Banner`'s wording and colour are its own (`impersonation_banner.scss`,
   the same amber the portal's read-only banner and `Realtime_Status_Badge` use). An app

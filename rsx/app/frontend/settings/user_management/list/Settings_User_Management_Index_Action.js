@@ -13,11 +13,13 @@
 class Settings_User_Management_Index_Action extends Spa_Action {
     scaffolded = true;
 
-    on_ready() {
+    on_render() {
+        // Own markup, bound in on_render(); namespaced and idempotent because on_render()
+        // re-fires on every render.
         let that = this;
 
         // Handle Add User button click
-        that.$sid('btn_add_user').click(async function () {
+        that.$sid('btn_add_user').off('click.user_management').on('click.user_management', async function () {
             await that.handle_add_user();
         });
     }

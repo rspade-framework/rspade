@@ -13,6 +13,7 @@ use App\RSpade\Core\Auth\Auth_Throttled_Exception;
 use App\RSpade\Core\Auth\Login_Throttle;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Login\Login_Redirect;
+use App\RSpade\Core\Mail\Rsx_Mail;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
@@ -265,7 +266,11 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
      * THE ONE PLACE this application's second-step policy lives - the password form above
      * and the federated sign-in (Rsx\Handlers\Portal_Sso_Handlers) both ask it:
      *   - emailed sign-in codes on: always a challenge, accepting an emailed code or any
-     *     factor the portal user holds;
+     *     factor the portal user holds - unless the code could not reach them
+     *     (Rsx_Mail::deliverable_to(): mail suppressed or frozen, a dev host, a blocked
+     *     address), when a code nobody receives would lock the account: the challenge then
+     *     accepts only the factors they hold, and a portal user holding none signs in on the
+     *     password alone;
      *   - off: a challenge only for a portal user holding a factor, accepting what they hold
      *     (null - the framework's default list).
      *
@@ -274,7 +279,8 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
      */
     public static function challenge_accepts(Portal_User_Model $portal_user): array|null|false
     {
-        if (config('rsx.portal.emailed_sign_in_codes')) {
+        if (config('rsx.portal.emailed_sign_in_codes')
+            && Rsx_Mail::deliverable_to($portal_user->email, Rsx_Mail::SECURITY)) {
             return [
                 Rsx_Portal_Two_Factor::ANSWER_ISSUED_CODE,
                 Rsx_Portal_Two_Factor::ANSWER_TOTP,

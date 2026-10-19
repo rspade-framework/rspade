@@ -44,15 +44,15 @@ class Clients_Request_Thread_Action extends Spa_Action {
         this.data.loading = false;
     }
 
-    on_ready() {
-        // Delegated handlers, NAMESPACED AND IDEMPOTENT: this.$ survives every
-        // render() while on_ready() re-fires on each one, so one .off('.crta') here
-        // clears this component's prior binds before they are re-attached. A one-shot
-        // instance flag would be wrong in both directions - flags die with the
-        // instance, handlers live on the element.
+    on_render() {
+        // Delegated handlers, NAMESPACED AND IDEMPOTENT, bound in on_render() so the
+        // cached paint responds at once: this.$ survives every render() while
+        // on_render() re-fires on each one, so one .off('.crta') here clears this
+        // component's prior binds before they are re-attached. Each handler reads
+        // this.data when it FIRES, so none waits for the load. A one-shot instance flag
+        // would be wrong in both directions - flags die with the instance, handlers
+        // live on the element.
         this.$.off('.crta');
-
-        if (!this.data.thread) return;
 
         // Open a document detail modal from any chip / sidebar card.
         this.$.on('click.crta', '[data-document]', async (e) => {
@@ -62,6 +62,26 @@ class Clients_Request_Thread_Action extends Spa_Action {
             if (await Document_Detail_Modal.show(document)) this.reload();
         });
 
+        // The composer renders only for a thread that is not closed (closed threads are
+        // read-only), so these $sid elements exist exactly when they should be bound.
+        // Each is rebuilt per render, hence .off() before .on().
+
+        // Attach files: trigger the hidden input, upload to /_upload, stage the key.
+        this.$sid('attach-btn').off('click.crta').on('click.crta', () => this.$sid('reply-file-input').click());
+        this.$sid('reply-file-input').off('change.crta').on('change.crta', async (e) => {
+            const files = Array.from(e.currentTarget.files || []);
+            for (const file of files) {
+                await this._upload_attachment(file);
+            }
+            this.$sid('reply-file-input').val('');
+        });
+
+        // Send the reply (message + staged attachments + optional status change).
+        this.$sid('send-btn').off('click.crta').on('click.crta', () => this._send_reply());
+    }
+
+    on_ready() {
+        // on_ready: binds the People_List CHILD components' events, ready only here.
         // Open the participant contact card from either People_List (client members /
         // staff). The list hands back the exact person object, so no re-lookup; both
         // groups share one handler. Child components are recreated per render, so the
@@ -69,25 +89,6 @@ class Clients_Request_Thread_Action extends Spa_Action {
         this.$.find('.People_List').each((i, el) => {
             $(el).component().on('person_click', (c, d) => Request_Participant_Card_Modal.show(d.person));
         });
-
-        if (this.data.thread.is_closed) return; // closed threads are read-only
-
-        // Attach files: trigger the hidden input, upload to /_upload, stage the key.
-        if (this.$sid('attach-btn').exists()) {
-            this.$sid('attach-btn').click(() => this.$sid('reply-file-input').click());
-            this.$sid('reply-file-input').on('change', async (e) => {
-                const files = Array.from(e.currentTarget.files || []);
-                for (const file of files) {
-                    await this._upload_attachment(file);
-                }
-                this.$sid('reply-file-input').val('');
-            });
-        }
-
-        // Send the reply (message + staged attachments + optional status change).
-        if (this.$sid('send-btn').exists()) {
-            this.$sid('send-btn').click(() => this._send_reply());
-        }
     }
 
     /**

@@ -25,14 +25,16 @@ class Settings_Api_Keys_Action extends Spa_Action {
         this.data.has_api_access = Permission.has_api_access();
     }
 
-    on_ready() {
+    on_render() {
         // No key management UI exists without API access - nothing to wire.
         if (!this.data.has_api_access) {
             return;
         }
 
-        // Handle "Generate New Key" button
-        this.$sid('btn_add_key').click(async () => {
+        // Handle "Generate New Key" button. Own markup, bound in on_render(); the grid
+        // child is looked up when the dialog resolves. Namespaced and idempotent because
+        // on_render() re-fires on every render.
+        this.$sid('btn_add_key').off('click.api_keys').on('click.api_keys', async () => {
             const result = await Add_Api_Key_Modal.show();
             if (result) {
                 // Reload the datagrid to show the new key
