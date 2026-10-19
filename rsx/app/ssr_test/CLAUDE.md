@@ -12,6 +12,10 @@ exception message only to a caller `Rsx_Diagnostics` admits; everyone else sees 
 fixture data hardcoded in `get_page_data` — no model, no database; the four components under
 `components/` exist only to give the renderer something non-trivial to draw.
 
+**Server-side rendering and full page caching are disabled in this release** (`rsx:man ssr`,
+`rsx:man fpc`): `/ssr-test` dispatches normally, is not cached, and shows the render error
+`Rsx_SSR::render_component()` throws; `/ssr-test-csr` still renders the component client-side.
+
 **To delete it cleanly:** remove the directory. Nothing references it. Deleting it frees the
 theme components `Card`, `Card_Header`, `Card_Footer` (`rsx/theme/components/card/`),
 `Page_Section` and `Page_Subtitle` (`page/`), and `Breadcrumb` / `Breadcrumb_Item`

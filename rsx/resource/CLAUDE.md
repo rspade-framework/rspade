@@ -85,7 +85,7 @@ password reset), `errors/` (the portal realm's own error pages), `dashboard/`,
 | `rsx/handlers/` | Event handlers: `File_Upload_Handlers` (the mandatory upload gate), `Portal_File_Access_Handlers`, `Task_Gate_Handlers` (who sees and controls background task runs). |
 | `rsx/emails/` | Email classes (`X_Email extends Rsx_Email_Abstract`) beside their blade templates and `email.scss`. |
 | `rsx/tests/` | The application test suite (`php artisan rsx:test`). |
-| `rsx/resource/` | Framework-ignored. `config/` (config overrides), `man/` (project man pages), `docs/`, `skills/`, `audits/prelaunch_checklist.md`, `conventions/`, `migrations/` (app-owned migrations). |
+| `rsx/resource/` | Framework-ignored. `config/` (config overrides), `man/` (project man pages), `docs/`, `skills/`, `conformance/` (this application's conformance audits), `conventions/`, `migrations/` (app-owned migrations). |
 
 ---
 

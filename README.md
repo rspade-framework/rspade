@@ -477,9 +477,10 @@ the application refuses to serve anything that drifts from the seal. There is a
 matching production container target that omits the bundled database and expects
 you to bring your own.
 
-Before you launch, read `php artisan rsx:man prelaunch_checklist`. It is a real
-checklist of things that are impractical to enforce automatically, and it exists
-because each entry on it has bitten somebody.
+Before you launch, walk `php artisan rsx:man launch_checklist` on the production
+host, and have the launch conformance audits run against your code
+(`php artisan rsx:conformance:list --when=launch`). Together they cover what is
+impractical to enforce automatically.
 
 ---
 

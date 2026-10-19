@@ -30,8 +30,7 @@ way.
 **Registering one by hand** (a box whose last build predates the skill):
 
 ```bash
-php artisan rsx:manifest:build      # a development build runs the environment updates
-php artisan rsx:heal claude-skills  # or just the wiring, on its own
+php artisan rsx:heal claude-skills
 ```
 
 **Rules the script obeys.** A link it made that no longer resolves is pruned (the

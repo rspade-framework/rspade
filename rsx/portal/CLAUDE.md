@@ -133,7 +133,7 @@ of its own (`https://portal.myapp.com/` -> `https://portal.myapp.com/login`) - b
 every portal URL here is built with `Rsx_Portal::Route()`, which answers an absolute URL
 when called off the portal's host (the staff-side invitation and notification links
 included). Changing it after launch re-registers the portal SSO redirect URI and strands
-passkeys enrolled under an old host (`rsx:man prelaunch_checklist`).
+passkeys enrolled under an old host (`rsx:man launch_checklist`).
 
 ### Route Attributes
 
