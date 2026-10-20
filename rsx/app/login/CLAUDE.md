@@ -99,9 +99,13 @@ vocabulary, and this template enforces none of it: neither `Login_Controller::in
 sign-in checks it in both places.
 See `rsx:man session`.
 
-**The throttle.** `login_controller.php` catches `Auth_Throttled_Exception` around the
-whole attempt and surfaces `$e->getMessage()` verbatim ahead of the wrong-password branch,
-so a lockout is never reported as bad credentials. `RsxAuth::verify_credentials()` throws it as its
+**The throttle, and a password that must be reset.** `login_controller.php` catches
+`Auth_Throttled_Exception` around the whole attempt and surfaces `$e->getMessage()` verbatim
+ahead of the wrong-password branch, so a lockout is never reported as bad credentials. It
+catches `Auth_Password_Reset_Required_Exception` the same way - a correct password on an
+identity flagged `login_users.password_reset_required` (set with
+`rsx:users:force_password_reset`) - and adds that an administrator resets it: this app has no
+self-service reset, so the way through is `rsx:users:password:set`, which clears the flag. `RsxAuth::verify_credentials()` throws it as its
 own first statement, and `verify_2fa` catches the same exception from
 `Rsx_Two_Factor::verify_challenge()` and answers it as an `ERROR_VALIDATION` the challenge
 component renders inline. Nothing here counts failures itself: `Login_History::record_failure()`

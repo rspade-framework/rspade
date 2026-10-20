@@ -62,7 +62,7 @@ class Portal_Invitation_Model extends Rsx_Site_Model_Abstract
      *
      * @var string[]
      */
-    protected $neverExport = ['invitation_code'];
+    public static $neverExport = ['invitation_code'];
 
     /**
      * _AUTO_GENERATED_ Enum constants

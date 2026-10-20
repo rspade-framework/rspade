@@ -209,10 +209,23 @@ credentials in `_portal_two_factor_credentials`) and its own federated sign-in
 realm but the provider registry, so a staff passkey or a staff Google link never signs anybody
 in here. How this app uses them:
 
-- **Password login is two-stage** in `Portal_Login_Controller::index()`: a portal user holding
-  a second factor is parked with `Rsx_Portal_Two_Factor::begin_challenge()` (the invited-client
-  id rides the session under `CLIENT_ID_KEY`) and sent to `/login/verify`, where
-  `<Two_Factor_Challenge>` posts to `verify_2fa`.
+- **The password is checked by the framework**: `Portal_Login_Controller::index()` calls
+  `Portal_Auth::verify_credentials(Portal_Session::get_site_id(), $credentials, record: false)`
+  (throttle first, the lookup on this portal's site, the hash check), records a miss itself as
+  `Portal_Login_History::record_failure(..., STATUS_FAILED_PASSWORD)` and a password-only
+  sign-in as `record_success()`, and asks the account questions (`can_login()`: unverified,
+  inactive) between the check and the sign-in. Both thrown refusals are shown as the form's
+  error: `Auth_Throttled_Exception`, and `Auth_Password_Reset_Required_Exception` for a correct
+  password on a portal user flagged `password_reset_required` (pointing at "Forgot your
+  password?"; the framework clears the flag when the reset saves the new password).
+- **Password login is two-stage**: a portal user holding a second factor is parked with
+  `Rsx_Portal_Two_Factor::begin_challenge()` (the invited-client id rides the session under
+  `CLIENT_ID_KEY`) and sent to `/login/verify`, where `<Two_Factor_Challenge>` posts to
+  `verify_2fa`.
+- **Every sign-in outcome lands in the portal login history** (`Portal_Login_History`,
+  readable per portal user with `get_history_for_user()` / `list_page()`): the challenge, the
+  passkey and the federated doors are recorded by the framework, the password form as above.
+  No screen of this app shows it.
 - **Emailed sign-in codes** (`rsx.portal.emailed_sign_in_codes`, OFF as shipped - a fresh
   install usually sends no mail): when on, EVERY password sign-in owes a second step, accepting
   a six-digit code emailed to the account or any factor the user holds - unless
@@ -222,7 +235,10 @@ in here. How this app uses them:
   `Portal_Login_Controller::challenge_accepts()` is that policy in one place (the password
   form and `Portal_Sso_Handlers::two_factor_accepts()` both ask it); `send_code()` issues each
   code and emails `Portal_Sign_In_Code_Email` (`SECURITY`), capped at `MAX_CODES_PER_SIGN_IN`;
-  the challenge screen sends the first code itself and offers "Send a new code". A passkey
+  the challenge screen sends the first code itself and offers "Resend code". The framework keeps
+  ONE live code per portal user, so a resend before it expires re-sends the same digits -
+  `send_code()` asks `issued_code_expires_at()` first, and the email then says it is the same
+  code and states the minutes that code has left. A passkey
   sign-in owes nothing, so a client who registers a passkey never waits for the email.
   `rsx:man two_factor_codes`.
 - **Passwordless**: the login page's `<Passkey_Sign_In>` posts to `passkey_login`, which calls

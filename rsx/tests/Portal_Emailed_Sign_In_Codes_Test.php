@@ -29,7 +29,8 @@ use Rsx\Portal\Auth\Portal_Login_Controller;
  * PINNED: switched off, a portal user without a factor signs straight in (the shipped
  * default); switched on, the same password sign-in is parked behind a challenge accepting an
  * emailed code; send_code() queues a SECURITY email to the pending user's own address and
- * stops at MAX_CODES_PER_SIGN_IN; the emailed code completes the sign-in; and switched on
+ * stops at MAX_CODES_PER_SIGN_IN; a resend emails the same code and says so; the emailed code
+ * completes the sign-in; and switched on
  * while the code could not reach the user (Rsx_Mail::deliverable_to() false - here, delivery
  * suppressed), a portal user holding no factor signs in on the password rather than being
  * locked out.
@@ -163,6 +164,34 @@ class Portal_Emailed_Sign_In_Codes_Test extends Rsx_Test_Abstract
 
         static::__assert_array_has_key('redirect', $result);
         static::__assert_equals((int) $portal_user->id, (int) Portal_Session::get_portal_user_id(), 'signed in by the emailed code');
+    }
+
+    /**
+     * A resend while the code is live emails the SAME code, says so, and states the minutes
+     * that code has left rather than a fresh window.
+     */
+    public static function test_a_resend_emails_the_same_code_and_says_so()
+    {
+        config(['rsx.portal.emailed_sign_in_codes' => true]);
+        static::__deliverable_mail();
+        $portal_user = static::__portal_user();
+
+        static::__password_login($portal_user);
+
+        static::__assert_null(static::__send_code(), 'first send');
+        static::__assert_null(static::__send_code(), 'resend');
+
+        $rows = Email_Queue_Model::where('to_address', $portal_user->email)->orderBy('id', 'asc')->get();
+
+        static::__assert_count(2, $rows, 'two messages queued');
+
+        $first = $rows[0]->template_data;
+        $second = $rows[1]->template_data;
+
+        static::__assert_equals($first['code'], $second['code'], 'the resend carries the same code');
+        static::__assert_true($second['again'], 'and says it is the same code');
+        static::__assert_true($second['expiry_minutes'] <= $first['expiry_minutes'], 'the expiry it states has not moved');
+        static::__assert_equals(2, Rsx_Portal_Two_Factor::challenge_pending()['codes_issued'], 'both sends count toward the cap');
     }
 
     /**

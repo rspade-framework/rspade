@@ -75,6 +75,12 @@ the grouping is for readers only):
   BEM-style `status_id__label` names are the API.
 - **`portal_fetch()` needs `portal_can_read()`**, fail-closed. Enforced by
   `PORTAL-MODEL-FETCH-01`.
+- **A credential column is in `public static $neverExport`** — `Shared_Item_Model`'s,
+  `Portal_Invitation_Model`'s and `Portal_Password_Reset_Model`'s bearer tokens are. It is
+  stripped from every payload after Laravel builds it (`$hidden` is not a security
+  control: `makeVisible()` undoes it), and the list unions up the inheritance chain.
+  `rsx:check` flags a `password` / `token` / `secret` column left off it
+  (`MODEL-NEVER-EXPORT-01`).
 - **A computed value that must reach JS is `$appends` + a `getXAttribute()` accessor
   delegating to the public method** — Eloquent serializes it inside `toArray()`, so it
   rides every payload, and the JS stub declares it. Hand-adding the key inside `fetch()`

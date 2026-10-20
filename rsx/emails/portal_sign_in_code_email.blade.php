@@ -3,7 +3,11 @@
 
 <p>Hello,</p>
 
+@if ($again)
+<p>Here is your code again - it is the same code as before. Use it to finish signing in to the <strong>{{ $app_name }}</strong> client portal:</p>
+@else
 <p>Use this code to finish signing in to the <strong>{{ $app_name }}</strong> client portal:</p>
+@endif
 
 <p style="text-align: center; font-size: 28px; font-weight: 600; letter-spacing: 6px;">{{ $code }}</p>
 

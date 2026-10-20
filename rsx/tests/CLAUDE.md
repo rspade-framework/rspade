@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Forty-nine test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Fifty test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -92,6 +92,12 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   second factor is PARKED by `Portal_Login_Controller::index()` and sent to `/login/verify`
   rather than signed in, `verify_2fa` answers `{redirect}` and signs them in, and both it and
   `passkey_login` turn a wrong answer into an `ERROR_VALIDATION`.
+- **Password reset required**: `Password_Reset_Required_Login_Test` — both password forms
+  (`Login_Controller::index()`, `Portal_Login_Controller::index()`) against an account
+  flagged `password_reset_required`: the form shows the refusal naming the way through (an
+  administrator for staff, "Forgot your password?" on the portal) and nobody is signed in or
+  parked behind a challenge; and an ordinary portal password sign-in, through
+  `Portal_Auth::verify_credentials()`, writes one success row to the portal login history.
 - **Migration state**: `Sample_Document_Import_Test` — the `import_sample_documents`
   migration in `rsx/resource/migrations` seeds the two sample attachments and links them to
   the first client when one exists (`$requires_db_reset`, transactions off).

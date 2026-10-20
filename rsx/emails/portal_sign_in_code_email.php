@@ -4,6 +4,7 @@ namespace Rsx\Emails;
 
 use App\RSpade\Core\Mail\Rsx_Email_Abstract;
 use App\RSpade\Core\Models\Portal_User_Model;
+use App\RSpade\Core\Time\Rsx_Time;
 use App\RSpade\Core\TwoFactor\Rsx_Portal_Two_Factor;
 
 /**
@@ -13,9 +14,13 @@ use App\RSpade\Core\TwoFactor\Rsx_Portal_Two_Factor;
  * without it they cannot reach their own account - so it reaches an address on the site
  * block list and ignores the recipient opt-out.
  *
+ * A resend while the code is still live carries the SAME code ($again): the framework keeps one
+ * code per portal user, living rsx.two_factor.challenge_window_minutes from when it was first
+ * minted. So the email states the minutes left until $expires_at, which a resend does not move.
+ *
  * The code is in data(), and therefore in the queue row's template data, for as long as the
- * row is retained. That is acceptable for a code that dies with its challenge
- * (rsx.two_factor.challenge_window_minutes); it would not be for a long-lived secret.
+ * row is retained. That is acceptable for a code that dies within minutes; it would not be
+ * for a long-lived secret.
  */
 class Portal_Sign_In_Code_Email extends Rsx_Email_Abstract
 {
@@ -23,7 +28,9 @@ class Portal_Sign_In_Code_Email extends Rsx_Email_Abstract
 
     public function __construct(
         public Portal_User_Model $portal_user,
-        public string $code
+        public string $code,
+        public string $expires_at,
+        public bool $again = false
     ) {
     }
 
@@ -37,7 +44,9 @@ class Portal_Sign_In_Code_Email extends Rsx_Email_Abstract
         return [
             'app_name' => config('rsx.name', 'RSpade'),
             'code' => $this->code,
-            'expiry_minutes' => (int) config('rsx.two_factor.challenge_window_minutes'),
+            'again' => $this->again,
+            // Rounded up, and never "0 minutes": a code with seconds left still works.
+            'expiry_minutes' => max(1, (int) ceil(Rsx_Time::seconds_until($this->expires_at) / 60)),
         ];
     }
 
@@ -46,6 +55,10 @@ class Portal_Sign_In_Code_Email extends Rsx_Email_Abstract
         $portal_user = new Portal_User_Model();
         $portal_user->email = 'client@example.com';
 
-        return new static($portal_user, '482913');
+        return new static(
+            $portal_user,
+            '482913',
+            Rsx_Time::add(Rsx_Time::now_iso(), (int) config('rsx.two_factor.challenge_window_minutes') * 60)
+        );
     }
 }

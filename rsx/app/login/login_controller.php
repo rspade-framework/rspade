@@ -9,6 +9,7 @@ namespace Rsx\App\Login;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
+use App\RSpade\Core\Auth\Auth_Password_Reset_Required_Exception;
 use App\RSpade\Core\Auth\Auth_Throttled_Exception;
 use App\RSpade\Core\Auth\RsxAuth;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
@@ -81,8 +82,10 @@ class Login_Controller extends Rsx_Controller_Abstract
             // LOGIN THROTTLE) - a refusal is not a wrong password, so it must not be
             // reported as one. Catch it around the check and show its message; it
             // is already the user-facing string and deliberately says nothing about
-            // which accounts exist or when to try again.
-            $throttled = null;
+            // which accounts exist or when to try again. Auth_Password_Reset_Required_Exception
+            // is the other thrown refusal - a correct password on an account that must reset it
+            // first - and is shown the same way.
+            $thrown_refusal = null;
             $login_user = null;
 
             try {
@@ -112,7 +115,13 @@ class Login_Controller extends Rsx_Controller_Abstract
                     }
                 }
             } catch (Auth_Throttled_Exception $e) {
-                $throttled = $e->getMessage();
+                $thrown_refusal = $e->getMessage();
+            } catch (Auth_Password_Reset_Required_Exception $e) {
+                // The password was right and the account must choose a new one before it may
+                // sign in with one (login_users.password_reset_required; the framework has
+                // already recorded the refusal). This application has no self-service reset,
+                // so the way through is an administrator: rsx:users:password:set.
+                $thrown_refusal = $e->getMessage() . ' Contact your administrator to have it reset.';
             }
 
             // THE APPLICATION'S OWN QUESTIONS ABOUT THE ACCOUNT GO HERE - a status your
@@ -121,8 +130,8 @@ class Login_Controller extends Rsx_Controller_Abstract
             // logout() to remember.
             $refusal = $login_user !== null ? static::__account_refusal($login_user) : null;
 
-            if ($throttled !== null) {
-                $error = $throttled;
+            if ($thrown_refusal !== null) {
+                $error = $thrown_refusal;
             } elseif ($refusal !== null) {
                 $error = $refusal;
             } elseif ($login_user !== null) {

@@ -63,7 +63,7 @@ class Portal_Password_Reset_Model extends Rsx_Site_Model_Abstract
      *
      * @var string[]
      */
-    protected $neverExport = ['token'];
+    public static $neverExport = ['token'];
 
     protected $table = 'portal_password_resets';
     protected $fillable = []; // No mass assignment - always explicit

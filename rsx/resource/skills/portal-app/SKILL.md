@@ -64,7 +64,7 @@ literal.
 
 | Route | Controller | What it does |
 |---|---|---|
-| `/login` GET+POST | `Portal_Login_Controller` | email + password, TWO-STAGE when the portal user holds a second factor (`Rsx_Portal_Two_Factor::begin_challenge()`); the page also offers `<Passkey_Sign_In>` (Ajax `passkey_login`) and, when `rsx.sso.portal_enabled`, `<Sso_Buttons />` |
+| `/login` GET+POST | `Portal_Login_Controller` | email + password checked by `Portal_Auth::verify_credentials()` (a flagged `password_reset_required` account is refused toward "Forgot your password?"), TWO-STAGE when the portal user holds a second factor (`Rsx_Portal_Two_Factor::begin_challenge()`); the page also offers `<Passkey_Sign_In>` (Ajax `passkey_login`) and, when `rsx.sso.portal_enabled`, `<Sso_Buttons />` |
 | `/login/verify` GET | `Portal_Login_Controller::verify` | the second-factor challenge: `<Two_Factor_Challenge>` posting to the Ajax `verify_2fa` |
 | `/register` GET+POST | `Portal_Register_Controller` | invite-code registration; `invalid` / `expired` / `cancelled` pages |
 | `/request-access` GET+POST | `Portal_Request_Access_Controller` | a would-be user asks for an invite; resends a live one |
@@ -152,7 +152,7 @@ Invitations carry `status_id` (PENDING/USED/EXPIRED/REVOKED) and expire after `r
 | EXPIRED | **account-only** creation (verified, NO membership - an admin re-invites) |
 | REVOKED | "cancelled" page |
 
-**Only PENDING grants membership.** Admins **Cancel** (revoke) a pending invite on the per-client members screen. "Disable Access" removes a client membership (account, contact and login persist) - distinct from the de-emphasized global account suspend on the Portal Users admin screen. Force-password-reset is **not** a staff action (self-service only).
+**Only PENDING grants membership.** Admins **Cancel** (revoke) a pending invite on the per-client members screen. "Disable Access" removes a client membership (account, contact and login persist) - distinct from the de-emphasized global account suspend on the Portal Users admin screen. Force-password-reset is **not** a staff action in this app (self-service only); an operator sets the framework's `portal_users.password_reset_required` with `rsx:users:force_password_reset --portal-user=<id>`.
 
 **A membership grants access only while its client is live.** "Disable Portal" (`clients.portal_enabled` off) and deleting the client revoke every member at once WITHOUT touching a membership row; reopening restores them. The portal side reads memberships only through `Portal_Membership_Model::has_membership()` / `find_for_user_and_client()` / `get_for_user()`, which count live rows only, so every `Portal_Permission` method and every `portal_can_read()` built on it inherits the rule. Staff screens and the code that CREATES a membership read the rows themselves (`has_membership_row()`, `get_all_for_user()`, `get_for_client()`), so accepting an invitation to a closed portal creates the row (no duplicate) and grants nothing until it reopens.
 

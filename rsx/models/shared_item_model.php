@@ -75,13 +75,12 @@ class Shared_Item_Model extends Rsx_Site_Model_Abstract
     protected $fillable = [];
 
     /**
-     * Never expose the secure token in serialization (incl. portal_fetch output).
+     * Columns toArray() never sends to the browser (portal_fetch() output included). token
+     * is a bearer credential: whoever holds it opens the shared item.
      *
-     * @var array<string>
+     * @var string[]
      */
-    protected $hidden = [
-        'token',
-    ];
+    public static $neverExport = ['token'];
 
     protected static $type_ref_columns = ['item_type'];
 

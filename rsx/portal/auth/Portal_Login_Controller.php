@@ -9,14 +9,16 @@ namespace Rsx\Portal\Auth;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
+use App\RSpade\Core\Auth\Auth_Password_Reset_Required_Exception;
 use App\RSpade\Core\Auth\Auth_Throttled_Exception;
-use App\RSpade\Core\Auth\Login_Throttle;
+use App\RSpade\Core\Auth\Portal_Auth;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Login\Login_Redirect;
 use App\RSpade\Core\Mail\Rsx_Mail;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
+use App\RSpade\Core\Session\Portal_Login_History;
 use App\RSpade\Core\Turnstile\Rsx_Turnstile;
 use App\RSpade\Core\TwoFactor\Rsx_Portal_Two_Factor;
 use App\RSpade\Core\TwoFactor\Two_Factor_Failed_Exception;
@@ -64,7 +66,7 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
 
     /**
      * Codes one sign-in may have emailed. An application rule, not a security one - the
-     * framework's attempt caps bound guessing - it keeps "Send a new code" from mailing an
+     * framework's attempt caps bound guessing - it keeps "Resend code" from mailing an
      * inbox without limit. Reaching it means signing in again.
      */
     const MAX_CODES_PER_SIGN_IN = 5;
@@ -103,39 +105,47 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
             } elseif (empty($password)) {
                 $error = 'Password is required';
             } else {
-                // BRUTE-FORCE THROTTLE. The portal verifies the password itself rather
-                // than going through RsxAuth::verify_credentials(), so it does the two things
-                // that call does for staff: refuse a client IP that has spent its
-                // failure budget BEFORE the lookup (no enumeration from a locked-out
-                // address), and count the miss afterwards. Nothing here records to
-                // Login_History - that store is the staff identity's - so the throttle
-                // is fed directly and nothing is double counted.
-                // See rsx:man session, LOGIN THROTTLE.
+                // THE PASSWORD IS CHECKED AND NOBODY IS SIGNED IN. Portal_Auth::verify_credentials()
+                // answers the portal user the pair proves on THIS portal's site (declared by
+                // Portal_Main::init()) and touches no session. It refuses a client IP that has
+                // spent its failure budget by THROWING Auth_Throttled_Exception - before the
+                // lookup - and a correct password on an account flagged
+                // password_reset_required by THROWING Auth_Password_Reset_Required_Exception.
+                //
+                // record: false because this is not a sign-in yet - the account questions below
+                // and a second factor may still be owed - so a recorded SUCCESS means the portal
+                // user is all the way in. See rsx:man portal, SIGNING IN.
+                $portal_user = null;
+
                 try {
-                    Login_Throttle::require_not_throttled();
+                    $portal_user = Portal_Auth::verify_credentials(
+                        Portal_Session::get_site_id(),
+                        ['email' => $posted_email, 'password' => $password],
+                        record: false
+                    );
+
+                    if ($portal_user === null) {
+                        // With record: false nothing is written, so the outcome is recorded here
+                        // as the generic password failure. record_failure() feeds the throttle.
+                        Portal_Login_History::record_failure($posted_email, Portal_Login_History::STATUS_FAILED_PASSWORD);
+                        $error = 'Invalid email or password. Please try again.';
+                    }
                 } catch (Auth_Throttled_Exception $e) {
                     // The refusal message IS the user-facing string.
-                    return rsx_view('Portal_Login_Index', [
-                        'error' => $e->getMessage(),
-                        'posted_email' => $posted_email,
-                        'message' => $params['message'] ?? null,
-                        'client_id' => $client_id,
-                    ]);
+                    $error = $e->getMessage();
+                } catch (Auth_Password_Reset_Required_Exception $e) {
+                    // The password was right; the account must choose a new one first. Already
+                    // recorded. The form's "Forgot your password?" link is the way through.
+                    $error = $e->getMessage() . ' Use "Forgot your password?" below to choose a new one.';
                 }
 
-                // The site this portal serves, declared by Portal_Main::init().
-                // Logins are scoped to it: a portal account is a (site, email) pair.
-                $site_id = Portal_Session::get_site_id();
-
-                // Find portal user by email within this site
-                $portal_user = Portal_User_Model::find_by_email($site_id, $posted_email);
-
-                if ($portal_user && $portal_user->check_password($password)) {
+                if ($portal_user !== null) {
                     // What this sign-in's second step accepts, or false for none -
                     // this application's policy, from the one function that holds it.
                     $accepts = static::challenge_accepts($portal_user);
 
-                    // Check if user can log in (active and verified)
+                    // Check if user can log in (active and verified) - the application's
+                    // account rules, asked between the password and the sign-in.
                     if (!$portal_user->can_login()) {
                         if (!$portal_user->is_verified) {
                             $error = 'Your account has not been verified. Please check your email.';
@@ -155,16 +165,15 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
                     } else {
                         // Login successful. No site argument: the session is created
                         // for the site already declared for this request, and
-                        // set_portal_user_id() stamps last_login.
+                        // set_portal_user_id() stamps last_login. The success row is
+                        // written here because nothing beneath this line records one.
                         Portal_Session::set_portal_user_id($portal_user->id);
+                        Portal_Login_History::record_success((int) $portal_user->id, $posted_email);
 
                         // Land on the invited client's workspace when one was
                         // carried in and the user has access, else the dashboard.
                         return redirect(static::post_auth_destination($portal_user, $client_id));
                     }
-                } else {
-                    Login_Throttle::record_failure();
-                    $error = 'Invalid email or password. Please try again.';
                 }
             }
         }
@@ -226,12 +235,16 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
 
     /**
      * Issue a sign-in code for the pending challenge and email it - the send endpoint
-     * <Two_Factor_Challenge> calls for the first code and for "Send a new code".
+     * <Two_Factor_Challenge> calls for the first code and for "Resend code".
      *
      * Public like the rest of the challenge: the session is deliberately signed out, and the
      * endpoint acts only on the challenge parked on the caller's own session. The address is
      * the pending portal user's own, read server-side - nothing the browser sends chooses
      * where a code goes.
+     *
+     * A resend while the portal user's code is still live re-sends the SAME code (the
+     * framework keeps one per identity), so the email says so, and states the time that code
+     * has left rather than a fresh window.
      *
      * @return null
      */
@@ -253,9 +266,14 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
             return response_error(Ajax::ERROR_VALIDATION, 'Too many codes have been sent. Please sign in again.');
         }
 
+        // Asked BEFORE issuing: a live code means this send repeats the digits already sent.
+        $again = Rsx_Portal_Two_Factor::issued_code_expires_at() !== null;
+
         $code = Rsx_Portal_Two_Factor::issue_code();
 
-        (new Portal_Sign_In_Code_Email($portal_user, $code))->to($portal_user->email)->send();
+        (new Portal_Sign_In_Code_Email($portal_user, $code, Rsx_Portal_Two_Factor::issued_code_expires_at(), $again))
+            ->to($portal_user->email)
+            ->send();
 
         return null;
     }
