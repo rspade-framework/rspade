@@ -35,8 +35,9 @@ use Rsx\App\Login\Login_Controller;
  * ENDPOINTS ARE CALLED AS STATIC METHODS, which is what the dispatcher does once the gate has
  * passed - so the Ajax envelope is not applied here and the assertions are on the RAW return.
  *
- * THE DESTINATION IS THE OTHER HALF. post_login_destination() is reached through this
- * endpoint, which is the honest way to test it: what matters is not the
+ * THE DESTINATION IS THE OTHER HALF. Login_Controller::complete_sign_in() - the one
+ * function every staff entrance finishes in - is reached through this endpoint, which is the
+ * honest way to test it: what matters is not the
  * function but that a challenge completed with an invite in flight lands on the invite and a
  * single-site identity lands on the dashboard. A membership-less identity never reaches a
  * destination at all - the framework refuses the sign-in itself (rsx:man session, SITE

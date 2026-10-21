@@ -6,15 +6,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\RSpade\Core\Ajax\Ajax;
-use App\RSpade\Core\Auth\RsxAuth;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Rsx;
-use App\RSpade\Core\Session\Login_History;
 use App\RSpade\Core\Session\Session;
+use App\RSpade\Core\Turnstile\Rsx_Turnstile;
 use App\RSpade\Lib\Flash\Flash_Alert;
 use Rsx\App\Login\Invite_Helper;
+use Rsx\App\Login\Login_Controller;
 
 /**
  * Accept_Invite_Controller
@@ -170,6 +170,12 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
     #[Ajax_Endpoint]
     public static function create_account_submit(Request $request, array $params = [])
     {
+        // Human verification first: it gates the invitation and email-exists lookups below,
+        // and the account creation, before any record work happens. $params is passed because
+        // this transport delivers the field there (a batch sub-call carries the envelope, not
+        // the field, on the Request).
+        Rsx_Turnstile::validate($request, $params);
+
         // Extract form data from POST body
         $email = trim($request->input('email', ''));
         $first_name = trim($request->input('first_name', ''));
@@ -201,7 +207,8 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
 
             $invitation = $validation['invitation'];
 
-            // Verify email matches invitation email
+            // The address is the invitation's and cannot be changed (the form shows it
+            // disabled); a submission naming a different one is refused, never honoured.
             if (!Invite_Helper::can_email_accept_invitation($invitation, $email)) {
                 $errors['email'] = "Email must match the invited email address: {$invitation->email}";
             }
@@ -280,12 +287,14 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
             $last_name,
             $invitation
         ) {
-            // Create login_user record
+            // Create login_user record. The address is the INVITATION's - the submitted one was
+            // checked equal to it above - and it is VERIFIED: the invitation reached this
+            // person at that address, and the code they followed proves they read it.
             $login_user = new Login_User_Model();
-            $login_user->email = $email;
+            $login_user->email = $invitation->email;
             $login_user->password = Hash::make($password);
-            $login_user->is_verified = 0; // Unverified until email confirmation
-            $login_user->is_activated = 1; // Activated by default
+            $login_user->is_verified = 1;
+            $login_user->is_activated = 1;
             $login_user->save();
 
             // Update user record with login info and name (bypassing site scope)
@@ -297,26 +306,32 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
                 $user->save();
             });
 
-            // Link invitation to new user and mark as accepted
+            // Link invitation to new user and mark as accepted. Outside the site scope, as
+            // above: the visitor has not signed in, so the request has no site yet.
             $invitation->login_user_id = $login_user->id;
             $invitation->invite_accepted_at = now();
-            $invitation->save();
+            User_Model::without_site_scope(fn () => $invitation->save());
         });
 
-        // Sign the new account in through the one door into a staff session. RsxAuth::login()
-        // refuses an identity with no active membership - the invited membership, or its
-        // site, disabled since the invitation was sent - and then nothing is signed in: the
-        // account exists, so the person is sent to sign in, where the same rule answers them.
-        if (!RsxAuth::login($login_user)) {
+        // Sign the new account in through the one completion function every staff entrance
+        // finishes in. It refuses an identity with no active membership - the invited
+        // membership, or its site, disabled since the invitation was sent - and then nothing is
+        // signed in: the account exists, so the person is sent to sign in, where the same rule
+        // answers them.
+        $destination = Login_Controller::complete_sign_in(
+            $login_user,
+            sign_in: true,
+            welcome: 'Welcome!'
+        );
+
+        if ($destination === null) {
             Flash_Alert::error('Your account was created, but this site is not accepting sign-ins for it right now. Contact the site administrator.');
 
             return ['redirect' => Rsx::Route('Login_Controller::index')];
         }
 
-        Login_History::record_success((int) $login_user->id, $login_user->email);
-        Session::set_site_id($invitation->site_id);
-
-        // Return redirect to success page
+        // A brand-new identity holds exactly the invited membership, so the completion bound
+        // the invited site; the success page names it.
         return [
             'redirect' => Rsx::Route('Accept_Invite_Controller::success'),
         ];
@@ -373,10 +388,19 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
             ]);
         }
 
-        // Link login_user_id to the invitation record and mark as accepted
+        // Link login_user_id to the invitation record and mark as accepted. Outside the site
+        // scope: the invitation belongs to the site being joined, which is not yet the
+        // session's site.
         $invitation->login_user_id = $login_user->id;
         $invitation->invite_accepted_at = now();
-        $invitation->save();
+        User_Model::without_site_scope(fn () => $invitation->save());
+
+        // The invitation reached this address and its code came back from it: the address is
+        // verified, exactly as it is for an account created from an invitation.
+        if (!$login_user->is_verified) {
+            $login_user->is_verified = 1;
+            $login_user->save();
+        }
 
         // Set session site to the invitation's site
         Session::set_site_id($invitation->site_id);

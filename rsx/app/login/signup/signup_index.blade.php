@@ -2,62 +2,43 @@
 @rsx_extends('Login_Layout')
 
 @section('title', 'Sign Up')
-@section('card_title', 'Create Account')
-@section('card_subtitle', 'Sign up for your account')
+@section('card_title', 'Create Your Workspace')
+@section('card_subtitle', 'We will email you a code to confirm your address')
 
 @section('content')
-    @php
-        $form_data = [];
-        if (isset($invite_code) && $invite_code) {
-            $form_data['invite_code'] = $invite_code;
-        }
-        if (isset($invitation) && $invitation) {
-            $form_data['email'] = $invitation->email;
-            $form_data['first_name'] = $invitation->first_name;
-            $form_data['last_name'] = $invitation->last_name;
-        }
-    @endphp
-
-    <Rsx_Form $data="{!! json_encode($form_data) !!}" $controller="Signup_Controller" $method="submit">
+    {{-- Reached only while rsx.auth.self_signup is on (Signup_Controller answers 404 otherwise).
+         Every rule is the endpoint's; the lengths below are the columns' own, read server-side
+         because this bundle carries no model. --}}
+    <Rsx_Form $controller="Signup_Controller" $method="submit">
         <Form_Errors />
 
-        @if (isset($invite_code) && $invite_code)
-            <Hidden_Input $name="invite_code" />
-        @endif
+        <Form_Field $label="Organization Name" $required=true>
+            <Text_Input $name="site_name" $max_length="{{ (int) $max_site_name }}" />
+        </Form_Field>
 
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-tablet-6">
                 <Form_Field $label="First Name" $required=true>
-                    <Text_Input $name="first_name" />
+                    <Text_Input $name="first_name" $max_length="{{ (int) $max_first_name }}" />
                 </Form_Field>
             </div>
-            <div class="col-md-6">
+            <div class="col-tablet-6">
                 <Form_Field $label="Last Name" $required=true>
-                    <Text_Input $name="last_name" />
+                    <Text_Input $name="last_name" $max_length="{{ (int) $max_last_name }}" />
                 </Form_Field>
             </div>
         </div>
 
-        @if (isset($invitation) && $invitation)
-            <Form_Field $label="Email Address" $required=true $help="This email address is set by your invitation and cannot be changed">
-                <Text_Input $name="email" $type="email" $value="{{ $invitation->email }}" $disabled=true />
-            </Form_Field>
-        @else
-            <Form_Field $label="Email Address" $required=true>
-                <Text_Input $name="email" $type="email" />
-            </Form_Field>
-
-            <Form_Field $label="Phone Number">
-                <Phone_Text_Input $name="phone" />
-            </Form_Field>
-        @endif
+        <Form_Field $label="Email Address" $required=true>
+            <Text_Input $name="email" $type="email" $max_length="{{ (int) $max_email }}" />
+        </Form_Field>
 
         <Form_Field $label="Password" $required=true>
-            <Text_Input $name="password" $type="password" />
+            <Text_Input $name="password" $type="password" $max_length=-1 />
         </Form_Field>
 
         <Form_Field $label="Confirm Password" $required=true>
-            <Text_Input $name="password_confirm" $type="password" />
+            <Text_Input $name="password_confirm" $type="password" $max_length=-1 />
         </Form_Field>
 
         <div class="mb-3 d-flex justify-content-center"><Turnstile_Input /></div>

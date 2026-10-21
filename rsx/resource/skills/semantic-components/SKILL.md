@@ -52,7 +52,6 @@ consumer proved the old name under-described it).
 | A reference to another record | `Entity_Link` |
 | An empty list region | `Empty_State`; a single empty cell is `Empty_Value` |
 | An inline warning/error banner | `Callout` (`danger` / `warning`) |
-| A whole feature that is not built yet | `Placeholder_Card` |
 | Secondary + destructive actions | `Action_Menu` (destructive items live INSIDE it) |
 | Tabbed view content | `Tab_Bar` + `Tab_Panels` / `Tab_Panel` |
 | Tabs inside a FORM | `Rsx_Tabs` / `Rsx_Tab` - a different, validation-aware set |

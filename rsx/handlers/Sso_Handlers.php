@@ -148,9 +148,12 @@ class Sso_Handlers
     /**
      * Where a federated sign-in lands - the same place a password sign-in lands.
      *
-     * ONE function computes it, Login_Controller::post_login_destination(), and this handler
-     * is its third caller. A destination computed twice drifts, and the drift would show up
-     * as "signing in with Google skips the site picker", which is a bug nobody reports as one.
+     * The framework has signed the identity in; Login_Controller::complete_sign_in() is the
+     * one function every staff entrance finishes in, and this handler is one of its callers.
+     * It parks what the person still owes (an outstanding second-factor enrollment) and
+     * answers the destination - finished twice, the two would drift, and the drift would show
+     * up as "signing in with Google skips the site picker", which is a bug nobody reports as
+     * one.
      *
      * There is no invite code on this path: an invitation is accepted through
      * Accept_Invite_Controller, never through a provider callback.
@@ -161,7 +164,7 @@ class Sso_Handlers
     #[OnEvent('sso.login.destination', priority: 10)]
     public static function login_destination($data)
     {
-        return Login_Controller::post_login_destination((int) $data['login_user']->id, null);
+        return Login_Controller::complete_sign_in($data['login_user'], sign_in: false);
     }
 
     /**

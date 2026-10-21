@@ -122,10 +122,14 @@
             @endif
         </div>
 
-        <div class="mt-3 text-center">
-            <small class="text-muted">
-                Don't have an account? <a href="{{ Rsx::Route('Signup_Controller') }}">Sign up</a>
-            </small>
-        </div>
+        {{-- Self-signup is off as shipped (rsx.auth.self_signup): accounts come from an
+             invitation, and /signup answers 404, so there is nothing to link to. --}}
+        @if (config('rsx.auth.self_signup'))
+            <div class="mt-3 text-center">
+                <small class="text-muted">
+                    Don't have an account? <a href="{{ Rsx::Route('Signup_Controller') }}">Sign up</a>
+                </small>
+            </div>
+        @endif
     </form>
 @endsection

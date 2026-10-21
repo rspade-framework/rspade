@@ -30,11 +30,12 @@ manifest from its `#[OnEvent]` attributes. There is no registration step.
   provider email matching a `login_users` row is connected and signed in through
   `Rsx_Sso::consume_pending_and_login()`; anything else - an unverified email, no account,
   an open invitation to the address - declines and the framework fails closed. Accounts are
-  created in advance, by an administrator's invitation accepted with a password. The rest
+  created in advance, by an administrator's invitation accepted with a password, or by
+  self-signup when `rsx.auth.self_signup` is on. The rest
   are wiring — `sso.login.authorize` permits (it MIRRORS the password door, which
   enforces only a live `login_users` row), `sso.two_factor.verify_url` returns
-  `Rsx::Route('Login_Controller::verify')`, `sso.login.destination` delegates to
-  `Login_Controller::post_login_destination()`, and `sso.link.destination` returns to the
+  `Rsx::Route('Login_Controller::verify')`, `sso.login.destination` finishes through
+  `Login_Controller::complete_sign_in()` (the one function every staff entrance ends in), and `sso.link.destination` returns to the
   Password & Security screen.
 - **`Portal_Sso_Handlers`** — the five PORTAL federated-sign-in hooks (`portal.sso.*`), a set
   deliberately separate from `Sso_Handlers` so the staff policy never governs a client, and
@@ -47,8 +48,8 @@ manifest from its `#[OnEvent]` attributes. There is no registration step.
   returns the portal `/login/verify` page, `portal.sso.two_factor.accepts` answers
   `Portal_Login_Controller::challenge_accepts()` (an emailed code when
   `rsx.portal.emailed_sign_in_codes` is on, else the framework default),
-  `portal.sso.login.destination` delegates to
-  `Portal_Login_Controller::post_auth_destination()`, and `portal.sso.link.destination`
+  `portal.sso.login.destination` finishes through
+  `Portal_Login_Controller::complete_sign_in()`, and `portal.sso.link.destination`
   returns to portal Settings.
 - **`Portal_File_Access_Handlers`** — `#[OnEvent('file.thumbnail.authorize')]` and
   `#[OnEvent('file.download.authorize')]`, both priority 10, both delegating to one

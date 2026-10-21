@@ -6,6 +6,8 @@
 @section('card_subtitle', 'Complete your registration')
 
 @section('content')
+    {{-- Every rule is the endpoint's. The lengths are the columns' own, read server-side
+         because this bundle carries no model. --}}
     @php
         $form_data = [];
         if (isset($invite_code) && $invite_code) {
@@ -28,27 +30,29 @@
         <div class="row">
             <div class="col-md-6">
                 <Form_Field $label="First Name" $required=true>
-                    <Text_Input $name="first_name" />
+                    <Text_Input $name="first_name" $max_length="{{ (int) \User_Model::field_length('first_name') }}" />
                 </Form_Field>
             </div>
             <div class="col-md-6">
                 <Form_Field $label="Last Name" $required=true>
-                    <Text_Input $name="last_name" />
+                    <Text_Input $name="last_name" $max_length="{{ (int) \User_Model::field_length('last_name') }}" />
                 </Form_Field>
             </div>
         </div>
 
         <Form_Field $label="Email Address" $required=true $help="This email address is set by your invitation and cannot be changed">
-            <Text_Input $name="email" $type="email" $disabled=true />
+            <Text_Input $name="email" $type="email" $disabled=true $max_length="{{ (int) \Login_User_Model::field_length('email') }}" />
         </Form_Field>
 
         <Form_Field $label="Password" $required=true>
-            <Text_Input $name="password" $type="password" />
+            <Text_Input $name="password" $type="password" $max_length=-1 />
         </Form_Field>
 
         <Form_Field $label="Confirm Password" $required=true>
-            <Text_Input $name="password_confirm" $type="password" />
+            <Text_Input $name="password_confirm" $type="password" $max_length=-1 />
         </Form_Field>
+
+        <div class="mb-3 d-flex justify-content-center"><Turnstile_Input /></div>
 
         <div class="d-grid mt-4">
             <button class="btn btn-primary" type="submit">

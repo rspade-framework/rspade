@@ -235,8 +235,12 @@ in here. How this app uses them:
   rather than locking the account.
   `Portal_Login_Controller::challenge_accepts()` is that policy in one place (the password
   form and `Portal_Sso_Handlers::two_factor_accepts()` both ask it); `send_code()` issues each
-  code and emails `Portal_Sign_In_Code_Email` (`SECURITY`), capped at `MAX_CODES_PER_SIGN_IN`;
-  the challenge screen sends the first code itself and offers "Resend code". The framework keeps
+  code, then its sign-in link (`Rsx_Portal_Two_Factor::issued_link(Rsx_Portal::Route(
+  'Portal_Login_Controller::verify'))`), and emails both in `Portal_Sign_In_Code_Email`
+  (`SECURITY`), capped at `MAX_CODES_PER_SIGN_IN`; the challenge screen sends the first code
+  itself and offers "Resend code". Opening the link in the browser that typed the password
+  brings it back to `/login/verify`, where the widget submits it - a link opened anywhere else
+  says to type the code there. A passed code or link marks the portal user verified. The framework keeps
   ONE live code per portal user, so a resend before it expires re-sends the same digits -
   `send_code()` asks `issued_code_expires_at()` first, and the email then says it is the same
   code and states the minutes that code has left. A passkey
@@ -249,7 +253,19 @@ in here. How this app uses them:
   a verified provider email that matches a portal user of this site is connected and signed in;
   anything else declines. Register the portal callback (`Rsx_Portal_Sso::callback_url('<key>')`)
   in each provider's console.
-- Every way in lands on `Portal_Login_Controller::post_auth_destination()`.
+- **One completion function.** Every way in - the password form, the challenge, a passkey, a
+  registration from an invitation (`Portal_Register_Controller`) and a federated sign-in -
+  finishes in `Portal_Login_Controller::complete_sign_in($portal_user, $sign_in, $client_id)`:
+  `sign_in: true` (password, registration) signs in there with
+  `Portal_Session::set_portal_user_id()` and records the success; `sign_in: false` (challenge,
+  passkey, SSO) follows the framework's own sign-in. It raises the welcome flash and answers
+  `destination()` - the invited client, the threaded redirect, or the dashboard. Nothing else
+  in this application calls `set_portal_user_id()`.
+- **Registration verifies the address.** `Portal_Register_Controller` creates the portal user
+  with `is_verified = 1` (the invitation proved the mailbox) and signs them in through
+  `complete_sign_in()` - with no emailed code even when `emailed_sign_in_codes` is on, since
+  the invitation already proved the address. There is no portal self-signup: portal accounts
+  come from invitations only.
 - The framework components are realm-aware on their own - on a portal page they talk to the
   portal controllers - so this app passes them no realm argument.
 - "View as Client" cannot enroll, remove, link or unlink anything: the framework refuses it.
@@ -281,7 +297,9 @@ User self-service page (composed from the shared theme components — see
   client), plus passkey sign-in and, when enabled, federated sign-in
 - **Two-factor challenge** (`/login/verify`) — `<Two_Factor_Challenge>` for a portal user
   holding a second factor, or for everyone when emailed sign-in codes are on (with the
-  `send_code` endpoint); its Cancel (`$cancel_url`) returns to `/login`
+  `send_code` endpoint); its Cancel (`$cancel_url`) returns to `/login`. A signed-in visitor is
+  sent to their destination (the challenge was answered in another tab), and
+  `portal_login_verify.js` hides the recovery-code hint when the widget fires `completed`
 - **Registration** (`/register?code=X`) — invitation-based account creation
 - **Password Reset** (`/password/reset`) — request + reset token flow
 - **Logout** (`/logout`) — clears portal session, redirects to login

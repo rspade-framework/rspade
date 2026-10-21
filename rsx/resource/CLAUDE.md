@@ -95,9 +95,11 @@ framework's request lifecycle and its authorization vocabulary - small files, ed
 rarely, and load-bearing every time.
 
 **`main.php`** (`Main extends Main_Abstract`) - the STAFF request lifecycle. `init()`
-runs once per process, before anything asks a question of the session, and is where
-this application DECLARES ITS SITE (`Session::set_site_id(1)` - mono-site; a
-multi-tenant app resolves the site from the host or the signed-in user here instead).
+runs once per process, before anything asks a question of the session. This application
+declares site 1 there for a command, task or test only (`Session::set_site_id(1)`); a web
+request serves the site its sign-in bound, so a self-signup's new site and a multi-site
+member's chosen site hold (a declaration here would outrank them). An app that resolves the
+site from the host does it here.
 `pre_dispatch()` runs before every staff route and is where cross-cutting request work
 lives (this app refuses a
 bearer-key request whose user lacks `can_use_api` - the framework answers it 403
@@ -106,8 +108,19 @@ is NOT checked here - `users.is_enabled` is the framework's switch and the frame
 enforces it at login and before every dispatch); `unhandled_route()`
 is the 404 hook. Edit `init()` when tenancy changes; edit `pre_dispatch()` for a redirect
 or per-request setup. Something a signed-in user must DO before using the app (enroll a
-second factor, accept terms) is that kind of redirect: the login function parks what is
-outstanding with `Session::put_value()` and `pre_dispatch()` sends page requests to its screen.
+second factor, accept terms) is that kind of redirect: `Login_Controller::complete_sign_in()`
+parks what is outstanding with `Session::put_value()` and `pre_dispatch()` sends page requests
+to its screen - the shipped example is the second-factor enrollment below.
+
+**Sign-in posture (all OFF as shipped).** `rsx.auth.self_signup` (anyone may create a new site
+of their own, after confirming their email by an emailed code or link - needs live mail) and
+`rsx.auth.require_two_factor` (staff must enroll a second factor) in
+`rsx/resource/config/rsx.php`, and `rsx.portal.emailed_sign_in_codes` (portal sign-ins owe an
+emailed code or link). Each is a hardcoded boolean honoured by the template's own login and
+signup controllers, which carry the whole feature: flipping one is the only step. Accepting an
+invitation verifies the address. Every staff sign-in finishes in
+`Login_Controller::complete_sign_in()`, every portal one in
+`Portal_Login_Controller::complete_sign_in()`.
 
 **`permission.php`** (`Permission extends Permission_Abstract`) - the STAFF gate
 vocabulary. Every `#[Auth_Check]` method here is a name that `#[Auth('...')]` /
@@ -180,7 +193,6 @@ stack), `Section_Columns` (nested 2:1 split), and the older `Card` / `Card_Heade
 | `Empty_State` | Empty LIST region (icon + title + body + CTA). |
 | `Empty_Value` | The one muted em-dash for a single empty cell. |
 | `Callout` | Inline alert banner (`danger` / `warning`). |
-| `Placeholder_Card` | Coming-soon panel standing in for an unbuilt feature. |
 | `Action_Menu` | Overflow "..." dropdown - destructive actions live inside it, never as a peer red button. |
 | `External_Link`, `Textbox_Click_To_Copy` | Outbound link; click-to-copy field. |
 

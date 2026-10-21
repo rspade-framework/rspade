@@ -88,7 +88,8 @@ class Endpoint_Data_Gates_Test extends Rsx_Test_Abstract
         'Accept_Invite_Controller::create_account_submit' => 'authorized by the invitation code',
         'Login_Controller::passkey_login' => 'authorized by the passkey',
         'Login_Controller::verify_2fa' => 'authorized by the parked second-factor challenge',
-        'Signup_Controller::submit' => 'public registration, governed by rsx.auth.signup_mode',
+        'Signup_Controller::submit' => 'public registration, off unless rsx.auth.self_signup',
+        'Login_Controller::send_code' => 'authorized by the parked address-verification challenge',
     ];
 
     /**

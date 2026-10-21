@@ -10,6 +10,7 @@ namespace Rsx;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Base\Main_Abstract;
 use App\RSpade\Core\Session\Session;
+use Rsx\App\Login\Login_Controller;
 use Rsx\Permission;
 
 /**
@@ -30,25 +31,27 @@ class Main extends Main_Abstract
     {
         // WHICH SITE DOES THE STAFF APP SERVE?
         //
-        // This template is mono-site: every STAFF request, and every CLI process
-        // (init() runs from the framework service provider in both), serves site 1.
-        // A multi-tenant app resolves it from the request host or the signed-in user
-        // instead - same call, different source.
+        // A web request serves the site its SIGN-IN carries. Every sign-in finishes in
+        // Login_Controller::complete_sign_in(), which binds the session to one of the
+        // identity's sites (the site picker when there are several), and that binding is
+        // what Session::get_site_id() answers on every request after it. So nothing is
+        // declared here for a web request: a declaration would OUTRANK the sign-in's site
+        // (a request override wins over the stored session) and pin every member of every
+        // other site to site 1 - where they hold no membership, so the framework would end
+        // their session. Self-signup (rsx.auth.self_signup) creates a new site per signer,
+        // which is exactly that case. A visitor who has not signed in has no site, and
+        // nothing on the sign-in pages asks for one.
         //
-        // This is the staff app's own declaration and nothing else's. The PORTAL
-        // declares its site separately, in Portal_Main::init() (see rsx/portal_main.php),
-        // and since B-76 the framework's tenant boundary - and every other site seam -
-        // asks the EXPERIENCE of the request which of the two to use
-        // (Rsx_Site_Model_Abstract::get_current_site_id). Portal tenancy no longer rides
-        // this line: it was proven live by neutralizing it and running a full portal
-        // login + site-scoped portal Ajax, which returned the portal's own site-1 data.
+        // A COMMAND, a task and a test run have no sign-in to carry a site, and serve site 1
+        // - the template's own. init() runs from the framework service provider in both
+        // contexts, before any session is read.
         //
-        // Historical note, because the previous comment here said the opposite: before
-        // B-76 that ORM seam read the STAFF facade unconditionally, so this line was
-        // accidentally load-bearing for the portal and guarding it with
-        // is_portal_request() broke portal login outright. That is fixed; the line is
-        // now exactly what it looks like.
-        Session::set_site_id(1);
+        // The PORTAL declares its site separately, in Portal_Main::init() (see
+        // rsx/portal_main.php); every framework site seam asks the EXPERIENCE of the request
+        // which of the two to use (Rsx_Site_Model_Abstract::get_current_site_id).
+        if (app()->runningInConsole()) {
+            Session::set_site_id(1);
+        }
     }
 
     /**
@@ -61,12 +64,16 @@ class Main extends Main_Abstract
      * account_refused, an Ajax call with a coded result's envelope (response_unauthorized()
      * keeps its reason) or otherwise unauthorized.
      *
-     * One interception lives here:
+     * Two interceptions live here:
      *   - API ACCESS. A bearer-key request (Session::is_api_request()) whose user lacks the
      *     can_use_api permission (User_Model::PERM_API_ACCESS) is refused - the framework
      *     answers it with 403 account_refused. users.is_api_access_enabled is the framework's
      *     own switch and is checked before this hook; the permission is this application's,
      *     and an API caller needs both.
+     *   - AN OUTSTANDING SECOND-FACTOR ENROLLMENT (rsx.auth.require_two_factor, off as
+     *     shipped). A signed-in user who owes one is redirected to the Password & Security
+     *     screen on every page request until they hold a factor - the rule and its exemptions
+     *     are Login_Controller::outstanding_enrollment_redirect().
      * Site membership is not checked here - users.is_enabled is the framework's switch and
      * the framework enforces it before dispatch.
      *
@@ -88,6 +95,14 @@ class Main extends Main_Abstract
         // the file routes alike. Any non-null answer is the API's 403 account_refused.
         if (Session::is_api_request() && !Permission::can_use_api()) {
             return 'api_access_not_granted';
+        }
+
+        // A step the signed-in user still owes, parked at sign-in by
+        // Login_Controller::complete_sign_in(): page requests are held on its screen.
+        $enrollment_url = Login_Controller::outstanding_enrollment_redirect($request);
+
+        if ($enrollment_url !== null) {
+            return redirect($enrollment_url);
         }
 
         // Return null to continue normal dispatch

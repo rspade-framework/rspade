@@ -64,12 +64,6 @@ class Login_Bundle extends Rsx_Module_Bundle_Abstract
                 'rsx/theme/components/inputs/hidden/hidden_input.jqhtml',
                 'rsx/theme/components/inputs/hidden/hidden_input.js',
 
-                // ---- Phone_Text_Input (signup): a JS-only child of Text_Input that formats
-                //      through Formatters.phone(), which needs the libphonenumber npm global.
-                'rsx/theme/components/inputs/text/phone_text_input.js',
-                'rsx/lib/formatters.js',
-                'Phone_Libphonenumber_Bundle',
-
                 // ---- Modal: invite acceptance reports a failure with Modal.alert(), and the
                 //      framework shows an unhandled Ajax error through it. Modal.select() is
                 //      NOT usable here - Select_Input is not in this bundle.

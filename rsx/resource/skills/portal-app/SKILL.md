@@ -64,9 +64,15 @@ literal.
 
 | Route | Controller | What it does |
 |---|---|---|
-| `/login` GET+POST | `Portal_Login_Controller` | email + password checked by `Portal_Auth::verify_credentials()` (a flagged `password_reset_required` account is refused toward "Forgot your password?"), TWO-STAGE when the portal user holds a second factor (`Rsx_Portal_Two_Factor::begin_challenge()`); the page also offers `<Passkey_Sign_In>` (Ajax `passkey_login`) and, when `rsx.sso.portal_enabled`, `<Sso_Buttons />` |
-| `/login/verify` GET | `Portal_Login_Controller::verify` | the second-factor challenge: `<Two_Factor_Challenge>` posting to the Ajax `verify_2fa` |
-| `/register` GET+POST | `Portal_Register_Controller` | invite-code registration; `invalid` / `expired` / `cancelled` pages |
+| `/login` GET+POST | `Portal_Login_Controller` | email + password checked by `Portal_Auth::verify_credentials()` (a flagged `password_reset_required` account is refused toward "Forgot your password?"), TWO-STAGE when the portal user holds a second factor or `rsx.portal.emailed_sign_in_codes` is on (`Rsx_Portal_Two_Factor::begin_challenge()` with `challenge_accepts()`); the page also offers `<Passkey_Sign_In>` (Ajax `passkey_login`) and, when `rsx.sso.portal_enabled`, `<Sso_Buttons />` |
+| `/login/verify` GET | `Portal_Login_Controller::verify` | the challenge: `<Two_Factor_Challenge>` posting to the Ajax `verify_2fa`, plus `send_code` (code AND sign-in link in `Portal_Sign_In_Code_Email`) when emailed codes are on; a signed-in visitor goes to their destination |
+| `/register` GET+POST | `Portal_Register_Controller` | invite-code registration (the account is created `is_verified`, the invitation having proved the address); `invalid` / `expired` / `cancelled` pages |
+
+**One completion function**: every portal sign-in - password, challenge, passkey, registration,
+federated - finishes in `Portal_Login_Controller::complete_sign_in($portal_user, $sign_in,
+$client_id)`, which signs in when the caller has not (`sign_in: true`), raises the welcome flash
+and answers `destination()`. Nothing else here calls `Portal_Session::set_portal_user_id()`.
+There is no portal self-signup: portal accounts come from invitations only.
 | `/request-access` GET+POST | `Portal_Request_Access_Controller` | a would-be user asks for an invite; resends a live one |
 | `/password/reset` and `/password/reset/:token` | `Portal_Password_Reset_Controller` | request + reset, with an `invalid` page |
 | `/impersonate/stop` GET | `Portal_Impersonate_Controller` | ends a staff "View as Client" (signs the view out; the browser's own portal sign-in, if any, is current again); `stopped` page. Starting one is the staff endpoint `Frontend_Contacts_Controller::begin_portal_impersonation` -> `Portal_Session::begin_impersonation_from_staff()` |

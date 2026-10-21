@@ -127,8 +127,9 @@ class Portal_Sso_Handlers
     }
 
     /**
-     * Where a federated sign-in lands - the same place every other portal sign-in lands,
-     * computed by the one function Portal_Login_Controller::post_auth_destination().
+     * Where a federated sign-in lands - the same place every other portal sign-in lands. The
+     * framework has signed the portal user in; Portal_Login_Controller::complete_sign_in() is
+     * the one function every portal entrance finishes in.
      *
      * @param array $data {portal_user: Portal_User_Model}
      * @return string
@@ -136,7 +137,7 @@ class Portal_Sso_Handlers
     #[OnEvent('portal.sso.login.destination', priority: 10)]
     public static function login_destination($data)
     {
-        return Portal_Login_Controller::post_auth_destination($data['portal_user'], 0);
+        return Portal_Login_Controller::complete_sign_in($data['portal_user'], sign_in: false);
     }
 
     /**

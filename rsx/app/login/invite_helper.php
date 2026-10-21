@@ -27,8 +27,12 @@ class Invite_Helper
      */
     public static function validate_invitation(string $invite_code, bool $require_email_match = true): array
     {
-        // Find invitation
-        $invitation = User_Model::where('invite_code', $invite_code)->first();
+        // Find invitation. Unscoped by site: the person following the link has not signed
+        // in, so the request has no site - the code (unique across every site) names the
+        // invitation and, through it, the site it belongs to.
+        $invitation = User_Model::without_site_scope(
+            fn () => User_Model::where('invite_code', $invite_code)->first()
+        );
 
         if (!$invitation) {
             return [

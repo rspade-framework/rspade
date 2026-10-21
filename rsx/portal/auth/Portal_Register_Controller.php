@@ -9,7 +9,6 @@ namespace Rsx\Portal\Auth;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
-use App\RSpade\Core\Login\Login_Redirect;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
@@ -17,6 +16,7 @@ use App\RSpade\Core\Turnstile\Rsx_Turnstile;
 use App\RSpade\Lib\Flash\Flash_Alert;
 use Rsx\Models\Portal_Invitation_Model;
 use Rsx\Models\Portal_Membership_Model;
+use Rsx\Portal\Auth\Portal_Login_Controller;
 
 /**
  * Portal Register Controller
@@ -38,7 +38,7 @@ class Portal_Register_Controller extends Rsx_Controller_Abstract
     {
         // If already logged in, honor any threaded intended-URL, else the dashboard.
         if (Portal_Session::is_logged_in()) {
-            return redirect(Login_Redirect::consume(Rsx_Portal::Route('Portal_Dashboard_Action')));
+            return redirect(Portal_Login_Controller::destination(Portal_Session::get_portal_user(), 0));
         }
 
         $code = $params['code'] ?? $request->input('code');
@@ -127,7 +127,8 @@ class Portal_Register_Controller extends Rsx_Controller_Abstract
                 $portal_user->site_id = $invitation->site_id;
                 $portal_user->email = $invitation->email;
                 $portal_user->set_password($password);
-                $portal_user->is_verified = true; // Verified through invitation
+                // VERIFIED: the invitation reached this address, and its code came back.
+                $portal_user->is_verified = true;
                 $portal_user->status_id = Portal_User_Model::STATUS_ACTIVE;
                 $portal_user->metadata = $invitation->metadata;
 
@@ -157,16 +158,20 @@ class Portal_Register_Controller extends Rsx_Controller_Abstract
 
                 $invitation->mark_used();
 
-                // No site argument: the session is created for the site already
-                // declared for this request (which the invitation matches - checked
-                // above).
-                Portal_Session::set_portal_user_id($portal_user->id);
-                $portal_user->touch_last_login();
+                // Signed in through the one completion function every portal entrance
+                // finishes in: the session is created for the site already declared for this
+                // request (which the invitation matches - checked above), last_login is
+                // stamped and the success recorded. It lands on the invited client when we
+                // granted access, else the dashboard. No emailed sign-in code is asked for
+                // here even when rsx.portal.emailed_sign_in_codes is on: the invitation that
+                // brought them here already proved the address.
+                Flash_Alert::success('Your account has been created.');
 
-                Flash_Alert::success('Your account has been created. Welcome to the Client Portal!');
-
-                // Land on the invited client when we granted access, else dashboard.
-                return redirect(static::_post_auth_destination($portal_user, $grant_membership ? $client_id : 0));
+                return redirect(Portal_Login_Controller::complete_sign_in(
+                    $portal_user,
+                    sign_in: true,
+                    client_id: $grant_membership ? $client_id : 0
+                ));
             }
         }
 
@@ -190,22 +195,5 @@ class Portal_Register_Controller extends Rsx_Controller_Abstract
         }
 
         return redirect(Rsx_Portal::Route('Portal_Login_Controller::index', $params));
-    }
-
-    /**
-     * Post-auth destination: the invited client's workspace when the user has
-     * access to it, otherwise the intended-URL threaded through the flow, else the
-     * dashboard. Shared shape with the login flow.
-     *
-     * The flow-owned invited-client destination WINS over the threaded redirect;
-     * consume() supplies the default only. See: php artisan rsx:man login_redirect.
-     */
-    private static function _post_auth_destination(Portal_User_Model $portal_user, int $client_id): string
-    {
-        if ($client_id && Portal_Membership_Model::has_membership($portal_user->id, $client_id)) {
-            return Rsx_Portal::Route('Portal_Workspace_Overview_Action', $client_id);
-        }
-
-        return Login_Redirect::consume(Rsx_Portal::Route('Portal_Dashboard_Action'));
     }
 }

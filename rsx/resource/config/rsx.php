@@ -476,12 +476,12 @@ return [
     | Authentication & User Management
     |--------------------------------------------------------------------------
     |
-    | Configuration for user registration, invitations, and verification.
-    |
-    | NOTE: These are development convenience switches. For production,
-    | find the code using these settings and customize to your exact needs
-    | rather than relying on configuration modes. This keeps the codebase
-    | simple and prevents configuration explosion.
+    | The 'auth' block further down holds this application's sign-in posture:
+    | self-signup and a required second factor, both hardcoded booleans and
+    | both OFF as shipped. Each is honoured by the template's own login and
+    | signup controllers, which carry the whole feature; turning one on is
+    | the only step. The portal's equivalent ('portal.emailed_sign_in_codes')
+    | sits in the 'portal' block.
     |
     */
 
@@ -663,25 +663,29 @@ return [
     ],
 
     'auth' => [
-        // Signup mode: 'invite_only', 'anonymous', 'disabled'
-        //
-        // invite_only: Only users with valid invitation codes can register
-        // anonymous:   Anyone can create an account without invitation
-        // disabled:    No new signups allowed (closed system)
-        //
-        // Default: invite_only (Slack/Trello-style invitation workflow)
-        'signup_mode' => env('RSX_SIGNUP_MODE', 'invite_only'),
+        // STAFF SELF-SIGNUP - off. Accounts come from an administrator's invitation
+        // (Settings > User Management), accepted on /accept-invite. When true, /signup lets
+        // anyone create a NEW SITE with themselves as its owner (the role the initial user
+        // gets), and the account signs in only after proving its address: the verify screen
+        // emails a six-digit code and a link (Signup_Verification_Email, CATEGORY =
+        // SECURITY), and either one completes the sign-in and marks the address verified.
+        // Off, /signup and its endpoint answer 404 and the login page offers no Sign up link.
+        // On while rsx.mail.delivery is not 'live', the signup page throws saying so - a
+        // verification email nobody receives would create accounts nobody can use.
+        // The policy is this application's code: rsx/app/login/signup/signup_controller.php,
+        // rsx/app/login/login_controller.php (send_code, complete_sign_in) and
+        // rsx/emails/signup_verification_email.php. There is no portal equivalent: portal
+        // accounts come from invitations only.
+        'self_signup' => false,
 
-        // Verification requirements: 'none', 'email', 'sms', 'either', 'both'
-        //
-        // none:   No verification required (development mode)
-        // email:  Email verification required
-        // sms:    SMS/phone verification required
-        // either: Email OR SMS verification required
-        // both:   Both email AND SMS verification required
-        //
-        // Default: none (add verification later in development)
-        'verification_required' => env('RSX_VERIFICATION_REQUIRED', 'none'),
+        // REQUIRE A SECOND FACTOR (staff) - off. When true, a staff member who signs in
+        // holding no second factor is held on Settings > Password & Security until they
+        // enroll one: Login_Controller::complete_sign_in() parks the outstanding step and
+        // Rsx\Main::pre_dispatch() redirects every page request there while it is set,
+        // clearing it once Rsx_Two_Factor::is_enabled() answers true. Signing in itself is
+        // unchanged - a user without a factor still signs in on the password, and only then
+        // owes the enrollment. See rsx:man two_factor, REQUIRING A SECOND FACTOR.
+        'require_two_factor' => false,
 
         // Invitation expiration (days)
         //

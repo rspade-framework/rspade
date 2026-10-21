@@ -2,16 +2,17 @@
 
 ## WHAT IS HERE
 
-Eight `X_Email extends Rsx_Email_Abstract` classes, each beside its own blade, plus one
-stylesheet. Six are `const CATEGORY = self::TRANSACTIONAL`; `Portal_Sign_In_Code_Email` and
-`Two_Factor_Challenge_Spent_Email` are `SECURITY`.
+Nine `X_Email extends Rsx_Email_Abstract` classes, each beside its own blade, plus one
+stylesheet. Six are `const CATEGORY = self::TRANSACTIONAL`; `Portal_Sign_In_Code_Email`,
+`Signup_Verification_Email` and `Two_Factor_Challenge_Spent_Email` are `SECURITY`.
 
 | Class | Sent from |
 |---|---|
 | `Portal_Invitation_Email` | `Frontend_Clients_Controller` (new-account and existing-account invites) and `Portal_Request_Access_Controller` (resend). Its subject branches on whether the recipient already has an account, and its `tag()` (`new_account` / `existing_account`) records which on the queue row. |
 | `Portal_Password_Reset_Email` | `Portal_Password_Reset_Controller` — only when the user can log in, while the page reports success either way (no enumeration). |
 | `Portal_Request_Reply_Email` | `Portal_Request_Threads_Controller` — tells the staff owner a client replied; the body is a truncated snippet, never the whole message. |
-| `Portal_Sign_In_Code_Email` | `Portal_Login_Controller::send_code()` — the six-digit code that completes a portal sign-in, only when `rsx.portal.emailed_sign_in_codes` is on (off as shipped). A resend while the code is live carries the same code (`$again`) and the minutes it has left (`$expires_at`). `SECURITY`: it reaches an address on the site block list and ignores the opt-out, because the recipient asked for it a moment ago and cannot get in without it. |
+| `Portal_Sign_In_Code_Email` | `Portal_Login_Controller::send_code()` — the six-digit code AND its sign-in link (`$link`, from `Rsx_Portal_Two_Factor::issued_link()` after `issue_code()`) that complete a portal sign-in, only when `rsx.portal.emailed_sign_in_codes` is on (off as shipped). The link is a button that works in the browser where the password was typed; the code works anywhere. A resend while the code is live carries the same code and link (`$again`) and the minutes left (`$expires_at`). `SECURITY`: it reaches an address on the site block list and ignores the opt-out, because the recipient asked for it a moment ago and cannot get in without it. |
+| `Signup_Verification_Email` | `Login_Controller::send_code()` — the code and sign-in link (`Rsx_Two_Factor::issued_link()`) that confirm a staff address: a self-signup (`rsx.auth.self_signup`, off as shipped), or the password sign-in of an identity whose address was never verified. Same shape as the portal code email: `($login_user, $code, $link, $expires_at, $again)`, button then code. `SECURITY`. |
 | `Portal_Shared_Content_Email` | `Frontend_Clients_Controller` when a document is shared. Carries a link, never bytes. |
 | `Two_Factor_Challenge_Spent_Email` | `Two_Factor_Notice_Handlers` — tells an account owner (staff or portal) that somebody entered their password and then failed the second factor until the challenge was destroyed. `SECURITY`: a required notice about the recipient's own account. |
 | `User_Invitation_Email` | `Frontend_Settings_User_Management_Controller`, on create and on resend. |
@@ -39,7 +40,7 @@ the footer taking no argument on a staff-facing message.
 email class without one, with the signature in the error text. It exists so
 `php artisan rsx:mail:test you@example.com --email=Welcome_Email` can render and send any
 email on demand — the flag takes the class BASENAME, and an unknown name prints the list of
-known ones. Of the six here, two build unsaved model instances and four use scalars only.
+known ones. Several build unsaved model instances; none reads the database.
 
 **`EMAIL-TEMPLATE-01`** (high) polices these blades and nothing else: a datetime must be
 formatted server-side through `Rsx_Time::` / `Rsx_Date::` (a mail client re-formats nothing,
@@ -66,7 +67,11 @@ silently in somebody else's inbox with the queue row still saying SENT).
   the subject, the HTML exactly as a send renders it (images as data: URIs) and the text part.
 - **Format datetimes in `data()`** rather than in the blade, so the value is frozen into the
   queue row exactly as it will be read.
-- `Welcome_Email` is unwired: send it from your signup flow or delete both its files.
+- `Welcome_Email` is unwired: send it from your signup flow (`Login_Controller::verify_2fa`,
+  after an address verification) or delete both its files.
+- **A code email carries its link.** Any email that delivers an issued code calls
+  `issued_link($verify_page_url)` AFTER `issue_code()` and puts both in the one message - the
+  link first, as a button, then the code for another device. `rsx:man two_factor_codes`.
 
 ## RELATED
 

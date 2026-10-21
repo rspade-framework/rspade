@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Fifty test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Fifty-one test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -72,9 +72,15 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   `Api_Access_Permission_Test` (the API and
   key minting require a GRANTED `can_use_api`, a DENY wins), `Cross_Site_Reference_Test`
   (saves refuse another site's ids, grids print no foreign row),
-  `Self_Registration_Policy_Test` (`/signup` POST honours `signup_mode` and answers an
-  existing address like a new one; SSO declines an open invitation, an unverified and an
-  unknown address).
+  `Self_Registration_Policy_Test` (self-signup: off answers 404, on without live mail
+  throws, on creates a new site + owner + a pending address verification and signs nobody in,
+  the emailed code and the emailed link each sign the owner in verified on the new site, an
+  existing address gets the same answer with nothing written; an unverified address signing
+  in with a password owes the same verification; an invitation's account is verified and
+  refuses another address; SSO declines an open invitation, an unverified and an unknown
+  address), `Require_Two_Factor_Test` (`rsx.auth.require_two_factor`: off holds nothing; on,
+  the password still signs in, page requests are held on Password & Security while the
+  enrollment screen, sign-out and Ajax go through, and enrolling releases the hold).
 - **Public bundles**: `Public_Bundle_Contents_Test` — the three bundles served to visitors
   who have not signed in (`Login_Bundle`, `Errors_Bundle`, `Portal_Auth_Bundle`) publish
   none of this application's internals. It derives the internals from the manifest - every
@@ -90,7 +96,9 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   The framework deliberately ships no verification endpoint (the post-login destination is
   application logic), so the contract it must satisfy — one argument shape in, `{redirect}`
   out, every failure a user-safe `ERROR_VALIDATION` — is pinned here.
-  `Portal_Two_Factor_Login_Test` pins the portal ladder's equivalent: a portal user holding a
+  `Portal_Emailed_Sign_In_Codes_Test` pins the portal's emailed codes (the email carries the
+  code and its link, either signs in, a resend repeats both). `Portal_Two_Factor_Login_Test`
+  pins the portal ladder's equivalent: a portal user holding a
   second factor is PARKED by `Portal_Login_Controller::index()` and sent to `/login/verify`
   rather than signed in, `verify_2fa` answers `{redirect}` and signs them in, and both it and
   `passkey_login` turn a wrong answer into an `ERROR_VALIDATION`.

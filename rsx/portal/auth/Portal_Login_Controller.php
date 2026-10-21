@@ -37,17 +37,21 @@ use Rsx\Models\Portal_Membership_Model;
  * user holds a second factor (Rsx_Portal_Two_Factor::is_enabled()), parks them with
  * begin_challenge() and sends the browser to /login/verify instead of signing them in. The
  * challenge is answered over Ajax by <Two_Factor_Challenge>, posting to verify_2fa(). A
- * passkey can also be the ONLY credential: <Passkey_Sign_In> posts to passkey_login(). All
- * three land on the ONE destination function, post_auth_destination(), which the federated
- * sign-in handlers (Rsx\Handlers\Portal_Sso_Handlers) call too.
+ * passkey can also be the ONLY credential: <Passkey_Sign_In> posts to passkey_login().
+ *
+ * ONE COMPLETION FUNCTION. Every portal entrance finishes in complete_sign_in(): the password
+ * form, the challenge, a passkey, a registration from an invitation
+ * (Portal_Register_Controller) and a federated sign-in (Rsx\Handlers\Portal_Sso_Handlers). It
+ * signs in when the caller has not and answers where the portal user lands, so a rule that
+ * belongs to "being signed in" is written once and no entrance can skip it.
  *
  * EMAILED SIGN-IN CODES (config rsx.portal.emailed_sign_in_codes, off by default). When on,
  * EVERY password sign-in owes a second step - not only an identity holding a factor - and the
  * challenge accepts a six-digit code emailed to the account (Rsx_Portal_Two_Factor::
  * ANSWER_ISSUED_CODE) as well as any factor the portal user holds. challenge_accepts() is that
- * policy, in one place; send_code() issues and emails each code. The framework supplies the
- * code, its storage, the attempt caps and the verification; everything else here is this
- * application's choice. A passkey sign-in owes nothing, so a client with a passkey never
+ * policy, in one place; send_code() issues each code and emails it with its sign-in link. The
+ * framework supplies the code, the link, their storage, the attempt caps and the verification;
+ * everything else here is this application's choice. A passkey sign-in owes nothing, so a client with a passkey never
  * waits for an email.
  *
  * See: php artisan rsx:man two_factor, rsx:man sso, rsx:man portal
@@ -83,7 +87,7 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
 
         // If already logged in, go straight to the invited client (or dashboard).
         if (Portal_Session::is_logged_in()) {
-            return redirect(static::post_auth_destination(Portal_Session::get_portal_user(), $client_id));
+            return redirect(static::destination(Portal_Session::get_portal_user(), $client_id));
         }
 
         $error = null;
@@ -164,16 +168,10 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
 
                         return redirect(Rsx_Portal::Route('Portal_Login_Controller::verify'));
                     } else {
-                        // Login successful. No site argument: the session is created
-                        // for the site already declared for this request, and
-                        // set_portal_user_id() stamps last_login. The success row is
-                        // written here because nothing beneath this line records one.
-                        Portal_Session::set_portal_user_id($portal_user->id);
-                        Portal_Login_History::record_success((int) $portal_user->id, $posted_email);
-
-                        // Land on the invited client's workspace when one was
-                        // carried in and the user has access, else the dashboard.
-                        return redirect(static::post_auth_destination($portal_user, $client_id));
+                        // No second step: this IS the sign-in, and complete_sign_in()
+                        // performs it - landing on the invited client's workspace when one
+                        // was carried in and the user has access, else the dashboard.
+                        return redirect(static::complete_sign_in($portal_user, sign_in: true, client_id: $client_id));
                     }
                 }
             }
@@ -195,16 +193,29 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
      *
      * Reached only from index(), which parked the pending portal user without signing them
      * in - so it is served to a session that is deliberately NOT signed in to the portal.
-     * Nothing pending (an expired window, a direct visit) goes back to the login page.
+     *
+     * A visitor who IS signed in goes to their destination: the challenge was answered in
+     * another tab (the email link, or a code typed there), and <Two_Factor_Challenge>'s
+     * Continue reloads this page expecting exactly that. Nothing pending otherwise (an expired
+     * window, a direct visit) goes back to the login page.
      */
     #[Portal_Route('/login/verify', methods: ['GET'])]
     public static function verify(Request $request, array $params = [])
     {
-        if (Rsx_Portal_Two_Factor::challenge_pending() === null) {
+        if (Portal_Session::is_logged_in()) {
+            return redirect(static::destination(Portal_Session::get_portal_user(), 0));
+        }
+
+        $pending = Rsx_Portal_Two_Factor::challenge_pending();
+
+        if ($pending === null) {
             return redirect(Rsx_Portal::Route('Portal_Login_Controller::index'));
         }
 
-        return rsx_view('Portal_Login_Verify');
+        return rsx_view('Portal_Login_Verify', [
+            'has_issued_code' => $pending['has_issued_code'],
+            'has_recovery_codes' => $pending['has_recovery_codes'],
+        ]);
     }
 
     /**
@@ -231,21 +242,22 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
         $client_id = (int) (Portal_Session::get_value(static::CLIENT_ID_KEY) ?? 0);
         Portal_Session::forget_value(static::CLIENT_ID_KEY);
 
-        return ['redirect' => static::post_auth_destination($portal_user, $client_id)];
+        return ['redirect' => static::complete_sign_in($portal_user, sign_in: false, client_id: $client_id)];
     }
 
     /**
-     * Issue a sign-in code for the pending challenge and email it - the send endpoint
-     * <Two_Factor_Challenge> calls for the first code and for "Resend code".
+     * Issue a sign-in code for the pending challenge and email it with its sign-in link - the
+     * send endpoint <Two_Factor_Challenge> calls for the first code and for "Resend code".
      *
      * Public like the rest of the challenge: the session is deliberately signed out, and the
      * endpoint acts only on the challenge parked on the caller's own session. The address is
      * the pending portal user's own, read server-side - nothing the browser sends chooses
      * where a code goes.
      *
-     * A resend while the portal user's code is still live re-sends the SAME code (the
-     * framework keeps one per identity), so the email says so, and states the time that code
-     * has left rather than a fresh window.
+     * A resend while the portal user's code is still live re-sends the SAME code and the same
+     * link (the framework keeps one per identity), so the email says so, and states the time
+     * that code has left rather than a fresh window. The link works only in this browser: it
+     * brings it back to the verify page, whose screen submits it.
      *
      * @return null
      */
@@ -270,9 +282,11 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
         // Asked BEFORE issuing: a live code means this send repeats the digits already sent.
         $again = Rsx_Portal_Two_Factor::issued_code_expires_at() !== null;
 
+        // The code first, then its link: issued_link() is the code's twin and throws without it.
         $code = Rsx_Portal_Two_Factor::issue_code();
+        $link = Rsx_Portal_Two_Factor::issued_link(Rsx_Portal::Route('Portal_Login_Controller::verify'));
 
-        (new Portal_Sign_In_Code_Email($portal_user, $code, Rsx_Portal_Two_Factor::issued_code_expires_at(), $again))
+        (new Portal_Sign_In_Code_Email($portal_user, $code, $link, Rsx_Portal_Two_Factor::issued_code_expires_at(), $again))
             ->to($portal_user->email)
             ->send();
 
@@ -337,33 +351,59 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
             return response_error(Ajax::ERROR_VALIDATION, $e->getMessage());
         }
 
-        return ['redirect' => static::post_auth_destination($portal_user, 0)];
+        return ['redirect' => static::complete_sign_in($portal_user, sign_in: false)];
     }
 
     /**
-     * Post-auth destination: the invited client's workspace when the user has
-     * access to it, otherwise the intended-URL the user was bounced from (a deep
-     * portal link followed while logged out), else the dashboard. (An existing
-     * account following an invite for a new client has a pending Accept on the
-     * dashboard, so dashboard is correct there.)
+     * Finish a portal sign-in: sign the portal user in when the caller has not, and answer
+     * where they land, as a URL.
      *
-     * The flow-owned invited-client destination WINS over the threaded redirect;
-     * consume() supplies the default. See: php artisan rsx:man login_redirect.
+     * ONE FUNCTION, EVERY ENTRANCE - the password form, the challenge, a passkey, a
+     * registration from an invitation (Portal_Register_Controller) and a federated sign-in
+     * (Rsx\Handlers\Portal_Sso_Handlers), which is why it is public. The welcome flash is raised
+     * here so it does not depend on which door was used.
      *
-     * ONE function for every way in - the password form, the challenge, a passkey and a
-     * federated sign-in (Rsx\Handlers\Portal_Sso_Handlers) - which is why it is public. The
-     * welcome flash is raised here so it does not depend on which door was used.
+     * $sign_in says who signs in. TRUE: the caller proved the portal user and nobody is
+     * signed in yet - Portal_Session::set_portal_user_id() is called here (for the site this
+     * request declared, stamping last_login) and the success recorded. FALSE: the framework
+     * signed them in already and recorded it (a passed challenge, a passkey, a federated
+     * sign-in).
      *
-     * @param Portal_User_Model $portal_user The portal user who just signed in.
+     * @param Portal_User_Model $portal_user The portal user who proved themselves.
+     * @param bool $sign_in True when this function performs the sign-in (see above).
      * @param int $client_id The invited client carried in, or 0.
      * @return string
      */
-    public static function post_auth_destination($portal_user, int $client_id): string
+    public static function complete_sign_in(Portal_User_Model $portal_user, bool $sign_in, int $client_id = 0): string
     {
+        if ($sign_in) {
+            Portal_Session::set_portal_user_id($portal_user->id);
+            Portal_Login_History::record_success((int) $portal_user->id, (string) $portal_user->email);
+        } elseif ((int) Portal_Session::get_portal_user_id() !== (int) $portal_user->id) {
+            shouldnt_happen('Portal_Login_Controller::complete_sign_in(sign_in: false) for a portal user this session is not signed in as');
+        }
+
         Flash_Alert::success('Welcome to the Client Portal!');
 
-        if ($client_id && $portal_user
-            && Portal_Membership_Model::has_membership($portal_user->id, $client_id)) {
+        return static::destination($portal_user, $client_id);
+    }
+
+    /**
+     * Where a signed-in portal user lands: the invited client's workspace when the user has
+     * access to it, otherwise the intended-URL the user was bounced from (a deep portal link
+     * followed while logged out), else the dashboard. (An existing account following an invite
+     * for a new client has a pending Accept on the dashboard, so dashboard is correct there.)
+     *
+     * The flow-owned invited-client destination WINS over the threaded redirect; consume()
+     * supplies the default. See: php artisan rsx:man login_redirect.
+     *
+     * @param Portal_User_Model $portal_user
+     * @param int $client_id The invited client carried in, or 0.
+     * @return string
+     */
+    public static function destination(Portal_User_Model $portal_user, int $client_id): string
+    {
+        if ($client_id && Portal_Membership_Model::has_membership($portal_user->id, $client_id)) {
             return Rsx_Portal::Route('Portal_Workspace_Overview_Action', $client_id);
         }
 

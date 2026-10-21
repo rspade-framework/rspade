@@ -56,8 +56,9 @@ class Frontend_Settings_Profile_Display_Controller extends Rsx_Controller_Abstra
             // (a disabled membership cannot hold a session), so this reads Active in
             // practice - it is shown because it is the account's real state.
             'is_enabled' => (bool) $user->is_enabled,
-            // login_users.is_verified: signup and invite acceptance store 0 and nothing in
-            // this application confirms an address yet, so it says what the record holds.
+            // login_users.is_verified: set by accepting an invitation, and by the framework
+            // when an emailed code or link is answered (self-signup's confirmation, or the
+            // verification an unverified address owes at sign-in).
             'is_verified' => (bool) $login_user->is_verified,
             'is_2fa_enrolled' => Rsx_Two_Factor::is_enabled($login_user),
             'created_at' => $user->created_at,
