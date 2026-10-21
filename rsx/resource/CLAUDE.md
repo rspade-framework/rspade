@@ -45,8 +45,7 @@ announcements, notifications, an action log, and a client portal.
 
 | Module | What it is |
 |---|---|
-| `frontend/` | The main authenticated SPA. `Frontend_Spa_Controller` + `Frontend_Spa_Layout` (persistent chrome, primary nav), then one directory per feature: `dashboard`, `clients`, `contacts`, `projects`, `tasks`, `party`, `action_logs`, `notifications`, `calendar`, `reports`, `settings`, `system`. |
-| `backend/` | Minimal server-rendered admin shell (Blade). |
+| `frontend/` | The main authenticated SPA. `Frontend_Spa_Controller` + `Frontend_Spa_Layout` (persistent chrome, primary nav), then one directory per feature: `dashboard`, `clients`, `contacts`, `projects`, `tasks`, `party`, `action_logs`, `notifications`, `reports`, `settings`, `system`. |
 | `login/` | Server-rendered auth flows: login, signup, invite acceptance, site selection, site-unauthorized. |
 | `errors/` | The full-page error screens, declared as `#[Route('/error/404')]` and friends and invoked by the framework when a request ends on that status. |
 | `api/` | External bearer REST surface, `v1/` (contacts, clients). Every path starts `/api/vN/`. |
@@ -73,7 +72,7 @@ password reset), `errors/` (the portal realm's own error pages), `dashboard/`,
   `..._Document_Model`, `..._Event_Model`).
 - Activity: `Action_Log_Model`, `Action_Log_Related_Model`, `Notification_Model`,
   `Announcement_Model`.
-- Misc: `User_Group_Model`, `Demo_Product_Model`.
+- Misc: `Demo_Product_Model`.
 
 **Everything else:**
 
@@ -272,7 +271,7 @@ appear in `#[Auth('...')]` / `@auth('...')`.
 
 | Check | Passes when |
 |---|---|
-| `can_manage_users` | `PERM_MANAGE_SITE_USERS` - accounts, roles, groups, invitations. |
+| `can_manage_users` | `PERM_MANAGE_SITE_USERS` - accounts, roles, invitations. |
 | `can_manage_site_settings` | `PERM_MANAGE_SITE_SETTINGS` - site-wide configuration. |
 | `can_manage_billing` | `PERM_MANAGE_SITE_BILLING`. |
 | `can_view_user_activity` | `PERM_VIEW_USER_ACTIVITY` - other users' audit trail. |

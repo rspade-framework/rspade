@@ -191,6 +191,11 @@
             "created_at": "2026-10-19T11:17:56+00:00",
             "created_by": "root",
             "command": "php artisan make:migration:safe clients_address_codes_iso"
+        },
+        "2026_10_21_151407_drop_user_groups_tables.php": {
+            "created_at": "2026-10-21T15:14:07+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe drop_user_groups_tables"
         }
     }
 }

@@ -17,7 +17,8 @@ class Projects_Edit_Action extends Spa_Action {
         // Determine if editing or adding based on URL args
         this.data.is_edit = !!this.args.id;
 
-        // Check if client_id was passed as query param (from client view page)
+        // client_id arrives as a query param from a client's or a contact's view page;
+        // contact_id, from a contact's, names the contact to preselect.
         this.data.from_client = !!this.args.client_id;
 
         // Form data stub - provide empty strings for all fields to avoid undefined.
@@ -108,6 +109,15 @@ class Projects_Edit_Action extends Spa_Action {
             this.data.user_options = options.users;
             this.data.form_data.contacts = options.selected_contacts;
             this.data.form_data.assigned_users = options.selected_users;
+
+            // Add-from-contact: preselect the contact the user came from, when it is one
+            // of the client's contacts offered above.
+            if (!this.data.is_edit && this.args.contact_id) {
+                const contact_id = int(this.args.contact_id);
+                if (options.contacts.some((contact) => contact.id === contact_id)) {
+                    this.data.form_data.contacts = [contact_id];
+                }
+            }
         } catch (e) {
             this.data.error_data = e;
         }

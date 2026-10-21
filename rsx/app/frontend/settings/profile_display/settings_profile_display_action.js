@@ -24,8 +24,11 @@ class Settings_Profile_Display_Action extends Spa_Action {
             email: '',
             phone: '',
             role_id__label: 'Member',
+            is_enabled: true,
+            is_verified: false,
+            is_2fa_enrolled: false,
             created_at: null,
-            last_login_at: null,
+            last_login: null,
             profile_photo_attachment_id: null,
             user_profile: null,
         };

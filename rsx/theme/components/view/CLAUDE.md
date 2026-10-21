@@ -31,7 +31,7 @@ One subdirectory per component (template + SCSS, `.js` only where behaviour exis
 - `empty_state/` — `Empty_State`: an empty LIST region (icon + title + reason + CTA).
 - `empty_value/` — `Empty_Value`: the one muted em-dash for a single empty cell.
 - `callout/` — `Callout`: the inline alert banner; `$variant` is validated loudly.
-- `placeholder_card/` — `Placeholder_Card`: a whole feature that is not built yet.
+- `placeholder_card/` — `Placeholder_Card`: a whole feature that is not built yet. **No consumer today.**
 - `entity_link/` — `Entity_Link`: a fetched entity reference (type icon + name + link).
 - `revision_history/` — `Revision_History`: one record's change timeline, grouped by the
   transaction that made it. A never-exported column's values arrive as the redaction

@@ -1,9 +1,7 @@
 /**
  * Reports Index Action
  *
- * Reports overview: a live, site-scoped summary strip (real counts) above a
- * Placeholder_Card for the not-yet-built report-generation feature. Revenue and
- * hours-tracked were removed (no backing model - D4 honesty).
+ * Reports overview: a live, site-scoped summary strip of real counts.
  */
 @route('/reports')
 @layout('Frontend_Spa_Layout')

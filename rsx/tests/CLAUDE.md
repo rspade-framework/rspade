@@ -104,8 +104,8 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   migration in `rsx/resource/migrations` seeds the two sample attachments and links them to
   the first client when one exists (`$requires_db_reset`, transactions off).
 - **Founder wiring**: `Initial_User_Handler_Test` — this application's
-  `user.initial.created` handlers, asserted both on an account the test creates and on the
-  committed test baseline.
+  `user.initial.created` handler (the founder gets the top role), asserted on an account
+  the test creates.
 - **External API**: `Client_Attachments_Api_Test` — the app-owned half of file attachment
   (claim once, ownership re-verified on delete, retention and share revocation).
 - **Declared text types**: `Text_Type_Assignment_Test` — what assignment does at a declared
@@ -116,10 +116,10 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   refused not converted, and a typed value refuses to be a string so a lossy concatenation
   cannot reach storage. The framework suite pins the type contract against fixtures; this
   pins the half only a real column can show.
-- **Declared text types, the converted columns**: `Text_Type_Descriptions_Test` — the three
-  `description` columns that moved from plain text to `Rich_Text` (`tasks`, `user_groups`,
+- **Declared text types, the converted columns**: `Text_Type_Descriptions_Test` — the
+  `description` columns that moved from plain text to `Rich_Text` and still exist (`tasks`,
   `demo_products`): a bare string reads back typed on each, the filter strips a script on
-  each, `to_plain_text()` reduces a stored value for the grid excerpt and the CSV cell, an emptied
+  each, `to_plain_text()` reduces a stored value for a grid excerpt or a CSV cell, an emptied
   editor is empty by CONTENT, and — the case only a conversion has — the re-encode
   migration's SQL produces exactly what `Rich_Text::from_plain_text()` produces, character for
   character, on every awkward character.

@@ -15,19 +15,7 @@
         However, you still have access to the following sites. Please select one to continue:
     </p>
 
-    <div class="mb-4">
-        <p class="text-muted small">TODO: Site picker</p>
-        @foreach ($user_sites as $user_site)
-            @php
-                $site = \Site_Model::find($user_site->site_id);
-            @endphp
-            <div class="d-grid mb-2">
-                <a href="{{ Rsx::Route('Site_Selection_Controller::select', $user_site->site_id) }}" class="btn btn-outline-primary">
-                    {{ $site ? $site->name : 'Site #' . $user_site->site_id }}
-                </a>
-            </div>
-        @endforeach
-    </div>
+    @rsx_include('Login_Site_Picker', ['sites' => $sites])
 
     <div class="text-center">
         <small class="text-muted">

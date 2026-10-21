@@ -9,7 +9,7 @@
 - `breadcrumb_nav.{jqhtml,scss}` — the header breadcrumb chain, rendered from a `$crumbs`
   array of `{label, url, is_active, resolved}`; a null label paints a loading placeholder.
 - `record_page_actions.jqhtml` (`Record_Page_Actions`: Back, optional Edit) and
-  `list_page_actions.{jqhtml,js}` (`List_Page_Actions`: New, optional Export and Reports) —
+  `list_page_actions.{jqhtml,js}` (`List_Page_Actions`: New, optional Export) —
   the layout header's button clusters. An action names one from `page_actions()` as
   `{component, args}`; `Frontend_Spa_Layout` mounts it, so neither appears in a template.
 - `page_header.{jqhtml,scss}` + `Page_Header.js`, `page_header_left.jqhtml`,

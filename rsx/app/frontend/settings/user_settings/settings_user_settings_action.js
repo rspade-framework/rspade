@@ -1,10 +1,11 @@
 /**
  * Settings User Settings Action
  *
- * User preferences. The timezone and appearance sections are real: they read and write
- * the framework's own Rsx_Timezone_Controller (the same setter the early-boot auto-set
- * uses - see Rsx_Timezone_Auto) and Rsx_Dark_Mode_Controller. Everything else on this
- * page is still the original static scaffolding.
+ * User preferences, in three forms that each save on their own button: timezone and
+ * appearance through the framework's own Rsx_Timezone_Controller (the same setter the
+ * early-boot auto-set uses - see Rsx_Timezone_Auto) and Rsx_Dark_Mode_Controller, and
+ * notification and privacy preferences through this feature's
+ * Frontend_Settings_User_Settings_Controller.
  */
 @route('/frontend/settings/user_settings')
 @layout('Frontend_Spa_Layout')
@@ -15,11 +16,7 @@
 class Settings_User_Settings_Action extends Spa_Action {
     scaffolded = true;
 
-    // The timezone and appearance sections are REAL (they load and save through the
-    // framework's own Rsx_Timezone_Controller / Rsx_Dark_Mode_Controller). The remaining
-    // controls - notifications, privacy, language/date format - are still a static demo
-    // with no persistence layer, and their Save/Reset buttons are non-functional.
-    // Escalated: those need a real settings model + load/save endpoints to round-trip.
+    static FORM_SIDS = ['timezone_form', 'theme_form', 'preferences_form'];
 
     on_create() {
         // Instance property, not this.data: this.data is cached, and a cached
@@ -37,16 +34,26 @@ class Settings_User_Settings_Action extends Spa_Action {
             dark_mode: Rsx_Dark_Mode.MODE_AUTO,
         };
 
+        // undefined = not loaded yet; null = the user has no email address on this site.
+        this.data.email_address = undefined;
+        this.data.profile_visibility_options = [];
+        this.data.preferences_form_data = {};
+
         // UI state: whether the post-change forced-navigation handler is armed.
         this.state.forced_navigation_installed = false;
     }
 
     async on_load() {
-        const [options, settings, theme] = await Promise.all([
+        const [options, settings, theme, preferences] = await Promise.all([
             Rsx_Timezone_Controller.timezone_options(),
             Rsx_Timezone_Controller.get_settings(),
             Rsx_Dark_Mode_Controller.get_settings(),
+            Frontend_Settings_User_Settings_Controller.get_preferences(),
         ]);
+
+        this.data.email_address = preferences.email_address;
+        this.data.profile_visibility_options = preferences.profile_visibility_options;
+        this.data.preferences_form_data = preferences.form_data;
 
         this.data.timezone_options = options;
 
@@ -65,7 +72,7 @@ class Settings_User_Settings_Action extends Spa_Action {
     }
 
     /**
-     * Both sections load from the same on_load(), so both forms wear the overlay for
+     * Every section loads from the same on_load(), so every form wears the overlay for
      * the same window.
      *
      * @param {boolean} loading
@@ -73,7 +80,7 @@ class Settings_User_Settings_Action extends Spa_Action {
     _set_form_loading(loading) {
         const that = this;
 
-        foreach(['timezone_form', 'theme_form'], function (sid) {
+        foreach(Settings_User_Settings_Action.FORM_SIDS, function (sid) {
             const form = that.sid(sid);
             if (form) {
                 form.set_loading(loading);
@@ -100,6 +107,7 @@ class Settings_User_Settings_Action extends Spa_Action {
         this._settings_settled = true;
         form.vals(this.data.timezone_form_data);
         this.sid('theme_form').vals(this.data.theme_form_data);
+        this.sid('preferences_form').vals(this.data.preferences_form_data);
         this._set_form_loading(false);
 
         // The form has applied the loaded values by now, so the interlock reads real
@@ -130,6 +138,10 @@ class Settings_User_Settings_Action extends Spa_Action {
 
         this.sid('theme_form').on('submitted', function (component, result) {
             that._on_theme_saved(result);
+        });
+
+        this.sid('preferences_form').on('submitted', function () {
+            Flash_Alert.success('Preferences saved.');
         });
     }
 
@@ -226,6 +238,6 @@ class Settings_User_Settings_Action extends Spa_Action {
 
     // Breadcrumb methods
     async breadcrumb_label_active() {
-        return 'Notifications, privacy, and preferences';
+        return 'Timezone, theme, notifications and privacy';
     }
 }

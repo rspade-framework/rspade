@@ -12,9 +12,9 @@ controller is class-level `#[Auth('public')]` with a written justification in it
 | Passkey sign-in | `Login_Controller::passkey_login` | an `#[Ajax_Endpoint]` | The endpoint `<Passkey_Sign_In>` on the login page posts to: `Rsx_Two_Factor::verify_passkey_login()`, then `post_login_destination()`. Passwordless - no password stage, no second factor after it. |
 | Logout | `Login_Controller::logout` | `/logout` | `RsxAuth::logout()` then `Login_Redirect::consume($default)`. |
 | Signup | `Signup_Controller` (`signup/`) | `/signup` GET + an `#[Ajax_Endpoint]` `submit` | Gated by `config('rsx.auth.signup_mode')` (`invite_only` by default, also `disabled` / open) on BOTH the page and `submit` - a POST never succeeds where the page would refuse. Creates the `Login_User_Model`; an address that already has an account gets the same answer and nothing is written, so the form reveals no existing address. |
-| Accept invite | `Accept_Invite_Controller` (`accept_invite/`) | `/accept-invite`, `/accept-invite/create-account`, `/accept-invite/success` | Six states (invalid, expired, email mismatch, already accepted, not logged in, logged in) plus the create-account form for an invitee with no login account. |
-| Site selection | `Site_Selection_Controller` | `/login/select-site`, `/login/site/:id` | `select` accepts only an active membership (`->active()`, error card otherwise) and sets the site. The picker page itself is a stub. |
-| Site unauthorized | `Site_Unauthorized_Controller` | `/login/site-unauthorized` | The signed-in identity's session names a site it is not a member of; offers the sites it does have. Nothing in this mono-site template routes to it - the framework ends such a session itself (see SITE MEMBERSHIP below), so it is kept as the pattern for an app that declares the requested site from the host. |
+| Accept invite | `Accept_Invite_Controller` (`accept_invite/`) | `/accept-invite`, `/accept-invite/create-account`, `/accept-invite/success` | Six states (invalid, expired, email mismatch, already accepted, not logged in, logged in) plus the create-account form for an invitee with no login account. A created account is signed in through `RsxAuth::login()` + `record_success()`; when `login()` refuses (the invited membership or its site disabled since) the account still exists and the visitor is sent to `/login` with a flash. |
+| Site selection | `Site_Selection_Controller` | `/login/select-site`, `/login/site/:id` | The picker: one button per site from `usable_sites()` (the identity's `->active()` memberships across every site, by name), rendered by the `Login_Site_Picker` partial (`login_site_picker.blade.php`). Not signed in -> `/login`; no usable site -> logout; exactly one -> selected. `select` accepts only an active membership (`->active()`, unscoped by the session's current site; error card otherwise), sets the site and lands on the dashboard. |
+| Site unauthorized | `Site_Unauthorized_Controller` | `/login/site-unauthorized` | The signed-in identity's session names a site it is not a member of; offers the sites it does have (`usable_sites()` through the same `Login_Site_Picker` partial). Nothing in this mono-site template routes to it - the framework ends such a session itself (see SITE MEMBERSHIP below), so it is kept as the pattern for an app that declares the requested site from the host. |
 
 The login page also carries the OTHER WAYS IN: below the Sign In button,
 `login_index.blade.php` renders one `.login-alternatives` block: an `or` divider, then
@@ -90,7 +90,7 @@ refuses a wrong password (recording `STATUS_FAILED_DISABLED`), `RsxAuth::login()
 on the second-factor and federated paths, and `Session::enforce_enabled_membership()` ends a
 live session whose membership or site is disabled or deleted, before every dispatch and every
 Ajax call. So no controller here restates either column: the site lists
-(`post_login_destination()`, the site-unauthorized picker) and `Site_Selection_Controller::select`
+(`post_login_destination()`, `Site_Selection_Controller::usable_sites()`) and `Site_Selection_Controller::select`
 filter with `->active()`, `select` answering the error card for an unusable site,
 `post_login_destination()` has no zero-sites branch (a successful sign-in guarantees at least
 one active membership), and `rsx/main.php` checks no membership. Identity state - `status_id`, `is_activated`, `is_verified` - is this application's
@@ -203,9 +203,6 @@ Blade page's JS in this module needs that guard.
   the complete shape.
 - **`Accept_Invite_Controller::create_account_submit` has no Turnstile call** while both
   its siblings do — a public account-creation endpoint with no bot gate.
-- **The site picker at `/login/select-site` is a stub** that tells the user they will be
-  redirected and then does not redirect them; a multi-site user lands there and can only
-  log out. The working picker is on the site-unauthorized page.
 - Accepting an invite logs the user in immediately, accounts are created `is_verified = 0`,
   and nothing reads that column or sends the verification mail the signup flash promises.
   Decide the policy before launch.

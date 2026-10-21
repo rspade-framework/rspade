@@ -66,7 +66,6 @@
             <%
                 const _admin = {
                     users: Permission.can_access('Settings_User_Management_Index_Action'),
-                    groups: Permission.can_access('Settings_Group_Management_Index_Action'),
                     portal_users: Permission.can_access('Settings_Portal_Users_Index_Action'),
                     site_settings: Permission.can_access('Settings_Site_Settings_Action'),
                 };
@@ -80,13 +79,6 @@
                     href="<%= Rsx.Route('Settings_User_Management_Index_Action') %>">
                     <i class="bi bi-people"></i>
                     <span>User Management</span>
-                </a>
-                <% } %>
-                <% if (_admin.groups) { %>
-                <a class="settings-sidebar__item" data-page="group_management"
-                    href="<%= Rsx.Route('Settings_Group_Management_Index_Action') %>">
-                    <i class="bi bi-people-fill"></i>
-                    <span>Group Management</span>
                 </a>
                 <% } %>
                 <% if (_admin.portal_users) { %>

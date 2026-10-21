@@ -18,7 +18,7 @@ bundle. Everything else is a feature directory.
 - `frontend_bundle.php` — the module's one asset bundle.
 - `frontend_pagemodal_layout.blade.php` — the bare Blade shell used when a page is
   opened inside a modal frame.
-- Feature directories: `dashboard/`, `calendar/`, `action_logs/`, `clients/`,
+- Feature directories: `dashboard/`, `action_logs/`, `clients/`,
   `contacts/`, `projects/`, `tasks/`, `party/`, `notifications/`, `revisions/`,
   `reports/`, `settings/` (its own sublayout).
   `clients/`, `settings/` and `action_logs/` carry their own `CLAUDE.md`;
@@ -46,7 +46,7 @@ new feature, and copy its structure rather than inventing one.
 - **Every data endpoint names this application's data checks**: reads `can_view_data`
   (class level), writes `can_edit_data` (method level), the activity log
   `can_view_user_activity`, settings `can_manage_site_settings`,
-  user and group management `can_manage_users`; only the caller's own records
+  user management `can_manage_users`; only the caller's own records
   (notifications, profile, password, preferences, API keys) stay on `is_logged_in`.
   `rsx/tests/Endpoint_Data_Gates_Test.php` fails on a write-shaped endpoint without
   `can_edit_data` and on a read with no check beyond `is_logged_in`.
@@ -121,7 +121,7 @@ should follow the same pattern.
 **Header buttons are a component the action names.** An action's optional `page_actions()`
 returns `{component: 'Name', args: {...}}` (or null), and `Frontend_Spa_Layout` mounts that
 component in the header on every navigation. `Record_Page_Actions` (Back, optional Edit) and
-`List_Page_Actions` (New, optional Export and Reports) in `rsx/theme/components/page/` cover
+`List_Page_Actions` (New, optional Export) in `rsx/theme/components/page/` cover
 the CRUD pages; a page with buttons of its own declares a small component beside its action
 (`party/list/party_index_page_actions.jqhtml`). A button that calls back into the action
 gets a function in `args` (`List_Page_Actions`' `$on_export`) - the component owns its

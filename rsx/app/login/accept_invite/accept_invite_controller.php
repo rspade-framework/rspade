@@ -6,10 +6,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\RSpade\Core\Ajax\Ajax;
+use App\RSpade\Core\Auth\RsxAuth;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Rsx;
+use App\RSpade\Core\Session\Login_History;
 use App\RSpade\Core\Session\Session;
 use App\RSpade\Lib\Flash\Flash_Alert;
 use Rsx\App\Login\Invite_Helper;
@@ -301,11 +303,17 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
             $invitation->save();
         });
 
-        // TODO: In the future, this will redirect to a "verify your email" page
-        // For now, auto-login the user and redirect to success page
+        // Sign the new account in through the one door into a staff session. RsxAuth::login()
+        // refuses an identity with no active membership - the invited membership, or its
+        // site, disabled since the invitation was sent - and then nothing is signed in: the
+        // account exists, so the person is sent to sign in, where the same rule answers them.
+        if (!RsxAuth::login($login_user)) {
+            Flash_Alert::error('Your account was created, but this site is not accepting sign-ins for it right now. Contact the site administrator.');
 
-        // Log in the user and set their site
-        Session::set_login_user_id($login_user->id);
+            return ['redirect' => Rsx::Route('Login_Controller::index')];
+        }
+
+        Login_History::record_success((int) $login_user->id, $login_user->email);
         Session::set_site_id($invitation->site_id);
 
         // Return redirect to success page

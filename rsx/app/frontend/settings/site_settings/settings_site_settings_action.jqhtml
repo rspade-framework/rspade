@@ -1,19 +1,13 @@
 <Define:Settings_Site_Settings_Action>
 <Page_Scaffold>
     <Slot:main>
-        <Rsx_Form $data=this.data.form_data $controller="Frontend_Settings_Site_Settings_Controller" $method="update">
+        <Rsx_Form $sid="site_form" $data=this.data.form_data $controller="Frontend_Settings_Site_Settings_Controller" $method="update">
             <Card_Widget>
                 <Section $title="General Settings">
                     <Form_Errors />
 
-                    <Form_Field $label="Site Logo">
-                        <Profile_Photo_Input $name="site_logo" $width=96 $height=96 $show_remove=true />
-                    </Form_Field>
                     <Form_Field $label="Site Name" $required=true>
-                        <Text_Input $name="name" $max_length=255 $placeholder="My Organization" />
-                    </Form_Field>
-                    <Form_Field $label="Site Description" $help="Brief description of your organization or site.">
-                        <Text_Input $name="description" $type="textarea" $rows=3 $max_length=-1 $placeholder="A professional business application" />
+                        <Text_Input $name="name" $max_length=this.data.name_max_length $placeholder="My Organization" />
                     </Form_Field>
                 </Section>
                 <div class="d-flex justify-content-end">
@@ -26,9 +20,7 @@
     <Slot:sidebar>
         <Section $title="Site Settings Tips">
             <ul class="list-unstyled mb-0">
-                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Use a clear, recognizable logo</li>
-                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Keep your site name concise</li>
-                <li class="mb-0"><i class="bi bi-check-circle text-success me-2"></i>Write a brief, informative description</li>
+                <li class="mb-0"><i class="bi bi-check-circle text-success me-2"></i>Keep your site name concise</li>
             </ul>
         </Section>
     </Slot:sidebar>

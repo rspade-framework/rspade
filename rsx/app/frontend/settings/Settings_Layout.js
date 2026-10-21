@@ -23,8 +23,6 @@ class Settings_Layout extends Spa_Layout {
         Settings_User_Management_Index_Action: 'user_management',
         Settings_User_Management_View_Action: 'user_management',
         Settings_User_Management_Session_View_Action: 'user_management',
-        Settings_Group_Management_Index_Action: 'group_management',
-        Settings_Group_Management_View_Action: 'group_management',
         Settings_Portal_Users_Index_Action: 'portal_users',
         Settings_Site_Settings_Action: 'site_settings',
     };

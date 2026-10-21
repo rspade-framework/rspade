@@ -4,6 +4,10 @@
 namespace Rsx\App\Frontend\ActionLogs\List;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
+use App\RSpade\Core\Database\TypeRefs\Type_Ref_Registry;
+use App\RSpade\Core\Models\Login_User_Model;
+use App\RSpade\Core\Models\User_Model;
 use Rsx\Models\Action_Log_Model;
 use Rsx\Theme\Components\Datagrid\DataGrid_Abstract;
 
@@ -51,17 +55,60 @@ class Action_Logs_DataGrid extends DataGrid_Abstract
     {
         $query = Action_Log_Model::query();
 
-        // Apply filter if provided - searches across type label
+        // The search box matches the ACTION (a type label, e.g. "client created") and the
+        // ACTOR (the login identity's email, or this site's name for that person).
         if (!empty($params['filter'])) {
-            $filter = $params['filter'];
-            // Filter by type label would need to be done in transform_records
-            // For now, we filter by type_id if numeric
-            if (is_numeric($filter)) {
-                $query->where('type_id', $filter);
-            }
+            $filter = trim((string) $params['filter']);
+            $like = '%' . $filter . '%';
+
+            $type_ids = static::_type_ids_matching($filter);
+
+            // Actors are login identities. A person's NAME lives on their membership of
+            // this site (users is site-scoped by its model), their address on either row.
+            $actor_ids_by_name = User_Model::query()
+                ->select('login_user_id')
+                ->whereNotNull('login_user_id')
+                ->where(function ($q) use ($like) {
+                    $q->where(DB::raw("CONCAT_WS(' ', first_name, last_name)"), 'LIKE', $like)
+                        ->orWhere('email', 'LIKE', $like);
+                });
+            $actor_ids_by_email = Login_User_Model::query()
+                ->select('id')
+                ->where('email', 'LIKE', $like);
+
+            $actor_type = Type_Ref_Registry::class_to_id('Login_User_Model');
+
+            $query->where(function ($q) use ($type_ids, $actor_type, $actor_ids_by_name, $actor_ids_by_email) {
+                $q->whereIn('type_id', $type_ids)
+                    ->orWhere(function ($actor) use ($actor_type, $actor_ids_by_name, $actor_ids_by_email) {
+                        $actor->where('actor_type', $actor_type)
+                            ->where(function ($ids) use ($actor_ids_by_name, $actor_ids_by_email) {
+                                $ids->whereIn('actor_id', $actor_ids_by_name)
+                                    ->orWhereIn('actor_id', $actor_ids_by_email);
+                            });
+                    });
+            });
         }
 
         return $query;
+    }
+
+    /**
+     * The action types whose label contains the search term, case-insensitively.
+     *
+     * @param string $term
+     * @return int[]
+     */
+    private static function _type_ids_matching(string $term): array
+    {
+        $ids = [];
+        foreach (Action_Log_Model::$enums['type_id'] as $id => $definition) {
+            if (stripos($definition['label'], $term) !== false) {
+                $ids[] = (int) $id;
+            }
+        }
+
+        return $ids;
     }
 
     /**

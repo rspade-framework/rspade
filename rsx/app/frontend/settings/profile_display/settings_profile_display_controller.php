@@ -6,6 +6,7 @@ namespace Rsx\App\Frontend\Settings\ProfileDisplay;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Session\Session;
+use App\RSpade\Core\TwoFactor\Rsx_Two_Factor;
 
 /**
  */
@@ -23,6 +24,7 @@ class Frontend_Settings_Profile_Display_Controller extends Rsx_Controller_Abstra
     public static function get_profile(Request $request, array $params = [])
     {
         $user = Session::get_user();
+        $login_user = Session::get_login_user();
 
         // The profile photo travels as an ATTACHMENT ID, never a URL: <Attachment_Thumbnail>
         // is what renders it, and it builds its own URL from the record it fetches.
@@ -49,9 +51,17 @@ class Frontend_Settings_Profile_Display_Controller extends Rsx_Controller_Abstra
             // A developer is a per-identity flag on the LOGIN identity, never a role: the
             // chip beside the role says which surfaces this person can reach, and nothing
             // on this screen can change it.
-            'is_developer' => (bool) $user->login_user?->is_developer,
+            'is_developer' => (bool) $login_user->is_developer,
+            // The membership's framework-owned switch. A signed-in user's is always on
+            // (a disabled membership cannot hold a session), so this reads Active in
+            // practice - it is shown because it is the account's real state.
+            'is_enabled' => (bool) $user->is_enabled,
+            // login_users.is_verified: signup and invite acceptance store 0 and nothing in
+            // this application confirms an address yet, so it says what the record holds.
+            'is_verified' => (bool) $login_user->is_verified,
+            'is_2fa_enrolled' => Rsx_Two_Factor::is_enabled($login_user),
             'created_at' => $user->created_at,
-            'last_login_at' => $user->last_login_at,
+            'last_login' => $login_user->last_login,
             'profile_photo_attachment_id' => $profile_photo_attachment_id,
             'user_profile' => $user_profile,
         ];

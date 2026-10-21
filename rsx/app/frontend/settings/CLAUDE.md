@@ -8,18 +8,17 @@ this tree nests inside, plus one directory per sub-feature:
 | Directory | Action | Route | Gate | The screen |
 |---|---|---|---|---|
 | `general/` | `Settings_General_Action` | `/frontend/settings` and `/frontend/settings/general` | `is_logged_in` | No template: `on_ready()` bounces to Profile. The tree's entry point. |
-| `profile_display/` | `Settings_Profile_Display_Action` | `.../profile_display` | `is_logged_in` | Read-only own profile. Carries a **Developer** chip beside the role when the signed-in login identity has `login_users.is_developer` - a classification, displayed and never editable. |
+| `profile_display/` | `Settings_Profile_Display_Action` | `.../profile_display` | `is_logged_in` | Read-only own profile. Carries a **Developer** chip beside the role when the signed-in login identity has `login_users.is_developer` - a classification, displayed and never editable. The sidebar reads real state: Active/Disabled from the membership's `users.is_enabled`, Email Verified from `login_users.is_verified` (stored 0 by signup and invite acceptance; nothing in this application confirms an address yet), Two-Factor from `Rsx_Two_Factor::is_enabled()` on the login identity, Last Login from `login_users.last_login`. |
 | `profile_edit/` | `Settings_Profile_Edit_Action` | `.../profile_edit` | `is_logged_in` | Own-profile form; email disabled; `$max_length` from `Model.field_length()`. |
-| `user_settings/` | `Settings_User_Settings_Action` | `.../user_settings` | `is_logged_in` | Timezone + theme, saved through the framework's `Rsx_Timezone_Controller` / `Rsx_Dark_Mode_Controller`. A saved theme is applied to the page at once with `Rsx_Dark_Mode.set_mode()`. |
-| `password_security/` | `Settings_Password_Security_Action` | `.../password_security` | `is_logged_in` | Change password, **two-factor authentication (real)**, **connected accounts (real)**, **where you're signed in (real)**. The two framework-served sections load from `Rsx_Two_Factor_Controller` / `Rsx_Sso_Controller` and the session list from this screen's own `get_sessions` (`Session::get_sessions_for_user()` through `Session_Listing`: every site, never an impersonation of you, the last three months, "This device" marked) in one `Promise.all`; Sign Out per other device (`sign_out_session` -> `Session::terminate_session()`) and Sign Out All Other Sessions (`sign_out_other_sessions` -> `Session::terminate_all_other_sessions()`, which also ends every other browser's two-factor trust). The password change is still a TODO stub (`change_password`). |
+| `user_settings/` | `Settings_User_Settings_Action` | `.../user_settings` | `is_logged_in` | Preferences, three forms each saved by its own button. Timezone + theme go through the framework's `Rsx_Timezone_Controller` / `Rsx_Dark_Mode_Controller` (a saved theme is applied at once with `Rsx_Dark_Mode.set_mode()`). Notifications and Privacy go through this feature's `get_preferences` / `update`: the two email switches are the recipient opt-out for the user's `users.email` on this site (`Rsx_Mail::is_blocked/block/unblock`, NOTIFICATION and MARKETING - transactional and security mail ignores an opt-out, so the screen states it instead of offering a switch; with no address the switches are not shown); Task Assignments and Profile Visibility are preference variables on the site `User_Model` (`inapp_notify_task_assigned`, `profile_visibility`). **Nothing reads those two variables yet**: `Notification::send()` has no live caller and no screen applies a visibility rule - a feature that sends task notifications or shows a profile to other users reads them. |
+| `password_security/` | `Settings_Password_Security_Action` | `.../password_security` | `is_logged_in` | Change password, **two-factor authentication (real)**, **connected accounts (real)**, **where you're signed in (real)**. The two framework-served sections load from `Rsx_Two_Factor_Controller` / `Rsx_Sso_Controller` and the session list from this screen's own `get_sessions` (`Session::get_sessions_for_user()` through `Session_Listing`: every site, never an impersonation of you, the last three months, "This device" marked) in one `Promise.all`; Sign Out per other device (`sign_out_session` -> `Session::terminate_session()`) and Sign Out All Other Sessions (`sign_out_other_sessions` -> `Session::terminate_all_other_sessions()`, which also ends every other browser's two-factor trust). Change Password is an `<Rsx_Form>` posting to `change_password`: refused while impersonating; every rule server-side (current password required, new one at least 8 characters - signup's rule - and confirmed); the current password is checked throttle-first (`Login_Throttle::require_not_throttled()`) and a wrong one recorded through `Login_History::record_failure()`; the new hash is saved through `Login_User_Model`, whose own password-change hook signs every OTHER browser out (API keys untouched), so the screen only flashes that and reloads the session list. |
 | `api_keys/` | `Settings_Api_Keys_Action` | `.../api_keys` | `is_logged_in`, `can_use_api` | Own API keys datagrid + create / scope-preview / revoke modals. Every endpoint also re-asks `Session::has_api_access()` - API access takes BOTH the permission and the framework's `users.is_api_access_enabled`. |
 | `user_management/` | `Settings_User_Management_Index_Action`, `..._View_Action`, `..._Session_View_Action`, `..._Api_Keys_Action` | `.../user_management[/:id[/api_keys]]`, `.../user_management/:id/sessions/:user_session_id` | `is_logged_in`, `can_manage_users` | Users datagrid, one-user view (edit, enable/disable, resend invite, where they are signed in on this site with Sign out), one of those sessions with its activity, another user's keys. Equal-or-lower administration. Own `CLAUDE.md`. |
-| `group_management/` | `Settings_Group_Management_Index_Action`, `..._View_Action` | `.../group_management[/:id]` | `is_logged_in`, `can_manage_users` | `User_Group_Model` datagrid + add/edit/delete modals. |
 | `portal_users/` | `Settings_Portal_Users_Index_Action` | `.../portal_users` | `is_logged_in`, `can_view_data` | Portal-user datagrid (every membership row, live or not); suspend/reactivate delegate to `Portal_User_Admin_Actions`, whose endpoints live on `Frontend_Clients_Controller` (`can_edit_data`). |
-| `site_settings/` | `Settings_Site_Settings_Action` | `.../site_settings` | `is_logged_in`, `can_manage_site_settings` | Site name/description form. **Scaffolding: `update` validates and persists nothing.** |
+| `site_settings/` | `Settings_Site_Settings_Action` | `.../site_settings` | `is_logged_in`, `can_manage_site_settings` | The current site's name, loaded by `get_settings` and saved to `Site_Model` by `update` (required; length from `Site_Model::field_length('name')`, the same number the form's `$max_length` binds). |
 
 Each sub-feature keeps its Ajax endpoints in its own `*_controller.php`, gated at class
-level as the table says; `user_management` and `group_management` add a per-method gate
+level as the table says; `user_management` adds a per-method gate
 (`can_export_data` on `export_csv`). The own-record screens (profile, preferences, password)
 stay on `is_logged_in`: they act on the caller and nobody else. API keys are the caller's
 own too, but minting one is a permission (`can_use_api`).
@@ -54,17 +53,10 @@ connection whose provider has since been switched off, since switching one off d
 nothing and the user must still be able to remove it. The one SCSS rule on this page sizes
 the inline brand marks, which arrive as SVG with no intrinsic dimensions.
 
-`group_management`'s `description` is a declared `Rich_Text` column on `User_Group_Model`.
-Both modal forms name no widget (`<{User_Group_Model.editor_component_for('description')} />`), the
-view page prints the value through its own printer behind `is_empty()`, and the grid prints
-`description_excerpt` - a PLAIN-TEXT excerpt `Groups_DataGrid::transform_records()` makes on
-the server with `to_plain_text()`, because a value object has no length and no substring. The CSV
-export asks `to_plain_text()` for the same reason. The `filter` still searches `description` with a
-`LIKE` over the stored markup.
-
-`group_management`'s add/edit endpoints show the length-rule convention: the server asks
-`User_Group_Model::field_length('name')` rather than restating the schema's 100, which is the
-same number the modal form's `$max_length` binds. Copy that shape for any length check here.
+`site_settings`' `update` shows the length-rule convention: the server asks
+`Site_Model::field_length('name')` rather than restating the schema's 255, and `get_settings`
+hands the form that same number for its `$max_length`. Copy that shape for any length check
+here.
 
 `scaffolded = true` on the ACTION (not the layout) makes `on_action()` stamp
 `settings-content--scaffolded` so a `Page_Scaffold`-composing page owns its own padding —
@@ -78,11 +70,9 @@ the same seam `Frontend_Spa_Layout` uses, described in `../CLAUDE.md`.
   themselves are near-empty SCSS composing theme components.
 - **Delete a screen**: remove the directory, its `NAV_CONFIG` row and its sidebar anchor —
   a stale `NAV_CONFIG` entry is harmless but a stale anchor renders a dead link.
-- **The stubs above are yours to finish or remove.** Password change, session revocation,
-  user settings `update` and site settings `update` all return success without doing the
-  work; the mock session list is sample data, not a bug to route around. The two-factor
-  section on that page is NOT a stub - it is the framework's own endpoints and enrollment
-  components, and `settings_password_security_action.js` is the worked example of hosting
+- **Worked examples on the Password & Security page**: the two-factor section is the
+  framework's own endpoints and enrollment components, and
+  `settings_password_security_action.js` is the worked example of hosting
   `<Totp_Enrollment>` / `<Passkey_Register>` in a modal and reloading on their completion
   event, and Connected Accounts is the worked example of driving the SSO settings endpoints.
 - **Change what Connected Accounts offers**: the roster is `config('rsx.sso.providers')`,

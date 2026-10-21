@@ -9,9 +9,6 @@ namespace Rsx\App\Frontend\Dashboard;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
-use App\RSpade\Core\Models\User_Model;
-use App\RSpade\Core\Models\User_Permission_Model;
-use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Time\Rsx_Date;
 use Rsx\Models\Action_Log_Model;
 use Rsx\Models\Client_Model;
@@ -25,85 +22,6 @@ use Rsx\Permission;
 #[Auth('is_logged_in')]
 class Frontend_Dashboard_Controller extends Rsx_Controller_Abstract
 {
-    /**
-     * Test endpoint for ACL system verification
-     * Usage: php artisan rsx:debug /test-acl --user=1
-     */
-    #[Route('/test-acl')]
-    public static function test_acl(Request $request, array $params = [])
-    {
-        $user = Session::get_user();
-
-        if (!$user) {
-            echo "No user in session. Use --user=N to set a user.\n";
-            die();
-        }
-
-        $output = [];
-
-        // User info
-        $output['user'] = [
-            'id' => $user->id,
-            'name' => $user->get_full_name(),
-            'role_id' => $user->role_id,
-            'role_label' => $user->role_id__label,
-        ];
-
-        // Role checks (hierarchical - true if user has this role or higher)
-        $output['role_checks'] = [
-            'ROOT_ADMIN' => $user->has_role(User_Model::ROLE_ROOT_ADMIN),
-            'SITE_OWNER' => $user->has_role(User_Model::ROLE_SITE_OWNER),
-            'SITE_ADMIN' => $user->has_role(User_Model::ROLE_SITE_ADMIN),
-            'MANAGER' => $user->has_role(User_Model::ROLE_MANAGER),
-            'USER' => $user->has_role(User_Model::ROLE_USER),
-            'VIEWER' => $user->has_role(User_Model::ROLE_VIEWER),
-        ];
-
-        // Permission checks
-        $output['permission_checks'] = [
-            'MANAGE_SITES_ROOT' => $user->has_permission(User_Model::PERM_MANAGE_SITES_ROOT),
-            'MANAGE_SITE_BILLING' => $user->has_permission(User_Model::PERM_MANAGE_SITE_BILLING),
-            'MANAGE_SITE_SETTINGS' => $user->has_permission(User_Model::PERM_MANAGE_SITE_SETTINGS),
-            'MANAGE_SITE_USERS' => $user->has_permission(User_Model::PERM_MANAGE_SITE_USERS),
-            'VIEW_USER_ACTIVITY' => $user->has_permission(User_Model::PERM_VIEW_USER_ACTIVITY),
-            'EDIT_DATA' => $user->has_permission(User_Model::PERM_EDIT_DATA),
-            'VIEW_DATA' => $user->has_permission(User_Model::PERM_VIEW_DATA),
-            'API_ACCESS' => $user->has_permission(User_Model::PERM_API_ACCESS),
-            'DATA_EXPORT' => $user->has_permission(User_Model::PERM_DATA_EXPORT),
-        ];
-
-        // Can admin roles
-        $output['can_admin_roles'] = [
-            'SITE_OWNER' => $user->can_admin_role(User_Model::ROLE_SITE_OWNER),
-            'SITE_ADMIN' => $user->can_admin_role(User_Model::ROLE_SITE_ADMIN),
-            'MANAGER' => $user->can_admin_role(User_Model::ROLE_MANAGER),
-            'USER' => $user->can_admin_role(User_Model::ROLE_USER),
-            'VIEWER' => $user->can_admin_role(User_Model::ROLE_VIEWER),
-        ];
-
-        // Permission:: static method checks
-        $output['permission_class'] = [
-            'has_role(MANAGER)' => Permission::has_role(User_Model::ROLE_MANAGER),
-            'has_permission(EDIT_DATA)' => Permission::has_permission(User_Model::PERM_EDIT_DATA),
-            'can_admin_role(USER)' => Permission::can_admin_role(User_Model::ROLE_USER),
-        ];
-
-        // Role's default permissions and can_admin_roles from enum
-        $output['role_defaults'] = [
-            'permissions' => $user->role_id__permissions ?? [],
-            'can_admin_roles' => $user->role_id__can_admin_roles ?? [],
-        ];
-
-        // Supplementary permissions
-        $output['supplementary'] = User_Permission_Model::for_user($user->id);
-
-        echo "<pre>";
-        echo "=== ACL TEST OUTPUT ===\n\n";
-        print_r($output);
-        echo "</pre>";
-        die();
-    }
-
     /**
      * Ajax endpoint: the dashboard's aggregate data.
      *

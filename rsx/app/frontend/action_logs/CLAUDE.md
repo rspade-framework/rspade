@@ -51,6 +51,10 @@ See `/rsx/resource/man/action_log.txt` for full documentation.
 
 ## HOW TO CUSTOMIZE
 
+- **The search box** matches an action TYPE by its label (the term is mapped to the
+  `type_id`s whose `$enums` label contains it) and an ACTOR by the login identity's email
+  or this site's name or email for that person (`Login_User_Model` / site-scoped
+  `User_Model` subqueries on `actor_id`) - `build_query()` in `list/action_logs_datagrid.php`.
 - **Add a column or filter**: `list/action_logs_datagrid.php` (`$sortable_columns` and
   `build_query()`) plus the matching `<th data-sortby>` in the template — sortability is
   opt-in in both places or it silently falls back to the default.

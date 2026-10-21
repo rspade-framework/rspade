@@ -2,21 +2,15 @@
 @rsx_extends('Login_Layout')
 
 @section('title', 'Select Site')
-@section('card_title', 'Multiple Sites')
-@section('card_subtitle', 'Site switching functionality coming soon')
+@section('card_title', 'Select a Site')
+@section('card_subtitle', 'Your account belongs to more than one site')
 
 @section('content')
-    <div class="alert alert-info text-center">
-        You are associated with multiple sites. Site switching functionality is not yet implemented.
-    </div>
+    <p class="mb-4">Choose the site to work in.</p>
 
-    <div class="text-center mt-4">
-        <p class="text-muted">
-            This feature is under development. For now, you will be automatically directed to your primary site.
-        </p>
-    </div>
+    @rsx_include('Login_Site_Picker', ['sites' => $sites])
 
-    <div class="text-center mt-4">
+    <div class="text-center">
         <small class="text-muted">
             <a href="{{ Rsx::Route('Login_Controller::logout') }}">Logout</a>
         </small>

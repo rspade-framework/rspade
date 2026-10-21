@@ -3,7 +3,12 @@
  *
  * Password change, two-factor authentication, and session management.
  *
- * TWO-FACTOR AND THE SESSION LIST ARE REAL; the password change is not yet. The 2FA data is
+ * CHANGE PASSWORD is an <Rsx_Form> posting to this screen's change_password, which owns every
+ * rule. On success the server has already signed the account out of every other browser
+ * (the identity model does it on a password save), so the fields are cleared, the user is
+ * told, and the page reloads to show the session list as it now stands.
+ *
+ * The 2FA data is
  * loaded from the framework's own Rsx_Two_Factor_Controller in on_load() and repainted with
  * reload() after every change, so what the screen shows is always what the server holds.
  * "Where You're Signed In" is the account's own sessions from this screen's controller
@@ -160,6 +165,27 @@ class Settings_Password_Security_Action extends Spa_Action {
         this.$.on('click.sps', '[data-action="sign_out_others"]', async function () {
             await that._sign_out_others();
         });
+    }
+
+    on_ready() {
+        const that = this;
+
+        // 'submitted' is the form's successful-submit event; a refusal keeps the form as
+        // it is, with its errors rendered.
+        this.sid('password_form').on('submitted', function () {
+            that._on_password_changed();
+        });
+    }
+
+    /**
+     * The server saved the new password and, in the same save, signed the account out of
+     * every other browser. Clear the fields, say so, and reload so the session list shows
+     * those sign-ins ended.
+     */
+    _on_password_changed() {
+        this.sid('password_form').vals({ current_password: '', new_password: '', confirm_password: '' });
+        Flash_Alert.success('Password changed. Every other device signed in to your account has been signed out.');
+        this.reload();
     }
 
     /**

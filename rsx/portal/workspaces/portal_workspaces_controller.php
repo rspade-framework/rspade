@@ -76,10 +76,10 @@ class Portal_Workspaces_Controller extends Rsx_Controller_Abstract
      * not-found response, so the sublayout/Overview renders its access-denied error
      * state.
      *
-     * The 'vitals' block is the Overview tab's "key client vitals" summary. These are
-     * DEMO/placeholder values derived from portal-safe client columns - in a real app
-     * each firm customizes which engagement vitals to surface here. No staff-only
-     * columns are exposed.
+     * The 'vitals' block is the Overview tab's "key client vitals" summary: real values
+     * from portal-safe client columns, or null when the client has none on file (the
+     * screen renders an empty value). No staff-only columns are exposed - which vitals
+     * to surface is each firm's decision.
      */
     #[Ajax_Endpoint]
     #[Portal_Impersonation_Readable]
@@ -106,21 +106,24 @@ class Portal_Workspaces_Controller extends Rsx_Controller_Abstract
         );
         $role_label = $membership ? $membership->role_id__label : '';
 
+        $industry = trim((string) $client->industry);
+        $billing_contact = $client->billing_contact;
+
         return [
             'client_id' => $client_id,
             'name' => $client->name,
             'role_id' => $role_id,
             'role_label' => $role_label,
 
-            // Overview vitals (demo/placeholder - portal-safe client fields only).
+            // Overview vitals (portal-safe client fields only; null = not on file).
             'vitals' => [
                 'status_label' => $client->status_id__label,
                 'status_badge' => $client->status_id__badge,
                 'role_label' => $role_label,
                 'client_since' => $client->created_at,
                 'member_since' => $membership ? $membership->created_at : null,
-                'engagement_type' => $client->industry ?: 'General engagement',
-                'primary_contact' => $client->email ?: 'Not on file',
+                'industry' => $industry === '' ? null : $industry,
+                'billing_contact' => $billing_contact ? ($billing_contact->full_name() ?: null) : null,
             ],
         ];
     }

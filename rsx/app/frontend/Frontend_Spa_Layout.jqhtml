@@ -38,11 +38,6 @@
             <div class="container-fluid">
                 <%-- Right side content --%>
                 <div class="d-flex align-items-center ms-auto">
-                    <%-- Search Box --%>
-                    <div class="me-3">
-                        <input class="form-control form-control-sm" placeholder="Search..." type="search">
-                    </div>
-
                     <%-- Realtime connection status (hidden unless the backend is unreachable) --%>
                     <div class="me-3">
                         <Realtime_Status_Badge $sid="realtime_status_badge" />

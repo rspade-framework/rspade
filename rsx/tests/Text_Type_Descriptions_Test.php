@@ -12,14 +12,13 @@ use App\RSpade\Core\Testing\Rsx_Test_Abstract;
 use Rsx\Lib\TextTypes\RichText\Rich_Text;
 use Rsx\Models\Demo_Product_Model;
 use Rsx\Models\Task_Model;
-use Rsx\Models\User_Group_Model;
 
 /**
- * The three `description` columns that were converted from plain text to Rich_Text, and
- * the migration that re-encoded the rows they already held.
+ * The `description` columns that were converted from plain text to Rich_Text and still
+ * exist (tasks, demo_products), and the migration that re-encoded the rows they held.
  *
  * Text_Type_Assignment_Test pins what a declared column DOES, on Project_Model. This pins
- * the three columns that joined it, plus the one thing only a conversion can get wrong:
+ * the columns that joined it, plus the one thing only a conversion can get wrong:
  * the migration rewrote existing rows in SQL, and SQL has to produce exactly what
  * Rich_Text::from_plain_text() produces. A drift there is silent - the row is valid HTML
  * either way, it is just not the HTML the type would have written, and a user's literal
@@ -75,16 +74,6 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
         return $task;
     }
 
-    private static function __seed_group(): User_Group_Model
-    {
-        $group = new User_Group_Model();
-        $group->site_id = self::SITE_ID;
-        $group->name = static::__unique('TextType group');
-        $group->save();
-
-        return $group;
-    }
-
     private static function __seed_product(): Demo_Product_Model
     {
         $product = new Demo_Product_Model();
@@ -107,16 +96,11 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
         $task->description = 'a task description';
         $task->save();
 
-        $group = static::__seed_group();
-        $group->description = 'a group description';
-        $group->save();
-
         $product = static::__seed_product();
         $product->description = 'a product description';
         $product->save();
 
         static::__assert_instance_of(Rich_Text::class, Task_Model::find($task->id)->description, 'tasks.description');
-        static::__assert_instance_of(Rich_Text::class, User_Group_Model::find($group->id)->description, 'user_groups.description');
         static::__assert_instance_of(Rich_Text::class, Demo_Product_Model::find($product->id)->description, 'demo_products.description');
     }
 
@@ -129,7 +113,6 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
 
         $records = [
             'tasks' => static::__seed_task(),
-            'user_groups' => static::__seed_group(),
             'demo_products' => static::__seed_product(),
         ];
 
@@ -145,16 +128,15 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
     }
 
     /**
-     * The plain rendition a CSV cell, a list excerpt or a search index asks for. The
-     * groups grid and the groups CSV export both depend on this.
+     * The plain rendition a CSV cell, a list excerpt or a search index asks for.
      */
     public static function test_to_text_reduces_a_stored_value_to_plain_text()
     {
-        $group = static::__seed_group();
-        $group->description = Rich_Text::from_untrusted_encoded('<p>first block</p><p>second <b>block</b></p>');
-        $group->save();
+        $task = static::__seed_task();
+        $task->description = Rich_Text::from_untrusted_encoded('<p>first block</p><p>second <b>block</b></p>');
+        $task->save();
 
-        $text = User_Group_Model::find($group->id)->description->to_plain_text();
+        $text = Task_Model::find($task->id)->description->to_plain_text();
 
         static::__assert_false(str_contains($text, '<'), 'no markup survives');
         static::__assert_contains('first block', $text);

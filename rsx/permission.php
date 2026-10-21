@@ -59,7 +59,7 @@ use App\RSpade\Core\Session\Session;
 class Permission extends Permission_Abstract
 {
     /**
-     * May manage the site's user accounts, roles, groups and invitations.
+     * May manage the site's user accounts, roles and invitations.
      *
      * Wraps User_Model::PERM_MANAGE_SITE_USERS.
      */

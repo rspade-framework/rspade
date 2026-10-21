@@ -69,6 +69,7 @@ class Endpoint_Data_Gates_Test extends Rsx_Test_Abstract
         'Frontend_Settings_Profile_Display_Controller::get_profile' => 'the caller\'s own profile',
         'Frontend_Settings_Profile_Edit_Controller::get_profile_for_edit' => 'the caller\'s own profile',
         'Frontend_Settings_Profile_Edit_Controller::save_profile' => 'the caller\'s own profile',
+        'Frontend_Settings_User_Settings_Controller::get_preferences' => 'the caller\'s own preferences',
         'Frontend_Settings_User_Settings_Controller::update' => 'the caller\'s own preferences',
         'Frontend_Settings_Api_Keys_Controller::create_key' => 'the caller\'s own API keys (gated can_use_api)',
         'Frontend_Settings_Api_Keys_Controller::datagrid_fetch' => 'the caller\'s own API keys (gated can_use_api)',

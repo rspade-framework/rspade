@@ -240,7 +240,7 @@ record is in flight the form **refuses to submit**: blank is a value, so a submi
 the fetch would validly clear every field the data had not reached.
 
 Worked example:
-`rsx/app/frontend/settings/group_management/edit_group/edit_group_modal_form.js`
+`rsx/app/frontend/settings/user_management/edit_user/edit_user_modal_form.js`
 
 ### Error handling: there is nothing to write
 

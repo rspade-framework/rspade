@@ -2,8 +2,8 @@
  * Portal_Workspace_Overview_Action - the default workspace tab (/workspace/:id).
  *
  * Renders into Portal_Workspace_Layout's content area. Shows a short summary plus a
- * few key client "vitals" (demo/placeholder data the controller derives from
- * portal-safe client fields). Three-state pattern (loading -> error -> content): the
+ * few key client "vitals" read from portal-safe client fields (a value not on file
+ * arrives null and renders empty). Three-state pattern (loading -> error -> content): the
  * error state is the membership gate - get() fails closed for a non-member, so a
  * non-member lands on Universal_Error_Page_Component here as well as in the persistent
  * header.

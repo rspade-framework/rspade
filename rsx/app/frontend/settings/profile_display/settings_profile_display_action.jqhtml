@@ -30,7 +30,11 @@
                 <Entity_Header>
                     <Slot:title><%= _name %></Slot:title>
                     <Slot:chips>
-                        <Status_Badge $label="Active" $badge="bg-primary" />
+                        <% if (_u.is_enabled) { %>
+                            <Status_Badge $label="Active" $badge="bg-primary" />
+                        <% } else { %>
+                            <Status_Badge $label="Disabled" $badge="bg-secondary" />
+                        <% } %>
                         <span class="badge badge-outline-secondary"><%= _u.role_id__label || 'Member' %></span>
                         <%-- A developer is a per-identity flag, not a role: the chip sits
                              beside the role chip and says which surfaces this account can
@@ -87,13 +91,21 @@
             <Detail_Sidebar>
                 <View_Fields>
                     <View_Field $label="Email Verified" $inline=true>
-                        <Status_Badge $label="Verified" $badge="bg-success" />
+                        <% if (_u.is_verified) { %>
+                            <Status_Badge $label="Verified" $badge="bg-success" />
+                        <% } else { %>
+                            <Status_Badge $label="Not Verified" $badge="bg-secondary" />
+                        <% } %>
                     </View_Field>
                     <View_Field $label="Two-Factor Auth" $inline=true>
-                        <Status_Badge $label="Not Enabled" $badge="bg-secondary" />
+                        <% if (_u.is_2fa_enrolled) { %>
+                            <Status_Badge $label="Enabled" $badge="bg-success" />
+                        <% } else { %>
+                            <Status_Badge $label="Not Enabled" $badge="bg-secondary" />
+                        <% } %>
                     </View_Field>
                     <View_Field $label="Last Login" $inline=true>
-                        <% if (_u.last_login_at) { %><%= Rsx_Time.format_datetime(_u.last_login_at) %><% } else { %>Never<% } %>
+                        <% if (_u.last_login) { %><%= Rsx_Time.format_datetime(_u.last_login) %><% } else { %>Never<% } %>
                     </View_Field>
                 </View_Fields>
 

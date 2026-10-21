@@ -4,9 +4,9 @@ namespace Rsx\App\Login;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
-use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
+use Rsx\App\Login\Site_Selection_Controller;
 
 /**
  * Site_Unauthorized_Controller
@@ -42,19 +42,18 @@ class Site_Unauthorized_Controller extends Rsx_Controller_Abstract
             return redirect(Rsx::Route('Login_Controller'));
         }
 
-        // The sites this identity can USE: ->active() is the framework's one definition of a
-        // usable membership (enabled, on an enabled site), so a picker never offers a site the
-        // framework would refuse. Never restate the columns here (rsx:man session).
-        $user_sites = User_Model::where('login_user_id', $login_user_id)->active()->get();
+        // The sites this identity can USE (Site_Selection_Controller::usable_sites(), the one
+        // list every picker in this module offers).
+        $sites = Site_Selection_Controller::usable_sites((int) $login_user_id);
 
         // If user has no sites, logout with reason
-        if ($user_sites->isEmpty()) {
+        if (empty($sites)) {
             return redirect(Rsx::Route('Login_Controller::logout', ['reason' => 'unauthorized']));
         }
 
         // User has access to other sites, show picker
         return rsx_view('Site_Unauthorized_Index', [
-            'user_sites' => $user_sites,
+            'sites' => $sites,
         ]);
     }
 }

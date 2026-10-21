@@ -39,12 +39,6 @@ class Frontend_Spa_Layout extends Spa_Layout {
                             href: Rsx.Route('Dashboard_Index_Action'),
                         },
                         {
-                            label: 'Calendar',
-                            icon: 'bi-calendar',
-                            route: 'Calendar_Index_Action',
-                            href: Rsx.Route('Calendar_Index_Action'),
-                        },
-                        {
                             label: 'Action Log',
                             icon: 'bi-journal-text',
                             route: 'Action_Logs_Index_Action',

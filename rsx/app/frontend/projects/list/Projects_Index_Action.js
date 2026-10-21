@@ -38,7 +38,6 @@ class Projects_Index_Action extends Spa_Action {
             args: {
                 new_href: Rsx.Route('Projects_Edit_Action'),
                 on_export: can_export ? () => this.export_all() : null,
-                reports: true,
             },
         };
     }

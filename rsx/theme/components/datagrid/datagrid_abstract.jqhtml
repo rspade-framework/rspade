@@ -20,7 +20,7 @@ ARGUMENTS:
     </div> --%>
 
     <%
-        // Slot presence: content('name') is '' when the concrete grid did not provide the slot.
+        // Slot presence: content('name') is '' when the concrete grid left the slot out or wrote it empty.
         // The empty-state slot is FORWARDED to DataGrid_Body, which cannot tell an absent slot
         // from an empty one - so its presence travels as a boolean arg alongside it.
         const _footer_actions = content('footer_actions');

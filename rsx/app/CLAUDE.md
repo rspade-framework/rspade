@@ -12,14 +12,13 @@ has no assets of its own), plus one loose file.
 | `errors/` | The staff realm's full-page error screens - 404, 403, 419 and a catch-all - declared as `#[Route('/error/...')]` and invoked by the framework, never linked to. Own `CLAUDE.md`. | Live, public by declaration. |
 | `api/` | The external bearer REST surface under `/api/vN/`. Own `CLAUDE.md`. | Live. |
 | `apidocs/` | A CONTROLLER AND NOTHING ELSE: two methods mounting the framework's API reference console and its OpenAPI document. The console, including its bundle, is framework property - `Rsx_Api_Docs::page()` renders the whole page. Gate is `public`, with `Session::has_api_access()` decided in the body. | Live. |
-| `backend/` | A minimal Blade admin shell. Own `CLAUDE.md`. | **Skeleton — deletable.** |
 | `dev/` | The framework showcase: modals, flash alerts, ACL, ORM, SPA, attachments, document preview. Own `CLAUDE.md`. | **Ships `#[Auth('closed')]` — reachable by nobody. Deletable.** |
 | `ssr_test/` | The server-render smoke page and its session-cookie probes, gated `is_framework_developer` (refused on an ordinary install). Own `CLAUDE.md`. | **Harness — deletable.** |
 | `index_controller.php` | `/` — redirects to the dashboard when signed in, to login otherwise. | Live. |
 
 Only the API-keys settings screen links out of `frontend/` into another module (a button
 to `Apidocs_Controller`, which is why `frontend_bundle.php` includes `rsx/app/apidocs`).
-`/admin`, `/dev` and `/ssr-test` are URL-only: no nav entry points at any of them.
+`/dev` and `/ssr-test` are URL-only: no nav entry points at any of them.
 
 ## HOW IT IS USED
 
@@ -32,7 +31,7 @@ their pages need no sign-in.** A bundle is downloaded by everybody who can load 
 that renders it, so `Login_Bundle` and `Errors_Bundle` include NO shared directory: each
 names the theme's global stylesheets (`'rsx/theme/*.scss'`) and every component, model
 and script its pages use by file. Adding a feature to a login or error page means adding
-its files to that bundle. `frontend/`, `backend/`, `dev/` and `ssr_test/` are behind a
+its files to that bundle. `frontend/`, `dev/` and `ssr_test/` are behind a
 sign-in (or closed) and keep their directory includes. `rsx/tests/Public_Bundle_Contents_Test.php`
 holds the line; skill `rspade:bundles`.
 
@@ -55,7 +54,7 @@ one; browsing such a URL previews the page in development and 404s in a sealed b
   its bundle and its layout; `rsx:app:module:feature:create` adds a feature inside it.
   SPA is the default and the preferred shape — Blade is for public and auth pages.
 - **Delete a module**: remove the directory, then check for a nav entry, a cross-module
-  bundle include, and any `Rsx::Route()` call naming one of its classes. Each of the four
+  bundle include, and any `Rsx::Route()` call naming one of its classes. Each of the
   deletable modules above says in its own `CLAUDE.md` what deleting it frees.
 - **The four request-lifecycle hooks** (`main.php`, `permission.php`, `portal_main.php`,
   `portal_permission.php`) live one level up in `rsx/` and are documented in the project

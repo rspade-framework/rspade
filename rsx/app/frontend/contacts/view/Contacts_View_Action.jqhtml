@@ -105,7 +105,7 @@
                         <Tab_Panel $key="projects">
                             <Section $title="Projects" $count=_projects.length $flush=true>
                                 <Slot:actions>
-                                    <a href="<%= Rsx.Route('Projects_Edit_Action') %>?contact_id=<%= _contact.id %>" class="btn btn-primary btn-sm">
+                                    <a href="<%= Rsx.Route('Projects_Edit_Action', {client_id: _contact.client_id, contact_id: _contact.id}) %>" class="btn btn-primary btn-sm">
                                         <i class="bi bi-folder-plus"></i> Add Project
                                     </a>
                                 </Slot:actions>
@@ -113,7 +113,7 @@
                                     <% if (_projects.length === 0) { %>
                                         <Empty_State $icon="bi bi-folder">
                                             <Slot:title>No projects yet</Slot:title>
-                                            <Slot:body>Projects where this contact is the primary contact will appear here.</Slot:body>
+                                            <Slot:body>Projects this contact is assigned to will appear here.</Slot:body>
                                         </Empty_State>
                                     <% } else { %>
                                         <Record_Table>

@@ -3,34 +3,101 @@
 namespace Rsx\App\Frontend\Settings\PasswordSecurity;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use App\RSpade\Core\Ajax\Ajax;
+use App\RSpade\Core\Auth\Auth_Throttled_Exception;
+use App\RSpade\Core\Auth\Login_Throttle;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Models\Login_User_Model;
+use App\RSpade\Core\Session\Login_History;
 use App\RSpade\Core\Session\Session;
 use Rsx\Lib\Sessions\Session_Listing;
 
 /**
- * The Password & Security screen's own endpoints: the password change (a stub that changes
- * nothing yet) and the signed-in account's sessions and signing them out. Two-factor and connected accounts are served by the framework's
- * Rsx_Two_Factor_Controller and Rsx_Sso_Controller. Every endpoint acts on the caller's own
- * account and takes no user id.
+ * The Password & Security screen's own endpoints: the password change, and the signed-in
+ * account's sessions and signing them out. Two-factor and connected accounts are served by
+ * the framework's Rsx_Two_Factor_Controller and Rsx_Sso_Controller. Every endpoint acts on
+ * the caller's own account and takes no user id.
  */
 #[Auth('is_logged_in')]
 class Frontend_Settings_Password_Security_Controller extends Rsx_Controller_Abstract
 {
+    /** The shortest password this application accepts - the same rule signup applies. */
+    const PASSWORD_MIN_LENGTH = 8;
+
     /**
-     * Change password (static for now)
+     * Change the signed-in identity's password. The Change Password <Rsx_Form> posts here.
      *
-     * @param Request $request
-     * @param array $params
-     * @return mixed
+     * Order: the new password's rules, then the CURRENT password - throttle first
+     * (Login_Throttle::require_not_throttled()), and a wrong one is recorded through
+     * Login_History::record_failure(), which feeds the throttle, so this form is no oracle
+     * for guessing the password of a browser left signed in. A refusal changes nothing.
+     *
+     * Saving the new hash through Login_User_Model is the whole sign-out: the model ends
+     * every OTHER browser's sign-in of this identity itself (rsx:man session, PASSWORD
+     * CHANGES), keeping this one; API keys are untouched.
+     *
+     * Refused while impersonating: the account belongs to somebody else.
+     *
+     * @param array $params {current_password, new_password, confirm_password}
+     * @return array {changed: true}
      */
     #[Ajax_Endpoint]
     public static function change_password(Request $request, array $params = [])
     {
-        // TODO: Implement password change logic
-        return [
-            'message' => 'Password changed successfully',
-        ];
+        if (Session::is_impersonating()) {
+            return response_error(Ajax::ERROR_UNAUTHORIZED, 'You cannot change the password of an account you are impersonating.');
+        }
+
+        $current = (string) ($params['current_password'] ?? '');
+        $new_password = (string) ($params['new_password'] ?? '');
+        $confirm = (string) ($params['confirm_password'] ?? '');
+
+        $errors = [];
+
+        if ($current === '') {
+            $errors['current_password'] = 'Current password is required';
+        }
+
+        if ($new_password === '') {
+            $errors['new_password'] = 'New password is required';
+        } elseif (strlen($new_password) < self::PASSWORD_MIN_LENGTH) {
+            $errors['new_password'] = 'Password must be at least ' . self::PASSWORD_MIN_LENGTH . ' characters';
+        }
+
+        if ($new_password !== $confirm) {
+            $errors['confirm_password'] = 'Passwords do not match';
+        }
+
+        if (!empty($errors)) {
+            return response_form_error('Please correct the errors below.', $errors);
+        }
+
+        try {
+            Login_Throttle::require_not_throttled();
+        } catch (Auth_Throttled_Exception $e) {
+            return response_form_error($e->getMessage());
+        }
+
+        $login_user = Session::get_login_user();
+
+        if (!Hash::check($current, $login_user->password)) {
+            Login_History::record_failure(
+                $login_user->email,
+                Login_History::STATUS_FAILED_PASSWORD,
+                'Wrong current password on Change Password',
+                (int) $login_user->id
+            );
+
+            return response_form_error('Please correct the errors below.', [
+                'current_password' => 'Current password is incorrect',
+            ]);
+        }
+
+        $login_user->password = Login_User_Model::hash_password($new_password);
+        $login_user->save();
+
+        return ['changed' => true];
     }
 
     /**

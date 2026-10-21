@@ -2,9 +2,7 @@
 
 namespace Rsx\Handlers;
 
-use App\RSpade\Core\Env\Rsx_Initial_User;
 use App\RSpade\Core\Models\User_Model;
-use Rsx\Models\User_Group_Model;
 
 /**
  * Initial_User_Handlers
@@ -27,14 +25,7 @@ use Rsx\Models\User_Group_Model;
 class Initial_User_Handlers
 {
     /**
-     * The group every administrator of this application belongs to. Deletion-protected:
-     * a site with no administrators group is a site whose permission screens have
-     * nothing to point at.
-     */
-    public const ADMINISTRATORS_GROUP = 'Administrators';
-
-    /**
-     * The founder runs this application: top role, and a member of Administrators.
+     * The founder runs this application: the top role.
      *
      * The role is only assigned when the framework left it unset. A caller that chose a
      * role deliberately - the test baseline seeds the most privileged role this
@@ -49,25 +40,10 @@ class Initial_User_Handlers
     {
         /** @var User_Model $user */
         $user = $data['user'];
-        $site_id = (int) $data['site_id'];
-        $connection_name = $user->getConnectionName();
 
         if ($user->role_id === null) {
             $user->role_id = User_Model::ROLE_ROOT_ADMIN;
             $user->save();
         }
-
-        $group = new User_Group_Model();
-        if ($connection_name !== null) {
-            $group->setConnection($connection_name);
-        }
-        $group->site_id = $site_id;
-        $group->name = self::ADMINISTRATORS_GROUP;
-        $group->description = 'Full access to this application. Created with the first account ('
-            . 'user id ' . Rsx_Initial_User::INITIAL_USER_ID . ').';
-        $group->deletion_protection = 1;
-        $group->save();
-
-        $group->members()->attach($user->id);
     }
 }

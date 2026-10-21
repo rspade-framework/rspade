@@ -12,8 +12,7 @@ manifest from its `#[OnEvent]` attributes. There is no registration step.
   the per-feature check happens where the file is claimed.
 - **`Initial_User_Handlers`** — `#[OnEvent('user.initial.created', priority: 10)]`. Given
   `{user, login_user, site_id, source}` it promotes the founder to `ROLE_ROOT_ADMIN` **only
-  if no role was chosen**, creates the site's `Administrators` `User_Group_Model` with
-  `deletion_protection` on, and attaches the founder to it.
+  if no role was chosen**.
 - **`User_Profile_Url_Handlers`** — `#[OnEvent('user.view_profile_url')]` (resolve). Where
   this application shows a staff user: the viewer's own profile page for their own record,
   the user-management detail screen for anyone else, each resolved through
@@ -92,7 +91,7 @@ out in `php artisan rsx:man sso`.
 
 `user.initial.created` is a handler and not a migration on purpose: a migration runs once per
 database at a fixed point in history, while this event also fires for the first-run setup
-screen and for the test-suite baseline seed, so a test may rely on the group existing.
+screen and for the test-suite baseline seed, so a test may rely on what it does.
 
 ## HOW TO CUSTOMIZE
 

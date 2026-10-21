@@ -25,8 +25,7 @@ the grouping is for readers only):
   `Shared_Item_Model` is per contact and expires: `find_valid_share()` is the one share check.
 - **Activity** — `Action_Log_Model`, `Action_Log_Related_Model`, `Notification_Model`,
   `Announcement_Model`.
-- **Misc** — `User_Group_Model`, `Demo_Product_Model` (a fixture; delete it with the demo
-  data).
+- **Misc** — `Demo_Product_Model` (a fixture; delete it with the demo data).
 - **No framework-model override ships here.** Every core model is an abstract base
   carrying its whole implementation plus a three-line concrete; an application that needs
   to change one writes `class User_Model extends User_Model_Abstract` in this directory and
@@ -90,10 +89,9 @@ the grouping is for readers only):
   `region_name`, `portal_member_count`), `contact_model.php` (`contact_id_formatted`,
   `full_name`, `portal_user_id`), `project_model.php` (`project_id_formatted`,
   `budget_formatted`), `action_log_model.php` (`render`, `actor_display`,
-  `subject_display`), `notification_model.php` (`render`, `is_read`),
-  `announcement_model.php` (`is_published`) and `user_group_model.php` (`member_count`,
-  `can_delete`). A derivation that READS A ROW (`portal_user_id`, `member_count`,
-  `portal_member_count`, `country_name`, `region_name`) says so in its docblock: it is
+  `subject_display`), `notification_model.php` (`render`, `is_read`)
+  and `announcement_model.php` (`is_published`). A derivation that READS A ROW
+  (`portal_user_id`, `portal_member_count`, `country_name`, `region_name`) says so in its docblock: it is
   still declared once, and a caller wanting a wide list selects columns rather than
   serializing. `client_model.php::to_fetch_array()` keeps `get_created_by_author`
   hand-added on purpose — it resolves a realm-gated profile URL for one viewer, which a
@@ -107,8 +105,8 @@ the grouping is for readers only):
   declared column is read as a value object, filtered by its type on write, and printed by
   its type's component instead of by whatever escape the template picked. `Project_Model`
   and `Client_Model` are the worked examples; every `description` column in this
-  application is declared `Rich_Text` — `Project_Model`, `Task_Model`, `User_Group_Model`
-  and `Demo_Product_Model` — and `Project_Model::$notes` is the `Raw_Text` one. An
+  application is declared `Rich_Text` — `Project_Model`, `Task_Model` and
+  `Demo_Product_Model` — and `Project_Model::$notes` is the `Raw_Text` one. An
   undeclared TEXT column is an ordinary string; declaration is opt-in. Use `is_empty()` on such a column, never `=== ''` — a
   value object is never identical to a string, so the comparison is permanently false.
 

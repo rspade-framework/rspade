@@ -171,8 +171,12 @@ class Portal_Workspaces_Test extends Rsx_Test_Abstract
         static::__assert_true(array_key_exists('status_label', $vitals), 'vitals carry the client status label');
         static::__assert_true(array_key_exists('client_since', $vitals), 'vitals carry a client-since date');
         static::__assert_true(array_key_exists('member_since', $vitals), 'vitals carry a member-since date');
-        static::__assert_true(array_key_exists('engagement_type', $vitals), 'vitals carry an engagement type');
-        static::__assert_true(array_key_exists('primary_contact', $vitals), 'vitals carry a primary contact');
+        static::__assert_true(array_key_exists('industry', $vitals), 'vitals carry the industry');
+        static::__assert_true(array_key_exists('billing_contact', $vitals), 'vitals carry the billing contact');
+
+        // The client carries neither: nothing on file is null, never an invented stand-in.
+        static::__assert_null($vitals['industry'], 'no industry on file answers null');
+        static::__assert_null($vitals['billing_contact'], 'no billing contact on file answers null');
     }
 
     public static function test_get_denies_non_member()
