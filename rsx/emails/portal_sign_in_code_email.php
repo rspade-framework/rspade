@@ -20,8 +20,8 @@ use App\RSpade\Core\Time\Rsx_Time;
  * block list and ignores the recipient opt-out.
  *
  * A resend while the code is still live carries the SAME code and link ($again): the framework keeps one
- * code per portal user, living rsx.two_factor.challenge_window_minutes from when it was first
- * minted. So the email states the minutes left until $expires_at, which a resend does not move.
+ * code per portal user, and every send restarts its rsx.two_factor.challenge_window_minutes
+ * clock - so the minutes until $expires_at are the full window on every copy.
  *
  * The code and the link are in data(), and therefore in the queue row's template data, for as
  * long as the row is retained. That is acceptable for a pair that dies within minutes; it

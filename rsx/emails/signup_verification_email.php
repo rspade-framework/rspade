@@ -22,7 +22,7 @@ use App\RSpade\Core\Time\Rsx_Time;
  * opt-out.
  *
  * A resend while the code is live carries the SAME code and link ($again), so the email says
- * so and states the minutes left until $expires_at, which a resend does not move.
+ * so and states the minutes until $expires_at - the full window, since every send restarts it.
  *
  * The code and the link are in data(), and therefore in the queue row's template data, for as
  * long as the row is retained. Acceptable for a pair that dies within minutes; never for a
