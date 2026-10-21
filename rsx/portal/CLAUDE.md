@@ -230,8 +230,8 @@ in here. How this app uses them:
 - **Emailed sign-in codes** (`rsx.portal.emailed_sign_in_codes`, OFF as shipped - a fresh
   install usually sends no mail): when on, EVERY password sign-in owes a second step, accepting
   a six-digit code emailed to the account or any factor the user holds - unless
-  `Rsx_Mail::deliverable_to()` says the code could not reach them (mail suppressed or frozen, a
-  dev host, a blocked address), when the step falls back to the factors they hold, or to none,
+  `Rsx_Mail::deliverable_to()` says the code could not reach them (mail suppressed or frozen, or a
+  blocked address), when the step falls back to the factors they hold, or to none,
   rather than locking the account.
   `Portal_Login_Controller::challenge_accepts()` is that policy in one place (the password
   form and `Portal_Sso_Handlers::two_factor_accepts()` both ask it); `send_code()` issues each

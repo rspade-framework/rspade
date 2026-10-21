@@ -243,7 +243,7 @@ class Signup_Controller extends Rsx_Controller_Abstract
         if (!Rsx_Mail::delivers()) {
             throw new \RuntimeException(
                 "Self-signup (rsx.auth.self_signup) sends a verification email and mail delivery is '"
-                . Rsx_Mail_Transport::delivery_mode() . "'; set rsx.mail.delivery to live."
+                . Rsx_Mail_Transport::delivery_mode() . "'; set rsx.mail.delivery to live (or aiosmtpd on a development box)."
             );
         }
     }

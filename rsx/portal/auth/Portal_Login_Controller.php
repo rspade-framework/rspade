@@ -300,7 +300,7 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
      * and the federated sign-in (Rsx\Handlers\Portal_Sso_Handlers) both ask it:
      *   - emailed sign-in codes on: always a challenge, accepting an emailed code or any
      *     factor the portal user holds - unless the code could not reach them
-     *     (Rsx_Mail::deliverable_to(): mail suppressed or frozen, a dev host, a blocked
+     *     (Rsx_Mail::deliverable_to(): mail suppressed or frozen, or a blocked
      *     address), when a code nobody receives would lock the account: the challenge then
      *     accepts only the factors they hold, and a portal user holding none signs in on the
      *     password alone;

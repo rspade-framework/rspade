@@ -29,7 +29,7 @@ use Rsx\Handlers\Sso_Handlers;
  * Who may create an account, and how.
  *
  *   SELF-SIGNUP (rsx.auth.self_signup, off as shipped). Off, /signup and its endpoint answer
- *   404. On while mail delivery is not live, both THROW naming the mode. On with live delivery,
+ *   404. On while mail is not delivered (Rsx_Mail::delivers()), both THROW naming the mode. On with delivery,
  *   one submission creates the identity (unverified), a NEW site and the signer's owner
  *   membership, signs nobody in, and parks an address-verification challenge; the verify
  *   screen's send endpoint emails a code and a link; either one signs the new owner in on the
