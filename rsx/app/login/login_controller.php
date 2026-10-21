@@ -138,13 +138,13 @@ class Login_Controller extends Rsx_Controller_Abstract
                 $invite_code = $request->input('code');
 
                 if (Rsx_Two_Factor::is_enabled($login_user)) {
-                    // The invite code is parked on the session (put_value() is a writer, so
-                    // it establishes the row the value hangs off); the challenge parks the
-                    // pending identity beside it. The session carries both and is signed in
-                    // as nobody.
-                    static::__park_invite_code($invite_code);
-
+                    // The challenge signs the browser's staff sign-in out and parks the
+                    // pending identity; the invite code is parked beside it AFTER, because a
+                    // sign-out clears the staff realm's session values. The session carries
+                    // both and is signed in as nobody.
                     Rsx_Two_Factor::begin_challenge($login_user);
+
+                    static::__park_invite_code($invite_code);
 
                     return redirect(Rsx::Route('Login_Controller::verify'));
                 }

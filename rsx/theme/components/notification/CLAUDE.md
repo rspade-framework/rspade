@@ -29,8 +29,12 @@ notification path (`Portal_Notification_Model`) and does not mount this componen
   `Notification_Dropdown__` BEM children).
 - **Change what a row shows**: the payload shape comes from the controller and the
   notification renderer, not from this component — edit those, and the component follows.
-- The badge count and the list are `this.state` (UI state), never `this.data`; the one
-  `on_load()` fetch is the initial count. Keep new fetches out of click handlers.
+- The one `on_load()` fetch is the initial count (`this.data.initial_count`); every later
+  count and the list are `this.state`. The template reads the badge through
+  `_badge_count()` (the refreshed count, else the loaded one), so the first render already
+  shows it - never re-render from `on_ready()` to show it (a `render()` there runs
+  `on_ready()` again, and the component never reaches ready). Keep new fetches out of
+  click handlers.
 - Removing the bell is one line in the layout template; the component and the endpoints
   are independent of each other.
 

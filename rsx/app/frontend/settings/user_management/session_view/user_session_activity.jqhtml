@@ -1,0 +1,51 @@
+<%--
+User_Session_Activity - the addresses and browsers one session of a user did something
+from, newest first, a page at a time. Page-private to the session page.
+
+$user_id         - users.id (required)
+$user_session_id - the session (required)
+$offset          - internal: the page's first row. Set by this component's own Newer /
+                   Older buttons; callers pass the two ids only.
+
+A row is recorded when the sign-in does something attributed to it (a recorded change, a
+task it starts), and a new one whenever its address or browser changes. Viewing pages
+records nothing, so a session that only browsed lists nothing here.
+--%>
+<Define:User_Session_Activity>
+    <% if (this.data.loading) { %>
+        <Loading_Spinner $message="Loading activity..." />
+    <% } else if (this.data.rows.length === 0) { %>
+        <Empty_State $icon="bi bi-geo-alt">
+            <Slot:title>No recorded activity</Slot:title>
+            <Slot:body>Addresses appear here once this session changes something.</Slot:body>
+        </Empty_State>
+    <% } else { %>
+        <Record_Table>
+            <thead>
+                <tr><th>Last Seen</th><th>First Seen</th><th>IP Address</th><th>Device</th></tr>
+            </thead>
+            <tbody>
+                <% for (const row of this.data.rows) { %>
+                <tr>
+                    <td><%= Rsx_Time.format_datetime(row.last_seen_at) %></td>
+                    <td><%= Rsx_Time.format_datetime(row.first_seen_at) %></td>
+                    <td><%= row.ip_address %></td>
+                    <td><span title="<%= row.user_agent || '' %>"><%= row.device_summary %></span></td>
+                </tr>
+                <% } %>
+            </tbody>
+        </Record_Table>
+
+        <% if (this.data.total > this.data.limit) { %>
+            <div class="User_Session_Activity__pager">
+                <span class="text-muted small"><%= this.data.offset + 1 %>-<%= this.data.offset + this.data.rows.length %> of <%= this.data.total %></span>
+                <% if (this.data.offset > 0) { %>
+                    <button type="button" class="btn btn-secondary btn-sm" $sid="newer"><i class="bi bi-arrow-up"></i> Newer</button>
+                <% } %>
+                <% if (this.data.offset + this.data.rows.length < this.data.total) { %>
+                    <button type="button" class="btn btn-secondary btn-sm" $sid="older">Older <i class="bi bi-arrow-down"></i></button>
+                <% } %>
+            </div>
+        <% } %>
+    <% } %>
+</Define:User_Session_Activity>

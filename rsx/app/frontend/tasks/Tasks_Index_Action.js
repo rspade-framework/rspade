@@ -29,12 +29,12 @@ class Tasks_Index_Action extends Spa_Action {
 
     // Action buttons for page header
     page_actions() {
-        return `
-            <div class="d-flex gap-2">
-                <a href="${Rsx.Route('Tasks_Edit_Action')}" class="btn btn-primary btn-sm">
-                    <i class="bi bi-plus-circle"></i> New Task
-                </a>
-            </div>
-        `;
+        return {
+            component: 'List_Page_Actions',
+            args: {
+                new_href: Rsx.Route('Tasks_Edit_Action'),
+                new_label: 'New Task',
+            },
+        };
     }
 }

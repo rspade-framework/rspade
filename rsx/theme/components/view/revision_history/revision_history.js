@@ -27,6 +27,7 @@ class Revision_History extends Component {
         this.data.transactions = [];
         this.data.has_more = false;
         this.data.next_before_id = null;
+        this.data.redacted = null;
         this.data.error_message = null;
         this.data.loading = true;
 
@@ -60,6 +61,7 @@ class Revision_History extends Component {
             this.data.transactions = result.transactions;
             this.data.has_more = result.has_more;
             this.data.next_before_id = result.next_before_id;
+            this.data.redacted = result.redacted;
             this.data.error_message = null;
         } catch (e) {
             this.data.error_message = e.message;
@@ -141,6 +143,14 @@ class Revision_History extends Component {
         }
 
         return str(value);
+    }
+
+    /**
+     * Whether a stored value is the redaction marker: the column is a never-exported secret,
+     * so the revision records that it changed and never what it held.
+     */
+    is_redacted(value) {
+        return value === this.data.redacted;
     }
 
     /**

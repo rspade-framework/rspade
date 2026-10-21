@@ -454,28 +454,23 @@ class DataGrid_Abstract extends Component {
                 const $th = $(this);
                 const sortby = $th.attr('data-sortby');
 
-                // Recover the original label when this th was already transformed
-                const $existing_link = $th.find('a.DataGrid_Abstract__sortable-header');
-                let contents;
-                if ($existing_link.length > 0) {
-                    contents = $existing_link.clone().find('i.bi').remove().end().html();
-                } else {
-                    contents = $th.html();
+                // The label's own nodes are wrapped once and moved, never re-parsed; a th
+                // that was already transformed keeps its link and only has its arrow redone.
+                let $link = $th.find('a.DataGrid_Abstract__sortable-header').first();
+                if ($link.length === 0) {
+                    $th.wrapInner('<a href="#" class="DataGrid_Abstract__sortable-header"></a>');
+                    $link = $th.find('a.DataGrid_Abstract__sortable-header').first();
                 }
+                $link.find('i.DataGrid_Abstract__sort-arrow').remove();
 
                 // Arrow points the way the rows run: desc = down, asc = up
-                let arrow = '';
                 if (that.state.sort === sortby) {
-                    arrow =
-                        that.state.order === 'desc'
-                            ? '<i class="bi bi-chevron-down ms-1"></i>'
-                            : '<i class="bi bi-chevron-up ms-1"></i>';
+                    const direction = that.state.order === 'desc' ? 'bi-chevron-down' : 'bi-chevron-up';
+                    $link.append($('<i class="bi ms-1 DataGrid_Abstract__sort-arrow"></i>').addClass(direction));
                     $th.addClass('is-sorted');
                 } else {
                     $th.removeClass('is-sorted');
                 }
-
-                $th.html('<a href="#" class="DataGrid_Abstract__sortable-header">' + contents + arrow + '</a>');
             });
     }
 

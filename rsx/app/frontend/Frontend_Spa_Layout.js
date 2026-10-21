@@ -9,6 +9,13 @@
  * - Uses Rsx_Breadcrumb_Resolver for progressive breadcrumb loading with caching
  * - Updates document.title to "RSX - {page_title}"
  * - Actions can override: page_title(), breadcrumb_label(), breadcrumb_label_active(), breadcrumb_parent()
+ *
+ * Page Actions:
+ * - An action's optional page_actions() names a COMPONENT for the header's button cluster:
+ *   it returns {component: 'Name', args: {...}} (args optional), or null for none, and may
+ *   be async. The layout instantiates it on the cluster on every navigation; the component
+ *   owns its markup and its handlers. See Record_Page_Actions and List_Page_Actions in
+ *   rsx/theme/components/page/.
  */
 class Frontend_Spa_Layout extends Spa_Layout {
     static TITLE_CACHE_PREFIX = 'header_text:';
@@ -119,17 +126,6 @@ class Frontend_Spa_Layout extends Spa_Layout {
                     ],
                 },
                 {
-                    title: 'System',
-                    items: [
-                        {
-                            label: 'System Admin',
-                            icon: 'bi-hdd-rack',
-                            route: 'System_Status_Action',
-                            href: Rsx.Route('System_Status_Action'),
-                        },
-                    ],
-                },
-                {
                     title: 'Recent',
                     items: [],
                 },
@@ -227,8 +223,9 @@ class Frontend_Spa_Layout extends Spa_Layout {
         // Clear current title
         $title.html('&nbsp;');
 
+        // The title is plain text - often a record's own name - so it is written with .text().
         const paint = (title) => {
-            $title.html(title);
+            $title.text(title);
             document.title = 'RSX - ' + title;
         };
 
@@ -289,26 +286,38 @@ class Frontend_Spa_Layout extends Spa_Layout {
     }
 
     /**
-     * Render action buttons into the page header
-     * Actions can define page_actions() to return HTML string for buttons
+     * Render the current action's page actions into the page header.
+     *
+     * page_actions() returns {component, args} or null. Not wrapped: a page_actions() that
+     * throws, or returns anything else, is a broken page and fails loud.
      */
     async _render_page_actions() {
         const $actions = this.$sid('page_actions');
         if (!$actions || !$actions.exists()) return;
 
-        // Clear previous action buttons
+        const action = this.action;
+
+        // Clear previous action buttons (stops the previous page's component)
         $actions.empty();
 
-        // Check if action defines page_actions method
-        if (typeof this.action.page_actions === 'function') {
-            try {
-                const html = await this.action.page_actions();
-                if (html) {
-                    $actions.html(html);
-                }
-            } catch (e) {
-                console.warn('Error rendering page actions:', e);
-            }
+        if (typeof action.page_actions !== 'function') {
+            return;
         }
+
+        const spec = await action.page_actions();
+
+        // A slower page_actions() from an earlier navigation must not paint over the
+        // current action's header.
+        if (this.action !== action || !spec) {
+            return;
+        }
+
+        if (typeof spec !== 'object' || typeof spec.component !== 'string') {
+            throw new Error(
+                action.constructor.name + '.page_actions() must return {component, args} or null'
+            );
+        }
+
+        $('<div></div>').appendTo($actions).component(spec.component, spec.args || {});
     }
 }

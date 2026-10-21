@@ -210,12 +210,9 @@ class Contacts_Edit_Action extends Spa_Action {
         const back_url = this.data.from_client
             ? Rsx.Route('Clients_View_Action', this.args.client_id)
             : Rsx.Route('Contacts_Index_Action');
-        return `
-            <div class="d-flex gap-2">
-                <a href="${back_url}" class="btn btn-secondary btn-sm">
-                    <i class="bi bi-arrow-left"></i> Back
-                </a>
-            </div>
-        `;
+        return {
+            component: 'Record_Page_Actions',
+            args: { back_href: back_url },
+        };
     }
 }

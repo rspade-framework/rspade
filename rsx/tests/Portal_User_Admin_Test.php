@@ -9,11 +9,9 @@ namespace Rsx\Tests;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Response\Error_Response;
-use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
 use Rsx\App\Frontend\Clients\Frontend_Clients_Controller;
 use Rsx\Models\Client_Model;
@@ -63,40 +61,31 @@ class Portal_User_Admin_Test extends Rsx_Test_Abstract
     }
 
     /**
-     * Seed a portal session row for the user.
+     * Sign the user into the portal on a browser of its own.
      *
-     * A portal session is a browser's _sessions row carrying a portal identity. There
-     * is no public API for minting one on another user's behalf (a session is created
-     * by that user's own login), so the fixture builds the row through the framework's
-     * Session model.
+     * There is no public API for signing somebody in on another browser (a session is created
+     * by that user's own login), so the fixture is written through the test harness's session
+     * fixture.
      *
-     * @return int The new session row id
+     * @return int The browser session row id
      */
     private static function __make_session(Portal_User_Model $user): int
     {
-        $session = new Session();
-        $session->site_id = 0;
-        $session->type_id = Session::TYPE_WEB;
-        $session->portal_user_id = $user->id;
-        $session->portal_site_id = $user->site_id;
-        $session->session_token = Str::random(64);
-        $session->csrf_token = Str::random(64);
-        $session->ip_address = '127.0.0.1';
-        $session->user_agent = 'portal-user-admin-test';
-        $session->last_active = now();
-        $session->active = true;
-        $session->version = 1;
-        $session->save();
-
-        return (int) $session->id;
+        return static::__insert_session_fixture([
+            'portal' => ['portal_user_id' => (int) $user->id, 'portal_site_id' => (int) $user->site_id],
+        ])['id'];
     }
 
     /**
-     * Count a portal user's live sessions through the public facade.
+     * Count a portal user's signed-in sessions through the public facade (the listing also
+     * answers recently signed-out ones).
      */
     private static function __session_count(int $portal_user_id): int
     {
-        return count(Portal_Session::get_sessions_for_user($portal_user_id));
+        return count(array_filter(
+            Portal_Session::get_sessions_for_user($portal_user_id),
+            fn ($session) => $session['is_signed_in']
+        ));
     }
 
     private static function __make_client(): Client_Model

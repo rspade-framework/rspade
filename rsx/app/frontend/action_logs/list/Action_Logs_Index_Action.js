@@ -21,9 +21,4 @@ class Action_Logs_Index_Action extends Spa_Action {
     async breadcrumb_label_active() {
         return 'View recent activity history';
     }
-
-    // No action buttons - action logs are read-only
-    page_actions() {
-        return '';
-    }
 }

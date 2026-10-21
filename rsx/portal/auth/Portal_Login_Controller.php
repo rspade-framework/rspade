@@ -155,11 +155,12 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
                     } elseif ($accepts !== false) {
                         // A SECOND STEP IS OWED. Nothing is signed in: the portal user is
                         // parked half-authenticated and the challenge page answers for them.
-                        // The invited-client destination is parked FIRST, for the reason the
-                        // facade writes its own pending value before signing out.
-                        Portal_Session::put_value(static::CLIENT_ID_KEY, $client_id, Rsx_Portal_Two_Factor::challenge_expires_at());
-
+                        // The invited-client destination is parked AFTER the challenge, which
+                        // signs the portal out first - and a sign-out clears the portal
+                        // realm's session values.
                         Rsx_Portal_Two_Factor::begin_challenge($portal_user, $accepts);
+
+                        Portal_Session::put_value(static::CLIENT_ID_KEY, $client_id, Rsx_Portal_Two_Factor::challenge_expires_at());
 
                         return redirect(Rsx_Portal::Route('Portal_Login_Controller::verify'));
                     } else {

@@ -31,6 +31,6 @@ class Rich_Text extends Rsx_Text_Abstract {
      * @returns {boolean}
      */
     _local_is_empty() {
-        return $('<div>').html(this._raw).text().trim() === '';
+        return html_to_text(this._raw).trim() === '';
     }
 }

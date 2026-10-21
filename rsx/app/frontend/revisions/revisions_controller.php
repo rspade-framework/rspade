@@ -10,6 +10,7 @@ namespace Rsx\App\Frontend\Revisions;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Revisions\Revision;
 use App\RSpade\Core\Revisions\Revision_Model;
 use App\RSpade\Core\Revisions\Transaction_Model;
 use Rsx\Models\Client_Model;
@@ -124,6 +125,10 @@ class Frontend_Revisions_Controller extends Rsx_Controller_Abstract
 
         return [
             'transactions' => $transactions,
+            // The marker a never-exported column's values are recorded as. Shipped rather
+            // than restated in the component, so the browser compares against the one
+            // definition and paints "(redacted)" instead of the marker.
+            'redacted' => Revision::REDACTED,
             'has_more' => $has_more,
             'next_before_id' => $has_more && !empty($transactions) ? end($transactions)['id'] : null,
         ];

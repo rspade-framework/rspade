@@ -57,8 +57,8 @@ class Portal_Workspace_Layout extends Spa_Layout {
         // content pane so the nested scaffold's --page-pad collapses to 0 and it fills the
         // pane (the workspace `.container`/`.row` already frames it, and the scaffold's
         // 2300px max-width never binds inside the narrower content track). BOTH layers in
-        // the chain react (Portal_Layout zeroes the outer padding). Mirrors Settings_Layout
-        // / System_Layout; reset per navigation so an unconverted tab restores the default.
+        // the chain react (Portal_Layout zeroes the outer padding). Mirrors Settings_Layout;
+        // reset per navigation so an unconverted tab restores the default.
         this.$content().toggleClass('Portal_Workspace_Layout__content--scaffolded', !!this.action.scaffolded);
 
         const id = args && args.id ? int(args.id) : 0;

@@ -3,10 +3,12 @@
  *
  * Password change, two-factor authentication, and session management.
  *
- * THE TWO-FACTOR SECTION IS REAL; the rest of this page is not yet. The 2FA data is loaded
- * from the framework's own Rsx_Two_Factor_Controller in on_load() and repainted with
+ * TWO-FACTOR AND THE SESSION LIST ARE REAL; the password change is not yet. The 2FA data is
+ * loaded from the framework's own Rsx_Two_Factor_Controller in on_load() and repainted with
  * reload() after every change, so what the screen shows is always what the server holds.
- * The active-sessions list is still static sample data (see the settings CLAUDE.md).
+ * "Where You're Signed In" is the account's own sessions from this screen's controller
+ * (get_sessions) in the same on_load(), with Sign Out per other device and Sign Out All
+ * Other Sessions.
  *
  * CONNECTED ACCOUNTS is the same shape one subsystem over: the roster of live providers is
  * read from window.rsxapp.sso, which the server exported with the page, and the identity's
@@ -52,37 +54,24 @@ class Settings_Password_Security_Action extends Spa_Action {
             passkeys_supported: Rsx_Two_Factor.is_supported(),
         };
 
-        // Static mock data for active sessions
-        this.data.active_sessions = [
-            {
-                device: 'Chrome on Windows',
-                ip: '192.168.1.100',
-                location: 'New York, NY',
-                last_active: 'Just now',
-                is_current: true,
-            },
-            {
-                device: 'Safari on iPhone',
-                ip: '192.168.1.105',
-                location: 'New York, NY',
-                last_active: '2 hours ago',
-                is_current: false,
-            },
-        ];
+        // null until the load answers, like the two-factor data.
+        this.data.sessions = null;
     }
 
     async on_load() {
-        // TWO INDEPENDENT SERVER CALLS, ONE await. Neither reads the other's result, so
-        // sequencing them would only make the page slower. The connections are not asked
-        // for at all when no provider is live: the section that would show them is not
-        // rendered, and an endpoint whose answer nothing reads is a call not worth making.
-        const [two_factor, sso_identities] = await Promise.all([
+        // INDEPENDENT SERVER CALLS, ONE await. None reads another's result, so sequencing
+        // them would only make the page slower. The connections are not asked for at all
+        // when no provider is live: the section that would show them is not rendered, and an
+        // endpoint whose answer nothing reads is a call not worth making.
+        const [two_factor, sso_identities, sessions] = await Promise.all([
             Rsx_Two_Factor_Controller.credentials_list(),
             this.data.sso_enabled ? Rsx_Sso_Controller.identities_list() : Promise.resolve([]),
+            Frontend_Settings_Password_Security_Controller.get_sessions(),
         ]);
 
         this.data.two_factor = two_factor;
         this.data.sso_identities = sso_identities;
+        this.data.sessions = sessions.sessions;
     }
 
     /**
@@ -163,6 +152,56 @@ class Settings_Password_Security_Action extends Spa_Action {
         this.$.on('click.sps', '[data-action="sso_disconnect"]', async function () {
             await that._sso_disconnect(int($(this).data('id')));
         });
+
+        this.$.on('click.sps', '[data-action="sign_out_session"]', async function () {
+            await that._sign_out_session(int($(this).data('id')));
+        });
+
+        this.$.on('click.sps', '[data-action="sign_out_others"]', async function () {
+            await that._sign_out_others();
+        });
+    }
+
+    /**
+     * Sign one other device out. The server re-checks that it is one of this account's
+     * signed-in sessions and not this device.
+     *
+     * @param {number} user_session_id
+     */
+    async _sign_out_session(user_session_id) {
+        const confirmed = await Modal.confirm(
+            'Sign Out Device',
+            'That device is signed out now. You can sign in on it again.',
+            'Sign Out'
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        await Frontend_Settings_Password_Security_Controller.sign_out_session({ user_session_id: user_session_id });
+
+        this.reload();
+    }
+
+    /**
+     * Sign out everywhere but here. The confirmation names what else goes with it: every
+     * other device's "trust this browser" for two-factor sign-in.
+     */
+    async _sign_out_others() {
+        const confirmed = await Modal.confirm(
+            'Sign Out All Other Sessions',
+            'Every other device signed in to your account is signed out now, and devices you trusted for two-factor sign-in will ask for a code again.\n\nThis device stays signed in. API keys keep working until you revoke them.',
+            'Sign Out Others'
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        await Frontend_Settings_Password_Security_Controller.sign_out_other_sessions();
+
+        this.reload();
     }
 
     /**

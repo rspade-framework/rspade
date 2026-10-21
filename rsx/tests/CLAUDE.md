@@ -64,15 +64,17 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   own-record and sign-in endpoints it excuses are listed by name, with the reason.
   `User_Management_Authority_Test` (equal-or-lower administration: a superior's current
   role, a new role above the caller's, the hidden invitation link, disabling through
-  `users.is_enabled`, site-scoped session lists), `Api_Access_Permission_Test` (the API and
+  `users.is_enabled`, site-scoped session lists), `Session_Screens_Test` (the "where you're
+  signed in" screens: user management's this-site list and session page, Password & Security
+  and portal settings - the three-month cut, the record rule that answers another user's,
+  another site's or a dormant session as not found, Sign out refused for a superior and for
+  the browser making the request, "everywhere" staying on this site),
+  `Api_Access_Permission_Test` (the API and
   key minting require a GRANTED `can_use_api`, a DENY wins), `Cross_Site_Reference_Test`
   (saves refuse another site's ids, grids print no foreign row),
   `Self_Registration_Policy_Test` (`/signup` POST honours `signup_mode` and answers an
   existing address like a new one; SSO declines an open invitation, an unverified and an
-  unknown address),
-  `Task_Gate_Handlers_Test` (least privilege: a user sees and acts on only the runs they
-  started of the tasks `USER_TASKS` lists, with only each entry's actions - their own run of
-  an unlisted task stays invisible, and `force_kill` is never granted).
+  unknown address).
 - **Public bundles**: `Public_Bundle_Contents_Test` — the three bundles served to visitors
   who have not signed in (`Login_Bundle`, `Errors_Bundle`, `Portal_Auth_Bundle`) publish
   none of this application's internals. It derives the internals from the manifest - every

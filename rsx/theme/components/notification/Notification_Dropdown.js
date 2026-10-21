@@ -14,15 +14,22 @@
 class Notification_Dropdown extends Component {
     on_create() {
         this.state = {
-            unread_count: 0,
+            // null until a refresh or the dropdown reports a count; the badge reads the
+            // loaded count until then (see _badge_count()).
+            unread_count: null,
             notifications: [],
             total: 0,
             loading: false,
             dropdown_loaded: false, // Track if we've loaded dropdown content
         };
 
-        // Listen for SPA navigation to refresh count
-        $(document).on('spa:dispatch', () => this._refresh_count());
+        // Refresh the count on every SPA navigation. The handler lives on document, which
+        // outlives this instance, so it is namespaced per instance and removed in on_stop().
+        $(document).on('spa:dispatch.' + this._cid, () => this._refresh_count());
+    }
+
+    on_stop() {
+        $(document).off('spa:dispatch.' + this._cid);
     }
 
     async on_load() {
@@ -30,11 +37,13 @@ class Notification_Dropdown extends Component {
         this.data.initial_count = result.count;
     }
 
-    on_ready() {
-        if (this.data.initial_count > 0) {
-            this.state.unread_count = this.data.initial_count;
-            this.render();
-        }
+    /**
+     * The count the badge shows: the latest refreshed count, else the one on_load() fetched.
+     * Read by the template, so the first render already shows the loaded count - on_ready()
+     * never re-renders to show it (a render() made there runs on_ready() again).
+     */
+    _badge_count() {
+        return this.state.unread_count ?? this.data.initial_count ?? 0;
     }
 
     /**

@@ -11,7 +11,8 @@ it, and no `Rsx::Route()` outside it names its controller — `/admin` simply 40
 
 **To keep it:** give it a real gate first (`is_logged_in` alone admits every signed-in user
 to a page called Admin), then build or remove the four missing controllers. The staff app's
-real admin surfaces are `../frontend/settings/` and `../frontend/system/`.
+real admin surface is `../frontend/settings/`; the operator's console (mail, tasks, logs)
+is the framework's `/_sys` panel (`rsx:man sys_panel`).
 
 ## RELATED
 

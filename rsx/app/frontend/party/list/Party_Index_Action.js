@@ -25,17 +25,6 @@ class Party_Index_Action extends Spa_Action {
     }
 
     page_actions() {
-        return `
-            <div class="dropdown d-inline-block">
-                <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="bi bi-plus-circle"></i> New Party
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item" href="${Rsx.Route('Party_Edit_Action', {type: Party_Model.TYPE_PERSON})}">Person</a></li>
-                    <li><a class="dropdown-item" href="${Rsx.Route('Party_Edit_Action', {type: Party_Model.TYPE_COMPANY})}">Company</a></li>
-                    <li><a class="dropdown-item" href="${Rsx.Route('Party_Edit_Action', {type: Party_Model.TYPE_GROUP})}">Group</a></li>
-                </ul>
-            </div>
-        `;
+        return { component: 'Party_Index_Page_Actions' };
     }
 }

@@ -70,5 +70,5 @@ silently in somebody else's inbox with the queue row still saying SENT).
 
 ## RELATED
 
-`rsx/app/frontend/system/CLAUDE.md` (the queue, config and recipient screens) ·
+the `/_sys` panel's Email screen (the queue, delivery config and opt-outs; `rsx:man sys_panel`) ·
 skill `rspade:email-and-sms` · `rsx:man email`

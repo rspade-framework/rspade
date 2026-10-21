@@ -28,7 +28,7 @@ class Settings_User_Management_View_Action extends Spa_Action {
             created_at: null,
             profile_photo_attachment_id: null,
             user_profile: null,
-            recent_sessions: [],
+            sessions: [],
         };
         this.data.error_data = null;
         this.data.loading = true;
@@ -66,6 +66,61 @@ class Settings_User_Management_View_Action extends Spa_Action {
             const $button = $(this);
             await that.handle_set_enabled($button.attr('data-enabled') === '1');
         });
+
+        // Sessions: one Sign out per row (delegated - the rows are rebuilt per render) and
+        // Sign out everywhere in the section header.
+        that.$.off('click.user_view_sessions').on('click.user_view_sessions', '[data-sign-out-session]', async function () {
+            await that.handle_sign_out_session(int($(this).attr('data-sign-out-session')));
+        });
+
+        that.$sid('btn_sign_out_all').off('click.user_view').on('click.user_view', async function () {
+            await that.handle_sign_out_all();
+        });
+    }
+
+    /**
+     * Sign one of the user's sessions out, after a confirm.
+     *
+     * @param {number} user_session_id
+     */
+    async handle_sign_out_session(user_session_id) {
+        const confirmed = await Modal.confirm(
+            'Sign Out Session',
+            'That device is signed out now. The user can sign in again.',
+            'Sign Out'
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        await Frontend_Settings_User_Management_Controller.terminate_user_session({
+            id: this.data.user.id,
+            user_session_id: user_session_id,
+        });
+
+        this.reload();
+    }
+
+    /**
+     * Sign the user out of every browser on this site, after a confirm.
+     */
+    async handle_sign_out_all() {
+        const confirmed = await Modal.confirm(
+            'Sign Out Everywhere',
+            'Every device signed in to this site as this user is signed out now. The user can sign in again.',
+            'Sign Out Everywhere'
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        await Frontend_Settings_User_Management_Controller.terminate_all_user_sessions({
+            id: this.data.user.id,
+        });
+
+        this.reload();
     }
 
     /**

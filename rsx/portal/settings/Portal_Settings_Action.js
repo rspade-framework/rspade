@@ -63,11 +63,11 @@ class Portal_Settings_Action extends Spa_Action {
             });
         }
 
-        // Terminate session
+        // Sign out another device: the id is a portal user session id.
         this.$.on('click.psa', '[data-terminate-session]', async (e) => {
-            const session_id = $(e.currentTarget).data('terminate-session');
-            if (!await Modal.confirm('Terminate Session', 'End this session? The device will be logged out.')) return;
-            await Portal_Settings_Controller.terminate_session({session_id});
+            const user_session_id = int($(e.currentTarget).data('terminate-session'));
+            if (!await Modal.confirm('Sign Out Device', 'That device is signed out of the portal now. You can sign in on it again.', 'Sign Out')) return;
+            await Portal_Settings_Controller.terminate_session({user_session_id});
             this.reload();
         });
     }

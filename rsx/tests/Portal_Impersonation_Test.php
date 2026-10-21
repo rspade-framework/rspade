@@ -13,7 +13,6 @@ use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
-use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Contact_Model;
@@ -38,6 +37,9 @@ use Rsx\Portal_Permission;
  */
 class Portal_Impersonation_Test extends Rsx_Test_Abstract
 {
+    /** View as Client moves a browser's portal sign-in, so every test acts as a browser. */
+    protected static $acts_as_browser = true;
+
     private const SITE_ID = 1;
     private const IMPERSONATOR_ID = 99;
 
@@ -258,9 +260,8 @@ class Portal_Impersonation_Test extends Rsx_Test_Abstract
 
         static::__assert_equals('/_portal/', $res['url'] ?? null, 'the portal itself, on this host');
 
-        $row = Session::find(Session::get_session_id());
-        static::__assert_equals($portal_user->id, (int) $row->portal_user_id, 'viewing as the contact\'s portal user');
-        static::__assert_equals($staff->id, (int) $row->impersonator_user_id, 'impersonated by the caller');
+        static::__assert_equals($portal_user->id, (int) Portal_Session::get_portal_user_id(), 'viewing as the contact\'s portal user');
+        static::__assert_equals($staff->id, (int) Portal_Session::get_impersonator_user_id(), 'impersonated by the caller');
     }
 
     public static function test_begin_with_the_portal_on_its_own_host_opens_the_handshake()

@@ -94,7 +94,7 @@ content pane).
 ### Portal layout reconciliation (Batch J, RESOLVED - the 4th + 5th layers)
 
 The portal is a SECOND design surface (own layout, own session) and reconciles in TWO
-layers, mirroring the staff Frontend_Spa_Layout + Settings/System sublayout pattern:
+layers, mirroring the staff Frontend_Spa_Layout + Settings sublayout pattern:
 
 - **`Portal_Layout` (OUTER, like Frontend_Spa_Layout).** The content wrapper `.container-fluid
   .py-4` became `<div class="Portal_Layout__page" $sid="content">`. `Portal_Layout.on_action`
@@ -115,18 +115,6 @@ Settings_Layout. Both layouts keep all their layout-chrome SCSS. Also added:
 `Portal_Request_Thread_Action → 'requests'` to the workspace NAV_CONFIG so the Requests pill
 stays active on a thread (was un-highlighted before).
 
-### System_Layout reconciliation (Batch H, RESOLVED)
-
-`System_Layout` (the system-admin sublayout, `220px 1fr` grid + own `$spacing-lg`
-padding, same shape as `Settings_Layout`) took the identical one-line treatment:
-`System_Layout.on_action` stamps `system-content--scaffolded` on its content pane;
-the SCSS modifier is exactly `{ --page-pad: 0; }`. A system action composing with
-`Page_Scaffold` declares `scaffolded = true`; BOTH `Frontend_Spa_Layout` (outer
-constraint off) and `System_Layout` (`--page-pad: 0`) react. Reset per navigation
-via `toggleClass(..., !!this.action.scaffolded)`. This is the third layer to adopt
-the pattern (Frontend_Spa_Layout Batch C, Settings_Layout Batch G, System_Layout
-Batch H); Portal_Spa_Layout remains the one pending sublayout.
-
 ---
 
 ## Layer 1 - Page scaffold
@@ -134,6 +122,8 @@ Batch H); Portal_Spa_Layout remains the one pending sublayout.
 | Component | Usage | Replaces | Considerations / gotchas |
 |---|---|---|---|
 | `Page_Scaffold` | View-page shell: 2300px centered, `<Slot:main>` + optional `<Slot:sidebar>`, `$ratio` (8/4 default; 9/3, 7/5, 6/6). Mobile: sidebar stacks under main. | Hand-assembled `page-content` + `row` + `col-desktop-8/4` shells | Ratio stamped as a modifier class in JS (curated set, not arbitrary). No-sidebar collapses to full width (JS detects empty slot in `on_render`). No display-mode signal (D1). Sits inside the layout's page-content today - reconcile that padding/constraint in Batch C. |
+| `Record_Page_Actions` | Header buttons of a record page or a page returning to one: Back (`$back_href`, `$back_label` default "Back") + Edit when `$edit_href` is given. Template-only, `rsx/theme/components/page/`. | The HTML strings view/edit/history actions returned from `page_actions()` | Never in a template: an action names it from `page_actions()` as `{component, args}` and `Frontend_Spa_Layout` mounts it in the header's `page_actions` host. Used by every view, edit and history page. |
+| `List_Page_Actions` | Header buttons of a list page: New (`$new_href`, `$new_label` default "New") + Export when `$on_export` (a callback) is given + Reports when `$reports`. `rsx/theme/components/page/`. | The list pages' HTML strings plus their document-level `.js-page-export` click handlers | The action keeps the export logic (`export_all()`) and passes it as `$on_export`; the component only draws and clicks. Clients / contacts / projects lists and the tasks list. A page with buttons of its own (the parties list's New Party menu) declares a small component beside its action instead. |
 
 ## Layer 2 - Section / card chrome
 
@@ -166,8 +156,8 @@ Batch H); Portal_Spa_Layout remains the one pending sublayout.
 | `Stat_Group` | Dashboard headline-KPI strip: a responsive grid (4-up desktop / 2-up tablet / 1-up phone) of KPI cells. Contains `Kpi_Cell` cells (levered, not duplicated). | Dashboard "Quick Stats Bar" (`col-6 col-md-3 border-end` cells w/ literal numbers) | Built Batch D. A dashboard is the ONE legit home for a headline stat strip (guide 6.2); an entity view keeps telemetry in the sidebar (`Sidebar_Kpi_Group`). Owns only layout; the cell look is `Kpi_Cell`'s (this dual dashboard+sidebar consumption is exactly why `Sidebar_Kpi_Row` was renamed `Kpi_Cell` in Batch K). `minmax(0,1fr)` tracks so a wide value can't blow the grid out. |
 | `Widget_Grid` | Overview layout container: a 2-up (desktop) / 1-up (mobile) grid of independent widget cards, owning the inter-widget gap. | Bootstrap `row` + `col-12 col-lg-6` shells wrapping each dashboard card (box-in-box) | Built Batch D. `minmax(0,1fr)` tracks + `align-items:start` so a wide record table shrinks to its track and scrolls inside its own card (see Section `--flush` overflow) instead of forcing the page wider. Portal_Dashboard is the imminent 2nd consumer. |
 | `Stat_Row` | One money / numeric stat LINE: `<Slot:label>` + monospaced right-aligned `<Slot:value>`; `$strong_label` (totals: top divider + bold label + primary value), `$alert` (red value). | Hand-rolled invoice `Subtotal / Tax / Total` `<table class="table table-sm">` rows | Built Batch F (invoices). Distinct from `Kpi_Cell` (a big telemetry CELL) - Stat_Row is a single label:value line, `$font-family-mono` + `tabular-nums`. Self-stacking (each owns its row padding; `$strong_label` draws the divider above the total). `$provisional` (amber estimate) is RESERVED, not built - no page yet shows a computed estimate. **RESERVED-WITH-RATIONALE as of the tab-alignment epic Batch 1:** both live consumers (Invoices_View totals block + Invoices_Add live totals) were REMOVED when the invoices pages were deleted per owner decision, so Stat_Row now has ZERO live consumers. The money-line VOCABULARY SHAPE is kept intact (like `Section_Columns`) - the first real money/billing page re-adopts it; delete at the next residue sweep if none appears. Its docblock invoice example is retained as the canonical money-line illustration. |
-| `Callout` | Inline alert banner: `$variant="danger"\|"warning"` (validated loudly) + `$icon`; `<Slot:title>` + `<Slot:body>` + `<Slot:actions>`. | The Clients_View deleted-client `.alert alert-danger`; an overdue-invoice warning box | Built Batch F (invoices). **Three live app consumers today:** `rsx/app/frontend/clients/view/Clients_View_Action.jqhtml` (the deleted-client banner), `rsx/app/frontend/clients/portal/Clients_Portal_Panel.jqhtml`, and `rsx/app/frontend/system/email_queue/System_Email_View_Action.jqhtml`; the theme's own `view/revision_history/revision_history.jqhtml` uses it too. Its docblock overdue-invoice example is retained as an illustration. Colored left accent + colored icon/title on a neutral surface (serious-tool restraint, not a loud Bootstrap alert); no new color tokens. Distinct from `Feed_Row` (event line) and `Empty_State` (empty region). |
-| `Placeholder_Card` | Coming-soon / not-yet-built FEATURE panel: `$icon` + `$variant="dashed"\|"muted"` (default dashed, validated loudly) + `<Slot:title>` + `<Slot:body>` + `<Slot:cta>`. | Ad-hoc `text-center py-5` + `display-1` "coming soon" placeholders (System_Status/Tasks, Reports body) | Built Batch H. **Four live consumers today:** `system/status/System_Status_Action.jqhtml`, `system/tasks/System_Tasks_Action.jqhtml`, `reports/Reports_Index_Action.jqhtml` and `calendar/Calendar_Index_Action.jqhtml` (all under `rsx/app/frontend/`). Centered content like `Empty_State` but a full-width card BLOCK standing in for a whole unbuilt feature (not a zero-child list region inside a populated feature - that stays `Empty_State`). `dashed` = unbuilt scaffolding; `muted` = calmer filled panel. Tokens only (`var(--bs-border-color)` for both the dashed and the muted border, `var(--bs-tertiary-bg)` for the muted fill). |
+| `Callout` | Inline alert banner: `$variant="danger"\|"warning"` (validated loudly) + `$icon`; `<Slot:title>` + `<Slot:body>` + `<Slot:actions>`. | The Clients_View deleted-client `.alert alert-danger`; an overdue-invoice warning box | Built Batch F (invoices). **Two live app consumers today:** `rsx/app/frontend/clients/view/Clients_View_Action.jqhtml` (the deleted-client banner) and `rsx/app/frontend/clients/portal/Clients_Portal_Panel.jqhtml`; the theme's own `view/revision_history/revision_history.jqhtml` uses it too. Its docblock overdue-invoice example is retained as an illustration. Colored left accent + colored icon/title on a neutral surface (serious-tool restraint, not a loud Bootstrap alert); no new color tokens. Distinct from `Feed_Row` (event line) and `Empty_State` (empty region). |
+| `Placeholder_Card` | Coming-soon / not-yet-built FEATURE panel: `$icon` + `$variant="dashed"\|"muted"` (default dashed, validated loudly) + `<Slot:title>` + `<Slot:body>` + `<Slot:cta>`. | Ad-hoc `text-center py-5` + `display-1` "coming soon" placeholders (Reports body, Calendar) | Built Batch H. **Two live consumers today:** `reports/Reports_Index_Action.jqhtml` and `calendar/Calendar_Index_Action.jqhtml` (both under `rsx/app/frontend/`). Centered content like `Empty_State` but a full-width card BLOCK standing in for a whole unbuilt feature (not a zero-child list region inside a populated feature - that stays `Empty_State`). `dashed` = unbuilt scaffolding; `muted` = calmer filled panel. Tokens only (`var(--bs-border-color)` for both the dashed and the muted border, `var(--bs-tertiary-bg)` for the muted fill). |
 
 | `Impersonation_Banner` | Amber strip "Signed in as <user> by <impersonator>" + a "Stop impersonating" link, rendered ONLY while `window.rsxapp.impersonation` is set; nothing otherwise. No arguments. `rsx/theme/components/ui/impersonation_banner/`. | (new - no prior staff impersonation indicator) | Reads `window.rsxapp.user.email` (the effective membership) and `rsxapp.impersonation.impersonator_email` at render; begin and stop are full page loads, so it watches nothing. The link is `Rsx.Route('_Sys_Impersonation_Controller::stop')` - a STRING carrier into the framework panel, published into every bundle (NAME-RESERVED-02 reads no strings). Mounted at the top of `Frontend_Spa_Layout`'s content column, above the header. |
 | `Realtime_Status_Badge` | Header "connection lost" pill: observes `Rsx_Realtime.watch_connection()` and fades in a warning pill only while it reports `'disconnected'`; hidden by default. Subscribes to NO topic. `rsx/theme/components/realtime/`. | (new - no prior realtime connection indicator) | Connection observer, not content vocabulary. No timer or state machine of its own: the framework reports `'disconnected'` only after its 5s grace window, and `'connected'`/`'disabled'` both hide it. Wired into BOTH the staff (`Frontend_Spa_Layout`) and portal (`Portal_Layout`) headers beside the notification/user chrome. Registers the monitor in `on_create`, stops it in `on_stop`; visibility kept in `this.state` and re-applied in `on_render` so a layout re-render never loses it. |
@@ -836,17 +826,6 @@ Status: `-` not started, `R` researched, `G` gated, `C` converted.
 | Group_Management_View | R | G | C (Batch H - full archetype; stale "coming soon" note removed) |
 | Portal_Users_Index (list) | R | G | C (Batch H) |
 | Site_Settings | R | G | C (Batch H - shell + `id`-less form; persistence escalated) |
-
-### Frontend System sub-app
-
-| Page | Research | Gate | Converted |
-|---|---|---|---|
-| System_Status | R | G | C (Batch H - Placeholder_Card) |
-| System_Tasks | R | G | C (Batch H - Placeholder_Card) |
-| System_Email_Queue (list) | R | G | C (Batch H - Section + Record_Table row-nav) |
-| System_Email_View | R | G | C (Batch H - archetype + Callout error + iframe scss survivor) |
-| System_Email_Config | R | G | C (Batch H - 2-col + Sidebar_Kpi_Group stats) |
-| System_Email_Recipients (list) | R | G | C (Batch H - Section + Record_Table) |
 
 ### Portal SPA (converted after frontend, D6)
 

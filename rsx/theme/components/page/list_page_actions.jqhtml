@@ -1,0 +1,39 @@
+<%--
+List_Page_Actions
+
+The page-header buttons of a list page: a New link, an Export button when the page passes
+an $on_export handler, and a Reports button when $reports is set. An action hands it to the
+layout from page_actions():
+
+    page_actions() {
+        const can_export = Permission.has_permission(User_Model.PERM_DATA_EXPORT);
+        return {
+            component: 'List_Page_Actions',
+            args: {
+                new_href: Rsx.Route('Clients_Edit_Action'),
+                on_export: can_export ? () => this.export_all() : null,
+                reports: true,
+            },
+        };
+    }
+
+$new_href  - where New goes (required)
+$new_label - the New link's text (default "New")
+$on_export - called when Export is pressed; no Export button when absent
+$reports   - true shows the Reports button
+--%>
+<Define:List_Page_Actions class="d-flex gap-2" $new_label="New">
+    <a href="<%= this.args.new_href %>" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle"></i> <%= this.args.new_label %>
+    </a>
+    <% if (this.args.on_export) { %>
+        <button type="button" class="btn btn-secondary btn-sm" @click=this.export_clicked>
+            <i class="bi bi-download"></i> Export
+        </button>
+    <% } %>
+    <% if (this.args.reports) { %>
+        <button type="button" class="btn btn-secondary btn-sm">
+            <i class="bi bi-file-earmark-bar-graph"></i> Reports
+        </button>
+    <% } %>
+</Define:List_Page_Actions>

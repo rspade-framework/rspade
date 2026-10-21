@@ -112,7 +112,7 @@ class Dev_Document_Preview_Action extends Spa_Action {
         this.$sid('indicator').text('No document loaded');
         this.$sid('prev').prop('disabled', true);
         this.$sid('next').prop('disabled', true);
-        this.$sid('text_host').html('');
+        this.$sid('text_host').empty();
         this.$sid('reset_extraction').prop('disabled', true);
         this.$sid('run_extraction').prop('disabled', true);
     }

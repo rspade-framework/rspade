@@ -222,9 +222,8 @@ class Rsx_Modal extends Component {
         }
 
         if (typeof body === 'string') {
-            // Text content - escape and convert newlines
-            const escaped = $('<div>').text(body).html().replace(/\n/g, '<br>');
-            $content.html(escaped);
+            // Plain text: escaped, line breaks kept
+            $content.html(nl2brhtml(body));
         } else if (body instanceof jQuery) {
             // jQuery element
             $content.append(body);

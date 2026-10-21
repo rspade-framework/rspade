@@ -16,6 +16,9 @@ the generated stub's field__enum_labels(), an _at / _date column goes through
 Rsx_Time / Rsx_Date (JQHTML-DATETIME-01), and an is_ column reads Yes/No. Nothing is
 formatted server-side - the endpoint ships the stored values under their real field names.
 
+A never-exported column (a secret) is recorded REDACTED: both cells paint a muted "(redacted)",
+so the row still says the column changed while neither value was ever stored.
+
 NULL AND EMPTY STRING ARE NOT THE SAME CELL. A null renders as a muted italic "(null)";
 an empty string renders as nothing at all. They are different facts about the column, and
 a timeline that painted one for both would hide the difference the reader came for.
@@ -99,7 +102,9 @@ See: php artisan rsx:man revisions
                                         <tr>
                                             <td class="Revision_History__field"><%= this.humanize_field(_field) %></td>
                                             <td class="Revision_History__value">
-                                                <% if (_before === null) { %>
+                                                <% if (this.is_redacted(_r.diff[_field][0])) { %>
+                                                    <span class="Revision_History__redacted">(redacted)</span>
+                                                <% } else if (_before === null) { %>
                                                     <span class="Revision_History__null">(null)</span>
                                                 <% } else if (_before === '') { %>
                                                 <% } else { %>
@@ -110,7 +115,9 @@ See: php artisan rsx:man revisions
                                                 <% } %>
                                             </td>
                                             <td class="Revision_History__value">
-                                                <% if (_after === null) { %>
+                                                <% if (this.is_redacted(_r.diff[_field][1])) { %>
+                                                    <span class="Revision_History__redacted">(redacted)</span>
+                                                <% } else if (_after === null) { %>
                                                     <span class="Revision_History__null">(null)</span>
                                                 <% } else if (_after === '') { %>
                                                 <% } else { %>

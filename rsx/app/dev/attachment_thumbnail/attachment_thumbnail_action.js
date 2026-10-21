@@ -54,8 +54,8 @@ class Dev_Attachment_Thumbnail_Action extends Spa_Action {
 
     _clear() {
         this.state.current_id = null;
-        this.$sid('host').html('');
-        this.$sid('preview_host').html('');
+        this.$sid('host').empty();
+        this.$sid('preview_host').empty();
         this.$sid('thumbnail_event').text('');
         this.$sid('preview_event').text('');
         this.$sid('status').text('No attachment selected');

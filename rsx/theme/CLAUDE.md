@@ -64,6 +64,11 @@ A **tinted brand color** uses the channel form, never an SCSS `rgba()`:
 `background: rgba(var(--bs-primary-rgb), 0.1)` (also `--bs-success-rgb`, `--bs-warning-rgb`,
 `--bs-danger-rgb`, `--bs-info-rgb`).
 
+**A token is read bare, never with a literal default** - `var(--x, #2563eb)` paints the literal
+when `--x` was never declared and hides that from every other theme. `rsx:check` reports it
+(`SCSS-PHANTOM-TOKEN-01`); a missing token is declared here instead. A chain,
+`var(--x, var(--bs-primary))`, is fine. `vendor/` is not checked.
+
 ```scss
 // WRONG - baked at build time; wrong in dark mode, silently
 .Invoice_Header {

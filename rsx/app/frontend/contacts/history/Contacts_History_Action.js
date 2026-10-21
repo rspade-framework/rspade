@@ -53,12 +53,12 @@ class Contacts_History_Action extends Spa_Action {
     }
 
     page_actions() {
-        return `
-            <div class="d-flex gap-2">
-                <a href="${Rsx.Route('Contacts_View_Action', this.args.id)}" class="btn btn-secondary btn-sm">
-                    <i class="bi bi-arrow-left"></i> Back to Contacts
-                </a>
-            </div>
-        `;
+        return {
+            component: 'Record_Page_Actions',
+            args: {
+                back_href: Rsx.Route('Contacts_View_Action', this.args.id),
+                back_label: 'Back to Contacts',
+            },
+        };
     }
 }

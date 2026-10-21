@@ -319,7 +319,7 @@ so a navigation that still happens is a full page load and reaches the same redi
 
 It cannot be dismissed on purpose - the page behind it is a signed-in page nobody is signed in
 to - but what is on screen stays readable behind it, so unsaved text can still be copied out.
-`rsx:man session`, SESSION LIFETIME.
+`rsx:man session`, HOW SESSIONS TIME OUT.
 
 ## Error Handling in Modals
 

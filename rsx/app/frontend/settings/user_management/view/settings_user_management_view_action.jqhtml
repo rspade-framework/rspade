@@ -23,7 +23,7 @@
             ? (_u.first_name + ' ' + _u.last_name).trim()
             : 'No name set';
         const _profile = _u.user_profile;
-        const _session_count = _u.recent_sessions ? _u.recent_sessions.length : 0;
+        const _sessions = _u.sessions;
     %>
     <Page_Scaffold>
         <Slot:main>
@@ -144,22 +144,49 @@
                     </View_Fields>
                 </Section>
 
-                <Section $title="Active Sessions" $count=_session_count $flush=true>
+                <%-- Where this user is signed in ON THIS SITE, signed-out sign-ins too, for the
+                     last few months (Session_Listing). Each row opens the session's own page;
+                     Sign out and Sign out everywhere follow equal-or-lower administration, so
+                     they appear only when the endpoints would accept them. --%>
+                <Section $title="Sessions" $count=_sessions.length $flush=true>
+                    <Slot:actions>
+                        <% if (_u.can_administer && _sessions.some(session => session.can_sign_out)) { %>
+                            <button $sid="btn_sign_out_all" class="btn btn-sm btn-danger">Sign out everywhere</button>
+                        <% } %>
+                    </Slot:actions>
                     <Slot:body>
-                        <% if (_u.recent_sessions && _u.recent_sessions.length > 0) { %>
+                        <% if (_sessions.length > 0) { %>
                             <Record_Table>
                                 <thead>
-                                    <tr><th>Last Active</th><th>IP Address</th><th>Device</th></tr>
+                                    <tr><th>Device</th><th>Status</th><th>IP Address</th><th>Last Active</th><th></th></tr>
                                 </thead>
                                 <tbody>
-                                    <% for (const session of _u.recent_sessions) { %>
-                                    <tr>
-                                        <td><%= session.last_active %></td>
-                                        <td><%= session.ip_address %></td>
+                                    <% for (const session of _sessions) { %>
+                                    <tr data-href="<%= Rsx.Route('Settings_User_Management_Session_View_Action', {id: _u.id, user_session_id: session.id}) %>">
                                         <td>
-                                            <span class="text-muted small" title="<%= session.user_agent || '' %>"><%= session.device_summary %></span>
+                                            <span title="<%= session.user_agent || '' %>"><%= session.device_summary %></span>
+                                            <% if (session.is_current) { %>
+                                                <span class="badge badge-outline-success">This device</span>
+                                            <% } %>
                                             <% if (session.is_impersonation) { %>
                                                 <span class="badge badge-outline-warning">Impersonation</span>
+                                            <% } %>
+                                            <% if (session.is_api) { %>
+                                                <span class="badge badge-outline-info">API key</span>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <% if (session.is_signed_in) { %>
+                                                <Status_Badge $label="Signed in" $badge="bg-success" />
+                                            <% } else { %>
+                                                <span class="text-muted small"><%= session.sign_out_reason || 'Signed out' %> &middot; <%= Rsx_Time.relative(session.signed_out_at) %></span>
+                                            <% } %>
+                                        </td>
+                                        <td><%= session.ip_address %></td>
+                                        <td><%= Rsx_Time.relative(session.last_active) %></td>
+                                        <td class="text-end">
+                                            <% if (_u.can_administer && session.can_sign_out) { %>
+                                                <button class="btn btn-sm btn-outline-danger" data-sign-out-session="<%= session.id %>">Sign out</button>
                                             <% } %>
                                         </td>
                                     </tr>
@@ -167,9 +194,9 @@
                                 </tbody>
                             </Record_Table>
                         <% } else { %>
-                            <Empty_State $icon="bi bi-clock-history">
-                                <Slot:title>No recent activity</Slot:title>
-                                <Slot:body>Sign-in sessions for this user will appear here.</Slot:body>
+                            <Empty_State $icon="bi bi-laptop">
+                                <Slot:title>No recent sessions</Slot:title>
+                                <Slot:body>Where this user signs in to this site will appear here.</Slot:body>
                             </Empty_State>
                         <% } %>
                     </Slot:body>

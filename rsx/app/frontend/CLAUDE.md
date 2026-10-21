@@ -20,8 +20,8 @@ bundle. Everything else is a feature directory.
   opened inside a modal frame.
 - Feature directories: `dashboard/`, `calendar/`, `action_logs/`, `clients/`,
   `contacts/`, `projects/`, `tasks/`, `party/`, `notifications/`, `revisions/`,
-  `reports/`, `settings/` (its own sublayout), `system/` (its own sublayout).
-  `clients/`, `settings/`, `system/` and `action_logs/` carry their own `CLAUDE.md`;
+  `reports/`, `settings/` (its own sublayout).
+  `clients/`, `settings/` and `action_logs/` carry their own `CLAUDE.md`;
   `contacts/`, `projects/` and `tasks/` carry pointer files naming what differs from
   `clients/`.
 
@@ -45,7 +45,7 @@ new feature, and copy its structure rather than inventing one.
   "open".
 - **Every data endpoint names this application's data checks**: reads `can_view_data`
   (class level), writes `can_edit_data` (method level), the activity log
-  `can_view_user_activity`, settings and the system console `can_manage_site_settings`,
+  `can_view_user_activity`, settings `can_manage_site_settings`,
   user and group management `can_manage_users`; only the caller's own records
   (notifications, profile, password, preferences, API keys) stay on `is_logged_in`.
   `rsx/tests/Endpoint_Data_Gates_Test.php` fails on a write-shaped endpoint without
@@ -113,10 +113,19 @@ declares the flag, stamps `Frontend_Spa_Layout__page-content--scaffolded` instea
 default `--constrained` (the other opt-ins being `full_width` and `constrained_wider`).
 Declare it on any action whose template composes `<Page_Scaffold>`, or the scaffold's
 max-width and `--page-pad` are doubled by the layout's own. The same flag, read the same
-way, is honoured by `settings/Settings_Layout.js`, `system/System_Layout.js`,
+way, is honoured by `settings/Settings_Layout.js`,
 `rsx/portal/Portal_Layout.js` and `rsx/portal/workspaces/Portal_Workspace_Layout.js`,
 each stamping its own `--scaffolded` modifier — a new layout that owns page padding
 should follow the same pattern.
+
+**Header buttons are a component the action names.** An action's optional `page_actions()`
+returns `{component: 'Name', args: {...}}` (or null), and `Frontend_Spa_Layout` mounts that
+component in the header on every navigation. `Record_Page_Actions` (Back, optional Edit) and
+`List_Page_Actions` (New, optional Export and Reports) in `rsx/theme/components/page/` cover
+the CRUD pages; a page with buttons of its own declares a small component beside its action
+(`party/list/party_index_page_actions.jqhtml`). A button that calls back into the action
+gets a function in `args` (`List_Page_Actions`' `$on_export`) - the component owns its
+handlers, so nothing binds on the layout's element.
 
 Rebranding the chrome is `frontend_spa_layout.scss` plus the components in
 `rsx/theme/`; adding a feature is a new directory in the shape above plus its nav entry.
@@ -127,5 +136,5 @@ Rebranding the chrome is `frontend_spa_layout.scss` plus the components in
 `rsx:man primary_secondary_nav_breadcrumbs` · `rsx:man auth_gates` ·
 skills `rspade:spa`, `rspade:jqhtml`, `rspade:auth-gates`, app skill `crud-patterns`
 
-Sublayouts (e.g. `settings/`, `system/`) nest a second `@layout` with its own
-`$sid="content"`; see `System_Layout.jqhtml` for a worked example.
+Sublayouts (e.g. `settings/`) nest a second `@layout` with its own
+`$sid="content"`; see `settings/Settings_Layout.jqhtml` for a worked example.

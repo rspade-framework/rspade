@@ -6,7 +6,7 @@ class Select_Input extends Form_Input_Abstract {
         if (typeof this.args.options === 'string') {
             try {
                 // Decode HTML entities before parsing JSON
-                const decoded = $('<textarea>').html(this.args.options).text();
+                const decoded = decode_html_entities(this.args.options);
                 this.args.options = json_decode(decoded);
             } catch (e) {
                 console.error('Failed to parse options JSON:', e);

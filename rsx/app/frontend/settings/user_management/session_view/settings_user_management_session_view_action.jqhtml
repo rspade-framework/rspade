@@ -1,0 +1,106 @@
+<%--
+Settings_User_Management_Session_View_Action - one place a user of this site is signed in:
+one browser's sign-in as them here (or an impersonation of them), however many times it
+signed in. Its facts, Sign out while it can be ended, and every address and browser it did
+something from (User_Session_Activity).
+--%>
+<Define:Settings_User_Management_Session_View_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading session..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Session"
+                $back_label="Back to the user"
+                $back_url="<%= Rsx.Route('Settings_User_Management_View_Action', this.args.id) %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <%
+        const _u = this.data.user;
+        const _s = this.data.session;
+    %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Card_Widget>
+                <Entity_Header>
+                    <Slot:title><%= _s.device_summary %></Slot:title>
+                    <Slot:chips>
+                        <% if (_s.is_signed_in) { %>
+                            <Status_Badge $label="Signed in" $badge="bg-success" />
+                        <% } else { %>
+                            <Status_Badge $label="Signed out" $badge="bg-secondary" />
+                        <% } %>
+                        <% if (_s.is_current) { %>
+                            <span class="badge badge-outline-success">This device</span>
+                        <% } %>
+                        <% if (_s.is_impersonation) { %>
+                            <span class="badge badge-outline-warning">Impersonation</span>
+                        <% } %>
+                        <% if (_s.is_api) { %>
+                            <span class="badge badge-outline-info">API key</span>
+                        <% } %>
+                    </Slot:chips>
+                    <Slot:subtitle><%= this.user_name() %></Slot:subtitle>
+                </Entity_Header>
+
+                <Section $title="Session">
+                    <View_Fields>
+                        <View_Field $label="Status">
+                            <% if (_s.is_signed_in) { %>
+                                Signed in
+                            <% } else { %>
+                                <%= _s.sign_out_reason || 'Signed out' %> &middot; <%= Rsx_Time.format_datetime(_s.signed_out_at) %>
+                            <% } %>
+                        </View_Field>
+                        <View_Field $label="Last Active"><%= Rsx_Time.format_datetime(_s.last_active) %></View_Field>
+                        <View_Field $label="Signed In"><%= Rsx_Time.format_datetime(_s.signed_in_at) %></View_Field>
+                        <View_Field $label="First Signed In Here"><%= Rsx_Time.format_datetime(_s.first_seen) %></View_Field>
+                        <View_Field $label="Sign-ins"><%= _s.sign_in_count %></View_Field>
+                        <View_Field $label="IP Address">
+                            <% if (_s.ip_address) { %><%= _s.ip_address %><% } else { %><Empty_Value /><% } %>
+                        </View_Field>
+                        <View_Field $label="Browser">
+                            <% if (_s.user_agent) { %><span class="small"><%= _s.user_agent %></span><% } else { %><Empty_Value /><% } %>
+                        </View_Field>
+                    </View_Fields>
+                </Section>
+
+                <Section $title="Activity" $flush=true>
+                    <Slot:body>
+                        <User_Session_Activity $user_id=_u.id $user_session_id=_s.id />
+                    </Slot:body>
+                </Section>
+            </Card_Widget>
+        </Slot:main>
+
+        <Slot:sidebar>
+            <Detail_Sidebar>
+                <View_Fields>
+                    <View_Field $label="User" $inline=true>
+                        <a href="<%= Rsx.Route('Settings_User_Management_View_Action', _u.id) %>"><%= this.user_name() %></a>
+                    </View_Field>
+                    <View_Field $label="Session ID" $inline=true>#<%= _s.id %></View_Field>
+                </View_Fields>
+
+                <%-- Equal-or-lower administration, and only a sign-in that can be ended
+                     (Session_Listing::row()'s can_sign_out). The endpoint refuses either way. --%>
+                <% if (this.data.can_administer && _s.can_sign_out) { %>
+                    <div class="d-grid gap-2">
+                        <button $sid="btn_sign_out" class="btn btn-danger btn-sm">
+                            <i class="bi bi-box-arrow-right"></i> Sign Out This Session
+                        </button>
+                    </div>
+                <% } %>
+            </Detail_Sidebar>
+        </Slot:sidebar>
+    </Page_Scaffold>
+<% } %>
+</Define:Settings_User_Management_Session_View_Action>

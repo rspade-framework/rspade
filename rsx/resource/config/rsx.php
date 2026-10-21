@@ -534,9 +534,6 @@ return [
     */
 
     'portal' => [
-        // Session lifetime in days for portal users
-        'session_lifetime_days' => 30,
-
         // Invitation code expiry in days
         'invitation_expiry_days' => 14,
 

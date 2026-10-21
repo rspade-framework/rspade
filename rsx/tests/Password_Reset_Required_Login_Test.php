@@ -42,6 +42,9 @@ use Rsx\Portal\Auth\Portal_Login_Controller;
  */
 class Password_Reset_Required_Login_Test extends Rsx_Test_Abstract
 {
+    /** The subject belongs to a browser: each test acts as one (Rsx_Test_Abstract::__as_browser()). */
+    protected static $acts_as_browser = true;
+
     private const SITE_ID = 1;
 
     private const PASSWORD = 'correct-horse-battery-staple';

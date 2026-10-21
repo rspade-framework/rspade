@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Three classes extending `Rsx_Service_Abstract`. Every method is
+Two classes extending `Rsx_Service_Abstract`. Every method is
 `public static function name(Task_Instance $task, array $params = [])`, reports through
 `$task` (status, progress, stdout, state, summary) and returns `null` on success - the
 return value is the run's return code, never data.
@@ -35,18 +35,6 @@ return value is the run's return code, never data.
   follows (`rsx:man revisions`, THE UNIT OF WORK).
 
 `seed_all` additionally carries `#[Command('rsx_app:seed', ...)]`.
-
-- **`Task_Showcase_Service::walk`** — `#[Task]` that walks a short work list (`items`,
-  default 20, 1 to 500; one second per item) using EVERY report a task can make: status,
-  a `progress_count()`, ETA, heartbeat, a JSON state object, the queue (the whole list pushed
-  once with `queue_push_many()`, then one `queue_pop()` per finished item), a stdout line per item, a stderr line for every seventh item (a simulated
-  transient failure, retried - stderr is for what went wrong without stopping the run), a
-  message every five items, a CSV attachment
-  (`attach_bytes()`) and a summary. It checks `is_stop_requested()` before each item, so a
-  graceful stop ends it STOPPED. An out-of-range `items` writes a stderr line and returns
-  `2`. It exists so the task widgets have something to show: the Background Tasks screen
-  (`rsx/app/frontend/system/tasks/`) dispatches it with 60 items as the signed-in user,
-  which makes the run that user's under `rsx/handlers/Task_Gate_Handlers.php`.
 
 ## HOW IT IS USED
 
@@ -83,8 +71,6 @@ the seeders do — copy that shape into any service that works through a list.
   `progress_count()`, and what it changed with a `stdout()` line and a `summary()`. The
   window opens at `rsx.tasks.maintenance_hour` (default 2am; set it in
   `rsx/resource/config/rsx.php`). `rsx:man tasks`, THE MAINTENANCE WINDOW.
-- **Delete `Task_Showcase_Service`** (and the Background Tasks screen's Start button that
-  dispatches it) once the application has real tasks of its own to show.
 - **Delete `Seeder_Service` before launch**, or at least verify its production refusal
   still holds — it exists to populate a demo database and has no place in a live one.
 - Keep the environment guard at the top of any seeding or destructive task; it is the only

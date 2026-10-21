@@ -130,7 +130,7 @@ Errors are `{"error":{"code","message","fields"?}}`.
 
 ## Site scoping
 
-Both models are site-scoped. Authentication establishes a headless Session identity, so
+Both models are site-scoped. Authentication runs as the key's owner on the key's own session (one per key), so
 the global site scope stamps `site_id` on create and filters every read automatically -
 write NO manual `->where('site_id', ...)`. A cross-site id simply comes back null from
 `find()` (return `Rsx_Api::not_found()`).

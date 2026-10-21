@@ -114,7 +114,7 @@ is what feeds the throttle, and it is called once per failed password.
 **Two-factor authentication.** The login is TWO STAGES. `index()` verifies the password with
 BOTH the recording and the `last_login` stamp suppressed, so a recorded SUCCESS always means
 full authentication; if `Rsx_Two_Factor::is_enabled($login_user)` it calls `begin_challenge()`
-(which parks the pending identity and LOGS THE SESSION BACK OUT) and redirects to
+(which signs the browser's staff sign-in out FIRST and then parks the pending identity) and redirects to
 `/login/verify`. `verify_2fa` calls `Rsx_Two_Factor::verify_challenge($params)` - which signs
 the identity in, stamps `last_login` and writes the success row - and answers
 `{redirect: <url>}`, which the component follows with `window.location`.
@@ -134,8 +134,9 @@ unguarded - it answers only from the challenge parked on the caller's own sessio
 
 **The invite code rides the session across the challenge.** The component's contract carries
 no query string and no extra fields, so `index()` parks the code under
-`Login_Controller::INVITE_CODE_KEY` with the challenge's own expiry and `verify_2fa` consumes
-it once. Both paths then call the ONE destination function, `post_login_destination()` -
+`Login_Controller::INVITE_CODE_KEY` with the challenge's own expiry - AFTER
+`begin_challenge()`, because the challenge's sign-out clears the staff realm's session values -
+and `verify_2fa` consumes it once. Both paths then call the ONE destination function, `post_login_destination()` -
 invite, site selector, or dashboard - because a destination computed twice drifts.
 
 **Federated sign-in signs in existing accounts only.** `Sso_Handlers` answers the

@@ -220,7 +220,8 @@ in here. How this app uses them:
   password?"; the framework clears the flag when the reset saves the new password).
 - **Password login is two-stage**: a portal user holding a second factor is parked with
   `Rsx_Portal_Two_Factor::begin_challenge()` (the invited-client id rides the session under
-  `CLIENT_ID_KEY`) and sent to `/login/verify`, where `<Two_Factor_Challenge>` posts to
+  `CLIENT_ID_KEY`, parked AFTER the challenge, whose sign-out clears portal session values) and
+  sent to `/login/verify`, where `<Two_Factor_Challenge>` posts to
   `verify_2fa`.
 - **Every sign-in outcome lands in the portal login history** (`Portal_Login_History`,
   readable per portal user with `get_history_for_user()` / `list_page()`): the challenge, the
@@ -268,7 +269,11 @@ User self-service page (composed from the shared theme components — see
 - **Connected Accounts** — same region, only when the portal realm offers federated sign-in:
   connections (disconnect) and `<Sso_Buttons $intent="link" />`
 - **Team Members** — list of portal users sharing the same client membership
-- **Active Sessions** — list sessions with IP, last activity, terminate button
+- **Where You're Signed In** — the account's own sessions (`Portal_Session::get_sessions_for_user()`
+  through `Session_Listing`, `rsx/lib/sessions/`: signed in and signed out, the last three
+  months, "This device" marked), with device, status, IP, last activity and Sign Out on every
+  other signed-in device (`terminate_session`, which takes a `user_session_id` the list shows;
+  anything else is not found)
 - **Account Info** — email, status, last login, member since
 
 ### Auth Pages (Server-Side Blade)
@@ -291,10 +296,10 @@ php artisan rsx:debug /_portal/settings --portal --portal-user=1 --screenshot-pa
 
 ## Security Considerations
 
-1. **Property Isolation**: there is ONE session per browser (one session cookie, one `_sessions` row).
-   The portal identity lives in its own columns (`portal_user_id`, `portal_site_id`,
-   `impersonator_user_id`); the staff identity in its own (`login_user_id`, `site_id`). Both set at
-   once is normal. Never read or write the other experience's properties.
+1. **Realm Isolation**: there is ONE session per browser (one session cookie, one `_sessions` row).
+   The portal sign-in is a portal user session the row's portal pointer names; the staff sign-in
+   is a staff user session behind the other pointer. Both signed in at once is normal. Portal code
+   reads and moves only the portal one, through `Portal_Session`.
 2. **Route Isolation**: Portal routes only accessible via portal context
 3. **Data Access**: Use `portal_fetch()` methods for portal-safe data exposure
 4. **CSRF**: one shared token per browser session - the same value both dispatchers verify

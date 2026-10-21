@@ -34,7 +34,8 @@ One subdirectory per component (template + SCSS, `.js` only where behaviour exis
 - `placeholder_card/` — `Placeholder_Card`: a whole feature that is not built yet.
 - `entity_link/` — `Entity_Link`: a fetched entity reference (type icon + name + link).
 - `revision_history/` — `Revision_History`: one record's change timeline, grouped by the
-  transaction that made it.
+  transaction that made it. A never-exported column's values arrive as the redaction
+  marker the endpoint ships beside the page, and paint as a muted "(redacted)".
 - `record_attachments/` — `Record_Attachments`: a record's file list as a Section. Upload
   by button or by dropping files on it; each file is a name with its type icon; a click
   opens the preview dialog. It draws the rows it is given and fires `changed` after an

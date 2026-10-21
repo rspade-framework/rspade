@@ -52,12 +52,9 @@ class Action_Logs_View_Action extends Spa_Action {
 
     // Action buttons for page header - back button only (no edit/delete)
     page_actions() {
-        return `
-            <div class="d-flex gap-2">
-                <a href="${Rsx.Route('Action_Logs_Index_Action')}" class="btn btn-secondary btn-sm">
-                    <i class="bi bi-arrow-left"></i> Back
-                </a>
-            </div>
-        `;
+        return {
+            component: 'Record_Page_Actions',
+            args: { back_href: Rsx.Route('Action_Logs_Index_Action') },
+        };
     }
 }

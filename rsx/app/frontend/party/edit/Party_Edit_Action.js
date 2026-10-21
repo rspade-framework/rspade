@@ -137,10 +137,9 @@ class Party_Edit_Action extends Spa_Action {
     }
 
     page_actions() {
-        return `
-            <a href="${Rsx.Route('Party_Index_Action')}" class="btn btn-secondary btn-sm">
-                <i class="bi bi-arrow-left"></i> Back
-            </a>
-        `;
+        return {
+            component: 'Record_Page_Actions',
+            args: { back_href: Rsx.Route('Party_Index_Action') },
+        };
     }
 }

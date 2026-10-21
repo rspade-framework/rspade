@@ -1,0 +1,31 @@
+<%--
+Record_Page_Actions
+
+The page-header buttons of a page about one record, or a page that returns to one: a Back
+link and, when $edit_href is given, an Edit link. An action hands it to the layout from
+page_actions():
+
+    page_actions() {
+        return {
+            component: 'Record_Page_Actions',
+            args: {
+                back_href: Rsx.Route('Clients_Index_Action'),
+                edit_href: Rsx.Route('Clients_Edit_Action', this.args.id),
+            },
+        };
+    }
+
+$back_href  - where Back goes (required)
+$back_label - the Back link's text (default "Back")
+$edit_href  - where Edit goes; no Edit link when absent
+--%>
+<Define:Record_Page_Actions class="d-flex gap-2" $back_label="Back">
+    <a href="<%= this.args.back_href %>" class="btn btn-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> <%= this.args.back_label %>
+    </a>
+    <% if (this.args.edit_href) { %>
+        <a href="<%= this.args.edit_href %>" class="btn btn-primary btn-sm">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+    <% } %>
+</Define:Record_Page_Actions>

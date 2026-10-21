@@ -10,12 +10,15 @@ use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Rsx;
+use App\RSpade\Core\Session\Audit_Session;
 use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Time\Rsx_Date;
+use App\RSpade\Core\Time\Rsx_Time;
 use App\RSpade\Core\TwoFactor\Rsx_Two_Factor;
 use App\RSpade\Lib\Flash\Flash_Alert;
 use Rsx\App\Frontend\Settings\UserManagement\List\Users_DataGrid;
 use Rsx\Emails\User_Invitation_Email;
+use Rsx\Lib\Sessions\Session_Listing;
 
 /**
  * User administration for the signed-in user's site.
@@ -31,6 +34,9 @@ use Rsx\Emails\User_Invitation_Email;
 #[Auth('is_logged_in', 'can_manage_users')]
 class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstract
 {
+    /** Rows per page of a session's activity on the session page. */
+    const ACTIVITY_PAGE_SIZE = 25;
+
     /**
      * Ajax endpoint: Fetch DataGrid data
      *
@@ -501,25 +507,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             return $user;
         }
 
-        $site_id = Session::get_site_id();
-
-        // Where this login identity is signed in ON THIS SITE. The identity may belong to
-        // other sites too; their sessions (address, device) are none of this site's business.
-        // Asked of the framework: the session table is its own, not this application's.
-        $recent_sessions = [];
-        if ($user->login_user_id) {
-            // An administrator's view, so a session on which somebody is impersonating this
-            // user is included and labelled; the user's own security screen never lists one.
-            foreach (Session::get_sessions_for_user((int) $user->login_user_id, $site_id, true) as $session) {
-                $recent_sessions[] = [
-                    'last_active' => $session['last_active']->format('M j, Y g:i A'),
-                    'ip_address' => $session['ip_address'],
-                    'device_summary' => $session['device_summary'],
-                    'user_agent' => $session['user_agent'],
-                    'is_impersonation' => $session['is_impersonation'],
-                ];
-            }
-        }
+        $sessions = Session_Listing::rows(static::__user_sessions($user));
 
         // The profile photo travels as an ATTACHMENT ID, never a URL: <Attachment_Thumbnail>
         // is what renders it, and it builds its own URL from the record it fetches.
@@ -577,8 +565,177 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
                 'department' => $user->user_profile->department,
                 'bio' => $user->user_profile->bio,
             ] : null,
-            'recent_sessions' => $recent_sessions,
+            'sessions' => $sessions,
         ];
+    }
+
+    /**
+     * Ajax endpoint: one of the user's sessions ON THIS SITE, for the session page - the
+     * user's name and email, the session as the view page lists it, and whether the caller
+     * may end it.
+     *
+     * The record rule: the id must be one of the sessions get_user() lists for this user
+     * (this site, active within Session_Listing::LISTED_WITHIN_MONTHS), else not found - an
+     * id belonging to another user, another site or a long-dormant browser answers exactly
+     * like one that does not exist.
+     */
+    #[Ajax_Endpoint]
+    public static function get_user_session(Request $request, array $params = [])
+    {
+        $user = static::__site_user($params['id'] ?? null);
+
+        if (!$user instanceof User_Model) {
+            return $user;
+        }
+
+        $session = Session_Listing::find(Session_Listing::recent(static::__user_sessions($user)), $params['user_session_id'] ?? null);
+
+        if ($session === null) {
+            return response_error(Ajax::ERROR_NOT_FOUND, 'Session not found');
+        }
+
+        return [
+            'user' => [
+                'id' => $user->id,
+                'email' => $user->email,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+            ],
+            'session' => Session_Listing::row($session),
+            'can_administer' => Session::get_user()->can_admin_role((int) $user->role_id),
+        ];
+    }
+
+    /**
+     * Ajax endpoint: one page of the addresses and browsers a session of the user acted from
+     * (Audit_Session::list_page_for_user_session()), newest first. Same record rule as
+     * get_user_session().
+     *
+     * @param array $params id (users.id), user_session_id, offset (default 0)
+     * @return array {rows: [{id, ip_address, device_summary, user_agent, first_seen_at,
+     *               last_seen_at}], total, offset, limit}
+     */
+    #[Ajax_Endpoint]
+    public static function get_user_session_activity(Request $request, array $params = [])
+    {
+        $user = static::__site_user($params['id'] ?? null);
+
+        if (!$user instanceof User_Model) {
+            return $user;
+        }
+
+        $session = Session_Listing::find(Session_Listing::recent(static::__user_sessions($user)), $params['user_session_id'] ?? null);
+
+        if ($session === null) {
+            return response_error(Ajax::ERROR_NOT_FOUND, 'Session not found');
+        }
+
+        $offset = $params['offset'] ?? 0;
+
+        if (!is_numeric($offset) || (int) $offset < 0) {
+            return response_error(Ajax::ERROR_VALIDATION, 'offset must be a non-negative integer');
+        }
+
+        $page = Audit_Session::list_page_for_user_session([
+            'user_session_id' => $session['id'],
+            'offset' => (int) $offset,
+            'limit' => self::ACTIVITY_PAGE_SIZE,
+        ]);
+
+        $page['rows'] = array_map(fn ($row) => [
+            'id' => $row['id'],
+            'ip_address' => $row['ip_address'],
+            'device_summary' => $row['device_summary'],
+            'user_agent' => $row['user_agent'],
+            'first_seen_at' => $row['first_seen_at'],
+            'last_seen_at' => $row['last_seen_at'],
+        ], $page['rows']);
+
+        return $page;
+    }
+
+    /**
+     * Ajax endpoint: sign one of the user's sessions on this site out, as an administrator.
+     *
+     * The id must be one the view page lists and offers Sign out on (Session_Listing::row()'s
+     * can_sign_out): signed in, not an API key's use (revoking the key ends that), not the
+     * caller's own browser. Authority is equal-or-lower administration, asked up front
+     * (__administrable_user(), like every write here) and again by the framework's guarded
+     * Session::terminate_session_for_user(); a refusal is ERROR_UNAUTHORIZED and ends
+     * nothing. The other browser is pushed to reload signed out.
+     */
+    #[Ajax_Endpoint]
+    public static function terminate_user_session(Request $request, array $params = [])
+    {
+        $user = static::__administrable_user($params['id'] ?? null);
+
+        if (!$user instanceof User_Model) {
+            return $user;
+        }
+
+        $session = Session_Listing::find(Session_Listing::recent(static::__user_sessions($user)), $params['user_session_id'] ?? null);
+
+        if ($session === null || !Session_Listing::row($session)['can_sign_out']) {
+            return response_error(Ajax::ERROR_NOT_FOUND, 'No signed-in session of this user with that id');
+        }
+
+        if (!Session::terminate_session_for_user((int) $user->login_user_id, $session['id'])) {
+            return response_error(Ajax::ERROR_NOT_FOUND, 'No signed-in session of this user with that id');
+        }
+
+        Flash_Alert::success('Session signed out');
+
+        return ['signed_out' => 1];
+    }
+
+    /**
+     * Ajax endpoint: sign the user out of every browser signed in ON THIS SITE, as an
+     * administrator - each through Session::terminate_session_for_user(), with the authority
+     * rule and the refusal of terminate_user_session(). Every signed-in session on this
+     * site is ended, listed or not, except an API key's use and the caller's own browser.
+     * Sessions on other sites are that site's business and are untouched.
+     *
+     * @return array {signed_out} - how many were ended (0 when nothing was signed in)
+     */
+    #[Ajax_Endpoint]
+    public static function terminate_all_user_sessions(Request $request, array $params = [])
+    {
+        $user = static::__administrable_user($params['id'] ?? null);
+
+        if (!$user instanceof User_Model) {
+            return $user;
+        }
+
+        $count = 0;
+
+        foreach (static::__user_sessions($user) as $session) {
+            if (Session_Listing::row($session)['can_sign_out'] && Session::terminate_session_for_user((int) $user->login_user_id, $session['id'])) {
+                $count++;
+            }
+        }
+
+        Flash_Alert::success($count === 1 ? '1 session signed out' : "{$count} sessions signed out");
+
+        return ['signed_out' => $count];
+    }
+
+    /**
+     * Where this user is signed in ON THIS SITE: Session::get_sessions_for_user() for the
+     * user's login identity narrowed to this site, impersonations of the user included (an
+     * administrator's view; each entry says is_impersonation). An identity's sessions on
+     * other sites are not this site's business. Empty for an invitation nobody accepted.
+     * The session tables are the framework's and are never queried here.
+     *
+     * @param User_Model $user A user of this site
+     * @return array get_sessions_for_user() entries
+     */
+    private static function __user_sessions(User_Model $user): array
+    {
+        if (!$user->login_user_id) {
+            return [];
+        }
+
+        return Session::get_sessions_for_user((int) $user->login_user_id, Session::get_site_id(), true);
     }
 
     /**

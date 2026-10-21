@@ -148,7 +148,8 @@
 
     // A null cell says so in words. An EMPTY STRING renders as nothing, so the two are
     // told apart at a glance - which is the difference the timeline exists to show.
-    &__null {
+    &__null,
+    &__redacted {
         color: var(--bs-secondary-color);
         font-style: italic;
     }

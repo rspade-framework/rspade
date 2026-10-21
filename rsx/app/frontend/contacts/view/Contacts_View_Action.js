@@ -116,17 +116,12 @@ class Contacts_View_Action extends Spa_Action {
     // Action buttons for page header
     page_actions() {
         const id = this.args.id;
-        return `
-            <div class="d-flex gap-2">
-                <a href="${Rsx.Route('Contacts_Index_Action')}" class="btn btn-secondary btn-sm">
-                    <i class="bi bi-arrow-left"></i> Back
-                </a>
-                ${id ? `
-                <a href="${Rsx.Route('Contacts_Edit_Action', id)}" class="btn btn-primary btn-sm">
-                    <i class="bi bi-pencil"></i> Edit
-                </a>
-                ` : ''}
-            </div>
-        `;
+        return {
+            component: 'Record_Page_Actions',
+            args: {
+                back_href: Rsx.Route('Contacts_Index_Action'),
+                edit_href: id ? Rsx.Route('Contacts_Edit_Action', id) : null,
+            },
+        };
     }
 }

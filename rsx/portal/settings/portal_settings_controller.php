@@ -7,10 +7,11 @@ use Illuminate\Support\Facades\Hash;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Portal\Portal_Session;
+use Rsx\Lib\Sessions\Session_Listing;
 
 /**
  * Portal_Settings_Controller - the portal account screen's endpoints: the caller's own
- * profile, password change, and device-session list/termination.
+ * profile, password change, and where the account is signed in (list, sign out a device).
  *
  * Authorization: the class-level #[Auth('is_logged_in')] gate (portal realm) admits
  * only a logged-in portal user, at the framework seam, before any code here runs.
@@ -77,44 +78,31 @@ class Portal_Settings_Controller extends Rsx_Controller_Abstract
     }
 
     /**
-     * Get active sessions for current user
+     * Where the portal account is signed in: its own sessions (Session_Listing - active
+     * within the last few months, signed-out ones too), this device marked. A staff member's
+     * View as Client of the account is never listed here.
+     *
+     * @return array {sessions: [Session_Listing::row()]}
      */
     #[Ajax_Endpoint]
     #[Portal_Impersonation_Readable]
     public static function get_sessions(Request $request, array $params = [])
     {
-        // The facade owns the query, the ordering and the is_current stamp - the
-        // caller never touches the session table.
-        $sessions = Portal_Session::get_sessions_for_user();
-
-        $result = [];
-        foreach ($sessions as $session) {
-            $result[] = [
-                'id' => $session['id'],
-                'ip_address' => $session['ip_address'],
-                'user_agent' => $session['user_agent'],
-                'last_active' => $session['last_active'],
-                'is_current' => $session['is_current'],
-            ];
-        }
-
-        return ['sessions' => $result];
+        return ['sessions' => Session_Listing::rows(Portal_Session::get_sessions_for_user())];
     }
 
     /**
-     * Terminate a session
+     * Sign one of the account's OTHER devices out of the portal
+     * (Portal_Session::terminate_session()). The id must be one get_sessions() lists with
+     * Sign out offered - signed in, not this device - else not found. That device's staff
+     * sign-in, if it has one, is untouched.
      */
     #[Ajax_Endpoint]
     public static function terminate_session(Request $request, array $params = [])
     {
-        $session_id = $params['session_id'] ?? null;
-        if (!$session_id) {
-            return response_error(Ajax::ERROR_VALIDATION, 'Session ID is required');
-        }
+        $session = Session_Listing::find(Session_Listing::recent(Portal_Session::get_sessions_for_user()), $params['user_session_id'] ?? null);
 
-        // Fail-closed in the facade: the owning-user predicate is part of the
-        // statement, so another user's session id matches nothing and returns false.
-        if (!Portal_Session::terminate_session((int) $session_id)) {
+        if ($session === null || !Session_Listing::row($session)['can_sign_out'] || !Portal_Session::terminate_session($session['id'])) {
             return response_error(Ajax::ERROR_NOT_FOUND, 'Session not found');
         }
 

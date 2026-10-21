@@ -1,0 +1,13 @@
+// User_Session_Activity - the pager row under the activity table; everything else is theme
+// components.
+.User_Session_Activity {
+    display: block;
+
+    &__pager {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 8px 12px;
+    }
+}

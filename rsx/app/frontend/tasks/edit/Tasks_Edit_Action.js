@@ -212,12 +212,9 @@ class Tasks_Edit_Action extends Spa_Action {
         const back_url = this.data.is_edit
             ? Rsx.Route('Tasks_View_Action', this.args.id)
             : Rsx.Route('Tasks_Index_Action');
-        return `
-            <div class="d-flex gap-2">
-                <a href="${back_url}" class="btn btn-secondary btn-sm">
-                    <i class="bi bi-arrow-left"></i> Back
-                </a>
-            </div>
-        `;
+        return {
+            component: 'Record_Page_Actions',
+            args: { back_href: back_url },
+        };
     }
 }

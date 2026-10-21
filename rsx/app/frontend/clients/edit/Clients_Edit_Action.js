@@ -197,12 +197,9 @@ class Clients_Edit_Action extends Spa_Action {
 
     // Action buttons for page header
     page_actions() {
-        return `
-            <div class="d-flex gap-2">
-                <a href="${Rsx.Route('Clients_Index_Action')}" class="btn btn-secondary btn-sm">
-                    <i class="bi bi-arrow-left"></i> Back
-                </a>
-            </div>
-        `;
+        return {
+            component: 'Record_Page_Actions',
+            args: { back_href: Rsx.Route('Clients_Index_Action') },
+        };
     }
 }
