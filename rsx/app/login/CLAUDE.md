@@ -11,7 +11,7 @@ controller is class-level `#[Auth('public')]` with a written justification in it
 | Challenge | `Login_Controller::verify` + `verify_2fa` + `send_code` | `/login/verify` GET + two `#[Ajax_Endpoint]`s | The screen hosting `<Two_Factor_Challenge>` - a second factor, or an ADDRESS VERIFICATION (a self-signup, or an unverified address signing in; `ADDRESS_VERIFICATION_KEY` marks it) - with `$cancel_url` = `/login`, and the endpoint it posts to. For an address verification the screen also names `send_code`, which issues the code and emails it WITH its sign-in link (`Signup_Verification_Email`); the link brings this browser back here and the widget submits it. A signed-in visitor is sent to the dashboard (the challenge was answered in another tab); nothing pending redirects back to `/login`. `login_verify.js` hides the recovery-code hint when the widget fires `completed`. |
 | Passkey sign-in | `Login_Controller::passkey_login` | an `#[Ajax_Endpoint]` | The endpoint `<Passkey_Sign_In>` on the login page posts to: `Rsx_Two_Factor::verify_passkey_login()`, then `complete_sign_in(sign_in: false)`. Passwordless - no password stage, no second factor after it. |
 | Logout | `Login_Controller::logout` | `/logout` | `RsxAuth::logout()` then `Login_Redirect::consume($default)`. |
-| Signup | `Signup_Controller` (`signup/`) | `/signup` GET + an `#[Ajax_Endpoint]` `submit` | **OFF as shipped** (`config('rsx.auth.self_signup')`, a hardcoded boolean): page and `submit` answer 404 and the login page shows no Sign up link. On, both THROW while `Rsx_Mail::delivers()` is false (naming the delivery mode). `submit` (Turnstile first) creates, in one transaction, the `Login_User_Model` (`is_verified = 0`), a NEW `Site_Model` and the owner membership at `ROLE_ROOT_ADMIN` (the initial user's role), then `begin_challenge($identity, [ANSWER_ISSUED_CODE])` and the verify screen - nobody is signed in until the emailed code or link is answered. An address that already has an account gets the same answer and nothing is written or sent. |
+| Signup | `Signup_Controller` (`signup/`) | `/signup` GET + an `#[Ajax_Endpoint]` `submit` | **OFF as shipped** (`config('rsx.auth.self_signup')`, a hardcoded boolean): page and `submit` answer 404 and the login page shows no Sign up link. On, both THROW while `Rsx_Mail::delivers()` is false (naming the delivery mode). `submit` (Turnstile first) creates, in one transaction, the `Login_User_Model` (`is_verified = 0`), a NEW `Site_Model` (its slug read from the workspace name by `Signup_Controller::site_slug_for()`: a DNS label, made unique with a numeric suffix, never moved by a rename - so a `:slug` portal address is readable) and the owner membership at `ROLE_ROOT_ADMIN` (the initial user's role), then `begin_challenge($identity, [ANSWER_ISSUED_CODE])` and the verify screen - nobody is signed in until the emailed code or link is answered. An address that already has an account gets the same answer and nothing is written or sent. |
 | Accept invite | `Accept_Invite_Controller` (`accept_invite/`) | `/accept-invite`, `/accept-invite/create-account`, `/accept-invite/success` | Six states (invalid, expired, email mismatch, already accepted, not logged in, logged in) plus the create-account form for an invitee with no login account. `create_account_submit` validates Turnstile first, refuses any address but the invited one, creates the account with the invitation's address and `is_verified = 1` (the invitation proved the mailbox), and signs it in through `Login_Controller::complete_sign_in(sign_in: true)`; when that refuses (the invited membership or its site disabled since) the account still exists and the visitor is sent to `/login` with a flash. `accept` (a signed-in user) marks that identity verified too. |
 | Site selection | `Site_Selection_Controller` | `/login/select-site`, `/login/site/:id` | The picker: one button per site from `usable_sites()` (the identity's `->active()` memberships across every site, by name), rendered by the `Login_Site_Picker` partial (`login_site_picker.blade.php`). Not signed in -> `/login`; no usable site -> logout; exactly one -> selected. `select` accepts only an active membership (`->active()`, unscoped by the session's current site; error card otherwise), sets the site and lands on the dashboard. |
 | Site unauthorized | `Site_Unauthorized_Controller` | `/login/site-unauthorized` | The signed-in identity's session names a site it is not a member of; offers the sites it does have (`usable_sites()` through the same `Login_Site_Picker` partial). Nothing in this mono-site template routes to it - the framework ends such a session itself (see SITE MEMBERSHIP below), so it is kept as the pattern for an app that declares the requested site from the host. |
@@ -56,7 +56,7 @@ module's JavaScript reads one.
 ## HOW IT IS USED
 
 **The layout is the staff theme's Bootstrap, and nothing else.**
-`login_layout.blade.php` centres one Bootstrap `.card` (`.card-header` / `.card-body`) on
+`login_layout.blade.php` centres one Bootstrap `.card` (`.card-header` / `.card-body`), with an optional `below_card` section under it, on
 a `var(--bs-tertiary-bg)` page; `login_layout.scss` holds ONLY the centring, the 500px
 card width, the header/body padding and the mobile adjustment, all under `.Login_Layout`
 in BEM (`.Login_Layout__viewport`, `__card`, `__header`, `__title`, `__subtitle`,
@@ -73,8 +73,12 @@ default, which follows the operating system, live. A visitor who signs in and th
 returns to a login page sees their own stored choice. Nothing about the mode lives in
 this directory.
 
-**Turnstile.** `<Turnstile_Input />` sits in `login_index.blade.php`,
-`signup/signup_index.blade.php` and `accept_invite/create_account.blade.php`; the endpoint
+**Turnstile.** On every page that has it the widget sits BELOW the card, centred, in the
+layout's `below_card` section (`$auth-below-card-gap`, 22px), tied back to its form by id:
+`<Turnstile_Input $form="login-form" />` for the native login form, and
+`$form="signup-form"` / `$form="create-account-form"` for the `<Rsx_Form id="...">` on
+`signup/signup_index.blade.php` and `accept_invite/create_account.blade.php`, whose `vals()`
+collects a hidden field associated by id; the endpoint
 answers it as the FIRST statement of the POST branch — `Rsx_Turnstile::validate($request)` in
 `Login_Controller::index()`, and the two-arg `validate($request, $params)` in
 `Signup_Controller::submit()` and `Accept_Invite_Controller::create_account_submit()` because a

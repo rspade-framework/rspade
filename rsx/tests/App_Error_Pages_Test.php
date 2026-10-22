@@ -11,6 +11,7 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Bundle\Rsx_Bundle_Abstract;
 use App\RSpade\Core\Dispatch\Dispatcher;
+use App\RSpade\Core\Env\Rsx_Tenancy;
 use App\RSpade\Core\Errors\Error_Screens;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
@@ -169,10 +170,10 @@ class App_Error_Pages_Test extends Rsx_Test_Abstract
         static::__reset_session();
         Rsx_Portal::set_portal_request(true);
 
-        // A CLI process never ran Portal_Main::init(), so nobody has declared the
-        // portal's site yet - and the portal chrome asks for it. The app's own
-        // declaration is a config key; this is the same line, in the same order.
-        Portal_Session::set_site_id((int) config('rsx.portal.site_id'));
+        // A CLI process resolved no portal URL, so nobody has declared the portal's
+        // site yet - and the portal chrome asks for it. A web request would have
+        // resolved the single tenant; a test declares it.
+        Portal_Session::set_site_id(Rsx_Tenancy::SINGLE_TENANT_SITE_ID);
 
         $response = Error_Screens::not_found(Request::create(Rsx_Portal_Url::prefix() . self::UNMATCHED_PORTAL_PATH, 'GET'));
 

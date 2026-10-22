@@ -110,8 +110,8 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
                 $error = 'Password is required';
             } else {
                 // THE PASSWORD IS CHECKED AND NOBODY IS SIGNED IN. Portal_Auth::verify_credentials()
-                // answers the portal user the pair proves on THIS portal's site (declared by
-                // Portal_Main::init()) and touches no session. It refuses a client IP that has
+                // answers the portal user the pair proves on THIS portal's site (the one its URL
+                // names) and touches no session. It refuses a client IP that has
                 // spent its failure budget by THROWING Auth_Throttled_Exception - before the
                 // lookup - and a correct password on an account flagged
                 // password_reset_required by THROWING Auth_Password_Reset_Required_Exception.

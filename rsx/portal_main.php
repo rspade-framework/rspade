@@ -31,35 +31,14 @@ class Portal_Main extends Portal_Main_Abstract
      * Initialize the Portal_Main class
      *
      * Called once during portal bootstrap when a portal request is detected -
-     * before dev auth, CSRF, the #[Auth] gates and every controller. That is why
-     * the portal's SITE is declared here: it is the earliest application code in a
-     * portal request, and everything downstream (session creation, flash alerts,
-     * the rsxapp payload, Portal_Permission) needs the answer.
+     * before dev auth, CSRF, the #[Auth] gates and every controller. The portal's
+     * SITE is already known here: the framework resolves it from the portal URL
+     * and declares it first (Portal_Session::get_site_id(); rsx:man portal).
      *
      * @return void
      */
     public static function init()
     {
-        // WHICH SITE DOES THIS PORTAL SERVE?
-        //
-        // The framework does not resolve this - there is no detection and no
-        // default (see rsx:man portal, PORTAL SESSIONS). Every app answers it its
-        // own way; this app is MONO-SITE, so the answer is a config key.
-        Portal_Session::set_site_id((int) config('rsx.portal.site_id'));
-
-        // A MULTI-TENANT portal would resolve the site from the request instead -
-        // same call, different source:
-        //
-        //     $site = Site_Model::where('portal_domain', Rsx::get_hostname())->first();
-        //     if (!$site) {
-        //         return response('Unknown portal host', 404);   // via pre_dispatch
-        //     }
-        //     Portal_Session::set_site_id((int) $site->id);
-        //
-        // An app whose site is only knowable at login (an invite code, a chosen
-        // workspace) declares it in the login flow instead of here; the rule is
-        // only that it is declared before anything asks.
-
         // Initialize portal session
         Portal_Session::init();
 

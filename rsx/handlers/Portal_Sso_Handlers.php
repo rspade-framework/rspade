@@ -45,7 +45,7 @@ class Portal_Sso_Handlers
      * connect only through the Connect button on the Settings screen, by a portal user who
      * is already signed in.
      *
-     * The lookup is on the DECLARED site: Portal_User_Model::find_by_email() takes the site,
+     * The lookup is on the request's site: Portal_User_Model::find_by_email() takes the site,
      * and a portal account is a (site, email) pair.
      *
      * @param array $data {provider_key, provider_user_key, email, email_verified, name, avatar_url}

@@ -55,7 +55,7 @@ class Portal_Password_Reset_Controller extends Rsx_Controller_Abstract
             } elseif (!filter_var($posted_email, FILTER_VALIDATE_EMAIL)) {
                 $error = 'Please enter a valid email address';
             } else {
-                // The site this portal serves (declared by Portal_Main::init()).
+                // The site this portal serves (read from its URL by the framework).
                 $site_id = Portal_Session::get_site_id();
 
                 // Find portal user by email

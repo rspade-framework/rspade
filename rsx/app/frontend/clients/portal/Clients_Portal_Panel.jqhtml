@@ -18,14 +18,25 @@
         const _closed = this.data.threads_closed;
         const _has_members = _members.length > 0;
         const _visible_projects = _projects.filter((p) => p.portal_visible).length;
+        const _has_portal = this.data.has_portal;
     %>
+
+    <%-- The client's SITE has no client portal: nothing here may send a portal link. --%>
+    <% if (!_has_portal) { %>
+        <Callout $variant="warning" $icon="bi bi-exclamation-triangle">
+            <Slot:title>This site has no client portal</Slot:title>
+            <Slot:body>Invitations and document shares cannot be sent until the client portal is switched on in Site Settings.</Slot:body>
+        </Callout>
+    <% } %>
 
     <%-- Members --%>
     <Section $title="Members" $count=_members.length $flush=true>
         <Slot:actions>
-            <button $sid="add-member-btn" class="btn btn-primary btn-sm">
-                <i class="bi bi-person-plus"></i> Add Member
-            </button>
+            <% if (_has_portal) { %>
+                <button $sid="add-member-btn" class="btn btn-primary btn-sm">
+                    <i class="bi bi-person-plus"></i> Add Member
+                </button>
+            <% } %>
         </Slot:actions>
         <Slot:body>
             <% if (_members.length === 0 && _pending.length === 0) { %>
@@ -88,9 +99,11 @@
                             <td><Status_Badge $label="Invited" $badge="bg-info text-dark" /></td>
                             <td><span class="text-muted small">Expires <%= Rsx_Time.relative(invite.expires_at) %></span></td>
                             <td class="text-end">
-                                <button class="btn btn-sm btn-outline-primary" data-resend-invite="<%= invite.contact_id %>" title="Resend Invite">
-                                    <i class="bi bi-envelope"></i>
-                                </button>
+                                <% if (_has_portal) { %>
+                                    <button class="btn btn-sm btn-outline-primary" data-resend-invite="<%= invite.contact_id %>" title="Resend Invite">
+                                        <i class="bi bi-envelope"></i>
+                                    </button>
+                                <% } %>
                                 <button class="btn btn-sm btn-outline-danger" data-revoke-invite="<%= invite.invitation_id %>" title="Cancel Invite">
                                     <i class="bi bi-x-circle"></i>
                                 </button>
@@ -150,9 +163,11 @@
                                 <% } %>
                             </td>
                             <td class="text-end">
-                                <button class="btn btn-sm btn-outline-primary" data-share-doc="<%= doc.attachment_id %>" title="Share">
-                                    <i class="bi bi-share"></i> Share
-                                </button>
+                                <% if (_has_portal) { %>
+                                    <button class="btn btn-sm btn-outline-primary" data-share-doc="<%= doc.attachment_id %>" title="Share">
+                                        <i class="bi bi-share"></i> Share
+                                    </button>
+                                <% } %>
                                 <button class="btn btn-sm btn-outline-danger" data-delete-doc="<%= doc.attachment_id %>" title="Delete">
                                     <i class="bi bi-trash"></i>
                                 </button>

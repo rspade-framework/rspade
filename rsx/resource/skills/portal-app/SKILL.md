@@ -1,6 +1,6 @@
 ---
 name: portal-app
-description: "The client-portal screens this application ships - portal_main.php (the site declaration) and portal_permission.php (has_client_access / client_role / accessible_client_ids / is_read_only), the Blade auth ladder (login with its second-factor challenge, passkey sign-in and federated sign-in, register from an invite, request-access, password reset, impersonate stop, logout), Portal_Layout and Portal_Workspace_Layout, the dashboard, the workspace tabs (Overview / Requests / Documents) with the request-thread UI, invitations accept/decline, settings, and the #[Portal_Impersonation_Readable] marks that keep View-as-Client read-only. Use when adding or changing a portal screen or endpoint, wiring a new workspace tab, changing what an invite grants, branding the portal auth pages, or deciding which portal endpoints stay callable during impersonation (mark reads #[Portal_Impersonation_Readable])."
+description: "The client-portal screens this application ships - portal_main.php (the portal's init hook) and portal_permission.php (has_client_access / client_role / accessible_client_ids / is_read_only), the Blade auth ladder (login with its second-factor challenge, passkey sign-in and federated sign-in, register from an invite, request-access, password reset, impersonate stop, logout), Portal_Layout and Portal_Workspace_Layout, the dashboard, the workspace tabs (Overview / Requests / Documents) with the request-thread UI, invitations accept/decline, settings, and the #[Portal_Impersonation_Readable] marks that keep View-as-Client read-only. Use when adding or changing a portal screen or endpoint, wiring a new workspace tab, changing what an invite grants, branding the portal auth pages, or deciding which portal endpoints stay callable during impersonation (mark reads #[Portal_Impersonation_Readable])."
 ---
 
 # The portal application
@@ -20,20 +20,20 @@ extend or delete.**
 ## The two hook files
 
 `rsx/portal_main.php` (`Portal_Main extends Portal_Main_Abstract`) is the earliest
-application code in a portal request, which is why it **declares the site**:
+application code in a portal request. The SITE is already declared when it runs: the
+framework resolves it from the portal URL (site 1 in single tenancy, the address's
+`:slug` / `:site_id` / custom domain in multi) and `Portal_Session::get_site_id()`
+answers it. `init()` only starts the portal session:
 
 ```php
 public static function init(): void
 {
-    Portal_Session::set_site_id((int) config('rsx.portal.site_id'));  // an APP config key
     Portal_Session::init();
 }
 ```
 
-This app is MONO-SITE. A multi-tenant portal resolves the site from the request (host,
-invite code, chosen workspace) and makes the same call from wherever it learns the answer;
-the only rule is that it is declared before anything asks. `pre_dispatch()` here performs
-**no authorization** - the `#[Auth]` gates have already run by the time it is called.
+`pre_dispatch()` here performs **no authorization** - the `#[Auth]` gates have already
+run by the time it is called.
 
 `rsx/portal_permission.php` (`Portal_Permission extends Portal_Permission_Abstract`) is the
 app's portal permission facade, app-side because its membership methods reference app
@@ -57,7 +57,14 @@ function bodies and in models' `portal_can_read()`.
 Every route below is a path INSIDE the portal. Where that is on the web is `PORTAL_URL`
 (blank here: `/_portal/...` on the application host; `rsx:man portal`), so `/login` is
 browsed at `/_portal/login` today - and every link to it is `Rsx_Portal::Route()`, never a
-literal.
+literal. **A link built on a staff page names the record's site and handles false**:
+`Rsx_Portal::Route(..., site_id: $client->site_id)` answers false when that site has no client
+portal (`PORTAL_ENABLED` off, `sites.is_portal_enabled` off, or no address the configuration
+can serve), and the staff endpoint then refuses with "This site has no client portal." before
+writing or sending anything (`Frontend_Clients_Controller`, `Portal_Invitation_Model::get_invitation_url()`
+returning `string|false`, View as Client). In the browser the same answer is
+`window.rsxapp.portal.base` null - the View as Client button hides on it. A site's portal is
+switched on or off, and its custom domain set, on the staff Site Settings screen.
 
 **Server-rendered auth ladder** (`rsx/portal/auth/`, Blade under
 `portal_auth_layout.blade.php`, every controller `#[Auth('public')]`):

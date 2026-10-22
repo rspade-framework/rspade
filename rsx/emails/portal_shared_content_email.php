@@ -3,7 +3,6 @@
 namespace Rsx\Emails;
 
 use App\RSpade\Core\Mail\Rsx_Email_Abstract;
-use App\RSpade\Core\Portal\Rsx_Portal;
 
 /**
  * Portal_Shared_Content_Email - tells a portal contact that a document is waiting.
@@ -47,12 +46,16 @@ class Portal_Shared_Content_Email extends Rsx_Email_Abstract
         ];
     }
 
+    /**
+     * A fixed illustrative portal link: sample() reads no database, and the portal's
+     * address is per site (a site may have none) - rsx/emails/CLAUDE.md.
+     */
     public static function sample(): static
     {
         return new static(
             'Northwind Trading',
             'Document: Q3 statement.pdf',
-            rsx_absolute_url(Rsx_Portal::Route('Portal_Workspace_Documents_Action', ['id' => 1])),
+            'https://portal.example.com/workspace/1/documents',
         );
     }
 }

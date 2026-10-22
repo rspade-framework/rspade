@@ -40,7 +40,9 @@ the footer taking no argument on a staff-facing message.
 email class without one, with the signature in the error text. It exists so
 `php artisan rsx:mail:test you@example.com --email=Welcome_Email` can render and send any
 email on demand — the flag takes the class BASENAME, and an unknown name prints the list of
-known ones. Several build unsaved model instances; none reads the database.
+known ones. Several build unsaved model instances; none reads the database. The four portal
+emails' samples carry a fixed illustrative link (`https://portal.example.com/...`), because a
+real portal address is per site, is read from the `sites` table, and a site may have none.
 
 **`EMAIL-TEMPLATE-01`** (high) polices these blades and nothing else: a datetime must be
 formatted server-side through `Rsx_Time::` / `Rsx_Date::` (a mail client re-formats nothing,

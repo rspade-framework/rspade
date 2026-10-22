@@ -3,7 +3,6 @@
 namespace Rsx\Emails;
 
 use App\RSpade\Core\Mail\Rsx_Email_Abstract;
-use App\RSpade\Core\Portal\Rsx_Portal;
 
 /**
  * Portal_Invitation_Email - invites somebody into a client's portal.
@@ -62,10 +61,14 @@ class Portal_Invitation_Email extends Rsx_Email_Abstract
         ];
     }
 
+    /**
+     * A fixed illustrative portal link: sample() reads no database, and the portal's
+     * address is per site (a site may have none) - rsx/emails/CLAUDE.md.
+     */
     public static function sample(): static
     {
         return new static(
-            rsx_absolute_url(Rsx_Portal::Route('Portal_Register_Controller', ['code' => 'sample-invitation-code'])),
+            'https://portal.example.com/register?code=sample-invitation-code',
             'Northwind Trading',
         );
     }

@@ -48,7 +48,7 @@
             Enter the email address associated with your {{ $brand }} account and we'll send your portal invitation.
         </p>
 
-        <form method="POST" action="{{ $form_action }}">
+        <form id="portal-request-access-form" method="POST" action="{{ $form_action }}">
             @csrf
 
             <div class="mb-3">
@@ -56,8 +56,6 @@
                 <input autofocus class="form-control" id="email" name="email" placeholder="your@email.com" required
                     type="email" value="{{ $email_value }}">
             </div>
-
-            <Turnstile_Input />
 
             <div class="d-grid">
                 <button class="btn btn-primary" type="submit">Continue</button>
@@ -69,5 +67,11 @@
                 </small>
             </div>
         </form>
+    @endif
+@endsection
+
+@section('below_card')
+    @if (!in_array($outcome, ['invited', 'exists', 'not_found'], true))
+        <Turnstile_Input $form="portal-request-access-form" />
     @endif
 @endsection

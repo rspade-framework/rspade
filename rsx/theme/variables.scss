@@ -74,6 +74,10 @@ $spacing-sm: 8px;
 $spacing-md: 16px;
 $spacing-lg: 24px;
 $spacing-xl: 32px;
+
+// The gap between a sign-in card and what sits below it (the human-verification widget):
+// the auth layouts' below_card region.
+$auth-below-card-gap: 22px;
 $spacing-2xl: 48px;
 $spacing-3xl: 64px;
 

@@ -15,6 +15,7 @@
     .Login_Layout__viewport {
         min-height: 100vh;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
         padding: 10vh $spacing-lg;
@@ -46,6 +47,12 @@
 
     .Login_Layout__body {
         padding: $spacing-xl;
+    }
+
+    .Login_Layout__below_card {
+        display: flex;
+        justify-content: center;
+        margin-top: $auth-below-card-gap;
     }
 
     @include mobile {

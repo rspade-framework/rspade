@@ -56,6 +56,15 @@ values `Select_Country_Input` / `Select_State_Input` offer and `country_name()` 
 `region_name()` resolve. `Client_Model::address_code_errors()` is the one check, run by `save`
 and by both API writes; the exports print the region's name, never the code.
 
+**A portal link is built for the client's SITE, and a site with no client portal sends
+none.** Every endpoint that emails or hands out a portal link - `portal_bulk_invite`,
+`portal_resend_invite`, `documents_share` with contacts to share with - first asks
+`Rsx_Portal_Url::for_site($client->site_id)` and answers "This site has no client portal."
+(`NO_PORTAL_MESSAGE`, an `ERROR_VALIDATION`) before writing anything; the links themselves
+pass `site_id:` to `Rsx_Portal::Route()`. `portal_members` reports `has_portal`, and the panel
+then shows a warning and hides Add Member, Resend and Share. A thread reply or document review
+on such a site still saves; only its portal notification is skipped.
+
 **A document share is per contact and expires.** `documents_share` writes one
 `Shared_Item_Model` row per chosen contact with an expiry (`rsx.portal.shared_link_default_expiry_days`),
 and only that contact's portal user can see or download the document, only until it expires

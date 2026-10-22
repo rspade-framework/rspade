@@ -46,9 +46,10 @@ class Main extends Main_Abstract
         // - the template's own. init() runs from the framework service provider in both
         // contexts, before any session is read.
         //
-        // The PORTAL declares its site separately, in Portal_Main::init() (see
-        // rsx/portal_main.php); every framework site seam asks the EXPERIENCE of the request
-        // which of the two to use (Rsx_Site_Model_Abstract::get_current_site_id).
+        // The PORTAL's site is the framework's: it is resolved from the portal URL and
+        // declared per request before Portal_Main::init() (rsx:man portal); every framework
+        // site seam asks the EXPERIENCE of the request which of the two to use
+        // (Rsx_Site_Model_Abstract::get_current_site_id).
         if (app()->runningInConsole()) {
             Session::set_site_id(1);
         }

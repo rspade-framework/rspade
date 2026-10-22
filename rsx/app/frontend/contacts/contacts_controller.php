@@ -175,7 +175,8 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
      * Hands the contact's linked portal user to Portal_Session::begin_impersonation_from_staff(),
      * which returns the URL for the caller to open in a new tab: the portal itself when it
      * is served under a prefix on this host, or the first leg of the linked-session
-     * handshake when it is on its own host. Read-only is enforced by the framework: while
+     * handshake when it is on its own host - or false when the contact's site has no client
+     * portal, answered here as a validation error. Read-only is enforced by the framework: while
      * impersonating, a portal Ajax endpoint runs only if it is marked
      * #[Portal_Impersonation_Readable].
      *
@@ -205,6 +206,10 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
             Session::get_user()->id,
             (int) $contact->site_id
         );
+
+        if ($url === false) {
+            return response_error(Ajax::ERROR_VALIDATION, 'This site has no client portal.');
+        }
 
         return [
             'url' => $url,

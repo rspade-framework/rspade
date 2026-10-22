@@ -131,11 +131,10 @@ constant spelled at a call site.
 
 **`portal_main.php`** (`Portal_Main extends Portal_Main_Abstract`) - the PORTAL
 request lifecycle, the exact mirror of `main.php` for `rsx/portal/`. Its `init()` is
-the earliest application code in a portal request, which is why the portal's own site
-declaration lives there (`Portal_Session::set_site_id(...)`); the framework resolves
-no portal site and `get_site_id()` throws if nothing declared one. Its
-`pre_dispatch()` stamps portal activity on the member clients. Edit it when portal
-tenancy changes or the portal needs per-request work.
+the earliest application code in a portal request; the portal's SITE is already declared
+by then - the framework resolves it from the portal URL (site 1 in single tenancy) - so
+it declares nothing. Its `pre_dispatch()` stamps portal activity on the member clients.
+Edit it when the portal needs per-request work.
 
 **`portal_permission.php`** (`Portal_Permission extends Portal_Permission_Abstract`) -
 the PORTAL authorization facade. It defines no `#[Auth_Check]` of its own: portal

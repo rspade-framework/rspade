@@ -529,7 +529,9 @@ return [
     |
     | WHERE the portal is served is framework config, not this block: PORTAL_URL
     | in .env (blank = APP_URL + /_portal; https://portal.myapp.com/ for its own
-    | host). See rsx:man portal. The keys below are this application's own.
+    | host). WHICH site a portal request serves is the framework's too: it is
+    | read from the portal URL (site 1 in single tenancy). See rsx:man portal.
+    | The keys below are this application's own.
     |
     */
 
@@ -542,14 +544,6 @@ return [
 
         // Password reset token expiry in hours
         'password_reset_expiry_hours' => 1,
-
-        // THE site this portal serves. An APPLICATION key, not a framework one:
-        // the framework never resolves a portal site, it is declared at runtime
-        // with Portal_Session::set_site_id() (see rsx:man portal). This app is
-        // mono-site, so the declaration reads this key - see rsx/portal_main.php.
-        // A multi-tenant portal would drop this key and look the site up from the
-        // request host instead.
-        'site_id' => 1,
 
         // Default expiry for shared content links (days)
         'shared_link_default_expiry_days' => 30,

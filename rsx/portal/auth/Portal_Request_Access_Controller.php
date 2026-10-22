@@ -54,7 +54,7 @@ class Portal_Request_Access_Controller extends Rsx_Controller_Abstract
             } elseif (!filter_var($posted_email, FILTER_VALIDATE_EMAIL)) {
                 $error = 'Please enter a valid email address';
             } else {
-                // The site this portal serves (declared by Portal_Main::init()).
+                // The site this portal serves (read from its URL by the framework).
                 $site_id = Portal_Session::get_site_id();
 
                 // get_pending_for_email already filters to unused + unexpired invites.
@@ -93,8 +93,14 @@ class Portal_Request_Access_Controller extends Rsx_Controller_Abstract
         $client = Client_Model::find((int) $invitation->get_metadata('client_id'));
         $portal_name = $client ? $client->name : $brand;
 
+        // This page is served by the invitation's site's own portal, so the site has one.
+        $url = $invitation->get_invitation_url();
+        if ($url === false) {
+            shouldnt_happen('Invitation resent from a portal page of a site with no client portal');
+        }
+
         (new Portal_Invitation_Email(
-            $invitation->get_invitation_url(),
+            $url,
             $portal_name,
             false,
             $brand

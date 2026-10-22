@@ -96,8 +96,6 @@
                 type="password" value="{{ $default_password }}">
         </div>
 
-        <div class="mb-3 d-flex justify-content-center"><Turnstile_Input /></div>
-
         <div class="d-grid">
             <button class="btn btn-primary" id="btn-submit" type="submit">
                 Sign In
@@ -132,4 +130,8 @@
             </div>
         @endif
     </form>
+@endsection
+
+@section('below_card')
+    <Turnstile_Input $form="login-form" />
 @endsection

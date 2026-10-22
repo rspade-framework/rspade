@@ -31,15 +31,18 @@ dispatcher, bundle, layout, routing attributes and permission facade.
 
 ## HOW TO CUSTOMIZE
 
-- **The site is declared, never resolved.** `rsx/portal_main.php` `init()` calls
-  `Portal_Session::set_site_id()` from config because this app is mono-site; a multi-tenant
-  portal resolves it from the host or the login flow in the same place. Nothing downstream
-  hand-scopes a query.
+- **The site is the framework's, read from the portal URL.** `rsx/portal_main.php` declares
+  nothing; by `init()` the framework has resolved the request's site and declared it (site 1
+  in single tenancy). Nothing downstream hand-scopes a query.
 - **`Portal_Main::pre_dispatch()` stamps portal activity on every client the caller belongs
   to, through `->raw_bulk()->update(...)`** — one raw UPDATE, deliberately firing no
   realtime frame and no per-record hook, because a timestamp bump on every portal click
   would otherwise churn every open staff client view. Follow that shape for any other
   per-request stamp; use an ordinary `save()` for anything a screen should react to.
+- **The human-verification widget sits below the auth card**, centred, 22px under it
+  (`$auth-below-card-gap`): each auth page puts `<Turnstile_Input $form="<its form id>" />` in
+  the layout's `below_card` section, so it stays out of the card and still posts with the native
+  form - on a page with several states, only in the state that renders the form.
 - **Rebrand** the auth pages in `auth/portal_auth_layout.{blade.php,scss}` and the signed-in
   chrome in `portal_layout.scss`. The error pages in `errors/` extend `Portal_Auth_Layout`,
   so they follow that rebrand with no work of their own. The portal composes the SAME theme components as the staff
@@ -132,7 +135,10 @@ screen with no code change - another prefix (`https://myapp.com/client-portal`) 
 of its own (`https://portal.myapp.com/` -> `https://portal.myapp.com/login`) - because
 every portal URL here is built with `Rsx_Portal::Route()`, which answers an absolute URL
 when called off the portal's host (the staff-side invitation and notification links
-included). Changing it after launch re-registers the portal SSO redirect URI and strands
+included). A staff-side link names the RECORD's site (`site_id: $client->site_id`) and
+handles `false` - the site has no client portal - by refusing with "This site has no client
+portal." rather than sending a broken link (`Frontend_Clients_Controller`,
+`Portal_Invitation_Model::get_invitation_url()`, View as Client). Changing it after launch re-registers the portal SSO redirect URI and strands
 passkeys enrolled under an old host (`rsx:man launch_checklist`).
 
 ### Route Attributes
@@ -186,11 +192,11 @@ Portal_Session::logout()
 
 ### Portal Site
 
-The framework does NOT resolve which site the portal serves - the application
-declares it with `Portal_Session::set_site_id()` before anything asks, and an
-undeclared site throws. This app is mono-site and declares it in
-`rsx/portal_main.php` `init()` from `config('rsx.portal.site_id')`. See
-`php artisan rsx:man portal` (PORTAL SESSIONS).
+The framework resolves which site a portal request serves from its URL and declares
+it before `Portal_Main::init()` runs - site 1 in single tenancy (this app as shipped),
+the `:slug` / `:site_id` / custom domain the address names in multi tenancy. The app
+declares nothing; `Portal_Session::get_site_id()` answers it everywhere in a portal
+request. See `php artisan rsx:man portal`.
 
 ### Auth Flow
 

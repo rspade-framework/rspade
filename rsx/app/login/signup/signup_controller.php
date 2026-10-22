@@ -10,6 +10,7 @@ namespace Rsx\App\Login\Signup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Mail\Rsx_Mail;
 use App\RSpade\Core\Mail\Rsx_Mail_Transport;
@@ -210,8 +211,9 @@ class Signup_Controller extends Rsx_Controller_Abstract
 
             $site = new Site_Model();
             $site->name = $site_name;
-            // A slug nobody chose: unique, and the owner can rename the site without it moving.
-            $site->slug = 'site-' . strtolower(random_hash(12));
+            // Read from the name once, here, and never again: renaming the site does not move
+            // its slug, so a portal address built on it (PORTAL_URL's :slug) stays put.
+            $site->slug = static::site_slug_for($site_name);
             $site->is_enabled = 1;
             $site->save();
 
@@ -230,6 +232,59 @@ class Signup_Controller extends Rsx_Controller_Abstract
 
             return $login_user;
         });
+    }
+
+    /**
+     * The longest DNS label (RFC 1035): the most a slug may hold and still be a host's
+     * first label.
+     */
+    const SLUG_MAX_LABEL_LENGTH = 63;
+
+    /**
+     * A new site's slug, read from its name: lowercase ASCII letters, digits and single
+     * hyphens, no hyphen at either end ("Acme & Sons, Ltd." -> "acme-sons-ltd"), at most 63
+     * characters (or the column's length, if shorter) - a valid DNS label, so a host
+     * template (https://:slug.myapp.com) can serve it as well as a path. A name with nothing
+     * usable in it gives "site". A slug another site holds - deleted sites included, since
+     * sites.slug is UNIQUE across every row - takes the first free numeric suffix
+     * ("acme-2", "acme-3", ...), the base shortened to make room.
+     *
+     * @param string $site_name
+     * @return string
+     */
+    public static function site_slug_for(string $site_name): string
+    {
+        $max_length = min(self::SLUG_MAX_LABEL_LENGTH, (int) Site_Model::field_length('slug'));
+
+        $base = strtolower(Str::ascii($site_name));
+        $base = trim(preg_replace('/[^a-z0-9]+/', '-', $base), '-');
+        $base = rtrim(substr($base, 0, $max_length), '-');
+
+        if ($base === '') {
+            $base = 'site';
+        }
+
+        $taken = Site_Model::withTrashed()
+            ->where(function ($query) use ($base) {
+                $query->where('slug', $base)->orWhere('slug', 'like', $base . '-%');
+            })
+            ->pluck('slug')
+            ->map(fn ($slug) => strtolower((string) $slug))
+            ->all();
+
+        $slug = $base;
+
+        for ($suffix = 2; in_array($slug, $taken, true); $suffix++) {
+            $tail = '-' . $suffix;
+            $slug = rtrim(substr($base, 0, $max_length - strlen($tail)), '-') . $tail;
+
+            // A base shortened for its suffix may stand outside the pattern the query read.
+            if (!in_array($slug, $taken, true) && Site_Model::withTrashed()->where('slug', $slug)->exists()) {
+                $taken[] = $slug;
+            }
+        }
+
+        return $slug;
     }
 
     /**

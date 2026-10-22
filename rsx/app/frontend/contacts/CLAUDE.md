@@ -24,7 +24,7 @@ Follows `rsx/app/frontend/clients/CLAUDE.md` and the app skill `crud-patterns`: 
   it. While it is on the BROWSER asks - its unload dialog for a link (the header's Back
   link included), refresh or close, its confirm box for Back/Forward - and the page owns
   no dialog. Skill `rspade:navigation-guard`; contract in `rsx:man spa`.
-- **Portal-adjacent without owning the portal**: the view sidebar links to the client's portal tab and, for a contact with a portal user, offers `View as Client (read-only)` through `begin_portal_impersonation` (`#[Auth('can_impersonate')]`).
+- **Portal-adjacent without owning the portal**: the view sidebar links to the client's portal tab and, for a contact with a portal user, offers `View as Client (read-only)` through `begin_portal_impersonation` (`#[Auth('can_impersonate')]`). The button is hidden while the site has no client portal (`window.rsxapp.portal.base` null), and the endpoint answers "This site has no client portal." when `Portal_Session::begin_impersonation_from_staff()` returns false.
 - The Projects tab does not live-update: `Project_Model` touches the client, not the contact.
 - **The `View as Client` button is the app's worked example of definer-scoped slot content.**
   It is rendered inside content handed to `Detail_Sidebar`, wired with a plain

@@ -4,7 +4,6 @@ namespace Rsx\Emails;
 
 use App\RSpade\Core\Mail\Rsx_Email_Abstract;
 use App\RSpade\Core\Models\Portal_User_Model;
-use App\RSpade\Core\Portal\Rsx_Portal;
 
 /**
  * Portal_Sign_In_Code_Email - the six-digit code, and its sign-in link, that complete a portal
@@ -56,6 +55,10 @@ class Portal_Sign_In_Code_Email extends Rsx_Email_Abstract
         ];
     }
 
+    /**
+     * A fixed illustrative portal link: sample() reads no database, and the portal's
+     * address is per site (a site may have none) - rsx/emails/CLAUDE.md.
+     */
     public static function sample(): static
     {
         $portal_user = new Portal_User_Model();
@@ -64,7 +67,7 @@ class Portal_Sign_In_Code_Email extends Rsx_Email_Abstract
         return new static(
             $portal_user,
             '482913',
-            rsx_absolute_url(Rsx_Portal::Route('Portal_Login_Controller::verify'))
+            'https://portal.example.com/login/verify'
         );
     }
 }

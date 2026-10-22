@@ -185,16 +185,24 @@ class Portal_Password_Reset_Model extends Rsx_Site_Model_Abstract
     }
 
     /**
-     * Get the full reset URL
+     * The full reset URL, on the reset's own site's portal. Only a portal page of that site
+     * requests a reset, so the site has a portal.
      *
      * @return string
      */
     public function get_reset_url(): string
     {
-        return rsx_absolute_url(\App\RSpade\Core\Portal\Rsx_Portal::Route(
+        $url = \App\RSpade\Core\Portal\Rsx_Portal::Route(
             'Portal_Password_Reset_Controller::reset',
-            ['token' => $this->token]
-        ));
+            ['token' => $this->token],
+            site_id: (int) $this->site_id
+        );
+
+        if ($url === false) {
+            shouldnt_happen('Portal password reset link for a site with no client portal');
+        }
+
+        return rsx_absolute_url($url);
     }
 
     /**

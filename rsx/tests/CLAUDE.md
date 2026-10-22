@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Fifty-one test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Fifty-two test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -57,7 +57,11 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   `Portal_Member_Validation_Test` (a membership goes only to the client's own contact, with
   an enum role), `Portal_Notifications_Test` (the notification endpoints return only
   the caller's own feed, and `clients.portal_last_activity_at` is stamped),
-  `Announcement_Test`.
+  `Announcement_Test`, `Portal_Tenancy_App_Test` (a site with no client portal - off for the
+  install or for the site - refuses the invite, the resend and View as Client with nothing
+  written or sent; a sent link names the record's site's portal; Site Settings save the
+  portal switch and validate the custom domain - not a hostname, another site's; the
+  self-signup slug is a DNS label read from the name with the first free numeric suffix).
 - **Authorization**: `Endpoint_Data_Gates_Test` reads the manifest's surface index and fails
   when a write-shaped `rsx/app` Ajax or API endpoint lacks `can_edit_data` (or an
   administrative check), or when any other one carries nothing beyond `is_logged_in` - the

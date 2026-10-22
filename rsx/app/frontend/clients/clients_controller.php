@@ -18,6 +18,7 @@ use App\RSpade\Core\Models\Portal_Notification_Model;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
+use App\RSpade\Core\Portal\Rsx_Portal_Url;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
@@ -636,11 +637,19 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
                 'has_portal_account' => $portal_user !== null,
                 'expires_at' => $invitation->expires_at,
                 'created_at' => $invitation->created_at,
+                // False when the client's site has no portal (no link to hand out).
                 'url' => $invitation->get_invitation_url(),
             ];
         }
 
-        return ['members' => $members, 'pending_invites' => $pending_invites];
+        return [
+            'members' => $members,
+            'pending_invites' => $pending_invites,
+            // Whether the client's SITE has a client portal at all (the feature on, the
+            // site's portal switched on). Without one the panel offers nothing that sends
+            // a portal link - invite, resend, share.
+            'has_portal' => Rsx_Portal_Url::for_site((int) $client->site_id) !== false,
+        ];
     }
 
     /**
@@ -851,6 +860,9 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
         if (!$client->portal_enabled) {
             return response_error(Ajax::ERROR_VALIDATION, 'Portal is not enabled for this client');
         }
+        if (Rsx_Portal_Url::for_site((int) $client->site_id) === false) {
+            return response_error(Ajax::ERROR_VALIDATION, self::NO_PORTAL_MESSAGE);
+        }
 
         $invited_new = 0;     // brand-new account invitations (registration email)
         $invited_existing = 0; // pending per-client invitations for existing accounts
@@ -925,6 +937,9 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
         $client = Client_Model::find($client_id);
         if (!$client) {
             return response_error(Ajax::ERROR_NOT_FOUND, 'Client not found');
+        }
+        if (Rsx_Portal_Url::for_site((int) $client->site_id) === false) {
+            return response_error(Ajax::ERROR_VALIDATION, self::NO_PORTAL_MESSAGE);
         }
 
         $contact = Contact_Model::find($contact_id);
@@ -1003,6 +1018,32 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
     }
 
     /**
+     * The user-facing refusal of an endpoint that would send a portal link for a site with
+     * no client portal (PORTAL_ENABLED off, the site's portal switched off, or no address
+     * the configuration can serve - Rsx_Portal_Url::for_site()).
+     */
+    const NO_PORTAL_MESSAGE = 'This site has no client portal.';
+
+    /**
+     * A portal URL on a client's site, for an endpoint that already refused a site with no
+     * portal (NO_PORTAL_MESSAGE) before writing anything.
+     *
+     * @param int $site_id The record's site
+     * @param string $action Portal route target
+     * @param array $params Route parameters
+     * @return string
+     */
+    private static function __portal_url(int $site_id, string $action, array $params = []): string
+    {
+        $url = Rsx_Portal::Route($action, $params, site_id: $site_id);
+        if ($url === false) {
+            shouldnt_happen("Portal link ({$action}) for site {$site_id}, which has no client portal - the endpoint checks Rsx_Portal_Url::for_site() first");
+        }
+
+        return $url;
+    }
+
+    /**
      * Send the new-account invitation email (registration link onboards + joins).
      *
      * @param string $email
@@ -1012,7 +1053,12 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      */
     private static function _send_new_account_invite_email(string $email, Client_Model $client, Portal_Invitation_Model $invitation): void
     {
-        (new Portal_Invitation_Email($invitation->get_invitation_url(), $client->name))
+        $url = $invitation->get_invitation_url();
+        if ($url === false) {
+            shouldnt_happen('Invitation email for a site with no client portal - the endpoint checks Rsx_Portal_Url::for_site() first');
+        }
+
+        (new Portal_Invitation_Email($url, $client->name))
             ->to($email)
             ->send();
     }
@@ -1027,7 +1073,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
     private static function _send_existing_account_invite_email(string $email, Client_Model $client): void
     {
         (new Portal_Invitation_Email(
-            rsx_absolute_url(\App\RSpade\Core\Portal\Rsx_Portal::Route('Portal_Login_Controller')),
+            rsx_absolute_url(static::__portal_url((int) $client->site_id, 'Portal_Login_Controller')),
             $client->name,
             true
         ))->to($email)->send();
@@ -1488,6 +1534,10 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
         if (!$attachment) {
             return response_error(Ajax::ERROR_NOT_FOUND, 'Document not found for this client');
         }
+        // Sharing sends portal links; an empty set only removes shares, which needs none.
+        if (!empty($desired_ids) && Rsx_Portal_Url::for_site((int) $client->site_id) === false) {
+            return response_error(Ajax::ERROR_VALIDATION, self::NO_PORTAL_MESSAGE);
+        }
 
         $shared = 0;        // new shares created
         $already = 0;       // already shared (idempotent skip)
@@ -1779,7 +1829,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             'payload' => [
                 'title' => 'A document was shared with you',
                 'body' => $attachment->file_name,
-                'url' => Rsx_Portal::Route('Portal_Workspace_Documents_Action', ['id' => $client->id]),
+                'url' => static::__portal_url((int) $client->site_id, 'Portal_Workspace_Documents_Action', ['id' => $client->id]),
             ],
         ]);
     }
@@ -1795,7 +1845,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      */
     private static function _send_shared_document_email(string $email, Client_Model $client, File_Attachment_Model $attachment, string $message): void
     {
-        $view_url = rsx_absolute_url(Rsx_Portal::Route('Portal_Workspace_Documents_Action', ['id' => $client->id]));
+        $view_url = rsx_absolute_url(static::__portal_url((int) $client->site_id, 'Portal_Workspace_Documents_Action', ['id' => $client->id]));
 
         (new Portal_Shared_Content_Email(
             $client->name,
@@ -2194,10 +2244,15 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             return;
         }
 
+        // No client portal on the thread's site: nobody can open a portal notification,
+        // so none is sent. The reply itself stands.
         $url = Rsx_Portal::Route('Portal_Request_Thread_Action', [
             'id' => (int) $thread->client_id,
             'thread_id' => (int) $thread->id,
-        ]);
+        ], site_id: (int) $thread->site_id);
+        if ($url === false) {
+            return;
+        }
 
         // A short snippet of the staff message for the feed.
         $snippet = trim($body);
@@ -2245,6 +2300,16 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             return;
         }
 
+        // No client portal on the thread's site: nobody can open a portal notification,
+        // so none is sent. The review itself stands.
+        $url = Rsx_Portal::Route('Portal_Request_Thread_Action', [
+            'id' => (int) $thread->client_id,
+            'thread_id' => (int) $thread->id,
+        ], site_id: (int) $thread->site_id);
+        if ($url === false) {
+            return;
+        }
+
         $attachment = $document->attachment();
         $file_name = $attachment ? $attachment->file_name : 'A document';
         $decision = $document->is_accepted() ? 'accepted' : 'rejected';
@@ -2260,10 +2325,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             'payload' => [
                 'title' => 'Document ' . $decision . ': "' . $thread->title . '"',
                 'body' => $body,
-                'url' => Rsx_Portal::Route('Portal_Request_Thread_Action', [
-                    'id' => (int) $thread->client_id,
-                    'thread_id' => (int) $thread->id,
-                ]),
+                'url' => $url,
             ],
         ]);
     }

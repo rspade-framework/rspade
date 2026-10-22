@@ -11,6 +11,12 @@
         max-width: 400px;
     }
 
+    .pagemodal-below-card {
+        display: flex;
+        justify-content: center;
+        margin-top: $auth-below-card-gap;
+    }
+
     .pagemodal-card {
         background: var(--bs-body-bg);
         border-radius: 8px;

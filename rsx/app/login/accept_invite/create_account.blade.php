@@ -20,7 +20,7 @@
         }
     @endphp
 
-    <Rsx_Form $data="{!! json_encode($form_data) !!}" $controller="Accept_Invite_Controller" $method="create_account_submit">
+    <Rsx_Form id="create-account-form" $data="{!! json_encode($form_data) !!}" $controller="Accept_Invite_Controller" $method="create_account_submit">
         <Form_Errors />
 
         @if (isset($invite_code) && $invite_code)
@@ -52,8 +52,6 @@
             <Text_Input $name="password_confirm" $type="password" $max_length=-1 />
         </Form_Field>
 
-        <div class="mb-3 d-flex justify-content-center"><Turnstile_Input /></div>
-
         <div class="d-grid mt-4">
             <button class="btn btn-primary" type="submit">
                 Create Account
@@ -66,4 +64,8 @@
             </small>
         </div>
     </Rsx_Form>
+@endsection
+
+@section('below_card')
+    <Turnstile_Input $form="create-account-form" />
 @endsection

@@ -39,8 +39,6 @@
                     type="email" value="{{ $email_value }}">
             </div>
 
-            <Turnstile_Input />
-
             <div class="d-grid">
                 <button class="btn btn-primary" id="btn-submit" type="submit">
                     Send Reset Link
@@ -53,5 +51,11 @@
                 </small>
             </div>
         </form>
+    @endif
+@endsection
+
+@section('below_card')
+    @if (!(isset($success) && $success))
+        <Turnstile_Input $form="portal-password-reset-form" />
     @endif
 @endsection

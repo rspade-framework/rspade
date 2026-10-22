@@ -10,6 +10,34 @@
                         <Text_Input $name="name" $max_length=this.data.name_max_length $placeholder="My Organization" />
                     </Form_Field>
                 </Section>
+
+                <%-- The site's client portal. Absent fields are untouched by update(), so a
+                     field this install does not offer is simply not rendered. --%>
+                <Section $title="Client Portal">
+                    <View_Fields>
+                        <View_Field $label="Portal Address">
+                            <% if (this.data.portal_url) { %>
+                                <External_Link $href=this.data.portal_url $label=this.data.portal_url />
+                            <% } else { %>
+                                <span class="text-muted">No client portal</span>
+                            <% } %>
+                        </View_Field>
+                    </View_Fields>
+
+                    <% if (this.data.portal_feature_enabled) { %>
+                        <Form_Field $help="Clients you invite sign in to this site's portal. Switched off, the portal address answers Not Found and no invitation can be sent.">
+                            <Checkbox_Input $name="is_portal_enabled" $label="This site has a client portal" />
+                        </Form_Field>
+
+                        <% if (this.data.custom_domains_enabled) { %>
+                            <Form_Field $label="Custom Portal Domain" $help="A hostname such as portal.example.com, pointed at this application. Leave blank to use the standard portal address.">
+                                <Text_Input $name="portal_domain" $max_length=this.data.portal_domain_max_length $placeholder="portal.example.com" />
+                            </Form_Field>
+                        <% } %>
+                    <% } else { %>
+                        <p class="text-muted mb-0">The client portal is switched off for this installation.</p>
+                    <% } %>
+                </Section>
                 <div class="d-flex justify-content-end">
                     <button type="submit" class="btn btn-primary">Save Changes</button>
                 </div>
@@ -20,7 +48,8 @@
     <Slot:sidebar>
         <Section $title="Site Settings Tips">
             <ul class="list-unstyled mb-0">
-                <li class="mb-0"><i class="bi bi-check-circle text-success me-2"></i>Keep your site name concise</li>
+                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Keep your site name concise</li>
+                <li class="mb-0"><i class="bi bi-check-circle text-success me-2"></i>A custom portal domain needs its DNS and certificate in place before you save it</li>
             </ul>
         </Section>
     </Slot:sidebar>

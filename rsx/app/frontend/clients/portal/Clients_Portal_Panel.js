@@ -23,6 +23,7 @@ class Clients_Portal_Panel extends Component {
         this.data.threads_active = [];
         this.data.threads_closed = [];
         this.data.threads_needs_review_total = 0;
+        this.data.has_portal = true;
         this.data.error_data = null;
         this.data.loading = true;
 
@@ -48,6 +49,7 @@ class Clients_Portal_Panel extends Component {
             ]);
             this.data.members = members_result.members;
             this.data.pending_invites = members_result.pending_invites;
+            this.data.has_portal = members_result.has_portal;
             this.data.projects = projects_result.projects;
             this.data.announcements = announcements_result.announcements;
             this.data.documents = documents_result.documents;

@@ -9,7 +9,7 @@
     {{-- Reached only while rsx.auth.self_signup is on (Signup_Controller answers 404 otherwise).
          Every rule is the endpoint's; the lengths below are the columns' own, read server-side
          because this bundle carries no model. --}}
-    <Rsx_Form $controller="Signup_Controller" $method="submit">
+    <Rsx_Form id="signup-form" $controller="Signup_Controller" $method="submit">
         <Form_Errors />
 
         <Form_Field $label="Organization Name" $required=true>
@@ -41,8 +41,6 @@
             <Text_Input $name="password_confirm" $type="password" $max_length=-1 />
         </Form_Field>
 
-        <div class="mb-3 d-flex justify-content-center"><Turnstile_Input /></div>
-
         <div class="d-grid mt-4">
             <button class="btn btn-primary" type="submit">
                 Create Account
@@ -55,4 +53,8 @@
             </small>
         </div>
     </Rsx_Form>
+@endsection
+
+@section('below_card')
+    <Turnstile_Input $form="signup-form" />
 @endsection

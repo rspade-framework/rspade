@@ -58,7 +58,7 @@ class Portal_Register_Controller extends Rsx_Controller_Abstract
         }
 
         // An invitation belongs to ONE site, and this portal serves ONE site (the
-        // one Portal_Main::init() declared). A code minted for another tenant is
+        // one its URL names). A code minted for another tenant is
         // not a valid code HERE - registering it would create an account on this
         // site holding another site's membership.
         if ((int) $invitation->site_id !== Portal_Session::get_site_id()) {

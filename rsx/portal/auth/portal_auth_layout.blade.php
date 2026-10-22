@@ -25,6 +25,13 @@
                 @yield('content')
             </div>
         </div>
+        {{-- Below the card: what the page shows outside it (the human-verification widget,
+             tied back to its form with Turnstile_Input $form). --}}
+        @hasSection('below_card')
+            <div class="pagemodal-below-card">
+                @yield('below_card')
+            </div>
+        @endif
     </div>
 </body>
 

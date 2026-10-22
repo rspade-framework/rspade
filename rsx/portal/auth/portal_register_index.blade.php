@@ -54,8 +54,6 @@
                 required type="password" minlength="{{ $min_length }}">
         </div>
 
-        <Turnstile_Input />
-
         <div class="d-grid">
             <button class="btn btn-primary" id="btn-submit" type="submit">
                 Create Account
@@ -68,4 +66,8 @@
             </small>
         </div>
     </form>
+@endsection
+
+@section('below_card')
+    <Turnstile_Input $form="portal-register-form" />
 @endsection

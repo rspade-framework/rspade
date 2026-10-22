@@ -1,8 +1,9 @@
 /**
  * Settings Site Settings Action
  *
- * The current site's name, loaded from and saved to Site_Model through
- * Frontend_Settings_Site_Settings_Controller.
+ * The current site's name and client portal (its address, the is_portal_enabled switch
+ * and, when PORTAL_CUSTOM_DOMAINS is not 'off', its custom domain), loaded from and saved
+ * to Site_Model through Frontend_Settings_Site_Settings_Controller.
  */
 @route('/frontend/settings/site_settings')
 @layout('Frontend_Spa_Layout')
@@ -19,6 +20,10 @@ class Settings_Site_Settings_Action extends Spa_Action {
         this._settings_settled = false;
 
         this.data.name_max_length = -1;
+        this.data.portal_domain_max_length = -1;
+        this.data.portal_feature_enabled = false;
+        this.data.custom_domains_enabled = false;
+        this.data.portal_url = null;
         this.data.form_data = {
             name: '',
         };
@@ -28,6 +33,10 @@ class Settings_Site_Settings_Action extends Spa_Action {
         const settings = await Frontend_Settings_Site_Settings_Controller.get_settings();
 
         this.data.name_max_length = settings.name_max_length;
+        this.data.portal_domain_max_length = settings.portal_domain_max_length;
+        this.data.portal_feature_enabled = settings.portal_feature_enabled;
+        this.data.custom_domains_enabled = settings.custom_domains_enabled;
+        this.data.portal_url = settings.portal_url;
         this.data.form_data = settings.form_data;
     }
 
@@ -53,6 +62,6 @@ class Settings_Site_Settings_Action extends Spa_Action {
 
     // Breadcrumb methods
     async breadcrumb_label_active() {
-        return 'Configure the site name';
+        return 'Configure the site name and client portal';
     }
 }

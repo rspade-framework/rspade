@@ -350,16 +350,20 @@ class Portal_Invitation_Model extends Rsx_Site_Model_Abstract
     }
 
     /**
-     * Get the full invitation URL
+     * The full invitation URL, on the invitation's own site's portal - or false when that
+     * site has no client portal (Rsx_Portal::Route()), so there is no link to send.
      *
-     * @return string
+     * @return string|false
      */
-    public function get_invitation_url(): string
+    public function get_invitation_url(): string|false
     {
-        return rsx_absolute_url(\App\RSpade\Core\Portal\Rsx_Portal::Route(
+        $url = \App\RSpade\Core\Portal\Rsx_Portal::Route(
             'Portal_Register_Controller',
-            ['code' => $this->invitation_code]
-        ));
+            ['code' => $this->invitation_code],
+            site_id: (int) $this->site_id
+        );
+
+        return $url === false ? false : rsx_absolute_url($url);
     }
 
     /**

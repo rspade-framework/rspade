@@ -4,7 +4,6 @@ namespace Rsx\Emails;
 
 use App\RSpade\Core\Mail\Rsx_Email_Abstract;
 use App\RSpade\Core\Models\Portal_User_Model;
-use App\RSpade\Core\Portal\Rsx_Portal;
 
 /**
  * Portal_Password_Reset_Email - the single-use reset link for a portal account.
@@ -35,11 +34,15 @@ class Portal_Password_Reset_Email extends Rsx_Email_Abstract
         ];
     }
 
+    /**
+     * A fixed illustrative portal link: sample() reads no database, and the portal's
+     * address is per site (a site may have none) - rsx/emails/CLAUDE.md.
+     */
     public static function sample(): static
     {
         $portal_user = new Portal_User_Model();
         $portal_user->email = 'client@example.com';
 
-        return new static($portal_user, rsx_absolute_url(Rsx_Portal::Route('Portal_Password_Reset_Controller::reset', ['token' => 'sample-token'])));
+        return new static($portal_user, 'https://portal.example.com/password/reset/sample-token');
     }
 }

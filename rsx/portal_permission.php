@@ -79,8 +79,8 @@ class Portal_Permission extends Portal_Permission_Abstract
     /**
      * The site this portal request serves.
      *
-     * Never 0 and never guessed: it is the live session's site, or the site the
-     * application declared in Portal_Main::init(). Throws if neither exists (a
+     * Never 0 and never guessed: it is the site the request's URL serves (the
+     * framework declares it before Portal_Main::init()). Throws if there is none (a
      * portal that does not know its tenant is misconfigured, not anonymous).
      *
      * @return int

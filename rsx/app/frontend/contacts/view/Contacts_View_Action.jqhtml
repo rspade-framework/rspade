@@ -194,7 +194,8 @@
                             <a href="<%= Rsx.Route('Clients_View_Action', _contact.client_id, {tab: 'portal'}) %>" class="btn btn-outline-secondary btn-sm">
                                 <i class="bi bi-globe"></i> Manage Client Portal
                             </a>
-                            <% if (_contact.portal_user_id) { %>
+                            <%-- rsxapp.portal.base is null when this site has no client portal. --%>
+                            <% if (_contact.portal_user_id && window.rsxapp.portal.base) { %>
                                 <button $sid="view_as_client" @click=this.view_as_client type="button" class="btn btn-outline-secondary btn-sm">
                                     <i class="bi bi-eye"></i> View as Client (read-only)
                                 </button>
