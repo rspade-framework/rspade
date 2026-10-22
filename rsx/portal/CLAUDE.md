@@ -241,9 +241,9 @@ in here. How this app uses them:
   itself and offers "Resend code". Opening the link in the browser that typed the password
   brings it back to `/login/verify`, where the widget submits it - a link opened anywhere else
   says to type the code there. A passed code or link marks the portal user verified. The framework keeps
-  ONE live code per portal user, so a resend before it expires re-sends the same digits -
-  `send_code()` asks `issued_code_expires_at()` first, and the email then says it is the same
-  code and states the minutes that code has left. A passkey
+  ONE live code per portal user, so a resend before it expires re-sends the same digits and
+  link and restarts their clock - the email is word for word the original and states the
+  configured window. A passkey
   sign-in owes nothing, so a client who registers a passkey never waits for the email.
   `rsx:man two_factor_codes`.
 - **Passwordless**: the login page's `<Passkey_Sign_In>` posts to `passkey_login`, which calls

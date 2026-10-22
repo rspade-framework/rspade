@@ -5,7 +5,6 @@ namespace Rsx\Emails;
 use App\RSpade\Core\Mail\Rsx_Email_Abstract;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Rsx;
-use App\RSpade\Core\Time\Rsx_Time;
 
 /**
  * Signup_Verification_Email - the code and the link that confirm a new account's address.
@@ -21,8 +20,12 @@ use App\RSpade\Core\Time\Rsx_Time;
  * without it - so it reaches an address on the site block list and ignores the recipient
  * opt-out.
  *
- * A resend while the code is live carries the SAME code and link ($again), so the email says
- * so and states the minutes until $expires_at - the full window, since every send restarts it.
+ * ONE MESSAGE FOR EVERY SEND. A resend carries the same code and the same link, and the
+ * framework restarts their clock on every send, so the message is word for word the original:
+ * it states the configured window (rsx.two_factor.challenge_window_minutes), true of every copy.
+ * The code leads - it works on any device - and the link follows as bold text rather than a
+ * button, because it works only in the browser that started the step. The code's box is
+ * styled inline: an application's email.scss replaces the framework's stylesheet wholesale.
  *
  * The code and the link are in data(), and therefore in the queue row's template data, for as
  * long as the row is retained. Acceptable for a pair that dies within minutes; never for a
@@ -35,9 +38,7 @@ class Signup_Verification_Email extends Rsx_Email_Abstract
     public function __construct(
         public Login_User_Model $login_user,
         public string $code,
-        public string $link,
-        public string $expires_at,
-        public bool $again = false
+        public string $link
     ) {
     }
 
@@ -53,9 +54,7 @@ class Signup_Verification_Email extends Rsx_Email_Abstract
             'code' => $this->code,
             // Absolute and signed already (issued_link()).
             'link' => $this->link,
-            'again' => $this->again,
-            // Rounded up, and never "0 minutes": a code with seconds left still works.
-            'expiry_minutes' => max(1, (int) ceil(Rsx_Time::seconds_until($this->expires_at) / 60)),
+            'expiry_minutes' => max(1, (int) config('rsx.two_factor.challenge_window_minutes')),
         ];
     }
 
@@ -67,8 +66,7 @@ class Signup_Verification_Email extends Rsx_Email_Abstract
         return new static(
             $login_user,
             '482913',
-            rsx_absolute_url(Rsx::Route('Login_Controller::verify')),
-            Rsx_Time::add(Rsx_Time::now_iso(), (int) config('rsx.two_factor.challenge_window_minutes') * 60)
+            rsx_absolute_url(Rsx::Route('Login_Controller::verify'))
         );
     }
 }

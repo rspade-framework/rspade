@@ -1,28 +1,20 @@
 @rsx_id('Signup_Verification_Email')
 {!! \App\RSpade\Core\Mail\Rsx_Mail_Layout::header($subject ?? 'Confirm your email') !!}
 
-<p>Hello,</p>
+<p><strong>Confirm your email address for {{ $app_name }}</strong></p>
 
-@if ($again)
-<p>Here is your confirmation again - the same link and code as before. Use either one to confirm this address and continue to your <strong>{{ $app_name }}</strong> account:</p>
-@else
-<p>Confirm this address to continue to your <strong>{{ $app_name }}</strong> account:</p>
-@endif
+<p>Use the following code to confirm it:</p>
 
 <p style="text-align: center;">
-    <a href="{{ $link }}" class="email-button">Confirm my email</a>
+    <span style="display: inline-block; padding: 16px 28px; font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1a202c; background-color: #f7fafc; border: 1px solid #d0d5dd; border-radius: 8px;">{{ $code }}</span>
 </p>
 
-<p style="font-size: 13px; color: #868e96; text-align: center;">
-    The button works in the browser where you signed up or signed in. On another device, type this code there instead:
-</p>
+<p>Or click the link below:</p>
 
-<p style="text-align: center; font-size: 28px; font-weight: 600; letter-spacing: 6px;">{{ $code }}</p>
+<p><a href="{{ $link }}"><strong>Confirm My Email</strong></a></p>
 
-<p>The link and the code expire in {{ $expiry_minutes }} minutes and work once.</p>
+<p class="email-muted">Code and link expire in {{ $expiry_minutes }} {{ $expiry_minutes === 1 ? 'minute' : 'minutes' }}.</p>
 
-<p style="font-size: 13px; color: #868e96;">
-    If you did not just sign up or sign in, you can ignore this email.
-</p>
+<p class="email-muted">If you did not just sign up or sign in, you can ignore this email.</p>
 
 {!! \App\RSpade\Core\Mail\Rsx_Mail_Layout::footer($unsubscribe_url ?? null) !!}

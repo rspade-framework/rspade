@@ -279,14 +279,11 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
             return response_error(Ajax::ERROR_VALIDATION, 'Too many codes have been sent. Please sign in again.');
         }
 
-        // Asked BEFORE issuing: a live code means this send repeats the digits already sent.
-        $again = Rsx_Portal_Two_Factor::issued_code_expires_at() !== null;
-
         // The code first, then its link: issued_link() is the code's twin and throws without it.
         $code = Rsx_Portal_Two_Factor::issue_code();
         $link = Rsx_Portal_Two_Factor::issued_link(Rsx_Portal::Route('Portal_Login_Controller::verify'));
 
-        (new Portal_Sign_In_Code_Email($portal_user, $code, $link, Rsx_Portal_Two_Factor::issued_code_expires_at(), $again))
+        (new Portal_Sign_In_Code_Email($portal_user, $code, $link))
             ->to($portal_user->email)
             ->send();
 

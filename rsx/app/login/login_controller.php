@@ -340,14 +340,11 @@ class Login_Controller extends Rsx_Controller_Abstract
             );
         }
 
-        // Asked BEFORE issuing: a live code means this send repeats the digits already sent.
-        $again = Rsx_Two_Factor::issued_code_expires_at() !== null;
-
         // The code first, then its link: issued_link() is the code's twin and throws without it.
         $code = Rsx_Two_Factor::issue_code();
         $link = Rsx_Two_Factor::issued_link(Rsx::Route('Login_Controller::verify'));
 
-        (new Signup_Verification_Email($login_user, $code, $link, Rsx_Two_Factor::issued_code_expires_at(), $again))
+        (new Signup_Verification_Email($login_user, $code, $link))
             ->to($login_user->email)
             ->send();
 

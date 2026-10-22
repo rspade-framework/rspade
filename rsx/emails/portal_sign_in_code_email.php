@@ -5,7 +5,6 @@ namespace Rsx\Emails;
 use App\RSpade\Core\Mail\Rsx_Email_Abstract;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Portal\Rsx_Portal;
-use App\RSpade\Core\Time\Rsx_Time;
 
 /**
  * Portal_Sign_In_Code_Email - the six-digit code, and its sign-in link, that complete a portal
@@ -19,9 +18,12 @@ use App\RSpade\Core\Time\Rsx_Time;
  * without it they cannot reach their own account - so it reaches an address on the site
  * block list and ignores the recipient opt-out.
  *
- * A resend while the code is still live carries the SAME code and link ($again): the framework keeps one
- * code per portal user, and every send restarts its rsx.two_factor.challenge_window_minutes
- * clock - so the minutes until $expires_at are the full window on every copy.
+ * ONE MESSAGE FOR EVERY SEND. A resend carries the same code and the same link, and the
+ * framework restarts their clock on every send, so the message is word for word the original:
+ * it states the configured window (rsx.two_factor.challenge_window_minutes), true of every copy.
+ * The code leads - it works on any device - and the link follows as bold text rather than a
+ * button, because it works only in the browser that started the step. The code's box is
+ * styled inline: an application's email.scss replaces the framework's stylesheet wholesale.
  *
  * The code and the link are in data(), and therefore in the queue row's template data, for as
  * long as the row is retained. That is acceptable for a pair that dies within minutes; it
@@ -34,9 +36,7 @@ class Portal_Sign_In_Code_Email extends Rsx_Email_Abstract
     public function __construct(
         public Portal_User_Model $portal_user,
         public string $code,
-        public string $link,
-        public string $expires_at,
-        public bool $again = false
+        public string $link
     ) {
     }
 
@@ -52,9 +52,7 @@ class Portal_Sign_In_Code_Email extends Rsx_Email_Abstract
             'code' => $this->code,
             // Absolute and signed already (issued_link()).
             'link' => $this->link,
-            'again' => $this->again,
-            // Rounded up, and never "0 minutes": a code with seconds left still works.
-            'expiry_minutes' => max(1, (int) ceil(Rsx_Time::seconds_until($this->expires_at) / 60)),
+            'expiry_minutes' => max(1, (int) config('rsx.two_factor.challenge_window_minutes')),
         ];
     }
 
@@ -66,8 +64,7 @@ class Portal_Sign_In_Code_Email extends Rsx_Email_Abstract
         return new static(
             $portal_user,
             '482913',
-            rsx_absolute_url(Rsx_Portal::Route('Portal_Login_Controller::verify')),
-            Rsx_Time::add(Rsx_Time::now_iso(), (int) config('rsx.two_factor.challenge_window_minutes') * 60)
+            rsx_absolute_url(Rsx_Portal::Route('Portal_Login_Controller::verify'))
         );
     }
 }

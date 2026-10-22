@@ -200,10 +200,10 @@ class Portal_Emailed_Sign_In_Codes_Test extends Rsx_Test_Abstract
     }
 
     /**
-     * A resend while the code is live emails the SAME code, says so, and states the minutes
-     * that code has left rather than a fresh window.
+     * A resend while the code is live emails the same message word for word - the same code,
+     * the same link, the configured window.
      */
-    public static function test_a_resend_emails_the_same_code_and_says_so()
+    public static function test_a_resend_is_word_for_word_the_original()
     {
         config(['rsx.portal.emailed_sign_in_codes' => true]);
         static::__deliverable_mail();
@@ -223,8 +223,8 @@ class Portal_Emailed_Sign_In_Codes_Test extends Rsx_Test_Abstract
 
         static::__assert_equals($first['code'], $second['code'], 'the resend carries the same code');
         static::__assert_equals($first['link'], $second['link'], 'and the same link');
-        static::__assert_true($second['again'], 'and says it is the same code');
-        static::__assert_true($second['expiry_minutes'] <= $first['expiry_minutes'], 'the expiry it states has not moved');
+        static::__assert_equals($first, $second, 'the resend is word for word the original');
+        static::__assert_equals((int) config('rsx.two_factor.challenge_window_minutes'), $second['expiry_minutes'], 'and states the configured window');
         static::__assert_equals(2, Rsx_Portal_Two_Factor::challenge_pending()['codes_issued'], 'both sends count toward the cap');
     }
 
