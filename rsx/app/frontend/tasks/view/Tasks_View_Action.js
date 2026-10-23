@@ -12,6 +12,7 @@
 @layout('Frontend_Spa_Layout')
 @spa('Frontend_Spa_Controller::index')
 @auth('is_logged_in', 'can_view_data')
+@spinner_until_ready('uncached')
 class Tasks_View_Action extends Spa_Action {
     // Composes with Page_Scaffold: the layout yields max-width and page padding
     // to the scaffold (see Frontend_Spa_Layout.on_action).
@@ -104,7 +105,7 @@ class Tasks_View_Action extends Spa_Action {
                 'Cancel'
             );
             if (!confirmed) return;
-            await Frontend_Tasks_Controller.delete({ id: this.args.id });
+            await this.alive(Frontend_Tasks_Controller.delete({ id: this.args.id }));
             Spa.dispatch(Rsx.Route('Tasks_Index_Action'));
         });
     }

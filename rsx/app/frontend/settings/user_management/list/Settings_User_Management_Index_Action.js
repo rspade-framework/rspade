@@ -31,7 +31,7 @@ class Settings_User_Management_Index_Action extends Spa_Action {
         let that = this;
 
         // Show add user modal
-        const user = await Add_User_Modal.show();
+        const user = await that.alive(Add_User_Modal.show());
 
         if (user) {
             // Refresh the user list

@@ -8,6 +8,7 @@
 @layout('Frontend_Spa_Layout')
 @spa('Frontend_Spa_Controller::index')
 @auth('is_logged_in', 'can_view_data', 'can_edit_data')
+@spinner_until_ready('always')
 class Clients_Edit_Action extends Spa_Action {
     // Composes with Page_Scaffold: the layout yields max-width and page
     // padding to the scaffold (see Frontend_Spa_Layout.on_action).
@@ -87,7 +88,6 @@ class Clients_Edit_Action extends Spa_Action {
         };
 
         this.data.error_data = null;
-        this._record_settled = false;
     }
 
     async on_load() {
@@ -128,50 +128,6 @@ class Clients_Edit_Action extends Spa_Action {
             };
         } catch (e) {
             this.data.error_data = e;
-        }
-    }
-
-    /**
-     * The overlay lives on the FORM, and the form is found by class - the action
-     * owns when it is on, not how it looks.
-     *
-     * @param {boolean} loading
-     */
-    _set_form_loading(loading) {
-        const $form = this.$.find('.Rsx_Form').first();
-        if ($form.exists()) {
-            $form.component().set_loading(loading);
-        }
-    }
-
-    on_render() {
-        // ARM on every render while THIS instance's record load has not settled -
-        // including a cached revisit, whose cached data cannot be trusted to describe
-        // an in-flight revalidation. That is also why the flag is an INSTANCE property
-        // and not this.data: this.data is cached, and a cached "settled" would lie.
-        //
-        // The overlay has to be re-armed per render because renders rebuild the DOM.
-        this._set_form_loading(this.data.is_edit && !this._record_settled);
-    }
-
-    on_ready() {
-        // The load is complete BY DEFINITION here - on_ready fires after on_load and
-        // after the children are ready, which is exactly why a loading indicator can
-        // never be *set* here, and exactly why this is the right place to clear it.
-        //
-        // The framework only re-rendered if the loaded data CHANGED, so a cached
-        // revisit whose data matched keeps the cached form instance - seed it
-        // explicitly. vals() skips fields the user has touched; there are none,
-        // because the overlay blocked input.
-        if (this.data.is_edit) {
-            this._record_settled = true;
-            if (!this.data.error_data && this.data.form_data) {
-                const $form = this.$.find('.Rsx_Form').first();
-                if ($form.exists()) {
-                    $form.component().vals(this.data.form_data);
-                }
-            }
-            this._set_form_loading(false);
         }
     }
 

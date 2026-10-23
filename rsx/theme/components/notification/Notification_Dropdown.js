@@ -51,7 +51,7 @@ class Notification_Dropdown extends Component {
      */
     async _refresh_count() {
         try {
-            const result = await Frontend_Notifications_Controller.get_count();
+            const result = await this.alive(Frontend_Notifications_Controller.get_count());
             this.state.unread_count = result.count;
             this.render();
         } catch (e) {
@@ -69,7 +69,7 @@ class Notification_Dropdown extends Component {
         this.render();
 
         try {
-            const result = await Frontend_Notifications_Controller.get_dropdown({ limit: 5 });
+            const result = await this.alive(Frontend_Notifications_Controller.get_dropdown({ limit: 5 }));
             this.state.notifications = result.notifications;
             this.state.total = result.total;
             this.state.unread_count = result.unread;
@@ -122,7 +122,7 @@ class Notification_Dropdown extends Component {
         e.preventDefault();
 
         try {
-            await Frontend_Notifications_Controller.mark_all_read();
+            await this.alive(Frontend_Notifications_Controller.mark_all_read());
             // Refresh dropdown to update UI
             await this._load_dropdown();
         } catch (e) {

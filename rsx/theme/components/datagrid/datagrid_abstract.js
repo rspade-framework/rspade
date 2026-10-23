@@ -156,7 +156,7 @@ class DataGrid_Abstract extends Component {
         }
 
         // Measure row height and set fixed tbody height (all in one frame)
-        await that.measure_and_set_fixed_height();
+        await that.alive(that.measure_and_set_fixed_height());
 
         // Fetch the initial page (respects hash state)
         that.load_page(that.state.page);
@@ -399,7 +399,7 @@ class DataGrid_Abstract extends Component {
         body_component.args.custom_filters = that._get_active_custom_filters();
 
         // Reload child component (triggers on_load and re-render)
-        await body_component.reload();
+        await that.alive(body_component.reload());
 
         // Scroll to top of datagrid if it's not currently visible
         that.scroll_to_top_if_needed();
@@ -493,6 +493,7 @@ class DataGrid_Abstract extends Component {
         // ONE event ('input' alone covers typing, paste and the search field's clear button),
         // debounced so a burst of keystrokes produces a single request.
         const debounced_filter = debounce(function (value) {
+            if (that.is_stopped()) return;
             that.filter_changed(value);
         }, 200);
 

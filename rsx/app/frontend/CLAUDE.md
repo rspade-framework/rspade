@@ -64,6 +64,14 @@ new feature, and copy its structure rather than inventing one.
 - Data loads in `on_load()` (never in an event handler; call `this.reload()`).
   View actions use the three-state pattern: `<Loading_Spinner>` →
   `<Universal_Error_Page_Component>` → content.
+- **View actions declare `@spinner_until_ready('uncached')`, add/edit actions
+  `@spinner_until_ready('always')`** (an edit dialog: `Modal.form({spinner_until_ready:
+  'always'})`). A first visit to a view page is revealed whole and a revisit paints from
+  cache; an edit form is never seen before its record is applied, so no edit action
+  carries a loading overlay or a "settled" flag. `rsx:man spa`, SPINNER UNTIL READY.
+- **Every wait outside `on_load()` goes through `this.alive()`** -
+  `await this.alive(Controller.save(...))` never resumes once the user has navigated
+  away (`tasks/edit/` is the worked example). Never in `on_load()`, where it throws.
 - **Independent calls in one `on_load()` share ONE `Promise.all`.** Every NON-FATAL
   branch carries its own `.catch(() => <sane default>)` so a failing sidebar list
   cannot blank the record the page exists to show; the page's SUBJECT record is

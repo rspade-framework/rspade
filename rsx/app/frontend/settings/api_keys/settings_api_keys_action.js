@@ -35,7 +35,7 @@ class Settings_Api_Keys_Action extends Spa_Action {
         // child is looked up when the dialog resolves. Namespaced and idempotent because
         // on_render() re-fires on every render.
         this.$sid('btn_add_key').off('click.api_keys').on('click.api_keys', async () => {
-            const result = await Add_Api_Key_Modal.show();
+            const result = await this.alive(Add_Api_Key_Modal.show());
             if (result) {
                 // Reload the datagrid to show the new key
                 this.sid('api_keys_datagrid').reload();

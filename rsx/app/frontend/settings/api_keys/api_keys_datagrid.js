@@ -42,7 +42,7 @@ class Api_Keys_DataGrid extends DataGrid_Abstract {
             }
 
             try {
-                await Frontend_Settings_Api_Keys_Controller.revoke_key({ id: key_id });
+                await this.alive(Frontend_Settings_Api_Keys_Controller.revoke_key({ id: key_id }));
                 this.reload();
             } catch (error) {
                 Modal.alert({

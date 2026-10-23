@@ -183,57 +183,47 @@ Requirements:
 
 ### Edit modals: the record arrives after the dialog opens
 
-An edit modal's body IS the loader, and it needs a JS class for that - three hooks,
-each for a definitional reason:
+The dialog opens **immediately** and the body mounts inside it, so an edit form starts its
+own load at once. Nothing is fetched before `Modal.form()`. The body loads its record in
+`on_load()` and binds it as the form's `$data`, and the dialog is opened with
+`spinner_until_ready: 'always'`, so the body stays hidden behind the spinner until it is ready:
 
 ```javascript
 class Edit_User_Modal_Form extends Component {
-    // Earliest legal moment: the fetch races the children's own initialization
-    // instead of queueing behind it. Start the promise here; never await it here.
     on_create() {
-        this._record = Users_Controller.get_user_for_edit({ user_id: int(this.args.user_id) });
+        this.data.record = null;
+        this.data.error_data = null;
     }
 
-    // Renders REBUILD the DOM, so the overlay is STATE, re-armed every render.
-    on_render() {
-        if (!this._record_settled) {
-            this._get_form()?.set_loading(true);
-        }
-    }
-
-    // populate() applies the values and clears the overlay in its finally, on
-    // success and on rejection alike. Guarded, because populate() can re-render.
-    on_ready() {
-        if (this._populate_started) return;
-        this._populate_started = true;
-        this._populate();
-    }
-
-    async _populate() {
-        const form = this._get_form();
+    async on_load() {
         try {
-            await form.populate(this._record);
+            this.data.record = await Users_Controller.get_user_for_edit({user_id: int(this.args.user_id)});
         } catch (e) {
-            this._record_settled = true;
-            await form.render_error(e);
-            return;
+            this.data.error_data = e;
         }
-        this._record_settled = true;
     }
 
-    _get_form() {
-        const $form = this.$.find('.Rsx_Form').first();
-        return $form.exists() ? $form.component() : null;
+    // A record the caller may not edit is shown as the form's own error.
+    on_ready() {
+        if (this.data.error_data) {
+            this.sid('form').render_error(this.data.error_data);
+        }
     }
 }
 ```
 
-The settled flag is an INSTANCE property, deliberately not `this.data`: `this.data` is
-the maybe-cached result of `on_load()`, and a cached "already settled" would lie on the
-next open while the real fetch was still in flight.
+```jqhtml
+<Rsx_Form $sid="form" $controller="Users_Controller" $method="save_user" $data=this.data.record>
+```
 
-The template still renders the REAL form unconditionally - never a placeholder. The
-overlay is what the user waits behind, and it is the form's own structure underneath.
+The template renders the REAL form - never a placeholder; the spinner is what the user waits
+behind. Nothing can be submitted before the record is in: the hidden body cannot be reached, and
+the primary button does nothing while the spinner shows - blank is a value, so a submit racing
+the fetch would validly clear every field the data had not reached. `'always'` also creates the
+body with jqhtml's `skip_cache_read`, so nothing hidden paints from cache. `'uncached'` is the other
+mode (held only when jqhtml has no record of this component, with these args, reaching ready),
+for a dialog that SHOWS data. Worked example:
+`rsx/app/frontend/settings/user_management/edit_user/`.
 
 ## Custom Modals
 
@@ -275,6 +265,7 @@ Modal.form({
     closable: true,
     before_submit: (vals, form) => {},   // adjust the payload / abort with false
     on_success: (result, form) => {},    // side effects before the dialog closes
+    spinner_until_ready: 'always',       // or 'uncached': hide the body until it is ready
 });
 ```
 
@@ -376,8 +367,8 @@ $('#delete-btn').click(async () => {
 
 ### Edit Modal Pattern
 
-The dialog opens IMMEDIATELY and the body loads its own record behind the form's
-loading overlay (see **Edit modals** above). Nothing is fetched before opening:
+The dialog opens IMMEDIATELY and the body loads its own record behind the spinner (see
+**Edit modals** above). Nothing is fetched before opening:
 
 ```javascript
 class Edit_Item_Modal extends Modal_Abstract {
@@ -386,6 +377,7 @@ class Edit_Item_Modal extends Modal_Abstract {
             title: 'Edit Item',
             component: 'Edit_Item_Modal_Form',
             component_args: { item_id: int(item_id) },
+            spinner_until_ready: 'always',
         });
 
         return result || false;
@@ -459,8 +451,8 @@ Modals automatically close on SPA navigation via `spa_dispatch_start` event. Thi
 Modals automatically manage state:
 
 - **Loading state**: submit buttons enter the submitting state and are inert until the
-  round trip completes; an edit form additionally wears a loading overlay, and refuses
-  to submit, until its record lands
+  round trip completes; an edit dialog opened with `spinner_until_ready` stays hidden
+  behind the spinner, its primary button doing nothing, until its record lands
 - **Form state**: values are untouched by a failed submit - the same form instance
   stays on screen with the server's messages rendered into it
 - **Error state**: display errors without closing

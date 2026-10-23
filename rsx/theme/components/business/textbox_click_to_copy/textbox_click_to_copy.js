@@ -40,7 +40,7 @@ class Textbox_Click_To_Copy extends Component {
 
         try {
             // Use Clipboard API to copy text
-            await navigator.clipboard.writeText(value);
+            await this.alive(navigator.clipboard.writeText(value));
 
             // Show flash alert
             Flash_Alert.info('Copied to clipboard', 2000);

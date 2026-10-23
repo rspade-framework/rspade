@@ -84,6 +84,10 @@ The form is `<Rsx_Form $controller="Frontend_Clients_Controller" $method="save"
 $data=this.data.form_data>` — `$data` present means edit, absent means create, and the
 endpoint is named on the tag and nowhere else.
 
+**The view page declares `@spinner_until_ready('uncached')` and the edit page
+`@spinner_until_ready('always')`** - a first visit to the view is revealed whole once every
+region has loaded, and the edit form is never seen before its record is in.
+
 **The view page uses the three-state pattern**: `<Loading_Spinner>` while `on_load()` runs,
 `<Universal_Error_Page_Component>` from `this.data.error_data` on failure, content
 otherwise. Its distinctive move is the deleted-record fallback — a `NOT_FOUND` from

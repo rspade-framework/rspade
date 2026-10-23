@@ -86,7 +86,7 @@ class Repeater_Simple_Input extends Form_Input_Abstract {
             const index = int($btn.data('index'));
 
             if (this.args.confirm_remove) {
-                const confirmed = await Modal.confirm(this.args.confirm_title, this.args.confirm_message);
+                const confirmed = await this.alive(Modal.confirm(this.args.confirm_title, this.args.confirm_message));
                 if (!confirmed) return;
             }
 
@@ -125,7 +125,9 @@ class Repeater_Simple_Input extends Form_Input_Abstract {
         let edit_component = $edit_el.component();
 
         // Wait for component to be ready, then listen for change
-        await edit_component.ready();
+        await this.alive(edit_component.ready());
+        // ready() also resolves when the edit component stopped (the pending row was cancelled).
+        if (edit_component.is_stopped()) return;
 
         // If edit component supports exclusion, pass already-selected values
         if (typeof edit_component.exclude === 'function') {

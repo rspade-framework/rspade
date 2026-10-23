@@ -34,7 +34,7 @@ class Party_DataGrid extends DataGrid_Abstract {
             }
 
             try {
-                await Frontend_Party_Controller.delete({ id });
+                await this.alive(Frontend_Party_Controller.delete({ id }));
                 this.reload();
             } catch (error) {
                 Modal.alert('Error', error.message || 'Failed to delete party');

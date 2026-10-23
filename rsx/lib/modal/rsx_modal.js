@@ -188,6 +188,7 @@ class Rsx_Modal extends Component {
         if (options.on_show && typeof options.on_show === 'function') {
             // One tick, so the modal DOM exists before components mount into it.
             setTimeout(() => {
+                if (this.is_stopped()) return;
                 options.on_show();
             }, 10);
         }

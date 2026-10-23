@@ -112,7 +112,7 @@ class Select_State_Input extends Select_Ajax_Input {
         this._country_loaded = true;
 
         // Reload the component to trigger on_load with new country_code
-        await this.reload();
+        await this.alive(this.reload());
 
         const is_na = this.data.select_values.length === 1 && this.data.select_values[0].value === 'N/A';
         const has = (value) => this.data.select_values.some((opt) => str(typeof opt === 'object' ? opt.value : opt) === value);

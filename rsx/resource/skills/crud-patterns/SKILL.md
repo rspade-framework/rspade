@@ -1,6 +1,6 @@
 ---
 name: crud-patterns
-description: "The CRUD convention this application is built to - the list/ view/ edit/ directory split under rsx/app/frontend/<feature>/, a DataGrid_Abstract backend with query()/columns()/default_sort(), the three-state loading pattern on a view page, the dual-@route add/edit action with its _record_settled instance flag, and the gated fetch() on the model. Use when building a list, view or add/edit page, adding a DataGrid, laying out a new feature directory, or copying the canonical example in rsx/app/frontend/clients/."
+description: "The CRUD convention this application is built to - the list/ view/ edit/ directory split under rsx/app/frontend/<feature>/, a DataGrid_Abstract backend with query()/columns()/default_sort(), the three-state loading pattern on a view page, the dual-@route add/edit action, @spinner_until_ready('uncached') on a view page and ('always') on an edit page, and the gated fetch() on the model. Use when building a list, view or add/edit page, adding a DataGrid, laying out a new feature directory, or copying the canonical example in rsx/app/frontend/clients/."
 ---
 
 # CRUD patterns in this application
@@ -162,13 +162,17 @@ class Contacts_DataGrid extends DataGrid_Abstract
 
 ## View Page (Three-State Pattern)
 
-View pages use the three-state loading pattern: loading → error → content.
+View pages use the three-state loading pattern: loading → error → content. Every entity view
+page also declares `@spinner_until_ready('uncached')`: a first visit is held behind the spinner
+until the whole tree (self-loading regions included) is ready, and a revisit paints from cache
+at once (skill `rspade:spa`).
 
 ```javascript
 @route('/contacts/:id')
 @layout('Frontend_Layout')
 @spa('Frontend_Spa_Controller::index')
 @auth('is_logged_in', 'can_view_data')
+@spinner_until_ready('uncached')
 class Contacts_View_Action extends Spa_Action {
     on_create() {
         this.data.contact = null;
@@ -205,7 +209,10 @@ class Contacts_View_Action extends Spa_Action {
 
 ## Edit Page (Dual-Route Action)
 
-A single action handles both add and edit modes:
+A single action handles both add and edit modes, and declares
+`@spinner_until_ready('always')`: on every visit it stays hidden behind the spinner until it is
+ready, so the form is never seen - or typed into - before its record is in. There is no loading
+overlay, no "settled" flag and no re-seeding of the form to write.
 
 ```javascript
 @route('/contacts/add')
@@ -213,12 +220,12 @@ A single action handles both add and edit modes:
 @layout('Frontend_Layout')
 @spa('Frontend_Spa_Controller::index')
 @auth('is_logged_in', 'can_view_data', 'can_edit_data')
+@spinner_until_ready('always')
 class Contacts_Edit_Action extends Spa_Action {
     on_create() {
         this.data.form_data = { name: '', email: '' };
         this.data.is_edit = !!this.args.id;
         this.data.error = null;
-        this._record_settled = false;      // INSTANCE property - this.data is cached
     }
 
     async on_load() {
@@ -234,25 +241,6 @@ class Contacts_Edit_Action extends Spa_Action {
         } catch (e) {
             this.data.error = e;
         }
-    }
-
-    // An EDIT FORM does not use the three-state pattern: the real form renders
-    // unconditionally and wears the form's own loading overlay until the record
-    // lands. Renders rebuild the DOM, so the overlay is re-armed every render.
-    on_render() {
-        this._set_form_loading(this.data.is_edit && !this._record_settled);
-    }
-
-    on_ready() {
-        if (!this.data.is_edit || this.data.error) return;
-        this._record_settled = true;
-        this.$.find('.Rsx_Form').first().component().vals(this.data.form_data);
-        this._set_form_loading(false);
-    }
-
-    _set_form_loading(loading) {
-        const $form = this.$.find('.Rsx_Form').first();
-        if ($form.exists()) $form.component().set_loading(loading);
     }
 }
 ```
@@ -327,7 +315,7 @@ The model is also where a column's KIND is declared: `$enums` for an integer enu
 2. **Single action handles add/edit** - Dual `@route` decorators
 3. **Models implement `fetch()`** - With `#[Ajax_Endpoint_Model_Fetch]`
 4. **DataGrids extend `DataGrid_Abstract`** - Query + columns + sorting
-5. **Three-state pattern** - Loading -> Error -> Content, for VIEW pages. An EDIT FORM instead renders the real form and overlays it (`set_loading()`), keeping only the error branch. Skip the pattern entirely for DataGrid pages, static pages and redirect-only actions.
+5. **Three-state pattern** - Loading -> Error -> Content, for VIEW pages, with `@spinner_until_ready('uncached')`. An EDIT FORM instead renders the real form, keeping only the error branch, and declares `@spinner_until_ready('always')`. Skip the pattern entirely for DataGrid pages, static pages and redirect-only actions.
 6. **form_data must be serializable** - Plain objects, not models
 7. **Every surface is gated** - `#[Auth]` on every controller endpoint and model `fetch()`, `@auth` on every `@route` action. Closed by default; the manifest build fails without them, and `pre_dispatch()` never authorizes.
 

@@ -797,6 +797,12 @@ class Modal {
      *        {field: message} object to render as validation, or return false to abort
      *        silently (an "are you sure?" the user declined is not an error)
      * @param {Function} [options.on_success] - (result, form) side effects before the dialog closes
+     * @param {string} [options.spinner_until_ready] - 'always' or 'uncached': hide the component
+     *        behind the application's spinner until it is ready, exactly as the SPA decorator
+     *        @spinner_until_ready does for a page ('uncached' only when jqhtml has no record of
+     *        this component with these args reaching ready). An edit form loads its record in
+     *        on_load() and passes it as the form's $data; the submit button does nothing while
+     *        the spinner shows.
      * @returns {Promise<Object|false>} The server result on success, false otherwise
      */
     static async form(options) {
@@ -810,6 +816,7 @@ class Modal {
             cancel_label: 'Cancel',
             before_submit: null,
             on_success: null,
+            spinner_until_ready: null,
         };
 
         const final_options = Object.assign({}, defaults, options);
@@ -819,9 +826,15 @@ class Modal {
             return false;
         }
 
+        const spinner_mode = final_options.spinner_until_ready;
+        if (spinner_mode !== null && spinner_mode !== 'always' && spinner_mode !== 'uncached') {
+            throw new Error(`Modal.form() spinner_until_ready takes 'always' or 'uncached', got ${json_encode(spinner_mode)}.`);
+        }
+
         // The dialog opens immediately; the body component is created inside it by
-        // on_show, so an edit form starts its own fetch behind its loading overlay
-        // instead of the user waiting on a blank screen for the dialog to appear.
+        // on_show, so an edit form starts its own load at once - behind the spinner when
+        // spinner_until_ready asks for one - instead of the user waiting on a blank
+        // screen for the dialog to appear.
         const $body_content = $('<div class="modal-form-component-container"></div>');
         let component_instance = null;
 
@@ -838,6 +851,11 @@ class Modal {
                 class: 'btn-primary',
                 default: true,
                 callback: async function () {
+                    // Still hidden behind its spinner: there is nothing on screen to submit.
+                    if (Spinner_Overlay.is_shown(component_instance)) {
+                        return false;
+                    }
+
                     const $rsx_form = component_instance.$.hasClass('Rsx_Form')
                         ? component_instance.$
                         : component_instance.$.find('.Rsx_Form').first();
@@ -883,8 +901,20 @@ class Modal {
             max_width: final_options.max_width,
             closable: final_options.closable,
             on_show: () => {
-                $body_content.component(final_options.component, final_options.component_args);
+                // 'always' hides the body until ready on every open, so a cached first paint
+                // inside it is work nobody sees: jqhtml's reserved skip_cache_read turns the
+                // cache READ off for the body and everything in it (writes continue).
+                const component_args = spinner_mode === 'always'
+                    ? { ...final_options.component_args, skip_cache_read: true }
+                    : final_options.component_args;
+                $body_content.component(final_options.component, component_args);
                 component_instance = $body_content.component();
+
+                if (spinner_mode === 'always' || (spinner_mode === 'uncached' && !component_instance.was_ready_before())) {
+                    const shown = component_instance;
+                    Spinner_Overlay.show(shown);
+                    shown.ready().then(() => Spinner_Overlay.hide(shown));
+                }
             },
         });
     }

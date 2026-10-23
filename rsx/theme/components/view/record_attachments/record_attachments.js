@@ -83,6 +83,9 @@ class Record_Attachments extends Component {
                 failures.push(e.message || 'The files could not be attached.');
             }
         }
+        // The uploads and the attach above finish even when the component was stopped
+        // meanwhile; only what follows belongs to it.
+        if (this.is_stopped()) return;
 
         const names = files.map((file) => file.name);
         this.state.uploading = this.state.uploading.filter((name) => {
@@ -93,14 +96,14 @@ class Record_Attachments extends Component {
         });
 
         if (failures.length > 0) {
-            await Modal.alert('Upload Failed', failures.join('\n'));
+            await this.alive(Modal.alert('Upload Failed', failures.join('\n')));
         }
 
         // The host refetches and re-renders this section with the new rows; when nothing
         // attached, the pending rows are simply cleared.
         if (keys.length > 0) {
             this.trigger('changed');
-        } else if (!this._stopped) {
+        } else {
             this.render();
         }
     }

@@ -184,63 +184,47 @@ await Modal.form({
 
 ### Edit modals: the record arrives after the dialog opens
 
-The dialog opens **immediately** and the body mounts inside it, so an edit form starts
-its own fetch behind its own loading overlay. Nothing is fetched before `Modal.form()`.
-The body IS the loader, and that needs a JS class - three hooks, each for a definitional
-reason:
+The dialog opens **immediately** and the body mounts inside it, so an edit form starts its
+own load at once. Nothing is fetched before `Modal.form()`. The body loads its record in
+`on_load()` and binds it as the form's `$data`, and the dialog is opened with
+`spinner_until_ready: 'always'`, so the body stays hidden behind the spinner until it is ready:
 
 ```javascript
 class Edit_User_Modal_Form extends Component {
-    // Earliest legal moment: the fetch races the children's own initialization
-    // instead of queueing behind it. Start the promise here; never await it here.
     on_create() {
-        this._record = Users_Controller.get_user_for_edit({user_id: int(this.args.user_id)});
+        this.data.record = null;
+        this.data.error_data = null;
     }
 
-    // Renders REBUILD the DOM, so the overlay is STATE, re-armed every render.
-    on_render() {
-        if (!this._record_settled) {
-            this._get_form()?.set_loading(true);
-        }
-    }
-
-    // populate() applies the values and clears the overlay in its finally, on
-    // success and on rejection alike. Guarded, because populate() can re-render.
-    on_ready() {
-        if (this._populate_started) return;
-        this._populate_started = true;
-        this._populate();
-    }
-
-    async _populate() {
-        const form = this._get_form();
+    async on_load() {
         try {
-            await form.populate(this._record);
+            this.data.record = await Users_Controller.get_user_for_edit({user_id: int(this.args.user_id)});
         } catch (e) {
-            this._record_settled = true;
-            await form.render_error(e);
-            return;
+            this.data.error_data = e;
         }
-        this._record_settled = true;
     }
 
-    _get_form() {
-        const $form = this.$.find('.Rsx_Form').first();
-        return $form.exists() ? $form.component() : null;
+    // A record the caller may not edit is shown as the form's own error.
+    on_ready() {
+        if (this.data.error_data) {
+            this.sid('form').render_error(this.data.error_data);
+        }
     }
 }
 ```
 
-The settled flag is an **instance property**, deliberately not `this.data`: `this.data` is
-the maybe-cached result of `on_load()`, and a cached "already settled" would lie on the
-next open while the real fetch was still in flight.
+```jqhtml
+<Rsx_Form $sid="form" $controller="Users_Controller" $method="save_user" $data=this.data.record>
+```
 
-The template renders the REAL form unconditionally - never a placeholder. While the
-record is in flight the form **refuses to submit**: blank is a value, so a submit racing
-the fetch would validly clear every field the data had not reached.
-
-Worked example:
-`rsx/app/frontend/settings/user_management/edit_user/edit_user_modal_form.js`
+The template renders the REAL form - never a placeholder; the spinner is what the user waits
+behind. Nothing can be submitted before the record is in: the hidden body cannot be reached, and
+the primary button does nothing while the spinner shows - blank is a value, so a submit racing
+the fetch would validly clear every field the data had not reached. `'always'` also creates the
+body with jqhtml's `skip_cache_read`, so nothing hidden paints from cache. `'uncached'` is the other
+mode (held only when jqhtml has no record of this component, with these args, reaching ready),
+for a dialog that SHOWS data. Worked example:
+`rsx/app/frontend/settings/user_management/edit_user/`.
 
 ### Error handling: there is nothing to write
 
@@ -345,11 +329,12 @@ class Add_User_Modal extends Modal_Abstract {
 class Edit_User_Modal extends Modal_Abstract {
     static async show(user_id) {
         // Nothing is fetched here - the body component loads the record itself,
-        // behind the form's own loading overlay.
+        // behind the spinner.
         const result = await Modal.form({
             title: 'Edit User',
             component: 'Edit_User_Modal_Form',
             component_args: {user_id: int(user_id)},
+            spinner_until_ready: 'always',
         });
 
         return result || false;
@@ -388,6 +373,7 @@ await Modal.form({
     closable: true,                // ESC / backdrop / X (default true)
     before_submit: (vals, form) => {},   // adjust the payload, or false to abort
     on_success: (result, form) => {},    // side effects before the dialog closes
+    spinner_until_ready: 'always',       // or 'uncached': hide the body until it is ready
 });
 ```
 
@@ -451,4 +437,4 @@ Backdrop persists across queued modals with 500ms delay between.
 | The dialog closed and threw the input away | A button callback returned `null`; return `false` |
 | The dialog will not close after submit | The endpoint returned a validation error - look at the fields |
 | Validation errors do not show | No `<Form_Errors />` (it throws), or the endpoint used `response_error(ERROR_VALIDATION, 'string')` instead of `response_form_error()` |
-| An edit modal shows an empty form | `populate()` never ran, or the settled flag was stored in `this.data` and came back cached |
+| An edit modal shows an empty form | The record is not bound as the form's `$data`, or the dialog was opened without `spinner_until_ready: 'always'` and showed the form before `on_load()` finished |

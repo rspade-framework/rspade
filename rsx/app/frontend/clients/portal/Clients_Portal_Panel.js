@@ -82,7 +82,7 @@ class Clients_Portal_Panel extends Component {
             );
             if (!confirmed) return;
 
-            await Frontend_Clients_Controller.portal_remove_member({membership_id});
+            await this.alive(Frontend_Clients_Controller.portal_remove_member({membership_id}));
             this.reload();
         });
 
@@ -96,7 +96,7 @@ class Clients_Portal_Panel extends Component {
             const invite_message = `You've been invited to ${company}'s client portal. Get started here: ${url}`;
 
             const body = $('<div>').component('Resend_Invite_Modal_Body', { invite_message }).component();
-            await body.ready();
+            await this.alive(body.ready());
 
             const resend = await Modal.show({
                 title: 'Resend Invitation',
@@ -111,13 +111,13 @@ class Clients_Portal_Panel extends Component {
             if (!resend) return;
 
             try {
-                const response = await Frontend_Clients_Controller.portal_resend_invite({
+                const response = await this.alive(Frontend_Clients_Controller.portal_resend_invite({
                     client_id: this.args.client_id,
                     contact_id,
-                });
-                await Modal.alert('Invitation Re-sent', response.message);
+                }));
+                await this.alive(Modal.alert('Invitation Re-sent', response.message));
             } catch (err) {
-                await Modal.alert('Error', err.message || 'Failed to resend invitation');
+                await this.alive(Modal.alert('Error', err.message || 'Failed to resend invitation'));
             }
             this.reload();
         });
@@ -135,9 +135,9 @@ class Clients_Portal_Panel extends Component {
             if (!confirmed) return;
 
             try {
-                await Frontend_Clients_Controller.portal_revoke_invite({ invitation_id });
+                await this.alive(Frontend_Clients_Controller.portal_revoke_invite({ invitation_id }));
             } catch (err) {
-                await Modal.alert('Error', err.message || 'Failed to cancel invitation');
+                await this.alive(Modal.alert('Error', err.message || 'Failed to cancel invitation'));
             }
             this.reload();
         });
@@ -153,7 +153,7 @@ class Clients_Portal_Panel extends Component {
         // Add member button -> the redesigned checkbox-table modal.
         if (this.$sid('add-member-btn').exists()) {
             this.$sid('add-member-btn').off('click.cpp').on('click.cpp', async () => {
-                if (await Add_Portal_Members_Modal.show(this.args.client_id)) this.reload();
+                if (await this.alive(Add_Portal_Members_Modal.show(this.args.client_id))) this.reload();
             });
         }
 
@@ -187,7 +187,7 @@ class Clients_Portal_Panel extends Component {
             const attachment_id = int($(e.currentTarget).data('share-doc'));
             const doc = (this.data.documents || []).find((d) => int(d.attachment_id) === attachment_id);
             const shared_ids = doc ? (doc.shared_with || []).map((s) => s.contact_id) : [];
-            if (await Share_Document_Modal.show(this.args.client_id, attachment_id, shared_ids)) this.reload();
+            if (await this.alive(Share_Document_Modal.show(this.args.client_id, attachment_id, shared_ids))) this.reload();
         });
 
         // Delete a document (detaches it and removes all shares).
@@ -200,7 +200,7 @@ class Clients_Portal_Panel extends Component {
                 'Cancel'
             );
             if (!confirmed) return;
-            await Frontend_Clients_Controller.document_delete({client_id: this.args.client_id, attachment_id});
+            await this.alive(Frontend_Clients_Controller.document_delete({client_id: this.args.client_id, attachment_id}));
             this.reload();
         });
 
@@ -216,9 +216,9 @@ class Clients_Portal_Panel extends Component {
             );
             if (!confirmed) return;
             try {
-                await Frontend_Clients_Controller.document_restore({client_id: this.args.client_id, attachment_id});
+                await this.alive(Frontend_Clients_Controller.document_restore({client_id: this.args.client_id, attachment_id}));
             } catch (err) {
-                await Modal.alert('Cannot Restore', err.message || 'This document can no longer be restored.');
+                await this.alive(Modal.alert('Cannot Restore', err.message || 'This document can no longer be restored.'));
             }
             this.reload();
         });
@@ -228,7 +228,7 @@ class Clients_Portal_Panel extends Component {
         // New Request: title + body -> request_thread_create, then open the new thread.
         if (this.$sid('new-request-btn').exists()) {
             this.$sid('new-request-btn').off('click.cpp').on('click.cpp', async () => {
-                const thread_url = await New_Request_Thread_Modal.show(this.args.client_id);
+                const thread_url = await this.alive(New_Request_Thread_Modal.show(this.args.client_id));
                 if (thread_url) Spa.dispatch(thread_url);
             });
         }
@@ -247,13 +247,16 @@ class Clients_Portal_Panel extends Component {
 
             const result = await Ajax.upload(form_data);
 
-            await Frontend_Clients_Controller.documents_add({
+            await this.alive(Frontend_Clients_Controller.documents_add({
                 client_id: this.args.client_id,
                 key: result.attachment.key,
-            });
+            }));
 
             this.reload();
         } catch (err) {
+            // The upload itself is not through alive(): a stop mid-upload still attaches the
+            // file, so a late upload failure can arrive here after the stop.
+            if (this.is_stopped()) return;
             await Modal.alert('Upload Failed', err.message || 'Failed to upload document');
         } finally {
             this.$sid('upload-doc-btn').prop('disabled', false);
@@ -280,16 +283,16 @@ class Clients_Portal_Panel extends Component {
         if (!confirmed) return;
 
         try {
-            const response = await Frontend_Clients_Controller.portal_post_announcement({
+            const response = await this.alive(Frontend_Clients_Controller.portal_post_announcement({
                 client_id: this.args.client_id,
                 title: title,
                 body: body,
-            });
+            }));
 
-            await Modal.alert(
+            await this.alive(Modal.alert(
                 'Announcement Posted',
                 `Delivered to ${response.recipients} portal ${response.recipients === 1 ? 'member' : 'members'}.`
-            );
+            ));
 
             this.reload();
         } catch (e) {

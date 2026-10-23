@@ -13,16 +13,11 @@
 @spa('Frontend_Spa_Controller::index')
 @title('User Settings')
 @auth('is_logged_in')
+@spinner_until_ready('always')
 class Settings_User_Settings_Action extends Spa_Action {
     scaffolded = true;
 
-    static FORM_SIDS = ['timezone_form', 'theme_form', 'preferences_form'];
-
     on_create() {
-        // Instance property, not this.data: this.data is cached, and a cached
-        // "settled" would lie on a revisit while revalidation was still in flight.
-        this._settings_settled = false;
-
         this.data.timezone_options = [];
         this.data.timezone_form_data = {
             timezone: '',
@@ -71,44 +66,11 @@ class Settings_User_Settings_Action extends Spa_Action {
         };
     }
 
-    /**
-     * Every section loads from the same on_load(), so every form wears the overlay for
-     * the same window.
-     *
-     * @param {boolean} loading
-     */
-    _set_form_loading(loading) {
-        const that = this;
-
-        foreach(Settings_User_Settings_Action.FORM_SIDS, function (sid) {
-            const form = that.sid(sid);
-            if (form) {
-                form.set_loading(loading);
-            }
-        });
-    }
-
-    on_render() {
-        // Armed on EVERY render until this instance's load settles - renders rebuild
-        // the DOM, so the overlay has to be state rather than a one-shot operation.
-        this._set_form_loading(!this._settings_settled);
-    }
-
     on_ready() {
         const that = this;
         const auto_input = this.sid('timezone_auto_input');
         const select_input = this.sid('timezone_input');
         const form = this.sid('timezone_form');
-
-        // Ready means this action's load is complete, by definition - so this is where
-        // the overlay comes off, and why it could never have been raised here. The
-        // framework only re-renders when loaded data CHANGED, so a cache-match revisit
-        // keeps the cached form instance: seed it explicitly.
-        this._settings_settled = true;
-        form.vals(this.data.timezone_form_data);
-        this.sid('theme_form').vals(this.data.theme_form_data);
-        this.sid('preferences_form').vals(this.data.preferences_form_data);
-        this._set_form_loading(false);
 
         // The form has applied the loaded values by now, so the interlock reads real
         // state here.

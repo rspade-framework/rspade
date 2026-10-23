@@ -60,10 +60,10 @@ class Settings_User_Management_Session_View_Action extends Spa_Action {
             return;
         }
 
-        await Frontend_Settings_User_Management_Controller.terminate_user_session({
+        await this.alive(Frontend_Settings_User_Management_Controller.terminate_user_session({
             id: this.data.user.id,
             user_session_id: this.data.session.id,
-        });
+        }));
 
         this.reload();
     }

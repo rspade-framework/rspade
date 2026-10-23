@@ -41,11 +41,11 @@ class Portal_Settings_Action extends Spa_Action {
                 const confirm_pw = this.$sid('confirm-password').val();
 
                 try {
-                    await Portal_Settings_Controller.change_password({
+                    await this.alive(Portal_Settings_Controller.change_password({
                         current_password: current,
                         new_password: new_pw,
                         confirm_password: confirm_pw,
-                    });
+                    }));
                     await Modal.alert('Password Updated', 'Your password has been changed successfully.');
                     this.$sid('current-password').val('');
                     this.$sid('new-password').val('');
@@ -67,7 +67,7 @@ class Portal_Settings_Action extends Spa_Action {
         this.$.on('click.psa', '[data-terminate-session]', async (e) => {
             const user_session_id = int($(e.currentTarget).data('terminate-session'));
             if (!await Modal.confirm('Sign Out Device', 'That device is signed out of the portal now. You can sign in on it again.', 'Sign Out')) return;
-            await Portal_Settings_Controller.terminate_session({user_session_id});
+            await this.alive(Portal_Settings_Controller.terminate_session({user_session_id}));
             this.reload();
         });
     }

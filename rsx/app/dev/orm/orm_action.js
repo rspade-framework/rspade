@@ -52,7 +52,7 @@ class Dev_Orm_Action extends Spa_Action {
             const id = int(that.$sid('client_id').val());
             if (!id) return;
             try {
-                const result = await Client_Model.fetch(id);
+                const result = await that.alive(Client_Model.fetch(id));
                 that._update_result('client', result);
             } catch (e) {
                 that._update_result('client', { error: e.message });
@@ -63,7 +63,7 @@ class Dev_Orm_Action extends Spa_Action {
             const id = int(that.$sid('contact_id').val());
             if (!id) return;
             try {
-                const result = await Contact_Model.fetch(id);
+                const result = await that.alive(Contact_Model.fetch(id));
                 that._update_result('contact', result);
             } catch (e) {
                 that._update_result('contact', { error: e.message });
@@ -74,7 +74,7 @@ class Dev_Orm_Action extends Spa_Action {
             const id = int(that.$sid('project_id').val());
             if (!id) return;
             try {
-                const result = await Project_Model.fetch(id);
+                const result = await that.alive(Project_Model.fetch(id));
                 that._update_result('project', result);
             } catch (e) {
                 that._update_result('project', { error: e.message });

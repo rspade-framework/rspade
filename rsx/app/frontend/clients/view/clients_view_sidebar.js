@@ -19,26 +19,26 @@ class Clients_View_Sidebar extends Component {
         const client_id = this.args.client.id;
 
         this.$sid('enable-portal').off('click.cvs').on('click.cvs', async () => {
-            await Frontend_Clients_Controller.toggle_portal({id: client_id, enabled: true});
+            await this.alive(Frontend_Clients_Controller.toggle_portal({id: client_id, enabled: true}));
             this.trigger('client_changed');
         });
 
         this.$sid('disable-portal').off('click.cvs').on('click.cvs', async () => {
             const confirmed = await Modal.confirm('Disable Portal', 'Are you sure you want to disable the portal for this client?\n\nExisting portal members will lose access.', 'Disable', 'Cancel');
             if (!confirmed) return;
-            await Frontend_Clients_Controller.toggle_portal({id: client_id, enabled: false});
+            await this.alive(Frontend_Clients_Controller.toggle_portal({id: client_id, enabled: false}));
             this.trigger('client_changed');
         });
 
         this.$sid('delete-client').off('click.cvs').on('click.cvs', async () => {
             const confirmed = await Modal.confirm('Delete Client', 'Are you sure you want to delete this client?\n\nThis can be undone by restoring the client afterward.', 'Delete', 'Cancel');
             if (!confirmed) return;
-            await Frontend_Clients_Controller.delete({id: client_id});
+            await this.alive(Frontend_Clients_Controller.delete({id: client_id}));
             Spa.dispatch(Rsx.Route('Clients_Index_Action'));
         });
 
         this.$sid('restore-client').off('click.cvs').on('click.cvs', async () => {
-            await Frontend_Clients_Controller.restore({id: client_id});
+            await this.alive(Frontend_Clients_Controller.restore({id: client_id}));
             this.trigger('client_changed');
         });
     }

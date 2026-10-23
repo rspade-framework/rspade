@@ -33,7 +33,10 @@ class Add_Api_Key_Modal_Form extends Component {
         // The stdlib debounce - a keystroke in the scopes box should not be one round trip.
         // The DELAY is a UI cadence, not a bound on any operation: nothing is cancelled or
         // failed when it elapses, the preview simply refreshes.
-        this._refresh_preview = debounce(() => this._resolve_preview(), 250);
+        this._refresh_preview = debounce(() => {
+            if (this.is_stopped()) return;
+            this._resolve_preview();
+        }, 250);
     }
 
     async on_load() {

@@ -49,10 +49,16 @@ class Portal_Settings_Security extends Component {
                 try {
                     result = await Rsx_Portal_Two_Factor_Controller.recovery_regenerate();
                 } catch (error) {
+                    // Not through alive(): the new codes must be shown even after a stop, so a
+                    // failure can also arrive after one.
+                    if (this.is_stopped()) return;
                     await Modal.alert('Error', error.message || 'That could not be done.');
                     return;
                 }
+                // Shown even when the page was left meanwhile: the old codes are already void
+                // and this response is the only place the new ones exist.
                 await Modal.alert('Save your recovery codes', result.recovery_codes.join('\n'));
+                if (this.is_stopped()) return;
                 this.reload();
             });
         }
@@ -87,7 +93,7 @@ class Portal_Settings_Security extends Component {
      */
     async _attempt(fn) {
         try {
-            await fn();
+            await this.alive(fn());
         } catch (error) {
             await Modal.alert('Error', error.message || 'That could not be done.');
             return;

@@ -94,10 +94,10 @@ class Settings_User_Management_View_Action extends Spa_Action {
             return;
         }
 
-        await Frontend_Settings_User_Management_Controller.terminate_user_session({
+        await this.alive(Frontend_Settings_User_Management_Controller.terminate_user_session({
             id: this.data.user.id,
             user_session_id: user_session_id,
-        });
+        }));
 
         this.reload();
     }
@@ -116,9 +116,9 @@ class Settings_User_Management_View_Action extends Spa_Action {
             return;
         }
 
-        await Frontend_Settings_User_Management_Controller.terminate_all_user_sessions({
+        await this.alive(Frontend_Settings_User_Management_Controller.terminate_all_user_sessions({
             id: this.data.user.id,
-        });
+        }));
 
         this.reload();
     }
@@ -142,10 +142,10 @@ class Settings_User_Management_View_Action extends Spa_Action {
             }
         }
 
-        await Frontend_Settings_User_Management_Controller.set_user_enabled({
+        await that.alive(Frontend_Settings_User_Management_Controller.set_user_enabled({
             id: that.data.user.id,
             is_enabled: is_enabled ? 1 : 0,
-        });
+        }));
 
         that.reload();
     }
@@ -157,7 +157,7 @@ class Settings_User_Management_View_Action extends Spa_Action {
         let that = this;
 
         // Show edit user modal
-        const result = await Edit_User_Modal.show(that.data.user.id);
+        const result = await that.alive(Edit_User_Modal.show(that.data.user.id));
 
         if (result) {
             // Reload action to show updated user information
@@ -172,7 +172,7 @@ class Settings_User_Management_View_Action extends Spa_Action {
         let that = this;
 
         // Show send invite modal
-        const result = await Send_User_Invite_Modal.show(that.data.user.id);
+        const result = await that.alive(Send_User_Invite_Modal.show(that.data.user.id));
 
         if (result) {
             // Reload action to show updated invite status

@@ -15,7 +15,7 @@ class Tab_Panels extends Component {
     register_panel(panel) {
         // A self re-render recreates the panels; drop stopped instances so the
         // registry never accumulates dead components.
-        this.panels = this.panels.filter((p) => !p._stopped);
+        this.panels = this.panels.filter((p) => !p.is_stopped());
         this.panels.push(panel);
 
         // Registration happens in the panel's on_create (render phase). If the

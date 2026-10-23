@@ -59,7 +59,7 @@ class Clients_Request_Thread_Action extends Spa_Action {
             const id = int($(e.currentTarget).data('document'));
             const document = this._find_document(id);
             if (!document) return;
-            if (await Document_Detail_Modal.show(document)) this.reload();
+            if (await this.alive(Document_Detail_Modal.show(document))) this.reload();
         });
 
         // The composer renders only for a thread that is not closed (closed threads are
@@ -120,7 +120,7 @@ class Clients_Request_Thread_Action extends Spa_Action {
             const form_data = new FormData();
             form_data.append('file', file);
 
-            const result = await Ajax.upload(form_data);
+            const result = await this.alive(Ajax.upload(form_data));
 
             this.state.pending_attachments.push({
                 key: result.attachment.key,
@@ -169,12 +169,12 @@ class Clients_Request_Thread_Action extends Spa_Action {
 
         this.$sid('send-btn').prop('disabled', true);
         try {
-            await Frontend_Clients_Controller.request_thread_reply({
+            await this.alive(Frontend_Clients_Controller.request_thread_reply({
                 thread_id: this.args.thread_id,
                 body,
                 status: status !== '' ? int(status) : null,
                 attachment_keys,
-            });
+            }));
             this.state.pending_attachments = [];
             this.reload();
         } catch (e) {

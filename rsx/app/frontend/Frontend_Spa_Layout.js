@@ -257,6 +257,8 @@ class Frontend_Spa_Layout extends Spa_Layout {
      * Called when all breadcrumb labels have resolved
      */
     _on_breadcrumb_complete(chain) {
+        // The layout persists across navigation; each navigation cancels the previous
+        // breadcrumb stream, which is the guard against a superseded chain.
         this._current_chain = chain;
         this._render_breadcrumbs();
     }
@@ -301,7 +303,8 @@ class Frontend_Spa_Layout extends Spa_Layout {
         const spec = await action.page_actions();
 
         // A slower page_actions() from an earlier navigation must not paint over the
-        // current action's header.
+        // current action's header. The layout persists across navigation, so this
+        // action-identity test is the guard.
         if (this.action !== action || !spec) {
             return;
         }

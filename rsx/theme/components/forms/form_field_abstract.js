@@ -80,7 +80,9 @@ class Form_Field_Abstract extends Component {
 
         // Call the seeder endpoint (an Ajax route reference)
         try {
-            let value = await Ajax.call(this.args.seeder, {});
+            let value = await this.alive(Ajax.call(this.args.seeder, {}));
+            // The input is its own component and may have stopped on its own.
+            if (input.is_stopped()) return;
             input.val(value);
         } catch (error) {
             console.error(`Seeder error for ${this._field_name}:`, error);

@@ -39,6 +39,7 @@ class Ajax_Entity_Select_Input extends Select_Input {
         const that = this;
         Frontend_Tasks_Controller.search_parents({ type: this.args.parent_type, id: int(id) })
             .then((res) => {
+                if (that.is_stopped()) return;
                 const rec = (res.results || [])[0];
                 if (!rec || !that.tom_select || that.tom_select.getValue() !== id) return;
                 that.tom_select.updateOption(id, Object.assign({}, rec, { id: id }));

@@ -74,9 +74,9 @@ class Portal_Dashboard_Action extends Spa_Action {
         this.$.off('click.accept').on('click.accept', '[data-accept-invite]', async (e) => {
             const invitation_id = int($(e.currentTarget).data('accept-invite'));
             try {
-                await Portal_Invitations_Controller.accept({ invitation_id });
+                await this.alive(Portal_Invitations_Controller.accept({ invitation_id }));
             } catch (err) {
-                await Modal.alert('Error', err.message || 'Failed to accept invitation');
+                await this.alive(Modal.alert('Error', err.message || 'Failed to accept invitation'));
             }
             this.reload();
         });
@@ -86,9 +86,9 @@ class Portal_Dashboard_Action extends Spa_Action {
             const confirmed = await Modal.confirm('Decline Invitation', 'Decline this invitation? You can be re-invited later.', 'Decline', 'Cancel');
             if (!confirmed) return;
             try {
-                await Portal_Invitations_Controller.decline({ invitation_id });
+                await this.alive(Portal_Invitations_Controller.decline({ invitation_id }));
             } catch (err) {
-                await Modal.alert('Error', err.message || 'Failed to decline invitation');
+                await this.alive(Modal.alert('Error', err.message || 'Failed to decline invitation'));
             }
             this.reload();
         });
@@ -105,7 +105,7 @@ class Portal_Dashboard_Action extends Spa_Action {
                 // Mark read in the background, then navigate. No reload needed - we
                 // are leaving the page.
                 if (is_unread) {
-                    await Portal_Notifications_Controller.mark_read({ id });
+                    await this.alive(Portal_Notifications_Controller.mark_read({ id }));
                 }
                 Spa.dispatch(url);
                 return;
@@ -113,7 +113,7 @@ class Portal_Dashboard_Action extends Spa_Action {
 
             // No url: toggle to read and refresh the feed in place.
             if (is_unread) {
-                await Portal_Notifications_Controller.mark_read({ id });
+                await this.alive(Portal_Notifications_Controller.mark_read({ id }));
                 this.reload();
             }
         });
@@ -122,7 +122,7 @@ class Portal_Dashboard_Action extends Spa_Action {
         // actions slot, so it is reached by a `.js-*` class hook (not $sid, which is
         // unproven across a named-slot boundary), delegated on this.$.
         this.$.off('click.markall').on('click.markall', '.js-mark-all-read', async () => {
-            await Portal_Notifications_Controller.mark_all_read();
+            await this.alive(Portal_Notifications_Controller.mark_all_read());
             this.reload();
         });
     }

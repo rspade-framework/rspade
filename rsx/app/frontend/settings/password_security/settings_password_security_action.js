@@ -205,7 +205,7 @@ class Settings_Password_Security_Action extends Spa_Action {
             return;
         }
 
-        await Frontend_Settings_Password_Security_Controller.sign_out_session({ user_session_id: user_session_id });
+        await this.alive(Frontend_Settings_Password_Security_Controller.sign_out_session({ user_session_id: user_session_id }));
 
         this.reload();
     }
@@ -225,7 +225,7 @@ class Settings_Password_Security_Action extends Spa_Action {
             return;
         }
 
-        await Frontend_Settings_Password_Security_Controller.sign_out_other_sessions();
+        await this.alive(Frontend_Settings_Password_Security_Controller.sign_out_other_sessions());
 
         this.reload();
     }
@@ -241,7 +241,7 @@ class Settings_Password_Security_Action extends Spa_Action {
      * @param {string} provider_key
      */
     async _sso_connect(provider_key) {
-        const result = await Rsx_Sso_Controller.link_begin({ provider: provider_key });
+        const result = await this.alive(Rsx_Sso_Controller.link_begin({ provider: provider_key }));
 
         window.location = result.url;
     }
@@ -265,7 +265,7 @@ class Settings_Password_Security_Action extends Spa_Action {
             return;
         }
 
-        await Rsx_Sso_Controller.identity_unlink({ id: identity_id });
+        await this.alive(Rsx_Sso_Controller.identity_unlink({ id: identity_id }));
 
         this.reload();
     }
@@ -288,7 +288,7 @@ class Settings_Password_Security_Action extends Spa_Action {
         const component = $container.component(name).component();
 
         component.on(event, async function () {
-            await Modal.close();
+            await that.alive(Modal.close());
             that.reload();
         });
 
@@ -323,7 +323,7 @@ class Settings_Password_Security_Action extends Spa_Action {
             return;
         }
 
-        await Rsx_Two_Factor_Controller.credential_remove({ id: credential_id });
+        await this.alive(Rsx_Two_Factor_Controller.credential_remove({ id: credential_id }));
 
         this.reload();
     }
@@ -345,8 +345,11 @@ class Settings_Password_Security_Action extends Spa_Action {
 
         const result = await Rsx_Two_Factor_Controller.recovery_regenerate();
 
+        // Shown even when the page was left meanwhile: the old codes are already void and
+        // this response is the only place the new ones exist.
         await this._show_recovery_codes(result.recovery_codes);
 
+        if (this.is_stopped()) return;
         this.reload();
     }
 

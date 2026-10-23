@@ -33,13 +33,13 @@ class Settings_Portal_Users_Index_Action extends Spa_Action {
         // Suspend
         this.$.on('click.spui', '[data-portal-action="suspend"]', async (e) => {
             const portal_user_id = int($(e.currentTarget).data('portal-user'));
-            if (await Portal_User_Admin_Actions.suspend(portal_user_id)) grid().reload();
+            if (await this.alive(Portal_User_Admin_Actions.suspend(portal_user_id))) grid().reload();
         });
 
         // Reactivate
         this.$.on('click.spui', '[data-portal-action="reactivate"]', async (e) => {
             const portal_user_id = int($(e.currentTarget).data('portal-user'));
-            if (await Portal_User_Admin_Actions.reactivate(portal_user_id)) grid().reload();
+            if (await this.alive(Portal_User_Admin_Actions.reactivate(portal_user_id))) grid().reload();
         });
     }
 

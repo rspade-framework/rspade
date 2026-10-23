@@ -45,6 +45,8 @@ class Users_DataGrid extends DataGrid_Abstract {
         });
 
         trigger_file_download(result.csv, result.filename);
+        // The download above is the user's; only the flash belongs to this page.
+        if (this.is_stopped()) return;
 
         Flash_Alert.success('Exported ' + result.count + ' user' + (result.count === 1 ? '' : 's'));
     }

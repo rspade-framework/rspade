@@ -1,8 +1,8 @@
 /**
  * Edit_User_Modal - Modal for editing existing user information
  *
- * The dialog opens IMMEDIATELY; Edit_User_Modal_Form loads the record itself and wears
- * the form's loading overlay until the values land, so the fields are never shown
+ * The dialog opens IMMEDIATELY; Edit_User_Modal_Form loads the record itself, and the
+ * dialog shows its spinner until that component is ready, so the fields are never shown
  * blank and a submit cannot race the fetch. The endpoint is the form's own
  * $controller/$method.
  *
@@ -21,6 +21,7 @@ class Edit_User_Modal extends Modal_Abstract {
             component: 'Edit_User_Modal_Form',
             component_args: { user_id: int(user_id) },
             submit_label: 'Save User',
+            spinner_until_ready: 'always',
         });
 
         return result || false;

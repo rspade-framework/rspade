@@ -64,10 +64,10 @@ class Settings_User_Management_Api_Keys_Action extends Spa_Action {
             return;
         }
 
-        await Frontend_Settings_User_Management_Controller.revoke_user_api_key({
+        await this.alive(Frontend_Settings_User_Management_Controller.revoke_user_api_key({
             id: this.args.id,
             key_id: key_id,
-        });
+        }));
 
         this.reload();
     }

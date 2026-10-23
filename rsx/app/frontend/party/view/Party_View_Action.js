@@ -13,6 +13,7 @@
 @layout('Frontend_Spa_Layout')
 @spa('Frontend_Spa_Controller::index')
 @auth('is_logged_in', 'can_view_data')
+@spinner_until_ready('uncached')
 class Party_View_Action extends Spa_Action {
     // Composes with Page_Scaffold: the layout yields max-width and page padding
     // to the scaffold (see Frontend_Spa_Layout.on_action).
@@ -87,7 +88,7 @@ class Party_View_Action extends Spa_Action {
         this.$sid('delete-party').off('click.pav').on('click.pav', async () => {
             const confirmed = await Modal.confirm('Delete Party', 'Are you sure you want to delete this party?\n\nThis can be undone by restoring it afterward.', 'Delete', 'Cancel');
             if (!confirmed) return;
-            await Frontend_Party_Controller.delete({id: this.args.id});
+            await this.alive(Frontend_Party_Controller.delete({id: this.args.id}));
             Spa.dispatch(Rsx.Route('Party_Index_Action'));
         });
     }

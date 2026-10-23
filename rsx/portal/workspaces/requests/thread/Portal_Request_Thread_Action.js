@@ -125,7 +125,7 @@ class Portal_Request_Thread_Action extends Spa_Action {
             const form_data = new FormData();
             form_data.append('file', file);
 
-            const result = await Ajax.upload(form_data);
+            const result = await this.alive(Ajax.upload(form_data));
 
             this.state.pending_attachments.push({
                 key: result.attachment.key,
@@ -174,11 +174,11 @@ class Portal_Request_Thread_Action extends Spa_Action {
 
         this.$sid('send-btn').prop('disabled', true);
         try {
-            await Portal_Request_Threads_Controller.reply({
+            await this.alive(Portal_Request_Threads_Controller.reply({
                 thread_id: this.args.thread_id,
                 body,
                 attachment_keys,
-            });
+            }));
             this.state.pending_attachments = [];
             this.reload();
         } catch (e) {
