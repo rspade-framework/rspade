@@ -8,6 +8,7 @@
 namespace Rsx\Tests;
 
 use App\RSpade\Core\Ajax\Ajax;
+use App\RSpade\Core\Models\Site_Model;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Revisions\Revision_Model;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
@@ -31,8 +32,6 @@ class Revision_History_Test extends Rsx_Test_Abstract
 {
     private const SITE_ID = 1;
 
-    private const OTHER_SITE_ID = 2;
-
     public static function setup(): void
     {
         static::__acting_as_site(self::SITE_ID);
@@ -50,6 +49,19 @@ class Revision_History_Test extends Rsx_Test_Abstract
         $client->save();
 
         return $client;
+    }
+
+    /**
+     * A second tenant for the duration of one test (rolled back with it).
+     */
+    private static function __other_site(): int
+    {
+        $site = new Site_Model();
+        $site->slug = 'revision-history-other-' . uniqid();
+        $site->name = 'Revision history probe tenant';
+        $site->save();
+
+        return (int) $site->id;
     }
 
     public static function test_history_returns_the_diff_for_an_edit()
@@ -92,7 +104,7 @@ class Revision_History_Test extends Rsx_Test_Abstract
 
     public static function test_a_record_the_caller_cannot_fetch_is_not_found()
     {
-        static::__acting_as_site(self::OTHER_SITE_ID);
+        static::__acting_as_site(static::__other_site());
         $other = static::__seed_client('RevisionHistory Other ' . str_replace('.', '', uniqid('', true)));
         $other->name = $other->name . ' Edited';
         $other->save();

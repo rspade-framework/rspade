@@ -8,6 +8,7 @@
 namespace Rsx\Tests;
 
 use App\RSpade\Core\Models\Portal_User_Model;
+use App\RSpade\Core\Models\Site_Model;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
@@ -218,12 +219,16 @@ class Portal_Client_Authorization_Test extends Rsx_Test_Abstract
         static::__grant_membership($user->id, $client->id, Portal_Membership_Model::ROLE_VIEWER);
 
         // Log in on a different site than where the data lives.
-        Portal_Session::set_site_id(self::SITE_ID + 999);
+        $other_site = new Site_Model();
+        $other_site->slug = 'portal-authz-other-' . uniqid();
+        $other_site->name = 'Portal authorization probe tenant';
+        $other_site->save();
+        Portal_Session::set_site_id((int) $other_site->id);
         Portal_Session::cli_set_portal_user_id($user->id);
 
         // Staff Session (used by site-scoped model queries) also moves to the wrong
         // site, so the membership lookup is scoped away and access is denied.
-        Session::set_site_id(self::SITE_ID + 999);
+        Session::set_site_id((int) $other_site->id);
 
         static::__assert_false(
             Portal_Permission::has_client_access($client->id),

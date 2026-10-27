@@ -8,6 +8,7 @@
 namespace Rsx\Tests;
 
 use Illuminate\Http\Request;
+use App\RSpade\Core\Models\Site_Model;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
 use Rsx\App\Api\V1\Contacts_Api_Controller;
 use Rsx\Models\Client_Model;
@@ -52,7 +53,11 @@ class Contacts_Api_Client_Site_Test extends Rsx_Test_Abstract
 
     public static function test_a_foreign_sites_client_is_refused()
     {
-        $foreign = static::__client_on_site(2);
+        $other_site = new Site_Model();
+        $other_site->slug = 'contacts-api-other-' . uniqid();
+        $other_site->name = 'Contacts API probe tenant';
+        $other_site->save();
+        $foreign = static::__client_on_site((int) $other_site->id);
 
         $response = static::__create((int) $foreign->id);
 

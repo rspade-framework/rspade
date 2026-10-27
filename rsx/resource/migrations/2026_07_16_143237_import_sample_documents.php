@@ -42,8 +42,9 @@ return new class extends Migration
             }
         }
 
-        // Site: the first client's site, else the first sites row, else 0.
-        $client = Client_Model::orderBy('id')->first();
+        // Site: the first client's site, else the first sites row, else 0. Read across every
+        // site: no tenant has been chosen yet, which is what this lookup decides.
+        $client = Client_Model::without_site_scope(fn () => Client_Model::orderBy('id')->first());
         $site_id = $client
             ? (int) $client->site_id
             : (int) (DB::table('sites')->orderBy('id')->value('id') ?? 0);

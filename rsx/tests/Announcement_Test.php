@@ -9,6 +9,7 @@ namespace Rsx\Tests;
 
 use App\RSpade\Core\Models\Portal_Notification_Model;
 use App\RSpade\Core\Models\Portal_User_Model;
+use App\RSpade\Core\Models\Site_Model;
 use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
 use Rsx\Models\Announcement_Model;
@@ -78,6 +79,19 @@ class Announcement_Test extends Rsx_Test_Abstract
     // =====================================================================
     // publish -> emits one notification per active member
     // =====================================================================
+
+    /**
+     * A second tenant for the duration of one test (rolled back with it).
+     */
+    private static function __other_site(): int
+    {
+        $site = new Site_Model();
+        $site->slug = 'announcement-other-' . uniqid();
+        $site->name = 'Announcement probe tenant';
+        $site->save();
+
+        return (int) $site->id;
+    }
 
     public static function test_publish_emits_one_notification_per_member()
     {
@@ -246,7 +260,7 @@ class Announcement_Test extends Rsx_Test_Abstract
         // another site sees nothing.
         static::__assert_count(1, Portal_Notification_Model::feed($member->id), 'visible within its own site');
 
-        Session::set_site_id(self::SITE_ID + 999);
+        Session::set_site_id(static::__other_site());
         static::__assert_count(0, Portal_Notification_Model::feed($member->id), 'invisible from another site');
         Session::set_site_id(self::SITE_ID);
     }

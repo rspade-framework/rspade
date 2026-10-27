@@ -10,6 +10,7 @@ namespace Rsx\Tests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\RSpade\Core\Models\Portal_User_Model;
+use App\RSpade\Core\Models\Site_Model;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
@@ -117,6 +118,19 @@ class Portal_User_Admin_Test extends Rsx_Test_Abstract
     // GLOBAL account suspend / reactivate (kept as the account ban)
     // =====================================================================
 
+    /**
+     * A second tenant for the duration of one test (rolled back with it).
+     */
+    private static function __other_site(): int
+    {
+        $site = new Site_Model();
+        $site->slug = 'portal-admin-other-' . uniqid();
+        $site->name = 'Portal admin probe tenant';
+        $site->save();
+
+        return (int) $site->id;
+    }
+
     public static function test_suspend_blocks_login_and_terminates_sessions()
     {
         $user = static::__make_portal_user();
@@ -153,7 +167,7 @@ class Portal_User_Admin_Test extends Rsx_Test_Abstract
     {
         $user = static::__make_portal_user();
 
-        $other_site_id = self::SITE_ID + 999;
+        $other_site_id = static::__other_site();
         static::__acting_as_site($other_site_id);
 
         $suspend = Frontend_Clients_Controller::portal_user_suspend(Request::create('/'), ['portal_user_id' => $user->id]);
