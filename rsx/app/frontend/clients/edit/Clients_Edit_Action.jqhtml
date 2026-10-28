@@ -25,34 +25,29 @@
                         <Form_Errors />
 
                         <Form_Field $label="Company Name" $required=true
-                            $help="The official name of the client company"
-                            $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::company_name') %>">
+                            $help="The official name of the client company">
                             <Text_Input $name="name" $max_length=Client_Model.field_length('name') />
                         </Form_Field>
                         <div class="row">
                             <div class="col-tablet-6">
-                                <Form_Field $label="Website"
-                                    $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::website') %>">
+                                <Form_Field $label="Website">
                                     <Text_Input $name="website" $type="url" $placeholder="https://example.com" $max_length=Client_Model.field_length('website') />
                                 </Form_Field>
                             </div>
                             <div class="col-tablet-6">
-                                <Form_Field $label="Email"
-                                    $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::email') %>">
+                                <Form_Field $label="Email">
                                     <Text_Input $name="email" $type="email" $placeholder="contact@example.com" $max_length=Client_Model.field_length('email') />
                                 </Form_Field>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-tablet-6">
-                                <Form_Field $label="Phone"
-                                    $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::phone') %>">
+                                <Form_Field $label="Phone">
                                     <Phone_Text_Input $name="phone" $placeholder="(555) 123-4567" />
                                 </Form_Field>
                             </div>
                             <div class="col-tablet-6">
-                                <Form_Field $label="Fax"
-                                    $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::phone') %>">
+                                <Form_Field $label="Fax">
                                     <Phone_Text_Input $name="fax" $placeholder="(555) 123-4568" />
                                 </Form_Field>
                             </div>
@@ -60,14 +55,12 @@
                     </Section>
 
                     <Section $title="Address" $icon="bi bi-geo-alt">
-                        <Form_Field $label="Street Address"
-                            $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::address') %>">
+                        <Form_Field $label="Street Address">
                             <Text_Input $name="address_street" $placeholder="123 Main Street" $max_length=Client_Model.field_length('address_street') />
                         </Form_Field>
                         <div class="row">
                             <div class="col-tablet-6">
-                                <Form_Field $label="City"
-                                    $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::city') %>">
+                                <Form_Field $label="City">
                                     <Text_Input $name="city" $placeholder="New York" $max_length=Client_Model.field_length('city') />
                                 </Form_Field>
                             </div>
@@ -79,8 +72,7 @@
                         </div>
                         <div class="row">
                             <div class="col-tablet-6">
-                                <Form_Field $label="ZIP Code"
-                                    $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::zip') %>">
+                                <Form_Field $label="ZIP Code">
                                     <Text_Input $name="zip" $placeholder="10001" $max_length=Client_Model.field_length('zip') />
                                 </Form_Field>
                             </div>
@@ -186,8 +178,7 @@
 
                     <Section $title="Internal Notes" $icon="bi bi-journal-text">
                         <Form_Field $label="Notes"
-                            $help="These notes are for internal use only and not visible to the client"
-                            $seeder="<%= Rsx.Route('Rsx_Formdata_Generator_Controller::text') %>">
+                            $help="These notes are for internal use only and not visible to the client">
                             <Raw_Text_Input $name="notes" $rows=6 $placeholder="Internal notes about this client..."
                                 $disabled=true />
                         </Form_Field>

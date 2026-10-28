@@ -41,10 +41,4 @@ class Raw_Text_Input extends Form_Input_Abstract {
     on_ready() {
         this._mark_ready();
     }
-
-    async seed() {
-        if (this.args.seeder) {
-            this.val(Raw_Text.from_editor('Test ' + this.args.seeder));
-        }
-    }
 }

@@ -167,9 +167,4 @@ class Profile_Photo_Input extends Form_Input_Abstract {
         // Announce the user's change ('input' then 'val').
         this._notify_input(this._get_value());
     }
-
-    async seed() {
-        // For testing - set a placeholder key
-        this.val('');
-    }
 }

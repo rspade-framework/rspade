@@ -7,11 +7,9 @@ Extends Select_Input with Ajax data loading capability.
 $data - Ajax endpoint URL that returns array of options
 $placeholder - Placeholder option text (default: "Please wait...")
 $disabled - Boolean to disable the select
-$seeder - Seeder function name for test data
 
 Widget interface:
 - val() - Get/set selected value (handles pre-initialization calls)
-- seed() - Fills with random value
 
 Features:
 - Loads options asynchronously from endpoint during on_load()

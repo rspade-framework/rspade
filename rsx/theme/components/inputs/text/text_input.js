@@ -30,12 +30,4 @@ class Text_Input extends Form_Input_Abstract {
             that._notify_input(that.val());
         });
     }
-
-    async seed() {
-        if (this.args.seeder) {
-            // TODO: Implement Rsx_Random_Values endpoint
-            let value = 'Test ' + (this.args.seeder || 'Value');
-            this.val(value);
-        }
-    }
 }

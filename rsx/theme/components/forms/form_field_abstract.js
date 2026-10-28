@@ -67,25 +67,4 @@ class Form_Field_Abstract extends Component {
         const $input_component = this.$.find('.Form_Input_Abstract').first();
         return $input_component.exists() ? $input_component.component() : null;
     }
-
-    async seed() {
-        if (!this.args.seeder) {
-            return;
-        }
-
-        const input = this.get_input();
-        if (!input) {
-            return;
-        }
-
-        // Call the seeder endpoint (an Ajax route reference)
-        try {
-            let value = await this.alive(Ajax.call(this.args.seeder, {}));
-            // The input is its own component and may have stopped on its own.
-            if (input.is_stopped()) return;
-            input.val(value);
-        } catch (error) {
-            console.error(`Seeder error for ${this._field_name}:`, error);
-        }
-    }
 }

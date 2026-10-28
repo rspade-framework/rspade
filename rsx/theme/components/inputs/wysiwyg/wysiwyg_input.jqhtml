@@ -4,11 +4,9 @@ Wysiwyg_Input
 WYSIWYG editor widget for forms using Quill. Edits a Rich_Text value.
 
 $placeholder - Placeholder text
-$seeder - Seeder function name for test data
 
 Widget interface:
 - val() - Get/set a Rich_Text INSTANCE (never a string)
-- seed() - Fills with random content
 
 This widget accepts Rich_Text and refuses everything else, so a column whose
 $text_types entry is not Rich_Text cannot be wired to it by accident.

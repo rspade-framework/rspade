@@ -10,7 +10,6 @@ $disabled - Boolean to disable the checkbox (still returns value via val())
 
 Widget interface:
 - val() - Get/set checked state (returns checked_value or unchecked_value)
-- seed() - Randomly checks/unchecks
 --%>
 <Define:Checkbox_Input extends="Form_Input_Abstract">
     <div class="form-check">

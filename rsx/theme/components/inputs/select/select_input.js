@@ -76,20 +76,6 @@ class Select_Input extends Form_Input_Abstract {
         this._mark_ready();
     }
 
-    async seed() {
-        if (this.args.seeder) {
-            // TODO: Implement Rsx_Random_Values endpoint
-            let value = 'Test ' + (this.args.seeder || 'Value');
-            this.val(value);
-        } else if (this.args.options && this.args.options.length > 0) {
-            // Select random option
-            let random_index = Math.floor(Math.random() * this.args.options.length);
-            let random_opt = this.args.options[random_index];
-            let random_value = typeof random_opt === 'object' ? random_opt.value : random_opt;
-            this.val(random_value);
-        }
-    }
-
     on_stop() {
         if (this.tom_select) {
             this.tom_select.destroy();

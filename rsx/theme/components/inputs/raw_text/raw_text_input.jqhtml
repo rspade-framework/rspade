@@ -5,7 +5,6 @@ Edits a Raw_Text value - a block of user-authored PLAIN text.
 
 $placeholder - Placeholder text
 $rows        - Textarea rows (default 4)
-$seeder      - Seeder function name for test data
 
 Widget interface:
 - val() - Get/set a Raw_Text INSTANCE (never a string)

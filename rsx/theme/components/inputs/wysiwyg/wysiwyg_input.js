@@ -130,24 +130,4 @@ class Wysiwyg_Input extends Form_Input_Abstract {
             }
         });
     }
-
-    /**
-     * Seed - Fill with random content for testing
-     */
-    async seed() {
-        if (!this.quill) return;
-
-        const sample_content = `
-            <h2>Sample Heading</h2>
-            <p>This is a sample paragraph with <strong>bold text</strong> and <em>italic text</em>.</p>
-            <ul>
-                <li>First bullet point</li>
-                <li>Second bullet point</li>
-                <li>Third bullet point</li>
-            </ul>
-            <p>Another paragraph with <a href="#">a sample link</a>.</p>
-        `;
-
-        this.val(Rich_Text.from_editor(sample_content));
-    }
 }

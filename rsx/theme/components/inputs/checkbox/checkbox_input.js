@@ -41,9 +41,4 @@ class Checkbox_Input extends Form_Input_Abstract {
             that._notify_input(that.val());
         });
     }
-
-    async seed() {
-        // Randomly check or uncheck
-        this.val(Math.random() > 0.5);
-    }
 }

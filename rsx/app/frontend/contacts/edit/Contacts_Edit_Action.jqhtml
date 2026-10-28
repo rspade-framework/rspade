@@ -25,12 +25,12 @@
                         <div class="row">
                             <div class="col-tablet-6">
                                 <Form_Field $label="First Name" $required=true>
-                                    <Text_Input $name="first_name" $seeder="first_name" $max_length=Contact_Model.field_length('first_name') />
+                                    <Text_Input $name="first_name" $max_length=Contact_Model.field_length('first_name') />
                                 </Form_Field>
                             </div>
                             <div class="col-tablet-6">
                                 <Form_Field $label="Last Name" $required=true>
-                                    <Text_Input $name="last_name" $seeder="last_name" $max_length=Contact_Model.field_length('last_name') />
+                                    <Text_Input $name="last_name" $max_length=Contact_Model.field_length('last_name') />
                                 </Form_Field>
                             </div>
                         </div>
@@ -62,7 +62,7 @@
                         <div class="row">
                             <div class="col-tablet-6">
                                 <Form_Field $label="Email">
-                                    <Text_Input $name="email" $type="email" $placeholder="email@example.com" $seeder="email" $max_length=Contact_Model.field_length('email') />
+                                    <Text_Input $name="email" $type="email" $placeholder="email@example.com" $max_length=Contact_Model.field_length('email') />
                                 </Form_Field>
                             </div>
                             <div class="col-tablet-6">
@@ -74,7 +74,7 @@
                         <div class="row">
                             <div class="col-tablet-6">
                                 <Form_Field $label="Work Phone">
-                                    <Phone_Text_Input $name="phone_work" $placeholder="(555) 123-4567" $seeder="phone" />
+                                    <Phone_Text_Input $name="phone_work" $placeholder="(555) 123-4567" />
                                 </Form_Field>
                             </div>
                             <div class="col-tablet-6">

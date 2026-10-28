@@ -13,7 +13,6 @@ $max - Maximum value for number inputs
 $max_length - REQUIRED. Maximum character length. Use Model_Name.field_length('column') for
               database-driven limits, a numeric value for custom limits, or -1 for unlimited.
 $disabled - Boolean to disable the input (still returns value via val())
-$seeder - Seeder function name (e.g., "first_name" calls Rsx_Random_Values.first_name())
 
 Usage:
 <Text_Input $name="email" $max_length=User_Model.field_length('email') $placeholder="user@example.com" />
