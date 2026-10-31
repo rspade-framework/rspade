@@ -39,16 +39,6 @@ return new class extends Migration
                 INDEX idx_category_id (category_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ");
-
-        // Insert demo data
-        DB::statement("
-            INSERT INTO demo_products (name, description, price, status_id, category_id) VALUES
-            ('Wireless Mouse', 'Ergonomic wireless mouse with 2.4GHz connectivity', 29.99, 1, 1),
-            ('Vintage T-Shirt', 'Classic cotton t-shirt with retro design', 19.99, 1, 2),
-            ('JavaScript: The Good Parts', 'Essential guide to JavaScript programming', 39.99, 2, 3),
-            ('Premium Coffee Beans', 'Single-origin Arabica beans from Colombia', 24.99, 1, 4),
-            ('Gaming Laptop', 'High-performance laptop with RTX graphics', 1299.99, 3, 1)
-        ");
     }
     
     /**

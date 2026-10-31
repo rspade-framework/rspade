@@ -8,7 +8,6 @@
 namespace Rsx\Tests;
 
 use Illuminate\Http\Request;
-use App\RSpade\Core\Auth\Login_Throttle;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
@@ -53,7 +52,6 @@ class Portal_Two_Factor_Login_Test extends Rsx_Test_Abstract
     public static function teardown(): void
     {
         Rsx_Turnstile::$force_verify_result_for_tests = null;
-        Login_Throttle::reset('CLI');
         Portal_Session::cli_set_impersonator_user_id(null);
         Portal_Session::cli_set_portal_user_id(0);
         Rsx_Portal::set_portal_request(false);
@@ -63,7 +61,6 @@ class Portal_Two_Factor_Login_Test extends Rsx_Test_Abstract
 
     private static function __as_portal(): void
     {
-        Login_Throttle::reset('CLI');
         Portal_Session::set_site_id(self::SITE_ID);
         Rsx_Portal::set_portal_request(true);
         Portal_Session::cli_set_portal_user_id(0);

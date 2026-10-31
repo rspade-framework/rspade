@@ -39,6 +39,7 @@ class Portal_Settings_Action extends Spa_Action {
                 const current = this.$sid('current-password').val();
                 const new_pw = this.$sid('new-password').val();
                 const confirm_pw = this.$sid('confirm-password').val();
+                this.$sid('password-form').find('.text-danger').text('').hide();
 
                 try {
                     await this.alive(Portal_Settings_Controller.change_password({
@@ -51,9 +52,11 @@ class Portal_Settings_Action extends Spa_Action {
                     this.$sid('new-password').val('');
                     this.$sid('confirm-password').val('');
                 } catch (e) {
-                    if (e.errors) {
-                        // Show field-specific errors
-                        for (const [field, msg] of Object.entries(e.errors)) {
+                    // A form error carries its field messages in metadata beside _message; a
+                    // refusal with none (the throttle) is shown whole.
+                    const fields = Object.entries(e.metadata || {}).filter(([field]) => field !== '_message');
+                    if (fields.length) {
+                        for (const [field, msg] of fields) {
                             this.$sid(field.replace('_', '-') + '-error').text(msg).show();
                         }
                     } else {

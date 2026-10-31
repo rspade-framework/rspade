@@ -13,6 +13,12 @@ Everything it drives is the framework's PORTAL realm, chosen by the page:
 
 "View as Client" cannot change any of it: the framework refuses enrollment, removal, linking
 and unlinking while impersonating, and the refusal surfaces as an error dialog.
+
+CONFIRM IT'S YOU. Each of those actions needs a recent password confirmation, which the
+framework endpoints enforce. Removing, disconnecting and regenerating ask for it on click; the
+controls that ADD a method (<Passkey_Register>, <Totp_Enrollment>, <Sso_Buttons $intent="link">)
+call their endpoints themselves, so they are shown only after "Add a sign-in method" has asked
+(state.adding).
 --%>
 <Define:Portal_Settings_Security>
     <% if (!this.data.two_factor) { %>
@@ -51,20 +57,26 @@ and unlinking while impersonating, and the refusal surfaces as an error dialog.
                     </Record_Table>
                 <% } %>
 
-                <div class="Portal_Settings_Security__register">
-                    <Passkey_Register $sid="register" />
-                </div>
+                <% if (!this.state.adding) { %>
+                    <div class="Portal_Settings_Security__register">
+                        <button class="btn btn-sm btn-primary" $sid="start_adding">Add a sign-in method</button>
+                    </div>
+                <% } else { %>
+                    <div class="Portal_Settings_Security__register">
+                        <Passkey_Register $sid="register" />
+                    </div>
 
-                <%-- The authenticator app is offered ON DEMAND: <Totp_Enrollment> mints a
-                     pending seed as soon as it loads, which must not happen on every visit
-                     to Settings. --%>
-                <div class="Portal_Settings_Security__totp">
-                    <% if (this.state.show_totp) { %>
-                        <Totp_Enrollment $sid="totp" />
-                    <% } else { %>
-                        <button class="btn btn-sm btn-outline-secondary" $sid="show_totp">Use an authenticator app instead</button>
-                    <% } %>
-                </div>
+                    <%-- The authenticator app is offered ON DEMAND: <Totp_Enrollment> mints a
+                         pending seed as soon as it loads, which must not happen every time
+                         the add controls are shown. --%>
+                    <div class="Portal_Settings_Security__totp">
+                        <% if (this.state.show_totp) { %>
+                            <Totp_Enrollment $sid="totp" />
+                        <% } else { %>
+                            <button class="btn btn-sm btn-outline-secondary" $sid="show_totp">Use an authenticator app instead</button>
+                        <% } %>
+                    </div>
+                <% } %>
 
                 <%-- The count is what the user HOLDS; the button is whether this deployment
                      issues recovery codes (rsx.two_factor.recovery_codes). --%>
@@ -109,9 +121,11 @@ and unlinking while impersonating, and the refusal surfaces as an error dialog.
                         </Record_Table>
                     <% } %>
 
-                    <div class="Portal_Settings_Security__connect">
-                        <Sso_Buttons $intent="link" />
-                    </div>
+                    <% if (this.state.adding) { %>
+                        <div class="Portal_Settings_Security__connect">
+                            <Sso_Buttons $intent="link" />
+                        </div>
+                    <% } %>
                 </Slot:body>
             </Section>
         <% } %>

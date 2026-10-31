@@ -1,10 +1,10 @@
-# Sample Documents
+# Reference documents
 
-Redistributable public-domain US-government documents used by the Document Pipeline demo
-(`/dev/document_preview`) and imported into the template app by the
-`import_sample_documents` migration (`rsx/resource/migrations/`). They exercise the two
-document-preview code paths: a native PDF (served directly to pdf.js) and an Office document
-(served through the cached LibreOffice PDF rendition).
+Two real, redistributable public-domain US-government documents, seeded by
+`Sample_Data_Service` beside the generated sample documents (attached to Megadodo
+Publications), and read by path by the framework's document tests. Unlike the generated files
+they are long and real: a ten-page PDF for pdf.js pagination and text extraction, and a Word
+document whose LibreOffice rendition runs to twenty pages.
 
 ## sample_report.pdf
 
@@ -32,6 +32,5 @@ document-preview code paths: a native PDF (served directly to pdf.js) and an Off
 ## Notes
 
 Both files were retrieved 2026-07-16. They are committed to the template app (not the framework
-core) so downstream installs get working sample data. Replace or extend them freely; the
-migration only imports whatever `sample_report.pdf` / `sample_memo.docx` are present and fails
-loud if they are missing.
+core). The seeder fails loud if either is missing, so remove them from sample_data.json's
+`reference_documents` before deleting them.

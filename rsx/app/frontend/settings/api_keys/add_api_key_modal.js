@@ -13,6 +13,12 @@ class Add_Api_Key_Modal extends Modal_Abstract {
      * @returns {Promise<boolean>} True if key created, false on cancel
      */
     static async show() {
+        // Minting a key needs a recent password confirmation (create_key refuses without
+        // one), so it is asked for before the form opens.
+        if (!await Password_Confirmation_Modal.require()) {
+            return false;
+        }
+
         const result = await Modal.form({
             title: 'Generate New API Key',
             component: 'Add_Api_Key_Modal_Form',

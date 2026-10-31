@@ -11,7 +11,9 @@ class Portal_Settings_Security extends Component {
         this.data.sso_identities = [];
         this.data.sso_enabled = Rsx_Sso.is_enabled();
 
-        this.state = { show_totp: false };
+        // adding: the controls that add a sign-in method are shown, after the password
+        // confirmation they need was given (see the template's contract).
+        this.state = { show_totp: false, adding: false };
     }
 
     async on_load() {
@@ -32,12 +34,14 @@ class Portal_Settings_Security extends Component {
         this.$.on('click.pss', '[data-remove-credential]', async (e) => {
             const credential_id = $(e.currentTarget).data('remove-credential');
             if (!await Modal.confirm('Remove Passkey', 'Remove this sign-in method from your account?')) return;
+            if (!await this.alive(Password_Confirmation_Modal.require())) return;
             await this._attempt(() => Rsx_Portal_Two_Factor_Controller.credential_remove({ id: credential_id }));
         });
 
         this.$.on('click.pss', '[data-unlink-identity]', async (e) => {
             const identity_id = $(e.currentTarget).data('unlink-identity');
             if (!await Modal.confirm('Disconnect Account', 'Stop signing in with this account?')) return;
+            if (!await this.alive(Password_Confirmation_Modal.require())) return;
             await this._attempt(() => Rsx_Portal_Sso_Controller.identity_unlink({ id: identity_id }));
         });
 
@@ -45,6 +49,7 @@ class Portal_Settings_Security extends Component {
         if ($regenerate.exists()) {
             $regenerate.off('click.pss').on('click.pss', async () => {
                 if (!await Modal.confirm('New Recovery Codes', 'Your current recovery codes will stop working. Continue?')) return;
+                if (!await this.alive(Password_Confirmation_Modal.require())) return;
                 let result;
                 try {
                     result = await Rsx_Portal_Two_Factor_Controller.recovery_regenerate();
@@ -60,6 +65,15 @@ class Portal_Settings_Security extends Component {
                 await Modal.alert('Save your recovery codes', result.recovery_codes.join('\n'));
                 if (this.is_stopped()) return;
                 this.reload();
+            });
+        }
+
+        const $start_adding = this.$sid('start_adding');
+        if ($start_adding.exists()) {
+            $start_adding.off('click.pss').on('click.pss', async () => {
+                if (!await this.alive(Password_Confirmation_Modal.require())) return;
+                this.state.adding = true;
+                this.render();
             });
         }
 
@@ -86,6 +100,13 @@ class Portal_Settings_Security extends Component {
                 this.reload();
             });
         }
+    }
+
+    /**
+     * The password confirmation this screen asked for ends with the screen.
+     */
+    on_stop() {
+        Rsx_Password_Confirmation.clear();
     }
 
     /**

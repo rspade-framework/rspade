@@ -2,8 +2,8 @@
  * Settings User Settings Action
  *
  * User preferences, in three forms that each save on their own button: timezone and
- * appearance through the framework's own Rsx_Timezone_Controller (the same setter the
- * early-boot auto-set uses - see Rsx_Timezone_Auto) and Rsx_Dark_Mode_Controller, and
+ * appearance through the framework's own Rsx_Timezone_Controller and
+ * Rsx_Dark_Mode_Controller, and
  * notification and privacy preferences through this feature's
  * Frontend_Settings_User_Settings_Controller.
  */
@@ -21,7 +21,6 @@ class Settings_User_Settings_Action extends Spa_Action {
         this.data.timezone_options = [];
         this.data.timezone_form_data = {
             timezone: '',
-            timezone_auto: true,
         };
 
         this.data.theme_options = [];
@@ -33,9 +32,6 @@ class Settings_User_Settings_Action extends Spa_Action {
         this.data.email_address = undefined;
         this.data.profile_visibility_options = [];
         this.data.preferences_form_data = {};
-
-        // UI state: whether the post-change forced-navigation handler is armed.
-        this.state.forced_navigation_installed = false;
     }
 
     async on_load() {
@@ -50,7 +46,12 @@ class Settings_User_Settings_Action extends Spa_Action {
         this.data.profile_visibility_options = preferences.profile_visibility_options;
         this.data.preferences_form_data = preferences.form_data;
 
-        this.data.timezone_options = options;
+        // The preference is ONE value: '' is Automatic (each browser's own zone - this one's
+        // is named in the label), anything else the zone the user chose.
+        this.data.timezone_options = [
+            {value: '', label: 'Automatic - follow my browser (' + Rsx_Timezone_Cookie.browser_value() + ')'},
+            ...options,
+        ];
 
         this.data.theme_options = theme.options;
         this.data.theme_form_data = {
@@ -58,39 +59,13 @@ class Settings_User_Settings_Action extends Spa_Action {
         };
 
         this.data.timezone_form_data = {
-            // The selector shows the EFFECTIVE zone: a user who never chose one is
-            // rendering in the site default, and showing an empty select would suggest
-            // the app has no opinion about their clock.
-            timezone: settings.timezone ?? settings.resolved_timezone,
-            timezone_auto: settings.timezone_auto,
+            timezone: settings.timezone ?? '',
         };
     }
 
     on_ready() {
         const that = this;
-        const auto_input = this.sid('timezone_auto_input');
-        const select_input = this.sid('timezone_input');
         const form = this.sid('timezone_form');
-
-        // The form has applied the loaded values by now, so the interlock reads real
-        // state here.
-        this._apply_timezone_interlock();
-
-        // 'input', NOT 'val': the base val() setter fires 'val' on EVERY change,
-        // including the programmatic one Rsx_Form makes when it seeds the form - and
-        // component events are sticky, so a 'val' subscription registered here would
-        // fire immediately on that seeding and undo the loaded state. 'input' is
-        // raised only by real user interaction with the widget.
-        auto_input.on('input', function () {
-            that._apply_timezone_interlock();
-        });
-
-        // A manual choice means the user is overriding the browser: the toggle goes off
-        // in the UI, and the save posts timezone_auto=false with it.
-        select_input.on('input', function () {
-            auto_input.val(false);
-            that._apply_timezone_interlock();
-        });
 
         // 'submitted' is the form's successful-submit event, and its payload is the
         // server's result.
@@ -118,84 +93,20 @@ class Settings_User_Settings_Action extends Spa_Action {
     }
 
     /**
-     * Auto ON means the browser owns the zone, so the selector is not the user's to
-     * edit; unchecking hands it back. The value is still submitted either way
-     * (Select_Input.val() reads a disabled widget).
-     */
-    _apply_timezone_interlock() {
-        const auto_on = this.sid('timezone_auto_input').val() === '1';
-        const select_input = this.sid('timezone_input');
-
-        if (auto_on) {
-            select_input.tom_select.disable();
-        } else {
-            select_input.tom_select.enable();
-        }
-    }
-
-    /**
      * @param {Object} result - {changed, timezone} from Rsx_Timezone_Controller
      */
     _on_timezone_saved(result) {
         if (result && result.changed === true) {
-            // Every server-formatted datetime already on the screen - and in every page
-            // the SPA would render next from cached client state - was produced in the
-            // OLD zone. We do not reload out from under the user, but the next time they
-            // leave this screen by a link, they leave through a full page load.
-            this._install_forced_navigation();
+            // Every datetime already on the screen - and in every page the SPA would render
+            // next from cached client state - was produced in the OLD zone. We do not reload
+            // out from under the user, but the next navigation is a full page load.
+            Spa.disable();
             Flash_Alert.success('Timezone updated. The rest of the app will refresh when you navigate away.');
 
             return;
         }
 
         Flash_Alert.success('Timezone settings saved.');
-    }
-
-    /**
-     * Arm a ONE-TIME capture-phase click handler: the next click on an internal link
-     * navigates the browser instead of dispatching through the SPA.
-     *
-     * Capture phase, on document, so it runs before the SPA's own link interception.
-     * It is deliberately NOT removed when this action stops - the whole point is that
-     * it survives to the navigation that fires it. A programmatic navigation
-     * (Spa.dispatch from code) is not a link click and bypasses it.
-     */
-    _install_forced_navigation() {
-        if (this.state.forced_navigation_installed) {
-            return;
-        }
-
-        this.state.forced_navigation_installed = true;
-
-        const handler = function (event) {
-            const anchor = event.target.closest('a[href]');
-            if (!anchor) {
-                return;
-            }
-
-            const href = anchor.getAttribute('href');
-            if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) {
-                return;
-            }
-
-            if (anchor.target && anchor.target !== '_self') {
-                return;
-            }
-
-            // Same-origin only: an external link already leaves the app.
-            const url = new URL(anchor.href, document.location.href);
-            if (url.origin !== document.location.origin) {
-                return;
-            }
-
-            event.preventDefault();
-            event.stopPropagation();
-            document.removeEventListener('click', handler, true);
-
-            document.location.href = anchor.href;
-        };
-
-        document.addEventListener('click', handler, true);
     }
 
     // Breadcrumb methods

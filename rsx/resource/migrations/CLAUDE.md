@@ -44,6 +44,13 @@ row at replay time, so it is correct on a fresh install and in every environment
 `RENAME TABLE a TO b` (or `ALTER TABLE a RENAME TO b`) and nothing else; the migrate
 pipeline updates `_type_refs.table_name` in the same run and prints the ref it moved.
 
+## No sample data
+
+A migration creates what EVERY install needs and nothing else. Demonstration records -
+clients, products, documents - are the sample-data seeder's (`rsx/services/sample_data/`,
+`php artisan rsx_app:seed`), which an operator opts into and which only ever fills an empty
+site.
+
 ## The one exception
 
 Data seeding that genuinely needs model BEHAVIOUR raw SQL cannot reproduce - a file

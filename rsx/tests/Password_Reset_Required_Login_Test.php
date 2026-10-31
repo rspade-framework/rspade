@@ -11,7 +11,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\RSpade\Core\Auth\Auth_Password_Reset_Required_Exception;
-use App\RSpade\Core\Auth\Login_Throttle;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Models\User_Model;
@@ -52,7 +51,6 @@ class Password_Reset_Required_Login_Test extends Rsx_Test_Abstract
     public static function teardown(): void
     {
         Rsx_Turnstile::$force_verify_result_for_tests = null;
-        Login_Throttle::reset('CLI');
         Portal_Session::cli_set_portal_user_id(0);
         Rsx_Portal::set_portal_request(false);
         Session::logout();
@@ -72,7 +70,6 @@ class Password_Reset_Required_Login_Test extends Rsx_Test_Abstract
 
     private static function __as_portal(): void
     {
-        Login_Throttle::reset('CLI');
         Portal_Session::set_site_id(self::SITE_ID);
         Rsx_Portal::set_portal_request(true);
         Portal_Session::cli_set_portal_user_id(0);
@@ -114,7 +111,6 @@ class Password_Reset_Required_Login_Test extends Rsx_Test_Abstract
      */
     public static function test_the_staff_form_shows_the_refusal()
     {
-        Login_Throttle::reset('CLI');
         Session::logout();
         static::__reset_session();
         static::__acting_as_site(self::SITE_ID);

@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\RSpade\Core\Api\Rsx_Api;
 use App\RSpade\Core\Api\Rsx_Api_Controller_Abstract;
 use App\RSpade\Core\Files\File_Attachment_Model;
+use App\RSpade\Core\Time\Rsx_Time;
 use Rsx\Models\Task_Model;
 
 /**
@@ -296,7 +297,9 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
             'file_name' => $attachment->file_name,
             'mime_type' => $attachment->mime_type,
             'size' => $attachment->get_size(),
-            'uploaded_at' => $attachment->created_at,
+            // A hand-built API payload: the timestamp and its localized companions, as the
+            // model serializer gives every DATETIME column (rsx:man external_api).
+            ...Rsx_Time::encode_for_output('uploaded_at', $attachment->created_at),
             'urls' => [
                 'download' => $attachment->get_download_url(),
                 'inline' => $attachment->get_url(),

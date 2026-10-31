@@ -307,9 +307,6 @@ return [
 
         // Include full call stack
         'include_backtrace' => env('CONSOLE_DEBUG_BACKTRACE', false),
-
-        // Enable ?__trace=1 for plain text debug output
-        'enable_get_trace' => env('ENABLE_GET_TRACE', true),
     ],
 
     /*
@@ -654,6 +651,14 @@ return [
                     . "/api/v1/files/*",
             ],
         ],
+    ],
+
+    'first_run' => [
+        // The first-run setup screen offers to fill the new site with this application's
+        // sample data (rsx/services/sample_data/ - fictional clients, contacts, projects,
+        // tasks and documents). Remove the key, or set it null, to stop offering it; name
+        // another #[Task] to seed your own.
+        'sample_data_task' => 'Sample_Data_Service::seed',
     ],
 
     'auth' => [

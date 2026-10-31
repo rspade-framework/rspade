@@ -251,15 +251,10 @@ REMOVE pure fiction with no backing model. All served by one new endpoint
 | Today's Tasks table | REAL -> `Record_Table` | open tasks due today-or-earlier (overdue shown red); row nav -> `/tasks/view/:id` (repointed from parent project in Task-mgmt Batch 2, now that task pages exist) |
 | **Upcoming Events table** | **REMOVED** | No event/calendar model exists. Pure fiction with no backing model -> deleted, not faked. |
 
-**Seeder (D4 demo data):** `Seeder_Service` gained `seed_projects` (2-3 per
-client that has none) + `seed_tasks` (3-5 per project that has none), both
-additive + idempotent, wired into `seed_all`. Tasks had NO model rows at all
-(and NO main-app UI creates them yet), so without seeding the task KPIs + list
-would be permanently empty. RAN the two additive seeders on this dev DB (50
-projects, 193 tasks created; non-destructive). **Existing dev DBs should run
-`rsx:task:run Seeder_Service seed_projects` + `seed_tasks` (or a fresh
-`seed_all`) to populate the dashboard.** `Action_Log` rows (6) are a real audit
-trail - NOT fabricated; the activity feed shows the genuine 6.
+**Demo data:** the dashboard's task KPIs and lists are populated by the sample
+dataset (`php artisan rsx_app:seed` into an empty site - `rsx/services/sample_data/`),
+which seeds projects and tasks with due dates spread across overdue, today and
+upcoming, and records each creation in the activity log.
 
 ## Batch E - sibling entity-view sweep (Contacts_View, Projects_View, Party_View)
 

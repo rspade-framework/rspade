@@ -23,6 +23,12 @@
  * ENROLLMENT IS THE FRAMEWORK'S COMPONENTS, hosted in a modal: <Totp_Enrollment> and
  * <Passkey_Register> own their whole ceremony including the one-time recovery-code reveal,
  * and this page listens for the single event each fires when the user is finished.
+ *
+ * CONFIRM IT'S YOU. Every button that adds or removes a way into the account - set up an
+ * authenticator, register a passkey, remove a method, regenerate recovery codes, connect or
+ * disconnect a provider - first awaits Password_Confirmation_Modal.require(), because the
+ * framework endpoints behind them refuse without a recent password confirmation. Leaving the
+ * screen gives the confirmation up (on_stop()).
  */
 @route('/frontend/settings/password_security')
 @layout('Frontend_Spa_Layout')
@@ -167,6 +173,14 @@ class Settings_Password_Security_Action extends Spa_Action {
         });
     }
 
+    /**
+     * The password confirmation this screen asked for ends with the screen: leaving gives it
+     * up (the server's expiry bounds it either way, so the call is not waited on).
+     */
+    on_stop() {
+        Rsx_Password_Confirmation.clear();
+    }
+
     on_ready() {
         const that = this;
 
@@ -241,6 +255,8 @@ class Settings_Password_Security_Action extends Spa_Action {
      * @param {string} provider_key
      */
     async _sso_connect(provider_key) {
+        if (!await this.alive(Password_Confirmation_Modal.require())) return;
+
         const result = await this.alive(Rsx_Sso_Controller.link_begin({ provider: provider_key }));
 
         window.location = result.url;
@@ -261,7 +277,7 @@ class Settings_Password_Security_Action extends Spa_Action {
             'Disconnect'
         );
 
-        if (!confirmed) {
+        if (!confirmed || !await this.alive(Password_Confirmation_Modal.require())) {
             return;
         }
 
@@ -283,6 +299,8 @@ class Settings_Password_Security_Action extends Spa_Action {
      * @param {string} title The dialog title.
      */
     async _enroll(name, event, title) {
+        if (!await this.alive(Password_Confirmation_Modal.require())) return;
+
         const that = this;
         const $container = $('<div>');
         const component = $container.component(name).component();
@@ -319,7 +337,7 @@ class Settings_Password_Security_Action extends Spa_Action {
             'Remove'
         );
 
-        if (!confirmed) {
+        if (!confirmed || !await this.alive(Password_Confirmation_Modal.require())) {
             return;
         }
 
@@ -339,7 +357,7 @@ class Settings_Password_Security_Action extends Spa_Action {
             'Regenerate'
         );
 
-        if (!confirmed) {
+        if (!confirmed || !await this.alive(Password_Confirmation_Modal.require())) {
             return;
         }
 

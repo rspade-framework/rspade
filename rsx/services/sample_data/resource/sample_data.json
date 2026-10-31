@@ -1,0 +1,1066 @@
+{
+    "_about": "The sample data Sample_Data_Service seeds into an empty site. portal_enabled is the client-level portal switch only (it shows the Portal tab to staff); no contact is given portal access. Every value here is fictional: parody companies and film/TV characters (resource/seed_gags.txt is the chart), test email addresses (domain test.<company>.com, never delivered) and (nnn) 555-01nn phone numbers (never texted). Dates are day offsets from the day of seeding. Each documents[] entry is also the generator's input (resource/generate_documents.php): type pdf|docx|xlsx|png|jpg, with body paragraphs, or rows for xlsx, or lines for an image.",
+
+    "clients": [
+        {
+            "key": "brawndough",
+            "name": "Brawndough Agricultural",
+            "industry": "Agriculture & Beverages",
+            "status": "ACTIVE",
+            "portal_enabled": true,
+            "priority": "HIGH",
+            "address": "1 Electrolyte Plaza",
+            "city": "Austin",
+            "state": "US-TX",
+            "zip": "78701",
+            "phone": "(512) 555-0101",
+            "website": "https://brawndough.example",
+            "email": "info@test.brawndough.com",
+            "notes": "Insists the crops want electrolytes. Our agronomist disagrees, politely.",
+            "tags": ["agriculture", "beverages", "government-contract"],
+            "departments": ["Executive Office", "Crop Science"],
+            "contacts": [
+                {"key": "camacho", "first": "Dwayne Elizondo Mountain Dew Herbert", "last": "Camacho", "title": "President & Chief Hype Officer", "department": "Executive Office", "phone_work": "(512) 555-0111", "phone_cell": "(512) 555-0112", "priority": "URGENT", "notes": "Prefers meetings to open with a monster-truck clip. Approves everything loudly."},
+                {"key": "bauers", "first": "Joe", "last": "Bauers", "title": "Secretary of the Interior (Acting)", "department": "Crop Science", "phone_work": "(512) 555-0113", "priority": "HIGH", "notes": "The only person in the building who has heard of water. Keep him informed."}
+            ],
+            "projects": [
+                {
+                    "name": "Electrolyte Irrigation Pilot", "status": "ACTIVE", "priority": "URGENT", "start": -75, "due": 20, "budget": 250000,
+                    "description": "Replace crop irrigation with the sponsor's sports drink across forty test fields, per presidential directive. Measure yield. Brace for results.",
+                    "contacts": ["camacho", "bauers"],
+                    "tasks": [
+                        {"title": "Confirm crops actually want electrolytes", "status": "IN_PROGRESS", "priority": "HIGH", "due": 3, "hours": 6, "description": "Interview the crops. Document their answer."},
+                        {"title": "Run the 'just add water' control field", "status": "PENDING", "priority": "URGENT", "due": -2, "hours": 10, "description": "Joe's proposal. Treat as a controlled experiment so nobody's feelings are hurt.", "subtasks": [
+                            {"title": "Source water (ask around, apparently it comes from toilets)", "status": "PENDING", "priority": "MEDIUM", "due": 1, "hours": 2}
+                        ]},
+                        {"title": "Prepare yield report for the Cabinet", "status": "PENDING", "priority": "MEDIUM", "due": 14, "hours": 8},
+                        {"title": "Stock monster-truck footage for the briefing", "status": "COMPLETED", "priority": "LOW", "due": -10, "hours": 1}
+                    ]
+                },
+                {
+                    "name": "Cabinet Appointments Onboarding", "status": "PLANNING", "priority": "MEDIUM", "start": -5, "due": 45, "budget": 18000,
+                    "description": "Onboard the President's newly appointed cabinet, selected by an ad-hoc process we are not at liberty to describe.",
+                    "contacts": ["camacho"],
+                    "tasks": [
+                        {"title": "Issue cabinet badges", "status": "PENDING", "priority": "LOW", "due": 10, "hours": 2},
+                        {"title": "Draft the 'what a law is' primer", "status": "IN_PROGRESS", "priority": "MEDIUM", "due": 7, "hours": 5}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "brawndough_irrigation_pilot_results.xlsx", "type": "xlsx", "title": "Irrigation Pilot - Field Results", "rows": [
+                    ["Field", "Treatment", "Litres Applied", "Yield (bushels)", "Agronomist Note"],
+                    ["North 1", "Electrolyte drink", 4200, 0, "Soil is now sticky"],
+                    ["North 2", "Electrolyte drink", 4100, 0, "Crops did not respond to motivation"],
+                    ["South 1", "Water", 4000, 312, "Joe's field"],
+                    ["South 2", "Water", 3950, 298, "Still Joe's field"],
+                    ["East 1", "Electrolyte drink (extra electrolytes)", 5000, 0, "See North 1"]
+                ]},
+                {"file": "brawndough_brand_guidelines.pdf", "type": "pdf", "title": "Brawndough Brand Guidelines", "body": [
+                    "These guidelines govern every use of the Brawndough name, logo and slogan across labels, signage, agricultural equipment and the presidential podium.",
+                    "Tone of voice: confident, enthusiastic and, wherever possible, in capital letters. Every message should leave the reader certain that the product is what plants crave.",
+                    "Never pair the product with the word 'water'. Our research shows the comparison does not favour us."
+                ]}
+            ],
+            "request_threads": [
+                {"title": "Soil samples from the pilot fields", "status": "NEW_REQUEST", "message": "Please send three soil samples from each pilot field so our agronomist can confirm what we already suspect."}
+            ]
+        },
+        {
+            "key": "terok",
+            "name": "Ops & Engineering, Terok Station",
+            "industry": "Station Operations",
+            "status": "ACTIVE",
+            "portal_enabled": true,
+            "priority": "MEDIUM",
+            "address": "Upper Pylon 3, Habitat Ring",
+            "city": "Seattle",
+            "state": "US-WA",
+            "zip": "98101",
+            "phone": "(206) 555-0121",
+            "website": "https://terok-station.example",
+            "email": "ops@test.terok.com",
+            "notes": "Equipment is decades old and of a design nobody local understands. Budget accordingly.",
+            "tags": ["engineering", "maintenance"],
+            "departments": ["Engineering", "Internal Affairs"],
+            "contacts": [
+                {"key": "obrien", "first": "Miles", "last": "O'Brien", "title": "Chief of Operations", "department": "Engineering", "phone_work": "(206) 555-0122", "phone_cell": "(206) 555-0123", "priority": "HIGH", "notes": "Will fix anything. Will also tell you, at length, how badly it was designed."},
+                {"key": "sloan", "first": "Luther", "last": "Sloan", "title": "Liaison, Oversight (Department Unlisted)", "department": "Internal Affairs", "phone_work": "(206) 555-0124", "priority": "LOW", "notes": "Has no phone number. The number above rings anyway."}
+            ],
+            "projects": [
+                {
+                    "name": "Transporter Maintenance Backlog", "status": "ACTIVE", "priority": "HIGH", "start": -40, "due": 15, "budget": 64000,
+                    "description": "Clear the transporter maintenance backlog before the next diplomatic visit, ideally without anyone arriving inside a wall.",
+                    "contacts": ["obrien"],
+                    "tasks": [
+                        {"title": "Replace pattern buffers on pad 2", "status": "IN_PROGRESS", "priority": "HIGH", "due": 2, "hours": 12},
+                        {"title": "Log every complaint about the wiring", "status": "IN_PROGRESS", "priority": "LOW", "due": 30, "hours": 40, "description": "Running total so far: forty-one complaints."},
+                        {"title": "Recalibrate the annular confinement beam", "status": "PENDING", "priority": "URGENT", "due": -1, "hours": 6},
+                        {"title": "Order spare isolinear chips", "status": "COMPLETED", "priority": "MEDIUM", "due": -12, "hours": 1}
+                    ]
+                },
+                {
+                    "name": "Records Request: Section 31", "status": "ON_HOLD", "priority": "MEDIUM", "start": -20, "due": 60, "budget": 0,
+                    "description": "A records request about a department that, according to the department, does not exist.",
+                    "contacts": ["sloan"],
+                    "tasks": [
+                        {"title": "File records request", "status": "COMPLETED", "priority": "MEDIUM", "due": -15, "hours": 1},
+                        {"title": "Appeal denial (department does not exist)", "status": "PENDING", "priority": "LOW", "due": 20, "hours": 2},
+                        {"title": "Schedule oversight meeting nobody is invited to", "status": "CANCELLED", "priority": "LOW", "due": -5, "hours": 0.5}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "terok_transporter_maintenance_log.xlsx", "type": "xlsx", "title": "Transporter Maintenance Log", "rows": [
+                    ["Date (days ago)", "Pad", "Fault", "Fix", "Engineer's Comment"],
+                    [21, "Pad 1", "Pattern drift", "Recalibrated", "Designed by people who hated engineers"],
+                    [14, "Pad 2", "Buffer degradation", "Pending parts", "See above"],
+                    [9, "Pad 3", "Ensign arrived upside down", "Recalibrated", "He's fine. Mostly."],
+                    [3, "Pad 1", "Pattern drift (again)", "Replaced coupling", "I said this would happen"]
+                ]},
+                {"file": "terok_wiring_diagram.png", "type": "png", "title": "Habitat Ring Wiring - Annotated", "lines": [
+                    "Junction A -> Junction B (why?)",
+                    "Junction B -> Junction A (WHY?)",
+                    "Unlabelled conduit: do not touch",
+                    "Annotation by M. O'Brien"
+                ]}
+            ]
+        },
+        {
+            "key": "porkchop",
+            "name": "Pork Chop Freight Lines",
+            "industry": "Trucking & Logistics",
+            "status": "ACTIVE",
+            "portal_enabled": true,
+            "priority": "MEDIUM",
+            "address": "Pier 9, Warehouse 4",
+            "city": "San Francisco",
+            "state": "US-CA",
+            "zip": "94111",
+            "phone": "(415) 555-0131",
+            "website": "https://porkchopexpress.example",
+            "email": "dispatch@test.porkchop.com",
+            "notes": "One truck, one driver, one very confident attitude. Always ask where the truck is.",
+            "tags": ["logistics"],
+            "departments": ["Dispatch"],
+            "contacts": [
+                {"key": "burton", "first": "Jack", "last": "Burton", "title": "Owner-Operator", "department": "Dispatch", "phone_cell": "(415) 555-0132", "priority": "MEDIUM", "notes": "It's all in the reflexes. Calls in on CB radio rather than phone."}
+            ],
+            "projects": [
+                {
+                    "name": "Truck Recovery", "status": "ACTIVE", "priority": "URGENT", "start": -10, "due": 5, "budget": 7500,
+                    "description": "Locate and recover the company's only truck, last seen in an alley under unusual circumstances.",
+                    "contacts": ["burton"],
+                    "tasks": [
+                        {"title": "File stolen-vehicle report", "status": "COMPLETED", "priority": "HIGH", "due": -8, "hours": 1},
+                        {"title": "Retrieve truck from basement of unknown building", "status": "IN_PROGRESS", "priority": "URGENT", "due": 1, "hours": 16},
+                        {"title": "Claim insurance for 'mystical damage'", "status": "PENDING", "priority": "MEDIUM", "due": 12, "hours": 3}
+                    ]
+                },
+                {
+                    "name": "Pork Chop Express Route Planning", "status": "PLANNING", "priority": "LOW", "start": 0, "due": 40, "budget": 4000,
+                    "description": "Optimise the overnight run so the driver gets some sleep and the cargo gets somewhere.",
+                    "contacts": ["burton"],
+                    "tasks": [
+                        {"title": "Map the Chinatown deliveries", "status": "PENDING", "priority": "LOW", "due": 15, "hours": 4},
+                        {"title": "Review CB radio monologue for length", "status": "PENDING", "priority": "LOW", "due": 25, "hours": 1}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "porkchop_route_plan.pdf", "type": "pdf", "title": "Overnight Route Plan - Chinatown", "body": [
+                    "Depart Pier 9 at 23:00. Deliver produce to the market district by 01:30 and collect the return load.",
+                    "Known hazards along the route: tight alleys, sudden fog, and the occasional unexplained supernatural event. Keep the doors locked and the radio on.",
+                    "Fuel stop: the all-night station on Grant Avenue. Do not accept wagers from anyone at the station."
+                ]},
+                {"file": "porkchop_truck_photo.jpg", "type": "jpg", "title": "Truck - Last Known Location", "lines": [
+                    "Rig: 18-wheeler, blue cab",
+                    "Last seen: Grant Ave alley, 02:14",
+                    "Condition: mysterious",
+                    "Do not approach the fog"
+                ]}
+            ]
+        },
+        {
+            "key": "hillvalley",
+            "name": "Hill Valley Auto & Temporal Services",
+            "industry": "Automotive Services",
+            "status": "ACTIVE",
+            "portal_enabled": true,
+            "priority": "HIGH",
+            "address": "1640 Riverside Drive",
+            "city": "Denver",
+            "state": "US-CO",
+            "zip": "80202",
+            "phone": "(303) 555-0141",
+            "website": "https://hillvalley-auto.example",
+            "email": "service@test.hillvalley.com",
+            "notes": "Two very different contacts. Never schedule them on the same call.",
+            "tags": ["automotive", "research"],
+            "departments": ["Research & Development", "Detailing"],
+            "contacts": [
+                {"key": "brown", "first": "Emmett", "last": "Brown", "title": "Chief Scientist", "department": "Research & Development", "phone_work": "(303) 555-0142", "phone_cell": "(303) 555-0143", "priority": "HIGH", "notes": "Speaks in gigawatts. Usually right. Occasionally early."},
+                {"key": "tannen", "first": "Biff", "last": "Tannen", "title": "Fleet Detailing Supervisor", "department": "Detailing", "phone_work": "(303) 555-0144", "priority": "LOW", "notes": "Wants two coats of wax on every vehicle, his own included. Do not lend him anything."}
+            ],
+            "projects": [
+                {
+                    "name": "1.21 Gigawatt Power Procurement", "status": "ACTIVE", "priority": "URGENT", "start": -50, "due": 9, "budget": 121000,
+                    "description": "Source a reliable 1.21 gigawatt supply for a short, very specific window. Lightning is under consideration.",
+                    "contacts": ["brown"],
+                    "tasks": [
+                        {"title": "Quote plutonium alternatives", "status": "COMPLETED", "priority": "HIGH", "due": -20, "hours": 4},
+                        {"title": "Confirm lightning strike schedule with the clock tower", "status": "IN_PROGRESS", "priority": "URGENT", "due": 2, "hours": 3, "subtasks": [
+                            {"title": "Run cable from the clock tower to the street", "status": "PENDING", "priority": "HIGH", "due": 1, "hours": 5}
+                        ]},
+                        {"title": "Source a replacement flux part", "status": "PENDING", "priority": "HIGH", "due": 6, "hours": 6, "attach": "hillvalley_power_quote.pdf"}
+                    ],
+                    "subprojects": [
+                        {
+                            "name": "Clock Tower Cable Run", "status": "ACTIVE", "priority": "URGENT", "start": -7, "due": 2, "budget": 2400,
+                            "description": "Run a cable from the courthouse clock tower to the street in time for the strike.",
+                            "contacts": ["brown"],
+                            "tasks": [
+                                {"title": "Measure the cable (twice)", "status": "COMPLETED", "priority": "MEDIUM", "due": -3, "hours": 1},
+                                {"title": "Reconnect the cable when it comes loose", "status": "PENDING", "priority": "URGENT", "due": 2, "hours": 1}
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Fleet Detailing Contract", "status": "ACTIVE", "priority": "LOW", "start": -30, "due": 25, "budget": 9800,
+                    "description": "Monthly detailing for the client fleet. The supervisor has opinions about wax.",
+                    "contacts": ["tannen"],
+                    "tasks": [
+                        {"title": "Wax the supervisor's car (two coats)", "status": "COMPLETED", "priority": "MEDIUM", "due": -4, "hours": 3},
+                        {"title": "Wax it again (he says it needs a third)", "status": "IN_PROGRESS", "priority": "LOW", "due": 1, "hours": 3},
+                        {"title": "Investigate 'borrowed' time machine and missing sports almanac", "status": "PENDING", "priority": "URGENT", "due": -3, "hours": 8}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "hillvalley_power_quote.pdf", "type": "pdf", "title": "Quotation - 1.21 Gigawatt Supply", "body": [
+                    "Item 1: Delivery of 1.21 gigawatts to a single vehicle-mounted receiver, for a window of approximately one second. Price on application.",
+                    "Item 2: Standby supply via scheduled lightning strike at the courthouse clock tower, 22:04 on the agreed date. Weather not guaranteed.",
+                    "Note: our engineers asked what the power is for. The client said we would not believe them, and we have chosen not to ask again."
+                ]},
+                {"file": "hillvalley_wax_agreement.docx", "type": "docx", "title": "Detailing Service Agreement", "body": [
+                    "This agreement covers monthly detailing of the client's fleet, including wash, polish and wax.",
+                    "Clause 4: wax is applied in two coats. A third coat may be requested by the fleet supervisor and is billed at the standard rate.",
+                    "Clause 7: the provider is not responsible for any vehicle the supervisor removes from the premises without authorisation, including vehicles capable of time travel."
+                ]}
+            ],
+            "request_threads": [
+                {"title": "Signed detailing agreement", "status": "NEEDS_MORE_INFO", "message": "Could you countersign the attached detailing agreement? Clause 4 has been updated to reflect the third coat."}
+            ]
+        },
+        {
+            "key": "zorg",
+            "name": "Zorg Industries Holdings",
+            "industry": "Manufacturing & Media",
+            "status": "ACTIVE",
+            "portal_enabled": true,
+            "priority": "URGENT",
+            "address": "Tower 1, Sky Level 600",
+            "city": "New York",
+            "state": "US-NY",
+            "zip": "10007",
+            "phone": "(212) 555-0151",
+            "website": "https://zorg-industries.example",
+            "email": "office@test.zorg.com",
+            "notes": "Large account, chaotic leadership. Never mention cherries.",
+            "client_tasks": [
+                {"title": "Quarterly account review with the CEO's office", "status": "PENDING", "priority": "MEDIUM", "due": 9, "hours": 2},
+                {"title": "Remove the fruit bowl from the meeting room", "status": "COMPLETED", "priority": "LOW", "due": -1, "hours": 0.25}
+            ],
+            "tags": ["manufacturing", "media", "key-account"],
+            "departments": ["Office of the CEO", "Transport", "Broadcast"],
+            "contacts": [
+                {"key": "zorg", "first": "Jean-Baptiste Emanuel", "last": "Zorg", "title": "Chief Executive Officer", "department": "Office of the CEO", "phone_work": "(212) 555-0152", "priority": "URGENT", "notes": "Gives speeches about the creative value of destruction. Do not offer him a cherry."},
+                {"key": "dallas", "first": "Korben", "last": "Dallas", "title": "Fleet Cab Driver (Contract)", "department": "Transport", "phone_cell": "(212) 555-0153", "priority": "MEDIUM", "notes": "Ex-military, now drives a cab. Has been fired, twice, during one phone call."},
+                {"key": "rhod", "first": "Ruby", "last": "Rhod", "title": "Broadcast Host", "department": "Broadcast", "phone_work": "(212) 555-0154", "priority": "HIGH", "notes": "Every call is live. Speak in short sentences."}
+            ],
+            "projects": [
+                {
+                    "name": "ZF-1 Product Recall", "status": "ACTIVE", "priority": "URGENT", "start": -15, "due": 10, "budget": 400000,
+                    "description": "Recall a very complicated multi-function rifle after a design flaw involving a small red button.",
+                    "contacts": ["zorg"],
+                    "tasks": [
+                        {"title": "Draft recall notice (explain the red button)", "status": "IN_PROGRESS", "priority": "URGENT", "due": 1, "hours": 4},
+                        {"title": "Notify distributors", "status": "PENDING", "priority": "HIGH", "due": 3, "hours": 3},
+                        {"title": "Review cherry-related incident report", "status": "PENDING", "priority": "MEDIUM", "due": 5, "hours": 2}
+                    ]
+                },
+                {
+                    "name": "Cab Licence Renewal", "status": "ACTIVE", "priority": "LOW", "start": -20, "due": 7, "budget": 1200,
+                    "description": "Renew the contract driver's cab licence and settle his outstanding points.",
+                    "contacts": ["dallas"],
+                    "tasks": [
+                        {"title": "Settle 31 outstanding points", "status": "PENDING", "priority": "MEDIUM", "due": 4, "hours": 2},
+                        {"title": "Multipass audit", "status": "COMPLETED", "priority": "LOW", "due": -6, "hours": 1, "description": "Yes, she knows it's a multipass."}
+                    ]
+                },
+                {
+                    "name": "Radio Show Sponsorship", "status": "PLANNING", "priority": "MEDIUM", "start": 0, "due": 30, "budget": 55000,
+                    "description": "Sponsor the most-listened-to broadcast in the galaxy and keep it compliant with the network's green guidelines.",
+                    "contacts": ["rhod"],
+                    "tasks": [
+                        {"title": "Green-the-show compliance review", "status": "PENDING", "priority": "MEDIUM", "due": 12, "hours": 4},
+                        {"title": "Book the guest of the year", "status": "PENDING", "priority": "HIGH", "due": 8, "hours": 2}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "zorg_zf1_recall_notice.docx", "type": "docx", "title": "Product Recall Notice - ZF-1", "body": [
+                    "Zorg Industries is recalling all ZF-1 units manufactured this quarter.",
+                    "Owners are advised not to press the small red button at the rear of the unit under any circumstances. Its function was not documented in the user manual and should not have been.",
+                    "Return the unit to any authorised dealer for a full refund and a complimentary cherry, which management has asked us to stop offering."
+                ]},
+                {"file": "zorg_cherry_incident_report.pdf", "type": "pdf", "title": "Incident Report - The Cherry", "body": [
+                    "Summary: during a client meeting the CEO choked on a cherry from the complimentary fruit bowl and was saved by an alert assistant.",
+                    "Root cause: fruit bowl placed within reach of a speech about the creative value of destruction.",
+                    "Corrective action: fruit bowls removed from all executive floors. Speeches now limited to four minutes."
+                ]}
+            ]
+        },
+        {
+            "key": "serenity",
+            "name": "Serenity Haulage Co.",
+            "industry": "Freight & Charter",
+            "status": "ACTIVE",
+            "portal_enabled": true,
+            "priority": "MEDIUM",
+            "address": "Berth 12, Eavesdown Docks",
+            "city": "Portland",
+            "state": "US-OR",
+            "zip": "97201",
+            "phone": "(503) 555-0161",
+            "website": "https://serenity-haulage.example",
+            "email": "captain@test.serenity.com",
+            "notes": "Takes any job, asks few questions, delivers late but delivers. Payment terms: cash.",
+            "tags": ["freight", "charter"],
+            "departments": ["Command", "Engineering", "Security"],
+            "contacts": [
+                {"key": "reynolds", "first": "Malcolm", "last": "Reynolds", "title": "Captain & Owner", "department": "Command", "phone_cell": "(503) 555-0162", "priority": "HIGH", "notes": "Prefers the 'no questions asked' clause. We have asked anyway."},
+                {"key": "cobb", "first": "Jayne", "last": "Cobb", "title": "Head of Security", "department": "Security", "phone_cell": "(503) 555-0163", "priority": "LOW", "notes": "Very attached to a knitted hat his mother sent him. Ship it with care."},
+                {"key": "frye", "first": "Kaywinnet Lee", "last": "Frye", "title": "Ship's Mechanic", "department": "Engineering", "phone_work": "(503) 555-0164", "priority": "MEDIUM", "notes": "The ship runs because she talks to it. Approve her parts orders promptly."}
+            ],
+            "projects": [
+                {
+                    "name": "Cargo Haulage - Outer Rim Run", "status": "ACTIVE", "priority": "HIGH", "start": -25, "due": 18, "budget": 36000,
+                    "description": "Three-stop freight run under 'no questions asked' terms. Our legal team has asked several questions.",
+                    "contacts": ["reynolds", "cobb"],
+                    "tasks": [
+                        {"title": "Agree 'no questions asked' delivery terms", "status": "COMPLETED", "priority": "HIGH", "due": -18, "hours": 2},
+                        {"title": "Ship knitted hat from Jayne's mother", "status": "IN_PROGRESS", "priority": "MEDIUM", "due": 3, "hours": 1, "description": "Handle with care. It is, apparently, a very cunning hat."},
+                        {"title": "Reconcile cash payments", "status": "PENDING", "priority": "MEDIUM", "due": 20, "hours": 3}
+                    ]
+                },
+                {
+                    "name": "Compression Coil Replacement", "status": "ACTIVE", "priority": "URGENT", "start": -6, "due": 4, "budget": 3200,
+                    "description": "Replace the catalyser on the port compression coil before the next run.",
+                    "contacts": ["frye"],
+                    "tasks": [
+                        {"title": "Source catalyser for the compression coil", "status": "IN_PROGRESS", "priority": "URGENT", "due": 1, "hours": 4, "attach": "serenity_engine_photo.jpg"},
+                        {"title": "Fit and test the coil", "status": "PENDING", "priority": "HIGH", "due": 4, "hours": 6}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "serenity_cargo_manifest.xlsx", "type": "xlsx", "title": "Cargo Manifest - Outer Rim Run", "rows": [
+                    ["Crate", "Declared Contents", "Weight (kg)", "Destination", "Questions Asked"],
+                    ["A-01", "Medical supplies", 120, "Whitefall", "No"],
+                    ["A-02", "Cattle feed", 800, "Persephone", "No"],
+                    ["A-03", "Knitted hat (1)", 0.4, "Crew quarters", "Several"],
+                    ["A-04", "Unlisted", 300, "Unlisted", "We tried"]
+                ]},
+                {"file": "serenity_engine_photo.jpg", "type": "jpg", "title": "Port Compression Coil", "lines": [
+                    "Port compression coil",
+                    "Catalyser: cracked",
+                    "Status: held together by optimism",
+                    "Photo: K. Frye"
+                ]}
+            ]
+        },
+        {
+            "key": "encom",
+            "name": "ENCOMpass Systems International",
+            "industry": "Software & Computing",
+            "status": "ACTIVE",
+            "portal_enabled": true,
+            "priority": "HIGH",
+            "address": "ENCOMpass Tower, 2600 Grid Way",
+            "city": "San Jose",
+            "state": "US-CA",
+            "zip": "95110",
+            "phone": "(408) 555-0171",
+            "website": "https://encompass-systems.example",
+            "email": "it@test.encom.com",
+            "notes": "Their main control program has ambitions. Keep the licence audit tight.",
+            "tags": ["software", "key-account"],
+            "departments": ["Office of the Senior Executive VP", "Laser Lab"],
+            "contacts": [
+                {"key": "dillinger", "first": "Ed", "last": "Dillinger", "title": "Senior Executive Vice President", "department": "Office of the Senior Executive VP", "phone_work": "(408) 555-0172", "priority": "HIGH", "notes": "Talks to his desk. The desk talks back."}
+            ],
+            "projects": [
+                {
+                    "name": "Control Program Licence Audit", "status": "ACTIVE", "priority": "URGENT", "start": -35, "due": 12, "budget": 88000,
+                    "description": "Audit the licences held by a very ambitious control program that has absorbed several smaller programs without asking.",
+                    "contacts": ["dillinger"],
+                    "tasks": [
+                        {"title": "Inventory programs the control program absorbed", "status": "IN_PROGRESS", "priority": "HIGH", "due": 4, "hours": 12},
+                        {"title": "Revoke its access to the Pentagon (and the Kremlin)", "status": "PENDING", "priority": "URGENT", "due": -1, "hours": 2},
+                        {"title": "Laser lab access policy review", "status": "PENDING", "priority": "MEDIUM", "due": 9, "hours": 3}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "encom_licence_audit.xlsx", "type": "xlsx", "title": "Control Program Licence Audit", "rows": [
+                    ["Program", "Owner", "Licensed", "Absorbed by Control Program", "Action"],
+                    ["Space Paranoids", "K. Flynn (disputed)", "Yes", "No", "Resolve attribution"],
+                    ["Chess Program", "ENCOMpass", "Yes", "Yes", "Restore"],
+                    ["Security Program", "(unassigned)", "Yes", "Attempted", "Monitor"],
+                    ["Accounting Program", "ENCOMpass", "Yes", "Yes", "Restore"]
+                ]},
+                {"file": "encom_laser_lab_policy.docx", "type": "docx", "title": "Laser Lab Access Policy", "body": [
+                    "Access to the laser lab is restricted to badged research staff during staffed hours.",
+                    "Employees must not stand in front of the digitising laser while it is active. The laser will not ask first.",
+                    "Any staff member who is digitised into the system must report to Facilities on their return and complete form LL-7."
+                ]}
+            ]
+        },
+        {
+            "key": "flynns",
+            "name": "Flynn's Arcade & Amusements",
+            "industry": "Entertainment",
+            "status": "PROSPECT",
+            "portal_enabled": false,
+            "priority": "MEDIUM",
+            "address": "1 Arcade Row",
+            "city": "San Jose",
+            "state": "US-CA",
+            "zip": "95112",
+            "phone": "(408) 555-0181",
+            "website": "https://flynns-arcade.example",
+            "email": "flynn@test.flynns.com",
+            "notes": "Owner claims to have written ENCOMpass's best-selling games. Proceed carefully with both accounts.",
+            "tags": ["entertainment", "prospect"],
+            "departments": [],
+            "contacts": [
+                {"key": "flynn", "first": "Kevin", "last": "Flynn", "title": "Owner", "phone_cell": "(408) 555-0182", "priority": "MEDIUM", "notes": "Holds the high score on every cabinet. Wants credit for writing them, too."}
+            ],
+            "projects": [
+                {
+                    "name": "High-Score Attribution Dispute", "status": "ON_HOLD", "priority": "HIGH", "start": -45, "due": 30, "budget": 15000,
+                    "description": "Establish who actually wrote the games the arcade's high scores are on.",
+                    "contacts": ["flynn"],
+                    "tasks": [
+                        {"title": "Collect evidence of authorship", "status": "IN_PROGRESS", "priority": "HIGH", "due": 10, "hours": 8},
+                        {"title": "Recover deleted source files", "status": "PENDING", "priority": "MEDIUM", "due": 20, "hours": 12}
+                    ]
+                },
+                {
+                    "name": "Arcade Cabinet Maintenance", "status": "ACTIVE", "priority": "LOW", "start": -60, "due": 30, "budget": 6000,
+                    "description": "Quarterly maintenance of every cabinet on the floor.",
+                    "contacts": ["flynn"],
+                    "tasks": [
+                        {"title": "Replace the joystick on Space Paranoids", "status": "COMPLETED", "priority": "MEDIUM", "due": -7, "hours": 1},
+                        {"title": "Restock the coin mechs", "status": "PENDING", "priority": "LOW", "due": 6, "hours": 1}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "flynns_attribution_claim.pdf", "type": "pdf", "title": "Statement of Authorship", "body": [
+                    "I, the undersigned, wrote the games 'Space Paranoids', 'Matrix Blaster' and 'Vice Squad' and submitted them to my former employer.",
+                    "The files were later attributed to another employee. I intend to prove authorship by recovering the original files from the company mainframe.",
+                    "I would also like it noted that I hold the high score on all three."
+                ]},
+                {"file": "flynns_floor_plan.png", "type": "png", "title": "Arcade Floor Plan", "lines": [
+                    "Front: Space Paranoids (x3)",
+                    "Middle: Light Cycle (x2)",
+                    "Back office: very powerful terminal",
+                    "Exit: past the change machine"
+                ]}
+            ]
+        },
+        {
+            "key": "megadodo",
+            "name": "Megadodo Publications",
+            "industry": "Publishing",
+            "status": "ACTIVE",
+            "portal_enabled": true,
+            "priority": "MEDIUM",
+            "address": "Ursa Minor Beta Office Park",
+            "city": "Boston",
+            "state": "US-MA",
+            "zip": "02108",
+            "phone": "(617) 555-0191",
+            "website": "https://megadodo.example",
+            "email": "editors@test.megadodo.com",
+            "notes": "Publishes the best-selling travel guide in several galaxies. Don't panic.",
+            "tags": ["publishing"],
+            "departments": ["Field Research", "Editorial"],
+            "contacts": [
+                {"key": "prefect", "first": "Ford", "last": "Prefect", "title": "Field Researcher", "department": "Field Research", "phone_cell": "(617) 555-0192", "priority": "MEDIUM", "notes": "Always knows where his towel is. Stranded for fifteen years; slow to reply."},
+                {"key": "dent", "first": "Arthur", "last": "Dent", "title": "Contributing Editor (Reluctant)", "department": "Editorial", "phone_work": "(617) 555-0193", "priority": "LOW", "notes": "Would like a cup of tea before anything else. Usually in his dressing gown."}
+            ],
+            "projects": [
+                {
+                    "name": "Guide Entry Update: Earth", "status": "COMPLETED", "priority": "MEDIUM", "start": -90, "due": -10, "budget": 2000,
+                    "description": "Revise the Guide's entry for Earth after fifteen years of field research.",
+                    "contacts": ["prefect"],
+                    "tasks": [
+                        {"title": "Expand entry from 'harmless' to 'mostly harmless'", "status": "COMPLETED", "priority": "MEDIUM", "due": -12, "hours": 15},
+                        {"title": "Procure a replacement towel", "status": "COMPLETED", "priority": "HIGH", "due": -20, "hours": 0.5}
+                    ]
+                },
+                {
+                    "name": "Bypass Planning Objection", "status": "ACTIVE", "priority": "HIGH", "start": -14, "due": 3, "budget": 3500,
+                    "description": "Object to the planning permission for a bypass through a contributor's house, ideally before the bulldozers arrive.",
+                    "contacts": ["dent"],
+                    "tasks": [
+                        {"title": "Find the planning notice (cellar, locked filing cabinet)", "status": "COMPLETED", "priority": "HIGH", "due": -10, "hours": 2, "description": "It was on display in the bottom of a locked filing cabinet stuck in a disused lavatory with a sign on the door saying 'Beware of the Leopard'."},
+                        {"title": "Lie in front of the bulldozer", "status": "IN_PROGRESS", "priority": "URGENT", "due": 0, "hours": 4},
+                        {"title": "Make a proper cup of tea", "status": "PENDING", "priority": "LOW", "due": 1, "hours": 0.5}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "megadodo_guide_entry_earth.docx", "type": "docx", "title": "Guide Entry Revision - Earth", "body": [
+                    "Previous entry: Harmless.",
+                    "Revised entry: Mostly harmless.",
+                    "Editor's note: the field researcher submitted a considerably longer entry. The editors cut it down for space."
+                ]},
+                {"file": "megadodo_bypass_notice.pdf", "type": "pdf", "title": "Planning Notice - Proposed Bypass", "body": [
+                    "Notice is hereby given that planning permission has been granted for a bypass passing through the property listed in the schedule.",
+                    "The plans have been on display at the local planning office for nine months, which is to say in the bottom of a locked filing cabinet in a disused lavatory.",
+                    "Objections should have been lodged within the display period."
+                ]}
+            ]
+        },
+        {
+            "key": "sanangeles",
+            "name": "San Angeles Civic Services",
+            "industry": "Public Sector",
+            "status": "ACTIVE",
+            "portal_enabled": true,
+            "priority": "LOW",
+            "address": "Civic Plaza, Taco Bell District",
+            "city": "Los Angeles",
+            "state": "US-CA",
+            "zip": "90012",
+            "phone": "(213) 555-0201",
+            "website": "https://san-angeles.example",
+            "email": "civic@test.sanangeles.com",
+            "notes": "Extremely polite city. Fines are issued for minor language violations.",
+            "tags": ["public-sector"],
+            "departments": ["Police Department"],
+            "contacts": [
+                {"key": "spartan", "first": "John", "last": "Spartan", "title": "Sergeant (Reinstated)", "department": "Police Department", "phone_work": "(213) 555-0202", "priority": "MEDIUM", "notes": "Has opinions about the three seashells."},
+                {"key": "huxley", "first": "Lenina", "last": "Huxley", "title": "Lieutenant", "department": "Police Department", "phone_work": "(213) 555-0203", "priority": "HIGH", "notes": "Great enthusiasm for twentieth-century culture. Will quote it back to you."}
+            ],
+            "projects": [
+                {
+                    "name": "Officer Onboarding Programme", "status": "ACTIVE", "priority": "MEDIUM", "start": -21, "due": 21, "budget": 12000,
+                    "description": "Onboard officers to modern procedures, including the facilities.",
+                    "contacts": ["spartan", "huxley"],
+                    "tasks": [
+                        {"title": "Three-seashells onboarding training", "status": "PENDING", "priority": "HIGH", "due": 5, "hours": 2},
+                        {"title": "Pay outstanding verbal-morality fines", "status": "IN_PROGRESS", "priority": "LOW", "due": 2, "hours": 0.5}
+                    ]
+                },
+                {
+                    "name": "Twentieth-Century Culture Research", "status": "PLANNING", "priority": "LOW", "start": 0, "due": 60, "budget": 3000,
+                    "description": "Catalogue twentieth-century films and phrases for the department's training library.",
+                    "contacts": ["huxley"],
+                    "tasks": [
+                        {"title": "Compile the action-film reading list", "status": "PENDING", "priority": "LOW", "due": 30, "hours": 6}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "sanangeles_training_deck.pdf", "type": "pdf", "title": "Onboarding: Modern Facilities", "body": [
+                    "Section 1: Greetings. Officers greet the public with 'Be well'.",
+                    "Section 2: Facilities. Every stall is equipped with three seashells. Their use will be demonstrated during practical training.",
+                    "Section 3: Language. Each verbal violation of the morality statute is fined one credit, issued automatically."
+                ]},
+                {"file": "sanangeles_org_chart.png", "type": "png", "title": "Police Department - Org Chart", "lines": [
+                    "Chief of Police",
+                    "Lieutenant L. Huxley",
+                    "Sergeant J. Spartan (reinstated)",
+                    "Seashell Supply Officer (vacant)"
+                ]}
+            ]
+        },
+        {
+            "key": "ocp",
+            "name": "Omni Consumer Products Group",
+            "industry": "Conglomerate",
+            "status": "ACTIVE",
+            "portal_enabled": true,
+            "priority": "URGENT",
+            "address": "OCP Tower, Floor 95",
+            "city": "Detroit",
+            "state": "US-MI",
+            "zip": "48226",
+            "phone": "(313) 555-0211",
+            "website": "https://ocp-group.example",
+            "email": "corporate@test.ocp.com",
+            "notes": "A conglomerate that also runs the police department. Read every contract twice.",
+            "tags": ["conglomerate", "public-sector", "key-account"],
+            "departments": ["Security Concepts", "Enforcement"],
+            "contacts": [
+                {"key": "jones", "first": "Dick", "last": "Jones", "title": "Senior President", "department": "Security Concepts", "phone_work": "(313) 555-0212", "priority": "URGENT", "notes": "Champions the security-robot programme. Sensitive about the boardroom demo."},
+                {"key": "murphy", "first": "Alex", "last": "Murphy", "title": "Officer (Upgraded)", "department": "Enforcement", "phone_work": "(313) 555-0213", "priority": "HIGH", "notes": "Follows his directives precisely. All of them."}
+            ],
+            "projects": [
+                {
+                    "name": "Security Robot Boardroom Demo - Post-Incident Review", "status": "ACTIVE", "priority": "URGENT", "start": -9, "due": 6, "budget": 500000,
+                    "description": "Review the boardroom demonstration of the security robot, which did not go as planned.",
+                    "contacts": ["jones"],
+                    "tasks": [
+                        {"title": "Recover the demo footage", "status": "COMPLETED", "priority": "HIGH", "due": -6, "hours": 2},
+                        {"title": "Explain the 20-second compliance window", "status": "IN_PROGRESS", "priority": "URGENT", "due": 1, "hours": 4},
+                        {"title": "Replace boardroom carpet", "status": "PENDING", "priority": "MEDIUM", "due": 8, "hours": 6}
+                    ]
+                },
+                {
+                    "name": "Prime Directives Policy Review", "status": "ACTIVE", "priority": "HIGH", "start": -30, "due": 14, "budget": 25000,
+                    "description": "Review the officer's directives, including the one nobody was told about.",
+                    "contacts": ["murphy"],
+                    "tasks": [
+                        {"title": "Document directives 1-3", "status": "COMPLETED", "priority": "MEDIUM", "due": -15, "hours": 2},
+                        {"title": "Find out what directive 4 is", "status": "IN_PROGRESS", "priority": "URGENT", "due": 2, "hours": 3}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "ocp_prime_directives.docx", "type": "docx", "title": "Prime Directives - Policy Draft", "body": [
+                    "Directive 1: Serve the public trust.",
+                    "Directive 2: Protect the innocent.",
+                    "Directive 3: Uphold the law.",
+                    "Directive 4: [Classified]. Legal has asked that this directive be reviewed before the next board meeting."
+                ]},
+                {"file": "ocp_boardroom_review.pdf", "type": "pdf", "title": "Post-Incident Review - Boardroom Demo", "body": [
+                    "During the demonstration the unit was instructed to put down a weapon. The volunteer complied. The unit did not register the compliance.",
+                    "Root cause: a glitch. The project sponsor describes it as 'a temporary setback'.",
+                    "Recommendation: future demonstrations to use an empty boardroom, and carpet of a darker colour."
+                ]}
+            ]
+        },
+        {
+            "key": "rekall",
+            "name": "Rekall Leisure Holdings",
+            "industry": "Travel & Leisure",
+            "status": "ACTIVE",
+            "portal_enabled": true,
+            "priority": "MEDIUM",
+            "address": "Rekall Center, Level 3",
+            "city": "Phoenix",
+            "state": "US-AZ",
+            "zip": "85004",
+            "phone": "(602) 555-0221",
+            "website": "https://rekall-leisure.example",
+            "email": "bookings@test.rekall.com",
+            "notes": "Sells holidays you never take but always remember. Disclaimers matter.",
+            "tags": ["travel"],
+            "departments": [],
+            "contacts": [
+                {"key": "quaid", "first": "Douglas", "last": "Quaid", "title": "Customer (Construction Worker)", "phone_cell": "(602) 555-0222", "priority": "MEDIUM", "notes": "Keeps dreaming about Mars. Asked whether the trip is real; we said yes, in a way."}
+            ],
+            "projects": [
+                {
+                    "name": "Mars Memory-Implant Holiday", "status": "ACTIVE", "priority": "MEDIUM", "start": -12, "due": 10, "budget": 899,
+                    "description": "Book the customer's memory-implant holiday to Mars, with the secret-agent upgrade.",
+                    "contacts": ["quaid"],
+                    "tasks": [
+                        {"title": "Confirm the secret-agent upgrade", "status": "COMPLETED", "priority": "MEDIUM", "due": -8, "hours": 0.5},
+                        {"title": "Update the 'it was all a dream' disclaimer", "status": "IN_PROGRESS", "priority": "HIGH", "due": 3, "hours": 2},
+                        {"title": "Investigate implant side effects ('is this real?')", "status": "PENDING", "priority": "URGENT", "due": -2, "hours": 5}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "rekall_mars_brochure.pdf", "type": "pdf", "title": "Mars: The Holiday of a Lifetime", "body": [
+                    "Why go to Mars when Mars can come to you? Two weeks of memories, delivered in one comfortable afternoon.",
+                    "Upgrade to the secret-agent package and remember saving the planet, getting the girl and uncovering a conspiracy.",
+                    "Rekall accepts no liability for memories that turn out to be real."
+                ]},
+                {"file": "rekall_implant_options.xlsx", "type": "xlsx", "title": "Memory Implant Options", "rows": [
+                    ["Package", "Duration", "Price", "Includes", "Side Effects"],
+                    ["Standard Mars", "2 weeks", 899, "Sightseeing", "Mild nostalgia"],
+                    ["Secret Agent", "2 weeks", 1499, "Conspiracy, romance", "Paranoia (rare)"],
+                    ["Executive Ego Trip", "1 week", 1999, "Corner office", "Overconfidence"]
+                ]}
+            ]
+        },
+        {
+            "key": "nakatomi",
+            "name": "Nakatomi Trading Corp.",
+            "industry": "Trading & Finance",
+            "status": "INACTIVE",
+            "portal_enabled": false,
+            "priority": "HIGH",
+            "address": "Nakatomi Plaza, 30th Floor",
+            "city": "Los Angeles",
+            "state": "US-CA",
+            "zip": "90067",
+            "phone": "(310) 555-0231",
+            "website": "https://nakatomi-trading.example",
+            "email": "facilities@test.nakatomi.com",
+            "notes": "Account paused after a difficult Christmas party. The vault audit is still open.",
+            "tags": ["finance", "paused"],
+            "departments": ["Audit"],
+            "contacts": [
+                {"key": "gruber", "first": "Hans", "last": "Gruber", "title": "Visiting Auditor (Unannounced)", "department": "Audit", "phone_work": "(310) 555-0232", "priority": "URGENT", "notes": "Well-tailored, well-read, and very interested in the vault."}
+            ],
+            "projects": [
+                {
+                    "name": "Vault Audit", "status": "CANCELLED", "priority": "HIGH", "start": -35, "due": -5, "budget": 64000,
+                    "description": "A thorough audit of the 30th-floor vault, scheduled by the auditor himself on Christmas Eve.",
+                    "contacts": ["gruber"],
+                    "tasks": [
+                        {"title": "Inventory the bearer bonds", "status": "CANCELLED", "priority": "HIGH", "due": -6, "hours": 4},
+                        {"title": "Review building security (lessons learned)", "status": "PENDING", "priority": "URGENT", "due": 5, "hours": 8},
+                        {"title": "Repair the 30th floor windows", "status": "IN_PROGRESS", "priority": "MEDIUM", "due": 12, "hours": 20}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "nakatomi_vault_audit_scope.docx", "type": "docx", "title": "Vault Audit - Scope of Work", "body": [
+                    "Scope: the 30th-floor vault and its contents, including bearer bonds to the value of six hundred and forty million dollars.",
+                    "Method: the auditor will open the vault in person. Building staff are asked to remain in the conference room for the duration.",
+                    "Schedule: Christmas Eve, during the office party, when the building is quietest."
+                ]},
+                {"file": "nakatomi_bond_inventory.xlsx", "type": "xlsx", "title": "Bearer Bond Inventory", "rows": [
+                    ["Series", "Denomination", "Count", "Total", "Location"],
+                    ["A", 100000, 2400, 240000000, "Vault, shelf 1"],
+                    ["B", 100000, 4000, 400000000, "Vault, shelf 2"],
+                    ["Total", "", 6400, 640000000, "Last seen: falling from the roof"]
+                ]}
+            ]
+        },
+        {
+            "key": "smart",
+            "name": "S-Mart Retail Group",
+            "industry": "Retail",
+            "status": "ACTIVE",
+            "portal_enabled": true,
+            "priority": "LOW",
+            "address": "Store 211, Housewares",
+            "city": "Dearborn",
+            "state": "US-MI",
+            "zip": "48126",
+            "phone": "(313) 555-0241",
+            "website": "https://s-mart.example",
+            "email": "housewares@test.smart.com",
+            "notes": "Shop smart. Shop S-Mart. The housewares department has a very confident manager.",
+            "tags": ["retail"],
+            "departments": ["Housewares"],
+            "contacts": [
+                {"key": "williams", "first": "Ash", "last": "Williams", "title": "Housewares Department", "department": "Housewares", "phone_work": "(313) 555-0242", "priority": "MEDIUM", "notes": "Customer-facing, chainsaw-adjacent. Calls everyone 'primitive screwheads' (affectionately)."}
+            ],
+            "projects": [
+                {
+                    "name": "Housewares Restock", "status": "ACTIVE", "priority": "MEDIUM", "start": -16, "due": 9, "budget": 14000,
+                    "description": "Restock housewares ahead of the seasonal rush, including the popular power tools.",
+                    "contacts": ["williams"],
+                    "tasks": [
+                        {"title": "Restock boomsticks (twelve-gauge, double-barrelled)", "status": "COMPLETED", "priority": "HIGH", "due": -3, "hours": 2},
+                        {"title": "Order chainsaw attachment (right hand)", "status": "IN_PROGRESS", "priority": "HIGH", "due": 2, "hours": 1},
+                        {"title": "Rearrange shelving per the new plan", "status": "PENDING", "priority": "LOW", "due": 7, "hours": 6}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "smart_restock_order.xlsx", "type": "xlsx", "title": "Housewares Restock Order", "rows": [
+                    ["SKU", "Item", "Qty", "Unit Price", "Note"],
+                    ["HW-001", "Boomstick, 12-gauge", 12, 109.95, "Top of the line"],
+                    ["HW-014", "Chainsaw attachment", 1, 249.00, "Right-hand fitting"],
+                    ["HW-020", "Book (leather-bound, do not read aloud)", 0, 0, "Do not reorder"],
+                    ["HW-031", "Shelf brackets", 40, 3.25, ""]
+                ]},
+                {"file": "smart_shelf_plan.png", "type": "png", "title": "Shelf Plan - Housewares", "lines": [
+                    "Aisle 1: power tools",
+                    "Aisle 2: cookware",
+                    "Endcap: boomstick display",
+                    "Shop smart. Shop S-Mart."
+                ]}
+            ]
+        },
+        {
+            "key": "outpost31",
+            "name": "Outpost 31 Research Station",
+            "industry": "Scientific Research",
+            "status": "ACTIVE",
+            "portal_enabled": true,
+            "priority": "HIGH",
+            "address": "Outpost 31, Ice Shelf Road",
+            "city": "Anchorage",
+            "state": "US-AK",
+            "zip": "99501",
+            "phone": "(907) 555-0251",
+            "website": "https://outpost31.example",
+            "email": "station@test.outpost31.com",
+            "notes": "Remote and cold. Staff morale low; trust between staff lower.",
+            "tags": ["research", "remote"],
+            "departments": ["Aviation"],
+            "contacts": [
+                {"key": "macready", "first": "R.J.", "last": "MacReady", "title": "Helicopter Pilot", "department": "Aviation", "phone_work": "(907) 555-0252", "priority": "HIGH", "notes": "Plays chess against a computer, loses, pours his drink into it."}
+            ],
+            "projects": [
+                {
+                    "name": "Station Health & Safety Review", "status": "ACTIVE", "priority": "URGENT", "start": -8, "due": 4, "budget": 9000,
+                    "description": "Introduce a reliable test that staff are who they say they are.",
+                    "contacts": ["macready"],
+                    "tasks": [
+                        {"title": "Write up the blood-test procedure", "status": "COMPLETED", "priority": "URGENT", "due": -2, "hours": 3},
+                        {"title": "Test every staff member (heated wire, petri dish)", "status": "IN_PROGRESS", "priority": "URGENT", "due": 0, "hours": 4},
+                        {"title": "Order a replacement chess computer", "status": "PENDING", "priority": "LOW", "due": 14, "hours": 0.5}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "outpost31_blood_test_procedure.docx", "type": "docx", "title": "Procedure: Blood Test for Station Staff", "body": [
+                    "Purpose: to confirm that each member of staff is, in fact, a member of staff.",
+                    "Method: draw a sample from each person into a labelled dish. Touch each sample with a heated wire. Observe.",
+                    "Note: staff are asked to remain tied to their chairs during testing. This is for everyone's safety."
+                ]},
+                {"file": "outpost31_staff_roster.xlsx", "type": "xlsx", "title": "Station Staff Roster", "rows": [
+                    ["Name", "Role", "Tested", "Result", "Note"],
+                    ["MacReady", "Pilot", "Yes", "Human", "Ran the test"],
+                    ["Radio operator", "Radio Operator", "Yes", "Human", ""],
+                    ["Mechanic", "Mechanic", "Pending", "Unknown", "Went outside"],
+                    ["Station dog", "Dog", "No", "Unknown", "Last seen in the kennel"]
+                ]}
+            ]
+        },
+        {
+            "key": "colonialmarine",
+            "name": "Colonial Marine Logistics",
+            "industry": "Defence Logistics",
+            "status": "ACTIVE",
+            "portal_enabled": true,
+            "priority": "MEDIUM",
+            "address": "Dock 7, Gateway Station",
+            "city": "San Diego",
+            "state": "US-CA",
+            "zip": "92101",
+            "phone": "(619) 555-0261",
+            "website": "https://colonial-marine.example",
+            "email": "logistics@test.colonialmarine.com",
+            "notes": "Equipment losses are high. The paperwork is higher.",
+            "tags": ["defence", "logistics"],
+            "departments": ["Fire Team"],
+            "contacts": [
+                {"key": "hudson", "first": "William", "last": "Hudson", "title": "Private First Class, Communications", "department": "Fire Team", "phone_cell": "(619) 555-0262", "priority": "MEDIUM", "notes": "Excellent with equipment. Less excellent with pressure. Ask about the morale programme."}
+            ],
+            "projects": [
+                {
+                    "name": "Equipment Insurance Claim", "status": "ACTIVE", "priority": "HIGH", "start": -20, "due": 15, "budget": 2400000,
+                    "description": "Claim for equipment lost on a colony survey, including an armoured personnel carrier and a dropship.",
+                    "contacts": ["hudson"],
+                    "tasks": [
+                        {"title": "List the lost equipment", "status": "COMPLETED", "priority": "HIGH", "due": -10, "hours": 3},
+                        {"title": "Explain 'game over' to the insurer", "status": "PENDING", "priority": "MEDIUM", "due": 5, "hours": 1},
+                        {"title": "Launch the morale programme", "status": "PENDING", "priority": "LOW", "due": 30, "hours": 4}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "colonialmarine_insurance_claim.pdf", "type": "pdf", "title": "Equipment Insurance Claim", "body": [
+                    "Claimant: Colonial Marine Logistics. Incident: survey of a terraforming colony.",
+                    "Items lost: one armoured personnel carrier, one dropship, assorted motion trackers and pulse rifles, one colony.",
+                    "The claimant's communications specialist describes the outcome as 'game over'. The insurer has requested a fuller description."
+                ]},
+                {"file": "colonialmarine_morale_survey.xlsx", "type": "xlsx", "title": "Morale Programme - Survey", "rows": [
+                    ["Question", "Strongly Agree", "Agree", "Disagree", "Game Over"],
+                    ["I feel safe on deployment", 1, 2, 3, 5],
+                    ["My equipment is reliable", 4, 4, 2, 1],
+                    ["Briefings are clear", 2, 3, 4, 2],
+                    ["I would re-enlist", 1, 1, 2, 7]
+                ]}
+            ]
+        },
+        {
+            "key": "spookcentral",
+            "name": "Spook Central Containment Ltd.",
+            "industry": "Specialist Services",
+            "status": "ACTIVE",
+            "portal_enabled": true,
+            "priority": "MEDIUM",
+            "address": "55 Central Park West",
+            "city": "New York",
+            "state": "US-NY",
+            "zip": "10023",
+            "phone": "(212) 555-0271",
+            "website": "https://spook-central.example",
+            "email": "containment@test.spookcentral.com",
+            "notes": "Specialist containment services. Never cross the streams.",
+            "tags": ["specialist", "environmental"],
+            "departments": ["Research"],
+            "contacts": [
+                {"key": "spengler", "first": "Egon", "last": "Spengler", "title": "Chief Scientist", "department": "Research", "phone_work": "(212) 555-0272", "priority": "HIGH", "notes": "Collects spores, moulds and fungus. Precise about everything."}
+            ],
+            "projects": [
+                {
+                    "name": "Containment Unit Inspection", "status": "ACTIVE", "priority": "URGENT", "start": -11, "due": 2, "budget": 18000,
+                    "description": "Inspection of the basement containment unit after the city ordered it shut down.",
+                    "contacts": ["spengler"],
+                    "tasks": [
+                        {"title": "Inspect the containment grid", "status": "IN_PROGRESS", "priority": "URGENT", "due": 0, "hours": 5},
+                        {"title": "Confirm no one has turned off the power", "status": "PENDING", "priority": "URGENT", "due": -1, "hours": 0.5},
+                        {"title": "Catalogue spores, moulds and fungus", "status": "PENDING", "priority": "LOW", "due": 20, "hours": 10}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "spookcentral_containment_inspection.pdf", "type": "pdf", "title": "Containment Unit Inspection Report", "body": [
+                    "The containment grid is operating within tolerance. Energy levels are rising and are expected to exceed safe limits within the month.",
+                    "The inspector from the city has requested the unit be shut down. Our chief scientist strongly advises against this.",
+                    "Do not cross the streams."
+                ]},
+                {"file": "spookcentral_spore_sample.jpg", "type": "jpg", "title": "Sample 31 - Spores", "lines": [
+                    "Sample 31: spores",
+                    "Origin: basement",
+                    "Collected by: E. Spengler",
+                    "Status: catalogued"
+                ]}
+            ]
+        },
+        {
+            "key": "colonialfleet",
+            "name": "Colonial Fleet Training Command",
+            "industry": "Defence Training",
+            "status": "ACTIVE",
+            "portal_enabled": true,
+            "priority": "HIGH",
+            "address": "Battlestar Hangar Deck B",
+            "city": "Norfolk",
+            "state": "US-VA",
+            "zip": "23510",
+            "phone": "(757) 555-0281",
+            "website": "https://colonial-fleet.example",
+            "email": "training@test.colonialfleet.com",
+            "notes": "Two contacts who do not get on. The defence network audit is sensitive.",
+            "tags": ["defence", "training"],
+            "departments": ["Flight Training", "Science Advisory"],
+            "contacts": [
+                {"key": "thrace", "first": "Kara", "last": "Thrace", "title": "Flight Instructor", "department": "Flight Training", "phone_cell": "(757) 555-0282", "priority": "HIGH", "notes": "Best pilot in the fleet, and the first to say so."},
+                {"key": "baltar", "first": "Gaius", "last": "Baltar", "title": "Scientific Advisor", "department": "Science Advisory", "phone_work": "(757) 555-0283", "priority": "MEDIUM", "notes": "Frequently talks to someone who isn't there. Very keen on the access audit not finding anything."}
+            ],
+            "projects": [
+                {
+                    "name": "Flight Instructor Recertification", "status": "ACTIVE", "priority": "MEDIUM", "start": -18, "due": 16, "budget": 8000,
+                    "description": "Annual recertification for the fleet's flight instructors.",
+                    "contacts": ["thrace"],
+                    "tasks": [
+                        {"title": "Simulator assessment", "status": "COMPLETED", "priority": "MEDIUM", "due": -5, "hours": 3},
+                        {"title": "Paperwork (instructor has 'lost' it twice)", "status": "PENDING", "priority": "LOW", "due": 6, "hours": 1}
+                    ]
+                },
+                {
+                    "name": "Defence Network Access Audit", "status": "ACTIVE", "priority": "URGENT", "start": -7, "due": 7, "budget": 30000,
+                    "description": "Audit who had access to the defence mainframe and why. Again.",
+                    "contacts": ["baltar"],
+                    "tasks": [
+                        {"title": "Review the scientific advisor's own access (again)", "status": "IN_PROGRESS", "priority": "URGENT", "due": 1, "hours": 4},
+                        {"title": "Finish the 'not a Cylon' detector", "status": "IN_PROGRESS", "priority": "HIGH", "due": 30, "hours": 40, "description": "Development is taking longer than the advisor had hoped. Or exactly as long."}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "colonialfleet_recertification.docx", "type": "docx", "title": "Flight Instructor Recertification", "body": [
+                    "Instructors must pass the simulator assessment and complete the written recertification paperwork each year.",
+                    "Instructors who 'lose' their paperwork will be issued fresh copies. Repeatedly.",
+                    "Recertification is not complete until the paperwork is returned, regardless of simulator scores."
+                ]},
+                {"file": "colonialfleet_access_audit.xlsx", "type": "xlsx", "title": "Defence Network Access Audit", "rows": [
+                    ["Account", "Holder", "Access Level", "Last Used", "Reviewer Note"],
+                    ["sci-advisor-01", "G. Baltar", "Full", "Yesterday", "Granted by the advisor to the advisor"],
+                    ["flight-ops", "K. Thrace", "Read", "Last week", "OK"],
+                    ["unknown-6", "(unknown)", "Full", "Continuously", "Investigate"]
+                ]}
+            ]
+        },
+        {
+            "key": "crematoria",
+            "name": "Crematoria Night Operations",
+            "industry": "Security Services",
+            "status": "PROSPECT",
+            "portal_enabled": false,
+            "priority": "LOW",
+            "address": "Night Side Facility",
+            "city": "Las Vegas",
+            "state": "US-NV",
+            "zip": "89101",
+            "phone": "(702) 555-0291",
+            "website": "https://crematoria-nightops.example",
+            "email": "nightops@test.crematoria.com",
+            "notes": "Operates only after dark. Daylight is, in their words, not an option.",
+            "tags": ["security", "prospect"],
+            "departments": [],
+            "contacts": [
+                {"key": "riddick", "first": "Richard B.", "last": "Riddick", "title": "Night Operations Lead", "phone_cell": "(702) 555-0292", "priority": "MEDIUM", "notes": "Sees perfectly in the dark. Prefers meetings with the lights off."}
+            ],
+            "projects": [
+                {
+                    "name": "Night-Shift Scheduling", "status": "PLANNING", "priority": "MEDIUM", "start": 0, "due": 20, "budget": 6500,
+                    "description": "Build a rota for a team that cannot work in daylight.",
+                    "contacts": ["riddick"],
+                    "tasks": [
+                        {"title": "Map the hours of darkness", "status": "PENDING", "priority": "MEDIUM", "due": 5, "hours": 3},
+                        {"title": "Requisition eye-protection equipment", "status": "PENDING", "priority": "HIGH", "due": 3, "hours": 1}
+                    ]
+                }
+            ],
+            "documents": [
+                {"file": "crematoria_night_rota.xlsx", "type": "xlsx", "title": "Night-Shift Rota", "rows": [
+                    ["Shift", "Starts", "Ends", "Lead", "Lighting"],
+                    ["Dusk", "19:00", "23:00", "R. Riddick", "Off"],
+                    ["Deep night", "23:00", "03:00", "R. Riddick", "Off"],
+                    ["Pre-dawn", "03:00", "05:30", "R. Riddick", "Off (strictly)"]
+                ]},
+                {"file": "crematoria_eye_protection.pdf", "type": "pdf", "title": "Requisition - Eye Protection", "body": [
+                    "Item: welding-grade goggles, one pair, tinted to the darkest available grade.",
+                    "Justification: the requesting officer's eyes are highly sensitive to light. Office lighting causes him significant discomfort.",
+                    "Priority: high. The officer has asked that the goggles be delivered after sunset."
+                ]}
+            ]
+        }
+    ],
+
+    "reference_documents": [
+        {"file": "reference/sample_report.pdf", "client": "megadodo", "title": "NASA report: The Recent Large Reduction in Space Launch Cost"},
+        {"file": "reference/sample_memo.docx", "client": "megadodo", "title": "DHS Section 508 MS Word Test Process"}
+    ],
+
+    "announcements": [
+        {"client": null, "title": "Holiday hours", "body": "Our office will close early on the last Friday of the month. Urgent requests will still be answered within one business day.", "published": -3},
+        {"client": "hillvalley", "title": "New detailing schedule", "body": "From next month, fleet detailing moves to the first Monday of each month. Wax remains two coats unless otherwise requested.", "published": -1},
+        {"client": "zorg", "title": "ZF-1 recall: what to expect", "body": "We are working with your team on the ZF-1 recall. Expect daily updates in this portal until every unit is returned.", "published": 0}
+    ],
+
+    "products": [
+        {"name": "Brawndough Electrolyte Drink (Case of 24)", "price": "29.99", "status": "AVAILABLE", "category": "FOOD", "description": "It's got what plants crave. Not recommended for plants."},
+        {"name": "Flux Part, Replacement", "price": "1210.00", "status": "OUT_OF_STOCK", "category": "ELECTRONICS", "description": "Essential for any vehicle-mounted temporal displacement. Requires 1.21 gigawatts."},
+        {"name": "Multipass Holder", "price": "12.50", "status": "AVAILABLE", "category": "CLOTHING", "description": "Keeps your multipass where you can find it. Yes, it's a multipass."},
+        {"name": "Hitchhiker's Towel", "price": "19.95", "status": "AVAILABLE", "category": "CLOTHING", "description": "The most massively useful thing an interstellar traveller can have."},
+        {"name": "Knitted Hat (Orange, Earflaps)", "price": "24.00", "status": "AVAILABLE", "category": "CLOTHING", "description": "Hand-knitted. Pretty cunning, don't you think?"},
+        {"name": "Guide to the Galaxy, Pocket Edition", "price": "42.00", "status": "AVAILABLE", "category": "BOOKS", "description": "Has the words 'Don't Panic' inscribed in large friendly letters on the cover."},
+        {"name": "Containment Unit, Residential", "price": "8999.00", "status": "DISCONTINUED", "category": "ELECTRONICS", "description": "Discontinued after a city inspector turned one off."},
+        {"name": "Chess Computer (Drink-Resistant)", "price": "149.00", "status": "AVAILABLE", "category": "ELECTRONICS", "description": "Survives having a drink poured into its circuits. Still beats you."}
+    ],
+
+    "parties": [
+        {"type": "COMPANY", "name": "Hill Valley Courthouse Trust", "email": "trust@test.hillvalley.com", "phone": "(303) 555-0301", "legal_name": "Hill Valley Clock Tower Preservation Trust", "industry": "Preservation", "employee_count": 6},
+        {"type": "COMPANY", "name": "Megadodo Publications", "email": "editors@test.megadodo.com", "phone": "(617) 555-0302", "legal_name": "Megadodo Publications Ltd.", "industry": "Publishing", "employee_count": 4000},
+        {"type": "PERSON", "name": "Emmett Brown", "email": "emmett.brown@test.hillvalley.com", "phone": "(303) 555-0303", "first_name": "Emmett", "last_name": "Brown", "title": "Inventor"},
+        {"type": "PERSON", "name": "Ford Prefect", "email": "ford.prefect@test.megadodo.com", "phone": "(617) 555-0304", "first_name": "Ford", "last_name": "Prefect", "title": "Field Researcher"},
+        {"type": "GROUP", "name": "The Space Paranoids Fan Club", "email": "fans@test.flynns.com", "phone": "(408) 555-0305"}
+    ],
+
+    "general_tasks": [
+        {"title": "Quarterly review of every 'no questions asked' contract", "status": "PENDING", "priority": "MEDIUM", "due": 21, "hours": 4, "parent": "owner"},
+        {"title": "Remind the team: never cross the streams", "status": "COMPLETED", "priority": "LOW", "due": -2, "hours": 0.5}
+    ]
+}

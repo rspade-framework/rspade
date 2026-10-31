@@ -1,0 +1,71 @@
+SAMPLE DATA - THE CAST AND THE GAGS
+
+The reference for every character and company in sample_data.json. All fictional, all
+parody: characters from cult action and sci-fi films and shows, at clients that are light
+twists on each film's own fictional firm. Every email is a TEST address (test.<company>.com)
+and every phone a 555-01nn number, so nothing is ever delivered to anyone.
+
+Rules for adding to it (see ../CLAUDE.md):
+  - Fictional characters only, with a first and last name. No real people.
+  - Semi-cult and well liked over the most famous; no Star Wars, little Star Trek.
+  - The humour is in what they are tracked doing, kept professional.
+
+CHARACTERS
+#   Character                                     Source                         Seed gag
+--  --------------------------------------------  -----------------------------  ---------------------------------------------------------------
+ 1  Dwayne Elizondo Mountain Dew Herbert Camacho  Idiocracy                      Electrolyte irrigation pilot; cabinet appointments
+ 2  Joe Bauers                                    Idiocracy                      "Just add water" crop consulting engagement
+ 3  Miles O'Brien                                 Star Trek: Deep Space Nine     Transporter maintenance backlog; Cardassian wiring complaints
+ 4  Richard B. Riddick                            Pitch Black                    Night-shift scheduling (daylight not available); eye protection
+ 5  Jack Burton                                   Big Trouble in Little China    Truck recovery; Pork Chop Express route planning
+ 6  Gaius Baltar                                  Battlestar Galactica           Defence-network access audit (his own access, again);
+                                                                                 a "not a Cylon" detector, still in development
+ 7  Emmett Brown                                  Back to the Future             1.21 gigawatt power procurement; flux part sourcing
+ 8  Biff Tannen                                   Back to the Future             Car waxing (two coats); "borrowing" a time machine
+ 9  Korben Dallas                                 The Fifth Element              Cab licence renewal; multipass audit
+10  Jean-Baptiste Emanuel Zorg                    The Fifth Element              Product recall of a very complicated rifle; a cherry incident
+11  Ruby Rhod                                     The Fifth Element              Radio show sponsorship; green-the-show compliance
+12  Malcolm Reynolds                              Firefly                        Cargo haulage; "no questions asked" delivery terms
+13  Jayne Cobb                                    Firefly                        Knitted hat shipment from his mother
+14  Kaywinnet Lee Frye                            Firefly                        Compression coil replacement
+15  Kevin Flynn                                   Tron                           High-score attribution dispute; arcade cabinet maintenance
+16  Ed Dillinger                                  Tron                           Licence audit of a very ambitious control program; laser lab
+                                                                                 access policy
+17  Arthur Dent                                   The Hitchhiker's Guide         Planning-permission objection for a bypass
+18  Ford Prefect                                  The Hitchhiker's Guide         Guide entry update ("mostly harmless"); towel procurement
+19  John Spartan                                  Demolition Man                 Three-seashells onboarding training
+20  Lenina Huxley                                 Demolition Man                 Twentieth-century culture research project
+21  Alex Murphy                                   RoboCop                        Prime-directive policy review
+22  Dick Jones                                    RoboCop                        Security-robot boardroom demo (post-incident review)
+23  Douglas Quaid                                 Total Recall                   Memory-implant holiday booking to Mars
+24  Hans Gruber                                   Die Hard                       "Vault audit" at a tower in LA; bearer-bond inventory
+25  Luther Sloan                                  Star Trek: Deep Space Nine     Records request denied (the department does not exist);
+                                                                                 an oversight meeting nobody is invited to
+26  Ash Williams                                  Evil Dead / Army of Darkness   Housewares restock; chainsaw attachment
+27  R.J. MacReady                                 The Thing                      Blood-test procedure for station staff
+28  William Hudson                                Aliens                         Morale programme; equipment insurance claim
+29  Egon Spengler                                 Ghostbusters                   Containment-unit inspection; spores, moulds and fungus
+30  Kara Thrace                                   Battlestar Galactica           Flight-instructor recertification
+
+CLIENTS
+Client (parody)                          Inspired by                    Contacts
+---------------------------------------  -----------------------------  ------------------------------
+Brawndough Agricultural                  Idiocracy                      Camacho, Bauers
+Ops & Engineering, Terok Station         Deep Space Nine                O'Brien, Sloan
+Pork Chop Freight Lines                  Big Trouble in Little China    Burton
+Hill Valley Auto & Temporal Services     Back to the Future             Brown, Tannen
+Zorg Industries Holdings                 The Fifth Element              Zorg, Dallas, Rhod
+Serenity Haulage Co.                     Firefly                        Reynolds, Cobb, Frye
+ENCOMpass Systems International          Tron (ENCOM)                   Dillinger
+Flynn's Arcade & Amusements              Tron                           Flynn
+Megadodo Publications                    The Hitchhiker's Guide         Prefect, Dent
+San Angeles Civic Services               Demolition Man                 Spartan, Huxley
+Omni Consumer Products Group             RoboCop                        Jones, Murphy
+Rekall Leisure Holdings                  Total Recall                   Quaid
+Nakatomi Trading Corp.                   Die Hard                       Gruber
+S-Mart Retail Group                      Army of Darkness               Williams
+Outpost 31 Research Station              The Thing                      MacReady
+Colonial Marine Logistics                Aliens                         Hudson
+Spook Central Containment Ltd.           Ghostbusters                   Spengler
+Colonial Fleet Training Command          Battlestar Galactica           Thrace, Baltar
+Crematoria Night Operations              Pitch Black / Riddick          Riddick

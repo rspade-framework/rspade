@@ -9,6 +9,7 @@ use App\RSpade\Core\Api\Api_Catalog;
 use App\RSpade\Core\Api\Api_Key_Model;
 use App\RSpade\Core\Api\Api_Scope_Validation_Exception;
 use App\RSpade\Core\Api\Api_Scopes;
+use App\RSpade\Core\Confirmation\Rsx_Password_Confirmation;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Session\Session;
 use Rsx\App\Frontend\Settings\ApiKeys\Api_Keys_DataGrid;
@@ -59,6 +60,10 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
         if (!Session::has_api_access()) {
             return response_unauthorized('API access is not enabled for your account');
         }
+
+        // A key is a lasting credential that acts as this account: the user re-confirmed
+        // recently (the page asked before opening the dialog).
+        Rsx_Password_Confirmation::require_confirmed();
 
         $errors = [];
 

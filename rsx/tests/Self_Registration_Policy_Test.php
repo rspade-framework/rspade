@@ -9,7 +9,6 @@ namespace Rsx\Tests;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use App\RSpade\Core\Auth\Login_Throttle;
 use App\RSpade\Core\Models\Email_Queue_Model;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\Site_Model;
@@ -68,13 +67,11 @@ class Self_Registration_Policy_Test extends Rsx_Test_Abstract
             'rsx.mail.delivery' => config('rsx.mail.delivery'),
             'rsx.mail.dev_site.domain_whitelist' => config('rsx.mail.dev_site.domain_whitelist'),
         ];
-        Login_Throttle::reset('CLI');
     }
 
     public static function teardown(): void
     {
         config(static::$__saved_config);
-        Login_Throttle::reset('CLI');
         Session::logout();
         static::__reset_session();
     }
@@ -87,7 +84,6 @@ class Self_Registration_Policy_Test extends Rsx_Test_Abstract
     private static function __start(): void
     {
         static::__acting_as_site(self::SITE_ID);
-        Login_Throttle::reset('CLI');
     }
 
     /** Self-signup on, with mail that reaches the fixture's addresses. */

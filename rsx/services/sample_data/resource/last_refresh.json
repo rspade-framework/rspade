@@ -1,0 +1,5 @@
+{
+    "_about": "When sample_data.json was last brought up to date with the application, and the commit it was compared against. The refresh procedure (../CLAUDE.md) reviews everything committed since this commit, then updates both fields.",
+    "date": "2026-10-29",
+    "compared_against_commit": "803fa4867e"
+}

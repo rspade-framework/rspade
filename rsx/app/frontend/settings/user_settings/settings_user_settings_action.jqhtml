@@ -16,17 +16,8 @@
 
                     <Form_Errors />
 
-                    <div class="mb-3">
-                        <Checkbox_Input $sid="timezone_auto_input" $name="timezone_auto"
-                            $label="Automatically set timezone" />
-                        <div class="form-text">
-                            Keeps your timezone matched to the one your browser reports, once per
-                            browser session. Choosing a timezone below turns this off.
-                        </div>
-                    </div>
-
                     <Form_Field $label="Timezone"
-                        $help="Dates and times throughout the app are shown in this timezone.">
+                        $help="Dates and times throughout the app are shown in this timezone. Automatic follows whichever browser you are using, so each device shows its own local time.">
                         <Select_Input $sid="timezone_input" $name="timezone"
                             $options=this.data.timezone_options
                             $placeholder="Select Timezone..." />

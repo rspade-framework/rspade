@@ -9,7 +9,6 @@ namespace Rsx\Tests;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use App\RSpade\Core\Auth\Login_Throttle;
 use App\RSpade\Core\Dispatch\Rsx_Request_Channel;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\User_Model;
@@ -51,7 +50,6 @@ class Require_Two_Factor_Test extends Rsx_Test_Abstract
     public static function teardown(): void
     {
         config(['rsx.auth.require_two_factor' => static::$__saved]);
-        Login_Throttle::reset('CLI');
         Session::logout();
         static::__reset_session();
     }
@@ -63,7 +61,6 @@ class Require_Two_Factor_Test extends Rsx_Test_Abstract
     private static function __sign_in_with_password(): Login_User_Model
     {
         static::__acting_as_site(self::SITE_ID);
-        Login_Throttle::reset('CLI');
 
         $login_user = new Login_User_Model();
         $login_user->email = 'require_2fa_' . uniqid() . '@example.com';

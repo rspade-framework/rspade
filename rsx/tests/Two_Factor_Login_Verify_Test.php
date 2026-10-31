@@ -10,7 +10,6 @@ namespace Rsx\Tests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\RSpade\Core\Ajax\Ajax;
-use App\RSpade\Core\Auth\Login_Throttle;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Response\Error_Response;
@@ -58,8 +57,6 @@ class Two_Factor_Login_Verify_Test extends Rsx_Test_Abstract
 
     public static function teardown()
     {
-        Login_Throttle::reset('CLI');
-
         Session::logout();
         static::__reset_session();
 
@@ -84,7 +81,6 @@ class Two_Factor_Login_Verify_Test extends Rsx_Test_Abstract
 
     private static function __start_anonymous(): void
     {
-        Login_Throttle::reset('CLI');
         Session::cli_set_impersonator_login_user_id(null);
         Session::logout();
         static::__reset_session();

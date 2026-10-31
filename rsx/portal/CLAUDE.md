@@ -284,12 +284,23 @@ Landing page for authenticated portal users.
 ### Settings (`/settings`)
 User self-service page (composed from the shared theme components — see
 `rsx/theme/components/view/CLAUDE.md`) with:
-- **Change Password** — current password verification, min length, confirmation
+- **Change Password** — every field rule answered together (current password present, new one
+  at least `rsx.portal.password_min_length`, confirmed); then the current password, checked
+  throttle-first (`Login_Throttle::require_not_throttled($email)` - the same budget as every
+  sign-in of the account and address) with a wrong one recorded through
+  `Portal_Login_History::record_failure()`, so a browser left signed in is no unlimited oracle
+  for the real password. Field messages arrive in the Ajax error's `metadata`; the throttle's
+  message, which names no field, is shown in a dialog
 - **Passkeys** — `Portal_Settings_Security`: the portal user's passkeys and authenticator app
   (remove), `<Passkey_Register />`, an on-demand `<Totp_Enrollment />`, the recovery-code count (with its regenerate button only where `issues_recovery_codes` says the deployment issues them)
   and regeneration
 - **Connected Accounts** — same region, only when the portal realm offers federated sign-in:
   connections (disconnect) and `<Sso_Buttons $intent="link" />`
+- **Confirm it's you** — every action in that region that adds or removes a sign-in method
+  asks for the password first (`Password_Confirmation_Modal.require()`, `rsx/lib/password_confirmation/`):
+  remove, disconnect and regenerate on click, while `<Passkey_Register />`, the authenticator
+  app and `<Sso_Buttons $intent="link" />` - which call their endpoints themselves - are shown
+  only after "Add a sign-in method" has asked. Leaving the page clears it (`on_stop()`).
 - **Team Members** — list of portal users sharing the same client membership
 - **Where You're Signed In** — the account's own sessions (`Portal_Session::get_sessions_for_user()`
   through `Session_Listing`, `rsx/lib/sessions/`: signed in and signed out, the last three

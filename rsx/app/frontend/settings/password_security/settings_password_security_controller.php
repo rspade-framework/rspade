@@ -28,10 +28,10 @@ class Frontend_Settings_Password_Security_Controller extends Rsx_Controller_Abst
     /**
      * Change the signed-in identity's password. The Change Password <Rsx_Form> posts here.
      *
-     * Order: the new password's rules, then the CURRENT password - throttle first
-     * (Login_Throttle::require_not_throttled()), and a wrong one is recorded through
-     * Login_History::record_failure(), which feeds the throttle, so this form is no oracle
-     * for guessing the password of a browser left signed in. A refusal changes nothing.
+     * Order: the new password's rules, then the CURRENT password - throttled first
+     * (Login_Throttle::require_not_throttled() for this account), and a wrong one is recorded
+     * through Login_History::record_failure(), which feeds the throttle, so this form is no
+     * oracle for guessing the password of a browser left signed in. A refusal changes nothing.
      *
      * Saving the new hash through Login_User_Model is the whole sign-out: the model ends
      * every OTHER browser's sign-in of this identity itself (rsx:man session, PASSWORD
@@ -73,13 +73,13 @@ class Frontend_Settings_Password_Security_Controller extends Rsx_Controller_Abst
             return response_form_error('Please correct the errors below.', $errors);
         }
 
+        $login_user = Session::get_login_user();
+
         try {
-            Login_Throttle::require_not_throttled();
+            Login_Throttle::require_not_throttled($login_user->email);
         } catch (Auth_Throttled_Exception $e) {
             return response_form_error($e->getMessage());
         }
-
-        $login_user = Session::get_login_user();
 
         if (!Hash::check($current, $login_user->password)) {
             Login_History::record_failure(

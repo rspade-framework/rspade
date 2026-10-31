@@ -5,8 +5,11 @@ namespace Rsx\Portal\Settings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\RSpade\Core\Ajax\Ajax;
+use App\RSpade\Core\Auth\Auth_Throttled_Exception;
+use App\RSpade\Core\Auth\Login_Throttle;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Portal\Portal_Session;
+use App\RSpade\Core\Session\Portal_Login_History;
 use Rsx\Lib\Sessions\Session_Listing;
 
 /**
@@ -43,32 +46,59 @@ class Portal_Settings_Controller extends Rsx_Controller_Abstract
     }
 
     /**
-     * Change password
+     * Change the signed-in portal user's password. The Change Password form posts here.
+     *
+     * Order: every field rule first (all errors together), then the CURRENT password -
+     * throttled first (Login_Throttle::require_not_throttled() for this account: the budget
+     * every sign-in of the address and the account shares), and a wrong one is recorded
+     * through Portal_Login_History::record_failure(), which feeds the throttle, so this form
+     * is no oracle for guessing the password of a browser left signed in. A refusal changes
+     * nothing.
      */
     #[Ajax_Endpoint]
     public static function change_password(Request $request, array $params = [])
     {
         $user = Portal_Session::get_portal_user();
 
-        $current = $params['current_password'] ?? '';
-        $new_password = $params['new_password'] ?? '';
-        $confirm = $params['confirm_password'] ?? '';
+        $current = (string) ($params['current_password'] ?? '');
+        $new_password = (string) ($params['new_password'] ?? '');
+        $confirm = (string) ($params['confirm_password'] ?? '');
 
-        if (empty($current)) {
-            return response_form_error('Validation failed', ['current_password' => 'Current password is required']);
-        }
-
-        if (!$user->check_password($current)) {
-            return response_form_error('Validation failed', ['current_password' => 'Current password is incorrect']);
+        $errors = [];
+        if ($current === '') {
+            $errors['current_password'] = 'Current password is required';
         }
 
         $min_length = config('rsx.portal.password_min_length', 8);
         if (strlen($new_password) < $min_length) {
-            return response_form_error('Validation failed', ['new_password' => "Password must be at least {$min_length} characters"]);
+            $errors['new_password'] = "Password must be at least {$min_length} characters";
         }
 
         if ($new_password !== $confirm) {
-            return response_form_error('Validation failed', ['confirm_password' => 'Passwords do not match']);
+            $errors['confirm_password'] = 'Passwords do not match';
+        }
+
+        if (!empty($errors)) {
+            return response_form_error('Please correct the errors below.', $errors);
+        }
+
+        try {
+            Login_Throttle::require_not_throttled($user->email);
+        } catch (Auth_Throttled_Exception $e) {
+            return response_form_error($e->getMessage());
+        }
+
+        if (!$user->check_password($current)) {
+            Portal_Login_History::record_failure(
+                $user->email,
+                Portal_Login_History::STATUS_FAILED_PASSWORD,
+                'Wrong current password on Change Password',
+                (int) $user->id
+            );
+
+            return response_form_error('Please correct the errors below.', [
+                'current_password' => 'Current password is incorrect',
+            ]);
         }
 
         $user->set_password($new_password);

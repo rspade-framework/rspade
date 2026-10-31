@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Fifty-two test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Fifty-four test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -32,7 +32,9 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   `Task_Record_Attachments_Test` (a task's file list: claim, all-or-nothing, single claim, row shape),
   `Timezone_Settings_Test`, `Api_Key_Scope_Ui_Test` (presets re-derived by name, so a
   tampering browser cannot widen a key), `Api_Key_Read_Only_Ui_Test` (only the literal
-  '1' mints a read-only key, so a garbled form can never mint the wider one).
+  '1' mints a read-only key, so a garbled form can never mint the wider one). Both reach
+  `create_key`, which requires a password confirmation that is not their subject, so they set
+  `Rsx_Password_Confirmation::$force_confirmed_for_tests` for the class.
 - **The Developer chip**: `Developer_Chip_Test` — the three payloads that drive it
   (`get_profile`, `get_user`, the users grid) carry `is_developer` ALWAYS and as a real
   boolean, read from the LOGIN identity; a membership with no login identity is false rather
@@ -45,7 +47,10 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 - **Credentials never serialize**: `Portal_Credential_Never_Export_Test` (a portal user's
   password, an invitation's code and a reset's token are absent from `toArray()` and its JSON).
 - **Portal**: `Portal_Workspaces_Test`, `Portal_Documents_Test`,
-  `Portal_Request_Threads_Test`, `Portal_Invitation_Lifecycle_Test` (including the hourly expiry reaching
+  `Portal_Request_Threads_Test`, `Portal_Thread_Upload_Claim_Test` (a client's file end to end:
+  uploaded through `/_upload` in the portal realm, claimed onto the thread by the reply
+  endpoint as a pending document, readable by that client's member and no other client's,
+  and never re-claimed by another client presenting its key), `Portal_Invitation_Lifecycle_Test` (including the hourly expiry reaching
   every site's invitations),
   `Portal_Register_Flow_Test`, `Portal_User_Admin_Test`, `Portal_Impersonation_Test`
   (the per-endpoint read-only guard — every Ajax call is a POST, so a blanket POST block
@@ -73,6 +78,9 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   and portal settings - the three-month cut, the record rule that answers another user's,
   another site's or a dormant session as not found, Sign out refused for a superior and for
   the browser making the request, "everywhere" staying on this site),
+  `Portal_Change_Password_Test` (portal Change Password: every field rule answered at once, a
+  wrong current password counted as a failed attempt and changing nothing, a correct change
+  saved; the throttle refusal is verified over HTTP, since a CLI test has no client address),
   `Api_Access_Permission_Test` (the API and
   key minting require a GRANTED `can_use_api`, a DENY wins), `Cross_Site_Reference_Test`
   (saves refuse another site's ids, grids print no foreign row),
@@ -112,9 +120,11 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   administrator for staff, "Forgot your password?" on the portal) and nobody is signed in or
   parked behind a challenge; and an ordinary portal password sign-in, through
   `Portal_Auth::verify_credentials()`, writes one success row to the portal login history.
-- **Migration state**: `Sample_Document_Import_Test` — the `import_sample_documents`
-  migration in `rsx/resource/migrations` seeds the two sample attachments and links them to
-  the first client when one exists (`$requires_db_reset`, transactions off).
+- **Sample data**: `Sample_Data_Seed_Test` — `Sample_Data_Service::seed` (`rsx_app:seed`) fills
+  the empty test site with every kind of record its JSON declares (counts derived from the
+  JSON, a document of each preview type, every contact on a test address and number, the
+  run attributed to the site's first user, the activity log written), and refuses a site
+  that already holds data with nothing added.
 - **Founder wiring**: `Initial_User_Handler_Test` — this application's
   `user.initial.created` handler (the founder gets the top role), asserted on an account
   the test creates.
@@ -182,6 +192,11 @@ on failure, and prints `PASS:`/`FAIL:` lines.
   directly and leaving the dialog open), a textarea keeps Enter as a newline, and a dialog
   with no default button ignores it. Runs against `/dashboard` because `Modal` is
   application code in `rsx/lib/modal/` and is not in the framework's own bundle.
+
+- `password_confirmation_modal.js` — the "confirm it's you" dialog on Password & Security:
+  Cancel answers false; three refused passwords close it with the "Not Confirmed" notice and
+  answer false, the refusals rendering in the open dialog in between, and the user stays
+  signed in. The success path is the framework's (`tests/password_confirmation`).
 
 - `text_type_rendering.js` — declared text types end to end on real screens: interpolating a
   `Rich_Text` mounts `Rich_Text_Display` with real markup and a `Raw_Text` escapes with line

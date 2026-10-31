@@ -142,11 +142,6 @@
             "created_by": "root",
             "command": "php artisan make:migration:safe task_management_hierarchy_schema"
         },
-        "2026_07_16_143237_import_sample_documents.php": {
-            "created_at": "2026-07-16T14:32:37+00:00",
-            "created_by": "root",
-            "command": "php artisan make:migration:safe import_sample_documents"
-        },
         "2026_08_18_081308_cleanup_retired_portal_request_type_ref.php": {
             "created_at": "2026-08-18T08:13:08+00:00",
             "created_by": "root",

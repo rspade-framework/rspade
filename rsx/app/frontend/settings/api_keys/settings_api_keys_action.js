@@ -43,6 +43,13 @@ class Settings_Api_Keys_Action extends Spa_Action {
         });
     }
 
+    /**
+     * The password confirmation minting a key asked for ends with the screen.
+     */
+    on_stop() {
+        Rsx_Password_Confirmation.clear();
+    }
+
     // Breadcrumb methods
     async breadcrumb_label_active() {
         return 'Manage API keys and access tokens';

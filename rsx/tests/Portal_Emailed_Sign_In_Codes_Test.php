@@ -8,7 +8,6 @@
 namespace Rsx\Tests;
 
 use Illuminate\Http\Request;
-use App\RSpade\Core\Auth\Login_Throttle;
 use App\RSpade\Core\Models\Email_Queue_Model;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
@@ -65,7 +64,6 @@ class Portal_Emailed_Sign_In_Codes_Test extends Rsx_Test_Abstract
         config(static::$__saved_mail);
         config(['rsx.portal.emailed_sign_in_codes' => false]);
         Rsx_Turnstile::$force_verify_result_for_tests = null;
-        Login_Throttle::reset('CLI');
         Portal_Session::cli_set_portal_user_id(0);
         Rsx_Portal::set_portal_request(false);
         Session::logout();
@@ -77,7 +75,6 @@ class Portal_Emailed_Sign_In_Codes_Test extends Rsx_Test_Abstract
      */
     private static function __portal_user(): Portal_User_Model
     {
-        Login_Throttle::reset('CLI');
         Portal_Session::set_site_id(self::SITE_ID);
         Rsx_Portal::set_portal_request(true);
         Portal_Session::cli_set_portal_user_id(0);
