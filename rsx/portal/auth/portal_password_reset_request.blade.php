@@ -19,7 +19,7 @@
 
         <div class="mt-3 text-center">
             <small class="text-muted">
-                <a href="{{ Rsx_Portal::Route('Portal_Login_Controller::index') }}">Return to login</a>
+                <a href="{{ Rsx_Portal::Route('Portal_Login_Controller::index', Login_Redirect::params()) }}">Return to login</a>
             </small>
         </div>
     @else
@@ -32,6 +32,7 @@
 
         <form id="portal-password-reset-form" method="POST" action="{{ $form_action }}">
             @csrf
+            {!! Login_Redirect::hidden_input() !!}
 
             <div class="mb-3">
                 <label class="form-label" for="email">Email Address</label>
@@ -47,7 +48,7 @@
 
             <div class="mt-3 text-center">
                 <small class="text-muted">
-                    Remember your password? <a href="{{ Rsx_Portal::Route('Portal_Login_Controller::index') }}">Sign in</a>
+                    Remember your password? <a href="{{ Rsx_Portal::Route('Portal_Login_Controller::index', Login_Redirect::params()) }}">Sign in</a>
                 </small>
             </div>
         </form>

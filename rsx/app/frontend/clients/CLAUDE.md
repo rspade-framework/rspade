@@ -22,7 +22,7 @@ clients/
 └── portal/                     the client-portal panel - unique to this feature
     ├── Clients_Portal_Panel.*          membership, invitations, announcements
     ├── add_member/, resend_invite/     modal bodies
-    ├── share_document/                 modal body
+    ├── share_document/                 the share picker and the send step
     └── request_thread/                 Clients_Request_Thread_Action + its 3 modals
 ```
 
@@ -70,6 +70,12 @@ on such a site still saves; only its portal notification is skipped.
 and only that contact's portal user can see or download the document, only until it expires
 (`Shared_Item_Model::find_valid_share()`). Sharing again with a contact whose share has expired
 replaces it with a fresh one; the panel badge counts the live shares.
+
+**Sharing and sending are two steps.** `documents_share` creates the shares and any invitation
+a recipient lacks (marked `email_owed`) and sends nothing; the dialog then shows the email
+(`Share_Document_Send_Review`) and each recipient's `/shared/:token` link with a Copy control.
+Close sends nothing and the links still work. Send calls `documents_share_send`: the share
+email, and the owed invitation as a second email.
 
 ## HOW IT IS USED
 

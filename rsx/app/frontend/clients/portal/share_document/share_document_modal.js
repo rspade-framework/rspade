@@ -4,8 +4,13 @@
  * Manage who a client document is shared with. The picker shows ALL of the client's
  * contacts as checkboxes, pre-checked for those the document is already shared with. On
  * submit it diffs the selection against the current shares and, if anything changed,
- * shows a confirmation summarizing who will be added / sent invites and whose access
- * will be removed, then applies the change as a single set-based documents_share call.
+ * shows a confirmation summarizing who will be added and whose access will be removed,
+ * then applies the change as a single set-based documents_share call.
+ *
+ * Applying sends nothing. When the change added recipients, a second dialog shows the
+ * email as they will read it and each recipient's link with a Copy control: Close sends
+ * nothing (the links already work, and staff may send them themselves), Send emails the
+ * share and any invitation still owed, through documents_share_send.
  *
  * Returns true if a change was applied (caller should reload), false otherwise.
  */
@@ -76,7 +81,7 @@ class Share_Document_Modal extends Modal_Abstract {
         // omitted entirely.
         const blocks = [];
         if (added.length) {
-            blocks.push('These members will be added / sent invites:\n' + added.map((id) => `• ${label_of(id)}`).join('\n'));
+            blocks.push('These members will be added:\n' + added.map((id) => `• ${label_of(id)}`).join('\n'));
         }
         if (removed.length) {
             blocks.push('These members will be removed:\n' + removed.map((id) => `• ${label_of(id)}`).join('\n'));
@@ -88,16 +93,56 @@ class Share_Document_Modal extends Modal_Abstract {
         }
 
         try {
-            await Frontend_Clients_Controller.documents_share({
+            const applied = await Frontend_Clients_Controller.documents_share({
                 client_id,
                 attachment_id,
                 contact_ids: selection.contact_ids,
                 message: selection.message,
             });
+
+            if (applied.recipients.length > 0) {
+                await Share_Document_Modal._review_and_send(client_id, attachment_id, selection.message, applied);
+            }
             return true;
         } catch (e) {
             await Modal.alert('Error', e.message || 'Failed to update sharing');
             return false;
         }
+    }
+
+    /**
+     * The send step: the email and the links, then Close or Send.
+     */
+    static async _review_and_send(client_id, attachment_id, message, applied) {
+        const $body = $('<div>');
+
+        await Modal.show({
+            title: 'Send to Recipients',
+            body: $body,
+            max_width: 720,
+            buttons: [
+                { label: 'Close', value: false, class: 'btn-secondary' },
+                {
+                    label: 'Send',
+                    class: 'btn-primary',
+                    default: true,
+                    callback: async () => {
+                        await Frontend_Clients_Controller.documents_share_send({
+                            client_id,
+                            attachment_id,
+                            contact_ids: applied.recipients.map((r) => r.contact_id),
+                            message,
+                        });
+                        return true;
+                    },
+                },
+            ],
+            on_show: function () {
+                $body.component('Share_Document_Send_Review', {
+                    recipients: applied.recipients,
+                    preview: applied.preview,
+                });
+            },
+        });
     }
 }

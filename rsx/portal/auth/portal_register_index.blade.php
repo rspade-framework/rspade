@@ -16,15 +16,6 @@
         <small>Creating account for: <strong>{{ $invitation->email }}</strong></small>
     </div>
 
-    {{-- Expired invite: account-only. The link lapsed, so we create the account but
-         not the client access (an administrator re-invites for that). --}}
-    @if (!empty($allow_expired))
-        <div class="alert alert-warning">
-            <small>Your invitation link has expired, so this creates your account only.
-            An administrator will need to grant you client access.</small>
-        </div>
-    @endif
-
     {{-- Display error if present --}}
     @if (isset($error) && $error)
         <div class="alert alert-danger text-center">
@@ -37,9 +28,6 @@
         {{-- Thread the intended-URL through the POST hop (portal-context aware). --}}
         {!! Login_Redirect::hidden_input() !!}
         <input type="hidden" name="code" value="{{ $invitation->invitation_code }}">
-        @if (!empty($allow_expired))
-            <input type="hidden" name="allow_expired" value="1">
-        @endif
 
         <div class="mb-3">
             <label class="form-label" for="password">Password</label>
@@ -62,7 +50,7 @@
 
         <div class="mt-3 text-center">
             <small class="text-muted">
-                Already have an account? <a href="{{ Rsx_Portal::Route('Portal_Login_Controller::index') }}">Sign in</a>
+                Already have an account? <a href="{{ Rsx_Portal::Route('Portal_Login_Controller::index', Login_Redirect::params()) }}">Sign in</a>
             </small>
         </div>
     </form>

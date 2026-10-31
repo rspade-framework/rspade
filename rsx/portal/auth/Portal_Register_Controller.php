@@ -9,6 +9,8 @@ namespace Rsx\Portal\Auth;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Login\Login_Notice;
+use App\RSpade\Core\Login\Login_Redirect;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
@@ -31,7 +33,9 @@ class Portal_Register_Controller extends Rsx_Controller_Abstract
      * Show registration form and handle registration
      *
      * Users arrive here by clicking a link in their invitation email.
-     * The invitation code is validated, and if valid, they can set their password.
+     * The invitation code is validated, and if valid, they can set their password. A code
+     * that cannot be used goes to the sign-in page with the invitation error: there is no way
+     * to create an account without a live invitation.
      */
     #[Portal_Route('/register', methods: ['GET', 'POST'])]
     public static function index(Request $request, array $params = [])
@@ -42,40 +46,24 @@ class Portal_Register_Controller extends Rsx_Controller_Abstract
         }
 
         $code = $params['code'] ?? $request->input('code');
+        $invitation = empty($code) ? null : Portal_Invitation_Model::find_by_code($code);
 
-        // Genuinely bogus links: no code / unknown code.
-        if (empty($code)) {
-            return rsx_view('Portal_Register_Invalid', [
-                'error' => 'No invitation code provided. Please use the link from your invitation email.',
-            ]);
-        }
-
-        $invitation = Portal_Invitation_Model::find_by_code($code);
-        if (!$invitation) {
-            return rsx_view('Portal_Register_Invalid', [
-                'error' => 'Invalid invitation code. Please contact the firm for a new invitation.',
-            ]);
-        }
-
-        // An invitation belongs to ONE site, and this portal serves ONE site (the
-        // one its URL names). A code minted for another tenant is
-        // not a valid code HERE - registering it would create an account on this
-        // site holding another site's membership.
-        if ((int) $invitation->site_id !== Portal_Session::get_site_id()) {
-            return rsx_view('Portal_Register_Invalid', [
-                'error' => 'Invalid invitation code. Please contact the firm for a new invitation.',
-            ]);
+        // No code, an unknown one, or one minted for another tenant: an invitation belongs to
+        // ONE site, and this portal serves ONE site (the one its URL names) - registering it
+        // would create an account on this site holding another site's membership.
+        if (!$invitation || (int) $invitation->site_id !== Portal_Session::get_site_id()) {
+            return static::_redirect_to_login_invitation_invalid();
         }
 
         $client_id = (int) $invitation->get_metadata('client_id');
 
-        // Revoked is the only hard "cancelled" state (the firm pulled the invite).
+        // Revoked: the firm pulled the invite. Nothing to offer, whoever followed it.
         if ($invitation->is_revoked()) {
-            return rsx_view('Portal_Register_Cancelled');
+            return static::_redirect_to_login_invitation_invalid();
         }
 
-        // An account already exists for this email -> route to login (never a dead
-        // "invalid" page). Consume a still-live invite so it stops re-appearing.
+        // An account already exists for this email -> route to login. Consume a still-live
+        // invite so it stops re-appearing.
         $existing_user = Portal_User_Model::find_by_email($invitation->site_id, $invitation->email);
         if ($existing_user) {
             if ($invitation->is_valid()) {
@@ -84,32 +72,16 @@ class Portal_Register_Controller extends Rsx_Controller_Abstract
             return static::_redirect_to_login_account_exists($client_id);
         }
 
-        // Consumed with no account (e.g. a declined invite) -> also send to login.
-        if ($invitation->is_used()) {
-            return static::_redirect_to_login_account_exists($client_id);
+        // Used or expired with no account. Portal access is by invitation, so a dead one
+        // offers no way to create an account: the firm issues a new one.
+        if (!$invitation->is_valid()) {
+            return static::_redirect_to_login_invitation_invalid();
         }
-
-        // Expired with no account: offer account-only creation (an EXPIRED invite
-        // does NOT grant client access - the admin must re-invite for that). The
-        // "expired" page's Create Account button re-enters here with allow_expired.
-        $allow_expired = !empty($params['allow_expired']) || $request->boolean('allow_expired');
-        if ($invitation->is_expired()) {
-            if (!$allow_expired) {
-                return rsx_view('Portal_Register_Expired', [
-                    'code' => $invitation->invitation_code,
-                ]);
-            }
-        }
-
-        // Live PENDING invite grants the invited client membership; an expired
-        // invite completed via the account-only path does not.
-        $grant_membership = $invitation->is_valid();
 
         $error = null;
         if ($request->isMethod('POST')) {
-            // Human verification first, covering BOTH completion paths below (the live
-            // invite and the expired account-only one) - no account is created, and no
-            // invitation consumed, until it passes.
+            // Human verification first: no account is created, and no invitation consumed,
+            // until it passes.
             Rsx_Turnstile::validate($request);
 
             $password = $request->input('password');
@@ -140,9 +112,7 @@ class Portal_Register_Controller extends Rsx_Controller_Abstract
 
                 $portal_user->save();
 
-                // Only a live invite JOINS the invited client. An expired invite
-                // yields an account with no client access (admin re-invites).
-                if ($grant_membership && $client_id) {
+                if ($client_id) {
                     $role_id = (int) ($invitation->get_metadata('role_id')
                         ?: Portal_Membership_Model::ROLE_VIEWER);
 
@@ -161,8 +131,8 @@ class Portal_Register_Controller extends Rsx_Controller_Abstract
                 // Signed in through the one completion function every portal entrance
                 // finishes in: the session is created for the site already declared for this
                 // request (which the invitation matches - checked above), last_login is
-                // stamped and the success recorded. It lands on the invited client when we
-                // granted access, else the dashboard. No emailed sign-in code is asked for
+                // stamped and the success recorded. It lands on a threaded redirect (the shared
+                // document this invitation came from), else the invited client. No emailed sign-in code is asked for
                 // here even when rsx.portal.emailed_sign_in_codes is on: the invitation that
                 // brought them here already proved the address.
                 Flash_Alert::success('Your account has been created.');
@@ -170,7 +140,7 @@ class Portal_Register_Controller extends Rsx_Controller_Abstract
                 return redirect(Portal_Login_Controller::complete_sign_in(
                     $portal_user,
                     sign_in: true,
-                    client_id: $grant_membership ? $client_id : 0
+                    client_id: $client_id
                 ));
             }
         }
@@ -178,7 +148,6 @@ class Portal_Register_Controller extends Rsx_Controller_Abstract
         return rsx_view('Portal_Register_Index', [
             'invitation' => $invitation,
             'error' => $error,
-            'allow_expired' => $invitation->is_expired(),
         ]);
     }
 
@@ -189,11 +158,23 @@ class Portal_Register_Controller extends Rsx_Controller_Abstract
      */
     private static function _redirect_to_login_account_exists(int $client_id)
     {
-        $params = ['message' => 'account_exists'];
+        $params = Login_Notice::params('account_exists') + Login_Redirect::params();
         if ($client_id) {
             $params['client'] = $client_id;
         }
 
         return redirect(Rsx_Portal::Route('Portal_Login_Controller::index', $params));
+    }
+
+    /**
+     * Send the follower of an invitation that cannot be used - unknown, revoked, used or
+     * expired - to the portal login with the invitation error.
+     */
+    private static function _redirect_to_login_invitation_invalid()
+    {
+        return redirect(Rsx_Portal::Route(
+            'Portal_Login_Controller::index',
+            Login_Notice::params('invitation_expired') + Login_Redirect::params()
+        ));
     }
 }

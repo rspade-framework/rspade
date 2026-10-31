@@ -69,6 +69,13 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
     const CLIENT_ID_KEY = 'portal_login_pending_client_id';
 
     /**
+     * The threaded redirect, parked across the second-factor step for the same reason: the
+     * challenge answers over Ajax, and the emailed sign-in link brings the browser back to
+     * the verify page with no ?redirect= on it.
+     */
+    const REDIRECT_KEY = 'portal_login_pending_redirect';
+
+    /**
      * Codes one sign-in may have emailed. An application rule, not a security one - the
      * framework's attempt caps bound guessing - it keeps "Resend code" from mailing an
      * inbox without limit. Reaching it means signing in again.
@@ -165,6 +172,7 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
                         Rsx_Portal_Two_Factor::begin_challenge($portal_user, $accepts);
 
                         Portal_Session::put_value(static::CLIENT_ID_KEY, $client_id, Rsx_Portal_Two_Factor::challenge_expires_at());
+                        Portal_Session::put_value(static::REDIRECT_KEY, Login_Redirect::consume(''), Rsx_Portal_Two_Factor::challenge_expires_at());
 
                         return redirect(Rsx_Portal::Route('Portal_Login_Controller::verify'));
                     } else {
@@ -177,13 +185,9 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
             }
         }
 
-        // Check for message query parameter
-        $message = $params['message'] ?? null;
-
         return rsx_view('Portal_Login_Index', [
             'error' => $error,
             'posted_email' => $posted_email,
-            'message' => $message,
             'client_id' => $client_id,
         ]);
     }
@@ -203,7 +207,7 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
     public static function verify(Request $request, array $params = [])
     {
         if (Portal_Session::is_logged_in()) {
-            return redirect(static::destination(Portal_Session::get_portal_user(), 0));
+            return redirect(static::destination(Portal_Session::get_portal_user(), 0, static::__take_parked_redirect()));
         }
 
         $pending = Rsx_Portal_Two_Factor::challenge_pending();
@@ -242,7 +246,16 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
         $client_id = (int) (Portal_Session::get_value(static::CLIENT_ID_KEY) ?? 0);
         Portal_Session::forget_value(static::CLIENT_ID_KEY);
 
-        return ['redirect' => static::complete_sign_in($portal_user, sign_in: false, client_id: $client_id)];
+        return ['redirect' => static::complete_sign_in($portal_user, sign_in: false, client_id: $client_id, redirect: static::__take_parked_redirect())];
+    }
+
+    /** The redirect parked across the challenge, or '' for none. Answers it once. */
+    private static function __take_parked_redirect(): string
+    {
+        $redirect = (string) (Portal_Session::get_value(static::REDIRECT_KEY) ?? '');
+        Portal_Session::forget_value(static::REDIRECT_KEY);
+
+        return $redirect;
     }
 
     /**
@@ -369,9 +382,10 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
      * @param Portal_User_Model $portal_user The portal user who proved themselves.
      * @param bool $sign_in True when this function performs the sign-in (see above).
      * @param int $client_id The invited client carried in, or 0.
+     * @param string|null $redirect A validated target parked across a hop, for destination().
      * @return string
      */
-    public static function complete_sign_in(Portal_User_Model $portal_user, bool $sign_in, int $client_id = 0): string
+    public static function complete_sign_in(Portal_User_Model $portal_user, bool $sign_in, int $client_id = 0, ?string $redirect = null): string
     {
         if ($sign_in) {
             Portal_Session::set_portal_user_id($portal_user->id);
@@ -382,28 +396,36 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
 
         Flash_Alert::success('Welcome to the Client Portal!');
 
-        return static::destination($portal_user, $client_id);
+        return static::destination($portal_user, $client_id, $redirect);
     }
 
     /**
-     * Where a signed-in portal user lands: the invited client's workspace when the user has
-     * access to it, otherwise the intended-URL the user was bounced from (a deep portal link
-     * followed while logged out), else the dashboard. (An existing account following an invite
-     * for a new client has a pending Accept on the dashboard, so dashboard is correct there.)
+     * Where a signed-in portal user lands: the intended-URL the user was bounced from (a
+     * shared document, a deep portal link followed while logged out), otherwise the invited
+     * client's workspace when the user has access to it, else the dashboard. (An existing
+     * account following an invite for a new client has a pending Accept on the dashboard, so
+     * dashboard is correct there.)
      *
-     * The flow-owned invited-client destination WINS over the threaded redirect; consume()
-     * supplies the default. See: php artisan rsx:man login_redirect.
+     * The threaded redirect WINS over the invited client: it is what the person set out to
+     * open. See: php artisan rsx:man login_redirect.
      *
      * @param Portal_User_Model $portal_user
      * @param int $client_id The invited client carried in, or 0.
+     * @param string|null $redirect A validated target parked across a hop; null reads the
+     *                              request's own threaded value.
      * @return string
      */
-    public static function destination(Portal_User_Model $portal_user, int $client_id): string
+    public static function destination(Portal_User_Model $portal_user, int $client_id, ?string $redirect = null): string
     {
+        $redirect = $redirect ?: Login_Redirect::consume('');
+        if ($redirect !== '') {
+            return $redirect;
+        }
+
         if ($client_id && Portal_Membership_Model::has_membership($portal_user->id, $client_id)) {
             return Rsx_Portal::Route('Portal_Workspace_Overview_Action', $client_id);
         }
 
-        return Login_Redirect::consume(Rsx_Portal::Route('Portal_Dashboard_Action'));
+        return Rsx_Portal::Route('Portal_Dashboard_Action');
     }
 }

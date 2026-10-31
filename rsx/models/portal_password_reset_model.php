@@ -201,13 +201,14 @@ class Portal_Password_Reset_Model extends Rsx_Site_Model_Abstract
      * The full reset URL, on the reset's own site's portal. Only a portal page of that site
      * requests a reset, so the site has a portal.
      *
+     * @param array $params Extra query parameters (a threaded Login_Redirect::params())
      * @return string
      */
-    public function get_reset_url(): string
+    public function get_reset_url(array $params = []): string
     {
         $url = \App\RSpade\Core\Portal\Rsx_Portal::Route(
             'Portal_Password_Reset_Controller::reset',
-            ['token' => $this->token],
+            ['token' => $this->token] + $params,
             site_id: (int) $this->site_id
         );
 

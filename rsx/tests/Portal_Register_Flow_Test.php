@@ -20,11 +20,10 @@ use Rsx\Portal\Auth\Portal_Register_Controller;
  * Portal_Register_Flow_Test - the invite -> register decision tree:
  *   - a live PENDING invite creates the account + client membership and lands on
  *     the invited client's workspace;
- *   - an EXPIRED invite (acknowledged) creates the account ONLY (no membership) and
- *     lands on the dashboard;
  *   - a returning contact whose account already exists is routed to login;
- *   - a REVOKED invite shows the cancelled page (not a dead "invalid" error);
- *   - an expired invite without acknowledgement shows the expired page.
+ *   - an invitation that cannot be used (expired, used, revoked, unknown, no code) creates
+ *     nothing and goes to the sign-in page with the invitation error - portal access is by
+ *     invitation, so a dead one offers no way to create an account.
  *
  * Portal identity is CLI-seeded; reset at the top of each test since the register
  * flow logs the new user in (a leftover CLI login would short-circuit to dashboard).
@@ -108,35 +107,6 @@ class Portal_Register_Flow_Test extends Rsx_Test_Abstract
         );
     }
 
-    public static function test_expired_invite_creates_account_only_and_lands_on_dashboard()
-    {
-        static::__reset_portal_context();
-
-        $client = static::__make_client();
-        $email = 'expired_' . uniqid() . '@example.com';
-        $invite = static::__make_invite($email, [
-            'client_id' => $client->id,
-            'role_id' => Portal_Membership_Model::ROLE_VIEWER,
-        ]);
-        $invite->mark_expired();
-
-        $response = static::__register(['code' => $invite->invitation_code, 'allow_expired' => 1], true);
-
-        $user = Portal_User_Model::find_by_email(self::SITE_ID, $email);
-        static::__assert_not_null($user, 'account still created from an expired invite');
-        static::__assert_false(
-            Portal_Membership_Model::has_membership($user->id, $client->id),
-            'expired invite grants NO client membership'
-        );
-        static::__assert_equals(Portal_Invitation_Model::STATUS_USED, (int) $invite->fresh()->status_id, 'invite consumed');
-
-        static::__assert_instance_of(RedirectResponse::class, $response);
-        static::__assert_false(
-            str_contains($response->getTargetUrl(), '/workspace/'),
-            'does NOT land on a client workspace (clientless dashboard)'
-        );
-    }
-
     public static function test_existing_account_is_routed_to_login()
     {
         static::__reset_portal_context();
@@ -162,34 +132,36 @@ class Portal_Register_Flow_Test extends Rsx_Test_Abstract
         static::__assert_instance_of(RedirectResponse::class, $response, 'routed to login');
         $target = $response->getTargetUrl();
         static::__assert_true(str_contains($target, 'login'), 'to the login screen');
-        static::__assert_true(str_contains($target, 'account_exists'), 'with the account-exists message');
+        static::__assert_true(str_contains($target, 'notice=account_exists'), 'with the account-exists notice');
     }
 
-    public static function test_revoked_invite_shows_cancelled_page()
+    /** The sign-in redirect with the invitation error, and nothing created. */
+    private static function __assert_refused($response, string $email): void
     {
-        static::__reset_portal_context();
-
-        $email = 'revoked_' . uniqid() . '@example.com';
-        $invite = static::__make_invite($email, []);
-        $invite->revoke();
-
-        $response = static::__register(['code' => $invite->invitation_code], false);
-
-        static::__assert_false($response instanceof RedirectResponse, 'cancelled page is rendered, not a redirect');
+        static::__assert_instance_of(RedirectResponse::class, $response, 'routed to login');
+        static::__assert_true(str_contains($response->getTargetUrl(), 'login'), 'to the sign-in page');
+        static::__assert_true(str_contains($response->getTargetUrl(), 'notice=invitation_expired'), 'with the invitation error');
         static::__assert_null(Portal_User_Model::find_by_email(self::SITE_ID, $email), 'no account created');
     }
 
-    public static function test_expired_invite_without_ack_shows_expired_page()
+    public static function test_a_dead_invitation_offers_no_account()
     {
         static::__reset_portal_context();
 
-        $email = 'expiredpage_' . uniqid() . '@example.com';
-        $invite = static::__make_invite($email, []);
-        $invite->mark_expired();
+        $revoked = static::__make_invite('revoked_' . uniqid() . '@example.com');
+        $revoked->revoke();
+        static::__assert_refused(static::__register(['code' => $revoked->invitation_code]), $revoked->email);
 
-        $response = static::__register(['code' => $invite->invitation_code], false);
+        $expired = static::__make_invite('expired_' . uniqid() . '@example.com');
+        $expired->mark_expired();
+        static::__assert_refused(static::__register(['code' => $expired->invitation_code]), $expired->email);
+        static::__assert_refused(static::__register(['code' => $expired->invitation_code], true), $expired->email);
 
-        static::__assert_false($response instanceof RedirectResponse, 'expired page is rendered, not a redirect');
-        static::__assert_null(Portal_User_Model::find_by_email(self::SITE_ID, $email), 'no account created yet');
+        $used = static::__make_invite('used_' . uniqid() . '@example.com');
+        $used->mark_used();
+        static::__assert_refused(static::__register(['code' => $used->invitation_code]), $used->email);
+
+        static::__assert_refused(static::__register(['code' => 'no_such_code']), 'nobody@example.com');
+        static::__assert_refused(static::__register([]), 'nobody@example.com');
     }
 }

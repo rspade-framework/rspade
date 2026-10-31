@@ -14,6 +14,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Files\File_Attachment_Model;
+use App\RSpade\Core\Mail\Rsx_Mail;
 use App\RSpade\Core\Models\Portal_Notification_Model;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
@@ -1498,13 +1499,14 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * Per recipient contact:
      *   - create a Shared_Item (item_type='File_Attachment_Model') unless one already
      *     exists for this attachment + contact (idempotent skip).
-     *   - if the contact is NOT yet invited (no portal account AND no live invite),
-     *     trigger the same invite path portal_bulk_invite uses (per-client invitation
-     *     + registration email) so they can register and view it.
-     *   - if the contact has a portal account, emit a 'document_shared' notification
-     *     and send the shared-content email.
+     *   - if the contact has no portal account and no live invite, mint the invitation
+     *     portal_bulk_invite would, marked email_owed.
      *
-     * Returns per-bucket counts.
+     * NOTHING IS SENT HERE. Sending is its own step (documents_share_send): the dialog shows
+     * the email and each recipient's link, and staff may send, or copy a link and close.
+     *
+     * Returns per-bucket counts, the new recipients with their links, and a preview of the
+     * share email.
      */
     #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
@@ -1541,9 +1543,10 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
 
         $shared = 0;        // new shares created
         $already = 0;       // already shared (idempotent skip)
-        $invited = 0;       // contacts newly invited (no portal account yet)
-        $notified = 0;      // recipients with a portal account that got notified + emailed
+        $invited = 0;       // recipients with no portal account (an invitation stands)
+        $notified = 0;      // recipients who already have a portal account
         $removed = 0;       // shares removed (contacts dropped from the set)
+        $recipients = [];   // the new shares, for the send step
         $shared_by = (int) Session::get_user_id();
 
         // Remove shares for any contact dropped from the desired set.
@@ -1579,7 +1582,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
                 $expired_share->forceDelete();
             }
 
-            Shared_Item_Model::create_share(
+            $share = Shared_Item_Model::create_share(
                 (int) $client->site_id,
                 $shared_by,
                 (int) $contact->id,
@@ -1592,30 +1595,32 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             $portal_user = static::_resolve_contact_portal_user($contact, (int) $client->site_id);
 
             if ($portal_user) {
-                // Existing portal account: notify in-feed + email the shared-content link.
-                static::_notify_document_shared($portal_user, $client, $attachment);
-                static::_send_shared_document_email($portal_user->email, $client, $attachment, $message);
                 $notified++;
-            } elseif (!Portal_Invitation_Model::find_pending_for_contact_client((int) $contact->id, (int) $client_id)) {
-                // Not-yet-invited contact: reuse the registration invite path so they
-                // can create an account (which joins this client) and view the doc.
-                $invitation = Portal_Invitation_Model::create_invitation(
-                    (int) $client->site_id,
-                    $contact->email,
-                    [
-                        'contact_id' => (int) $contact->id,
-                        'client_id' => (int) $client_id,
-                        'role_id' => Portal_Membership_Model::ROLE_VIEWER,
-                    ]
-                );
-                static::_send_new_account_invite_email($contact->email, $client, $invitation);
-                static::_send_shared_document_email($contact->email, $client, $attachment, $message);
-                $invited++;
             } else {
-                // Already has a pending invite - still email the shared document link.
-                static::_send_shared_document_email($contact->email, $client, $attachment, $message);
+                // No account: the share mints the invitation now, so the link works whether
+                // or not the email is ever sent (staff may copy it and send it themselves).
+                if (!Portal_Invitation_Model::find_pending_for_contact_client((int) $contact->id, (int) $client_id)) {
+                    Portal_Invitation_Model::create_invitation(
+                        (int) $client->site_id,
+                        $contact->email,
+                        [
+                            'contact_id' => (int) $contact->id,
+                            'client_id' => (int) $client_id,
+                            'role_id' => Portal_Membership_Model::ROLE_VIEWER,
+                            'email_owed' => true,
+                        ]
+                    );
+                }
                 $invited++;
             }
+
+            $recipients[] = [
+                'contact_id' => (int) $contact->id,
+                'name' => $contact->full_name(),
+                'email' => $contact->email,
+                'has_account' => $portal_user !== null,
+                'link' => $share->get_share_url(),
+            ];
         }
 
         return [
@@ -1624,7 +1629,79 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             'invited' => $invited,
             'notified' => $notified,
             'removed' => $removed,
+            'recipients' => $recipients,
+            'preview' => $recipients
+                ? Rsx_Mail::preview(static::_shared_document_email($client, $attachment, $message, $recipients[0]['link']))
+                : null,
         ];
+    }
+
+    /**
+     * Ajax endpoint: send what documents_share prepared, to the contacts named.
+     *
+     * Each recipient gets the share email with their own link. One with a portal account also
+     * gets the in-feed notification; one with no account, whose invitation has not been
+     * emailed, also gets the invitation, as a separate email. An invitation that was emailed
+     * elsewhere is not sent again.
+     */
+    #[Auth('can_edit_data')]
+    #[Ajax_Endpoint]
+    public static function documents_share_send(Request $request, array $params = [])
+    {
+        $client = Client_Model::find($params['client_id'] ?? null);
+        if (!$client) {
+            return response_error(Ajax::ERROR_NOT_FOUND, 'Client not found');
+        }
+
+        $attachment = static::_resolve_client_document($client, $params);
+        if (!$attachment) {
+            return response_error(Ajax::ERROR_NOT_FOUND, 'Document not found for this client');
+        }
+
+        $contact_ids = $params['contact_ids'] ?? [];
+        if (!is_array($contact_ids)) {
+            return response_error(Ajax::ERROR_VALIDATION, 'contact_ids must be an array');
+        }
+        if (Rsx_Portal_Url::for_site((int) $client->site_id) === false) {
+            return response_error(Ajax::ERROR_VALIDATION, self::NO_PORTAL_MESSAGE);
+        }
+
+        $message = trim($params['message'] ?? '');
+        $sent = 0;
+
+        foreach (array_map('intval', $contact_ids) as $contact_id) {
+            $contact = Contact_Model::find($contact_id);
+            if (!$contact || (int) $contact->client_id !== (int) $client->id || empty($contact->email)) {
+                continue;
+            }
+
+            $share = Shared_Item_Model::find_valid_share('File_Attachment_Model', (int) $attachment->id, (int) $contact->id);
+            if (!$share) {
+                continue;
+            }
+
+            static::_shared_document_email($client, $attachment, $message, $share->get_share_url())->to($contact->email)->send();
+            $sent++;
+
+            $portal_user = static::_resolve_contact_portal_user($contact, (int) $client->site_id);
+
+            if ($portal_user) {
+                static::_notify_document_shared($portal_user, $client, $attachment);
+                continue;
+            }
+
+            $invitation = Portal_Invitation_Model::find_pending_for_contact_client((int) $contact->id, (int) $client->id);
+            if ($invitation && $invitation->get_metadata('email_owed')) {
+                static::_send_new_account_invite_email($contact->email, $client, $invitation);
+
+                $metadata = $invitation->metadata;
+                unset($metadata['email_owed']);
+                $invitation->metadata = $metadata;
+                $invitation->save();
+            }
+        }
+
+        return ['sent' => $sent];
     }
 
     /**
@@ -1835,23 +1912,21 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
     }
 
     /**
-     * Send the shared-content email for a shared document.
+     * The shared-content email for a shared document, carrying one recipient's share link.
      *
-     * @param string $email
      * @param Client_Model $client
      * @param File_Attachment_Model $attachment
      * @param string $message
-     * @return void
+     * @param string $link The recipient's share link
+     * @return Portal_Shared_Content_Email
      */
-    private static function _send_shared_document_email(string $email, Client_Model $client, File_Attachment_Model $attachment, string $message): void
+    private static function _shared_document_email(Client_Model $client, File_Attachment_Model $attachment, string $message, string $link): Portal_Shared_Content_Email
     {
-        $view_url = rsx_absolute_url(static::__portal_url((int) $client->site_id, 'Portal_Workspace_Documents_Action', ['id' => $client->id]));
-
-        (new Portal_Shared_Content_Email(
+        return new Portal_Shared_Content_Email(
             $client->name,
             $message !== '' ? $message : ('Document: ' . $attachment->file_name),
-            $view_url
-        ))->to($email)->send();
+            $link
+        );
     }
 
     // =====================================================================

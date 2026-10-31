@@ -25,6 +25,7 @@
 
     <form id="portal-password-reset-form" method="POST" action="{{ $form_action }}">
         @csrf
+        {!! Login_Redirect::hidden_input() !!}
 
         <div class="mb-3">
             <label class="form-label" for="password">New Password</label>

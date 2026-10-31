@@ -24,6 +24,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Login Notices
+    |--------------------------------------------------------------------------
+    |
+    | The sentences the sign-in pages show inline, chosen by a code in the URL
+    | (Login_Notice::params($code)). See: php artisan rsx:man login_redirect.
+    |
+    */
+
+    'login_notices' => [
+        'logged_out' => ['level' => 'notice', 'text' => 'You have been logged out successfully.'],
+        'account_exists' => [
+            'level' => 'notice',
+            'text' => 'You already have an account for this email. Please sign in below, or use "Forgot your password?" if you do not remember it.',
+        ],
+        'sign_in_to_view' => ['level' => 'notice', 'text' => 'You are signed out. Please sign in to view the shared document.'],
+        'invitation_expired' => [
+            'level' => 'error',
+            'text' => 'This invitation link has expired or is no longer valid. Contact {name} for a new invitation.',
+        ],
+        'share_expired' => [
+            'level' => 'error',
+            'text' => 'This share link has expired or is no longer valid. Contact {name} for a new link.',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Development Test Credentials
     |--------------------------------------------------------------------------
     |

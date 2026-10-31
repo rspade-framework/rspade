@@ -29,8 +29,6 @@
         $has_error = isset($error) && $error;
         $default_password = ($can_autofill && !$has_error && !isset($invite_code)) ? $dev_password : '';
 
-        // Check for message query parameter
-        $message = request()->query('message');
 
         // Build form action URL with code parameter if present
         $form_action_params = [];
@@ -40,10 +38,11 @@
         $form_action = Rsx::Route('Login_Controller::index', $form_action_params);
     @endphp
 
-    {{-- Display message based on query parameter --}}
-    @if ($message === 'logged_out')
-        <div class="alert alert-info text-center">
-            You have been logged out successfully.
+    {{-- The notice a flow sent the visitor here with (Login_Notice, rsx.login_notices). --}}
+    @php $notice = Login_Notice::current(); @endphp
+    @if ($notice)
+        <div class="alert {{ $notice['level'] === 'error' ? 'alert-danger' : 'alert-info' }} text-center">
+            {{ $notice['text'] }}
         </div>
     @endif
 

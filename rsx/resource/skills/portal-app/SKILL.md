@@ -73,7 +73,8 @@ switched on or off, and its custom domain set, on the staff Site Settings screen
 |---|---|---|
 | `/login` GET+POST | `Portal_Login_Controller` | email + password checked by `Portal_Auth::verify_credentials()` (a flagged `password_reset_required` account is refused toward "Forgot your password?"), TWO-STAGE when the portal user holds a second factor or `rsx.portal.emailed_sign_in_codes` is on (`Rsx_Portal_Two_Factor::begin_challenge()` with `challenge_accepts()`); the page also offers `<Passkey_Sign_In>` (Ajax `passkey_login`) and, when `rsx.sso.portal_enabled`, `<Sso_Buttons />` |
 | `/login/verify` GET | `Portal_Login_Controller::verify` | the challenge: `<Two_Factor_Challenge>` posting to the Ajax `verify_2fa`, plus `send_code` (code AND sign-in link in `Portal_Sign_In_Code_Email`) when emailed codes are on; a signed-in visitor goes to their destination |
-| `/register` GET+POST | `Portal_Register_Controller` | invite-code registration (the account is created `is_verified`, the invitation having proved the address); `invalid` / `expired` / `cancelled` pages |
+| `/register` GET+POST | `Portal_Register_Controller` | invite-code registration (the account is created `is_verified`, the invitation having proved the address); a code that cannot be used goes to `/login` with the `invitation_expired` notice |
+| `/shared/:token` GET | `Portal_Share_Link_Controller::open` | the link a share hands out: the recipient's documents, or sign-in with a notice, or the accept-invite page, carrying itself as the redirect |
 
 **One completion function**: every portal sign-in - password, challenge, passkey, registration,
 federated - finishes in `Portal_Login_Controller::complete_sign_in($portal_user, $sign_in,
@@ -170,6 +171,10 @@ Invitations carry `status_id` (PENDING/USED/EXPIRED/REVOKED) and expire after `r
 **Only PENDING grants membership.** Admins **Cancel** (revoke) a pending invite on the per-client members screen. "Disable Access" removes a client membership (account, contact and login persist) - distinct from the de-emphasized global account suspend on the Portal Users admin screen. Force-password-reset is **not** a staff action in this app (self-service only); an operator sets the framework's `portal_users.password_reset_required` with `rsx:users:force_password_reset --portal-user=<id>`.
 
 **A membership grants access only while its client is live.** "Disable Portal" (`clients.portal_enabled` off) and deleting the client revoke every member at once WITHOUT touching a membership row; reopening restores them. The portal side reads memberships only through `Portal_Membership_Model::has_membership()` / `find_for_user_and_client()` / `get_for_user()`, which count live rows only, so every `Portal_Permission` method and every `portal_can_read()` built on it inherits the rule. Staff screens and the code that CREATES a membership read the rows themselves (`has_membership_row()`, `get_all_for_user()`, `get_for_client()`), so accepting an invitation to a closed portal creates the row (no duplicate) and grants nothing until it reopens.
+
+**Sign-in pages show notices by code.** `Login_Notice::params($code)` beside `Login_Redirect::params()`, declared in `rsx.login_notices`; a flash is lost on the second hop. A threaded redirect beats the invited client's workspace, and every hop carries it (register, account-exists, forgot password, the second factor).
+
+**Sharing and sending are two steps.** `documents_share` mints the invitation and sends nothing; `documents_share_send` emails the share and any invitation still `email_owed`, separately.
 
 **A document share is per contact and expires.** A client document is visible to a portal user only while an unexpired `Shared_Item_Model` row names THEIR contact (`Shared_Item_Model::find_valid_share()`) and they hold a live membership of the client - on the Documents tab and on the file routes alike (`rsx/handlers/Portal_File_Access_Handlers.php`). A portal-realm file URL is answered for the PORTAL identity only; a staff session never opens one.
 

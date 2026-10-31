@@ -1,0 +1,31 @@
+<%--
+Share_Document_Send_Review - the send step of a share: each recipient's link with a Copy
+control, and the share email as they will read it.
+
+$recipients - [{contact_id, name, email, has_account, link}] (required)
+$preview - {subject, html} of the share email (required)
+--%>
+<Define:Share_Document_Send_Review tag="div">
+    <table class="table table-sm mb-3">
+        <thead>
+            <tr><th>Recipient</th><th>Sending</th><th></th></tr>
+        </thead>
+        <tbody>
+            <% for (const recipient of this.args.recipients) { %>
+                <tr>
+                    <td>
+                        <div><%= recipient.name %></div>
+                        <div class="text-muted small"><%= recipient.email %></div>
+                    </td>
+                    <td class="small"><%= recipient.has_account ? 'The share' : 'The share and an invitation, as two emails' %></td>
+                    <td class="text-end">
+                        <button type="button" class="btn btn-sm btn-secondary" data-link="<%= recipient.link %>">Copy link</button>
+                    </td>
+                </tr>
+            <% } %>
+        </tbody>
+    </table>
+
+    <div class="Share_Document_Send_Review__subject"><strong>Subject:</strong> <%= this.args.preview.subject %></div>
+    <iframe class="Share_Document_Send_Review__preview" $sid="preview" sandbox="" title="Email preview"></iframe>
+</Define:Share_Document_Send_Review>

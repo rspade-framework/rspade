@@ -14,6 +14,7 @@ use App\RSpade\Core\Auth\Auth_Throttled_Exception;
 use App\RSpade\Core\Auth\RsxAuth;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Dispatch\Rsx_Request_Channel;
+use App\RSpade\Core\Login\Login_Notice;
 use App\RSpade\Core\Login\Login_Redirect;
 use App\RSpade\Core\Mail\Rsx_Mail;
 use App\RSpade\Core\Models\Login_User_Model;
@@ -447,7 +448,7 @@ class Login_Controller extends Rsx_Controller_Abstract
      * - If provided and it validates as a local, non-login-flow path (via the
      *   single Login_Redirect sanitizer), redirect there after logout.
      * - Otherwise (absent, hostile, or a login-flow route), redirect to the login
-     *   page with the logged_out message.
+     *   page with the logged_out notice.
      *
      * Optional reason parameter:
      * - If provided, passes through to login page (e.g., 'unauthorized')
@@ -465,7 +466,7 @@ class Login_Controller extends Rsx_Controller_Abstract
         if ($reason) {
             $query_params['reason'] = $reason;
         } else {
-            $query_params['message'] = 'logged_out';
+            $query_params = Login_Notice::params('logged_out');
         }
         $default = Rsx::Route('Login_Controller::index', $query_params);
 

@@ -10,10 +10,11 @@ dispatcher, bundle, layout, routing attributes and permission facade.
   the bundle of the SIGNED-IN portal (the whole theme, `rsx/models`, `rsx/lib`, this tree).
 - `auth/` — the server-rendered ladder: `Portal_Login_Controller`,
   `Portal_Logout_Controller`, `Portal_Register_Controller` (invite-based),
+  `Portal_Share_Link_Controller` (`/shared/:token`, where a share link leads),
   `Portal_Password_Reset_Controller`,
   `Portal_Impersonate_Controller` (the staff "View as Client" stop; starting one is the
   framework's `Portal_Session::begin_impersonation_from_staff()`), plus
-  `portal_auth_layout.blade.php` and the ten blades of their outcome states (the second-
+  `portal_auth_layout.blade.php` and the seven blades of their outcome states (the second-
   factor challenge page `portal_login_verify.blade.php` among them), and
   `portal_auth_bundle.php` — `Portal_Auth_Bundle`, the bundle those pages and the error
   pages render (see TWO BUNDLES below).
@@ -266,12 +267,19 @@ in here. How this app uses them:
   `sign_in: true` (password, registration) signs in there with
   `Portal_Session::set_portal_user_id()` and records the success; `sign_in: false` (challenge,
   passkey, SSO) follows the framework's own sign-in. It raises the welcome flash and answers
-  `destination()` - the invited client, the threaded redirect, or the dashboard. Nothing else
+  `destination()` - the threaded redirect, the invited client, or the dashboard. Nothing else
   in this application calls `set_portal_user_id()`.
 - **Registration verifies the address.** `Portal_Register_Controller` creates the portal user
   with `is_verified = 1` (the invitation proved the mailbox) and signs them in through
   `complete_sign_in()` - with no emailed code even when `emailed_sign_in_codes` is on, since
   the invitation already proved the address.
+- **A dead invitation offers no account.** Unknown, revoked, used and expired codes go to the
+  sign-in page with the `invitation_expired` notice (`rsx.login_notices`, `Login_Notice`). The
+  redirect survives every hop: register, account-exists, forgot password, and the second factor,
+  where it is parked beside the challenge (`REDIRECT_KEY`).
+- **A share link drives the invitation.** `Portal_Share_Link_Controller` sends a follower to
+  their documents, the sign-in page with a notice, or the accept-invite page, carrying the link
+  back as the redirect (`rsx:man portal`, A SHARE LINK LEADS THERE).
 - **Portal access is by invitation only, extended by the site's staff** - the template's
   recommended position. There is no portal self-signup and no public "request access" page: the
   login page says access is by invitation and names who to contact (`config('rsx.name')`), and

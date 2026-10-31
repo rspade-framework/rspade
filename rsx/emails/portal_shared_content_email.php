@@ -19,7 +19,7 @@ class Portal_Shared_Content_Email extends Rsx_Email_Abstract
     /**
      * @param string $shared_by_name Who shared it - the client, in the subject line.
      * @param string $message The sharer's note, or a description of the document.
-     * @param string $view_url Where in the portal the content lives.
+     * @param string $view_url The recipient's share link (Shared_Item_Model::get_share_url()).
      * @param string|null $expires_at ISO datetime the link stops working, if it does.
      */
     public function __construct(
@@ -55,7 +55,7 @@ class Portal_Shared_Content_Email extends Rsx_Email_Abstract
         return new static(
             'Northwind Trading',
             'Document: Q3 statement.pdf',
-            'https://portal.example.com/workspace/1/documents',
+            'https://portal.example.com/shared/sample-link',
         );
     }
 }

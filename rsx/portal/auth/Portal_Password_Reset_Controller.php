@@ -9,6 +9,7 @@ namespace Rsx\Portal\Auth;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Login\Login_Redirect;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
@@ -66,7 +67,7 @@ class Portal_Password_Reset_Controller extends Rsx_Controller_Abstract
                     $reset = Portal_Password_Reset_Model::create_for_user($portal_user);
 
                     // Send password reset email
-                    (new Portal_Password_Reset_Email($portal_user, $reset->get_reset_url()))
+                    (new Portal_Password_Reset_Email($portal_user, $reset->get_reset_url(Login_Redirect::params())))
                         ->to($portal_user)
                         ->send();
 
@@ -171,7 +172,7 @@ class Portal_Password_Reset_Controller extends Rsx_Controller_Abstract
 
                 Flash_Alert::success('Your password has been reset. Please login with your new password.');
 
-                return redirect(Rsx_Portal::Route('Portal_Login_Controller::index'));
+                return redirect(Rsx_Portal::Route('Portal_Login_Controller::index', Login_Redirect::params()));
             }
         }
 

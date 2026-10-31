@@ -9,6 +9,7 @@ namespace Rsx\Portal\Auth;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Login\Login_Notice;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
 
@@ -28,6 +29,6 @@ class Portal_Logout_Controller extends Rsx_Controller_Abstract
     {
         Portal_Session::logout();
 
-        return redirect(Rsx_Portal::Route('Portal_Login_Controller::index', ['message' => 'logged_out']));
+        return redirect(Rsx_Portal::Route('Portal_Login_Controller::index', Login_Notice::params('logged_out')));
     }
 }

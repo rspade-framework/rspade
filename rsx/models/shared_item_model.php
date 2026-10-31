@@ -167,6 +167,24 @@ class Shared_Item_Model extends Rsx_Site_Model_Abstract
     }
 
     /**
+     * The share link, on the share's own site's portal - or false when that site has no client
+     * portal (Rsx_Portal::Route()), so there is no link to send. The token is the credential:
+     * the link decides nothing itself, and Portal_Share_Link_Controller reads it.
+     *
+     * @return string|false
+     */
+    public function get_share_url(): string|false
+    {
+        $url = \App\RSpade\Core\Portal\Rsx_Portal::Route(
+            'Portal_Share_Link_Controller::open',
+            ['token' => $this->token],
+            site_id: (int) $this->site_id
+        );
+
+        return $url === false ? false : rsx_absolute_url($url);
+    }
+
+    /**
      * Check if the shared item is valid (not expired)
      */
     public function is_valid(): bool

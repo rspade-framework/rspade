@@ -24,16 +24,11 @@
         $form_action = Rsx_Portal::Route('Portal_Login_Controller::index', $client_id ? ['client' => $client_id] : []);
     @endphp
 
-    {{-- Display message based on query parameter --}}
-    @if (isset($message) && $message === 'logged_out')
-        <div class="alert alert-info text-center">
-            You have been logged out successfully.
-        </div>
-    @elseif (isset($message) && $message === 'account_exists')
-        <div class="alert alert-info text-center">
-            You already have an account for this email. Please sign in below, or use
-            <a href="{{ Rsx_Portal::Route('Portal_Password_Reset_Controller::request') }}">Forgot your password?</a>
-            if you don't remember it.
+    {{-- The notice a flow sent the visitor here with (Login_Notice, rsx.login_notices). --}}
+    @php $notice = Login_Notice::current(); @endphp
+    @if ($notice)
+        <div class="alert {{ $notice['level'] === 'error' ? 'alert-danger' : 'alert-info' }} text-center">
+            {{ $notice['text'] }}
         </div>
     @endif
 
@@ -87,7 +82,7 @@
 
         <div class="mt-3 text-center">
             <small class="text-muted">
-                <a href="{{ Rsx_Portal::Route('Portal_Password_Reset_Controller::request') }}">Forgot your password?</a>
+                <a href="{{ Rsx_Portal::Route('Portal_Password_Reset_Controller::request', Login_Redirect::params()) }}">Forgot your password?</a>
             </small>
         </div>
 
