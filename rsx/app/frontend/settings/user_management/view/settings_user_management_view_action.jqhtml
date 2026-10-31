@@ -231,7 +231,7 @@
                             <% } %>
                         <% } %>
                     <% } %>
-                    <% if (_u.invitation_status !== 'accepted' && _u.is_enabled) { %>
+                    <% if (_u.can_administer && _u.invitation_status !== 'accepted' && _u.is_enabled) { %>
                         <button $sid="btn_resend_invite" class="btn btn-outline-secondary btn-sm">
                             <i class="bi bi-envelope"></i> Resend Invite
                         </button>

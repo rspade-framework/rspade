@@ -318,7 +318,10 @@ User self-service page (composed from the shared theme components — see
   sent to their destination (the challenge was answered in another tab), and
   `portal_login_verify.js` hides the recovery-code hint when the widget fires `completed`
 - **Registration** (`/register?code=X`) — invitation-based account creation
-- **Password Reset** (`/password/reset`) — request + reset token flow
+- **Password Reset** (`/password/reset`) — request + reset token flow. The link is single-use
+  even under concurrent submissions: the form calls `Portal_Password_Reset_Model::claim()` (one
+  conditional UPDATE that marks it used only while unused and unexpired) and writes the new
+  password only when its own claim succeeded
 - **Logout** (`/logout`) — clears portal session, redirects to login
 
 ## Testing

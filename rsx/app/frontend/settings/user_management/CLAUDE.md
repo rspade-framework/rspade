@@ -36,11 +36,12 @@ rather than only the selectable ones. Reads (`get_user`, the grid, `get_user_api
 `can_manage_users`; `get_user` and `get_user_session` report `can_administer` and the pages
 show Edit, Enable/Disable and Sign out only when they would be accepted.
 
-**An invitation link is never shown for a role above the caller's.** `send_invite` re-sends
-the email for any pending user of the site (the email goes to the invitee), but returns
-`invite_url` only when the caller administers the invitee's role; otherwise it returns
-`invite_url_hidden: true` and `Send_User_Invite_Modal` says the link is hidden because the
-selected user's access level exceeds the caller's own.
+**Resending an invitation is a write like any other.** `send_invite` mints a new code - which
+ends the link the invitee already holds - emails it and returns `invite_url`, and only for a
+pending user whose role the caller administers (`__administrable_user()`); a superior's
+invitation is refused as `unauthorized`, and the view shows Resend Invite only when
+`can_administer`. So a link for a role above the caller's never reaches them, and nobody below
+an invitee's level can quietly break their invitation.
 
 **Disabling is `users.is_enabled`** (`set_user_enabled`), never a role: the framework refuses
 a disabled membership at sign-in and ends its live sessions, while the role and ACL rows are

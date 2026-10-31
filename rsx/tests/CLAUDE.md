@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Fifty-four test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Fifty-six test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -72,13 +72,17 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   administrative check), or when any other one carries nothing beyond `is_logged_in` - the
   own-record and sign-in endpoints it excuses are listed by name, with the reason.
   `User_Management_Authority_Test` (equal-or-lower administration: a superior's current
-  role, a new role above the caller's, the hidden invitation link, disabling through
+  role, a new role above the caller's, a superior's invitation refused for resending, disabling through
   `users.is_enabled`, site-scoped session lists), `Session_Screens_Test` (the "where you're
   signed in" screens: user management's this-site list and session page, Password & Security
   and portal settings - the three-month cut, the record rule that answers another user's,
   another site's or a dormant session as not found, Sign out refused for a superior and for
   the browser making the request, "everywhere" staying on this site),
-  `Portal_Change_Password_Test` (portal Change Password: every field rule answered at once, a
+  `Invite_Expiry_Test` (a staff invitation is refused once `invite_expires_at` has passed,
+  the same day included - the comparison goes through `Rsx_Time::is_past()`, never a string
+  against `now()`), `Portal_Password_Reset_Claim_Test` (a reset link is single-use under a race: `claim()` is
+  one conditional UPDATE, a second claim and an expired link are refused, and a submission
+  that lost the claim writes no password), `Portal_Change_Password_Test` (portal Change Password: every field rule answered at once, a
   wrong current password counted as a failed attempt and changing nothing, a correct change
   saved; the throttle refusal is verified over HTTP, since a CLI test has no client address),
   `Api_Access_Permission_Test` (the API and

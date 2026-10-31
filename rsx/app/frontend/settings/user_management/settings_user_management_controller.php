@@ -393,11 +393,10 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
      * Generates new invite code and expiration for pending/expired invitations.
      * Used for both initial invites (after user creation) and resending.
      *
-     * Re-sending is open to every user manager - the email goes to the invitee, not to the
-     * caller. The LINK is returned only when the caller may administer the invitee's role:
-     * an invitation a superior created for a higher role is delivered, but its link never
-     * reaches a caller below that role (accepting it would hand them that role). Instead the
-     * response carries invite_url_hidden, and the modal says why.
+     * A write like every other here: only for a user whose role the caller administers
+     * (__administrable_user()). Re-sending mints a new code, which ends the link the invitee
+     * already holds, so a superior's invitation is resent by somebody at their level - and the
+     * link it returns would hand the caller that role.
      *
      * @param Request $request
      * @param array $params
@@ -406,7 +405,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
     #[Ajax_Endpoint]
     public static function send_invite(Request $request, array $params = [])
     {
-        $user = static::__site_user($params['user_id'] ?? null, 'user_id');
+        $user = static::__administrable_user($params['user_id'] ?? null, 'user_id');
 
         if (!$user instanceof User_Model) {
             return $user;
@@ -437,19 +436,9 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
 
         (new User_Invitation_Email($user, $invite_url))->to($user)->send();
 
-        if (!Session::get_user()->can_admin_role((int) $user->role_id)) {
-            return [
-                'message' => 'Invitation sent successfully',
-                'invite_url' => null,
-                'invite_url_hidden' => true,
-                'user_id' => $user->id,
-            ];
-        }
-
         return [
             'message' => 'Invitation sent successfully',
             'invite_url' => $invite_url,
-            'invite_url_hidden' => false,
             'user_id' => $user->id,
         ];
     }

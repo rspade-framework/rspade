@@ -4,6 +4,7 @@ namespace Rsx\App\Login;
 
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Session\Session;
+use App\RSpade\Core\Time\Rsx_Time;
 
 /**
  * Invite_Helper
@@ -43,8 +44,10 @@ class Invite_Helper
             ];
         }
 
-        // Check if expired
-        if ($invitation->invite_expires_at && $invitation->invite_expires_at < now()) {
+        // Check if expired. invite_expires_at is an ISO string; Rsx_Time compares it as a
+        // moment (a string compared with now() is compared as text, and reads a same-day
+        // expiry as still valid).
+        if ($invitation->invite_expires_at && Rsx_Time::is_past($invitation->invite_expires_at)) {
             return [
                 'valid' => false,
                 'invitation' => $invitation,

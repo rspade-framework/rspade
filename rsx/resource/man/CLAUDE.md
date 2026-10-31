@@ -20,11 +20,20 @@ Create a man page when:
 
 ## Structure
 
+**Every page carries a TAGS section** right after NAME: one indented line of lowercase,
+comma-separated tags from the framework's shared vocabulary (`php artisan rsx:man --tags`
+lists it, with counts), plus tags of this application's own where none fits. Tags are what
+make a page findable with `rsx:man --tag=<tag>`, alongside the framework's pages on the same
+subject (`rsx:man man`, TAGS).
+
 Follow the standard Unix man page sections:
 
 ```
 NAME
     feature_name - one-line description
+
+TAGS
+    forms, ui
 
 SYNOPSIS
     Quick usage example showing the most common pattern

@@ -156,12 +156,18 @@ class Portal_Password_Reset_Controller extends Rsx_Controller_Abstract
             } elseif ($password !== $password_confirm) {
                 $error = 'Passwords do not match';
             } else {
-                // Update password
+                // Use the link up FIRST: of two submissions racing on one link, only the one
+                // that claims it writes a password.
+                if (!$reset->claim()) {
+                    return rsx_view('Portal_Password_Reset_Invalid', [
+                        'error' => 'This password reset link has already been used. Please login or request a new link.',
+                        'show_login_link' => true,
+                        'show_request_link' => true,
+                    ]);
+                }
+
                 $portal_user->set_password($password);
                 $portal_user->save();
-
-                // Mark reset as used
-                $reset->mark_used();
 
                 Flash_Alert::success('Your password has been reset. Please login with your new password.');
 

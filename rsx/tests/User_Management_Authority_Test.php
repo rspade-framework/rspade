@@ -230,23 +230,29 @@ class User_Management_Authority_Test extends Rsx_Test_Abstract
     // invitation links
     // ---------------------------------------------------------------------
 
-    public static function test_an_invitation_link_above_the_callers_role_is_hidden()
+    /**
+     * Resending mints a new code, which ends the link the invitee holds: a superior's
+     * invitation is refused - code and expiry untouched - and a lower role's is re-sent with
+     * its fresh link.
+     */
+    public static function test_a_superiors_invitation_cannot_be_resent()
     {
         $admin = static::__member(User_Model::ROLE_SITE_ADMIN, 'admin');
         $owner_invite = static::__pending_invite(User_Model::ROLE_SITE_OWNER);
         $manager_invite = static::__pending_invite(User_Model::ROLE_MANAGER);
+        $owner_code = (string) $owner_invite->invite_code;
         static::__act_as($admin);
 
-        $hidden = Frontend_Settings_User_Management_Controller::send_invite(new Request(), ['user_id' => $owner_invite->id]);
-        static::__assert_true($hidden['invite_url_hidden'], 'the link of a superior role is withheld');
-        static::__assert_null($hidden['invite_url'], 'no link is returned');
+        $refused = Frontend_Settings_User_Management_Controller::send_invite(new Request(), ['user_id' => $owner_invite->id]);
+        static::__assert_instance_of(Error_Response::class, $refused, 'a superior\'s invitation is not the caller\'s to resend');
+        static::__assert_equals(Ajax::ERROR_UNAUTHORIZED, $refused->get_error_code());
+        static::__assert_equals($owner_code, (string) static::__reload($owner_invite)->invite_code, 'the invitee\'s link still works');
 
         $shown = Frontend_Settings_User_Management_Controller::send_invite(new Request(), ['user_id' => $manager_invite->id]);
-        static::__assert_false($shown['invite_url_hidden'], 'the link of a lower role is shown');
         static::__assert_contains(
             (string) static::__reload($manager_invite)->invite_code,
             (string) $shown['invite_url'],
-            'the shown link carries the fresh code'
+            'a lower role\'s invitation is re-sent with its fresh link'
         );
     }
 

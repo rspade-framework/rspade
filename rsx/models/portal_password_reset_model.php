@@ -164,14 +164,27 @@ class Portal_Password_Reset_Model extends Rsx_Site_Model_Abstract
     }
 
     /**
-     * Mark the reset as used
+     * Use the reset up, if nobody has yet: ONE conditional UPDATE that marks it used only
+     * while it is still unused and unexpired. Exactly one of any number of concurrent
+     * submissions of the same link wins it, so the caller writes the new password only after
+     * this answers true - claiming first, then writing, is what makes a link single-use.
      *
-     * @return void
+     * raw_bulk(): the UPDATE itself is the test-and-set; loading the row and saving it would
+     * reopen the race this exists to close.
+     *
+     * @return bool Whether THIS call used it up (false: already used, or expired)
      */
-    public function mark_used(): void
+    public function claim(): bool
     {
-        $this->used_at = now();
-        $this->save();
+        $claimed = static::where('id', $this->id)
+            ->whereNull('used_at')
+            ->where('expires_at', '>', now())
+            ->raw_bulk()
+            ->update(['used_at' => now()]);
+
+        $this->refresh();
+
+        return $claimed === 1;
     }
 
     /**
