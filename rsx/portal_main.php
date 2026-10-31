@@ -59,12 +59,13 @@ class Portal_Main extends Portal_Main_Abstract
      */
     public static function pre_dispatch(Request $request, array $params)
     {
-        // Stamp client portal activity (resolves framework essential #12 and the
-        // previously-dead clients.portal_last_activity_at column). Marks "now" on each
-        // client the current portal user is a member of; an anonymous request (a public
-        // page) has no memberships and does no work. clients is an APP table, so this
-        // lives app-side; the core notification primitive stays clean.
-        static::__stamp_portal_activity();
+        // Stamp client portal activity (clients.portal_last_activity_at): "now" on each client
+        // the current portal user is a member of; an anonymous request (a public page) has no
+        // memberships and does no work. A staff member's View as Client is not the client
+        // being active - it is read-only and writes nothing, this stamp included.
+        if (!Portal_Session::is_impersonating()) {
+            static::__stamp_portal_activity();
+        }
 
         return null;
     }

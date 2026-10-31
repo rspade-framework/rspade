@@ -128,7 +128,7 @@ The framework refuses every portal Ajax endpoint while the session is impersonat
 the endpoint declares `#[Portal_Impersonation_Readable]` - deny by default, because every
 Ajax call is a POST and a write cannot be told from a read by its verb. **Every READ endpoint
 you add gets the mark** (or "View as Client" cannot load the screen that calls it); a write
-gets nothing and is refused:
+gets nothing and is refused. A portal upload is refused by the framework too. A write the app makes on EVERY request is not an endpoint, so it guards itself: `portal_main.php` skips its activity stamp while `Portal_Session::is_impersonating()`, because a staff member looking is not the client being active:
 
 ```php
 #[Ajax_Endpoint]

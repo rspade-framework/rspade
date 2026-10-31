@@ -61,7 +61,7 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   the portal identity only, through a live share of the caller's own contact),
   `Portal_Member_Validation_Test` (a membership goes only to the client's own contact, with
   an enum role), `Portal_Notifications_Test` (the notification endpoints return only
-  the caller's own feed, and `clients.portal_last_activity_at` is stamped),
+  the caller's own feed, and `clients.portal_last_activity_at` is stamped - and not during View as Client),
   `Announcement_Test`, `Portal_Tenancy_App_Test` (a site with no client portal - off for the
   install or for the site - refuses the invite, the resend and View as Client with nothing
   written or sent; a sent link names the record's site's portal; Site Settings save the

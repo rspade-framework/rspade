@@ -35,7 +35,8 @@ dispatcher, bundle, layout, routing attributes and permission facade.
   nothing; by `init()` the framework has resolved the request's site and declared it (site 1
   in single tenancy). Nothing downstream hand-scopes a query.
 - **`Portal_Main::pre_dispatch()` stamps portal activity on every client the caller belongs
-  to, through `->raw_bulk()->update(...)`** — one raw UPDATE, deliberately firing no
+  to - except during View as Client, which is the staff member looking, not the client
+  being active - through `->raw_bulk()->update(...)`** — one raw UPDATE, deliberately firing no
   realtime frame and no per-record hook, because a timestamp bump on every portal click
   would otherwise churn every open staff client view. Follow that shape for any other
   per-request stamp; use an ordinary `save()` for anything a screen should react to.
@@ -52,7 +53,7 @@ dispatcher, bundle, layout, routing attributes and permission facade.
   is impersonating, every portal Ajax endpoint is refused unless it is marked
   `#[Portal_Impersonation_Readable]`; mark each READ endpoint you add, and leave writes
   unmarked. A forgotten mark fails safe (the read is refused) rather than leaving a write
-  open. `Portal_Permission::is_read_only()` drives the banner and disabled controls.
+  open. A portal upload is refused too, by the framework's upload path. `Portal_Permission::is_read_only()` drives the banner and disabled controls.
 - Per-client rules are record-level predicates called in the endpoint body after the gates
   pass (`has_client_access()`, `can_collaborate()`, `client_role()`,
   `accessible_client_ids()`), all defined in `rsx/portal_permission.php`.

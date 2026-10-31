@@ -145,6 +145,36 @@ class Portal_Notifications_Test extends Rsx_Test_Abstract
         static::__assert_not_empty($reloaded->portal_last_activity_at, 'portal_last_activity_at is written after an authenticated portal request');
     }
 
+    /**
+     * View as Client is the staff member looking, not the client being active: the stamp is
+     * skipped while the portal session is impersonated.
+     */
+    public static function test_view_as_client_does_not_stamp_activity()
+    {
+        $client = new Client_Model();
+        $client->name = 'Viewed Client';
+        $client->portal_enabled = true;
+        $client->save();
+
+        $user = static::__make_portal_user();
+        $membership = new Portal_Membership_Model();
+        $membership->portal_user_id = $user->id;
+        $membership->client_id = $client->id;
+        $membership->role_id = Portal_Membership_Model::ROLE_VIEWER;
+        $membership->save();
+
+        static::__login_portal($user->id);
+        Portal_Session::cli_set_impersonator_user_id(1);
+
+        try {
+            Portal_Main::pre_dispatch(Request::create('/'), ['_handler' => 'Portal_Notifications_Controller']);
+        } finally {
+            Portal_Session::cli_set_impersonator_user_id(null);
+        }
+
+        static::__assert_null(Client_Model::find($client->id)->portal_last_activity_at, 'a View as Client request writes no activity');
+    }
+
     public static function teardown(): void
     {
         Portal_Session::cli_set_portal_user_id(0);
