@@ -130,7 +130,7 @@ class Revision_History extends Component {
         if (field.endsWith('_at')) {
             const normalized = this.normalize_datetime(value);
             if (Rsx_Time.is_datetime(normalized)) {
-                return Rsx_Time.format_datetime(normalized);
+                return Rsx_Time.format_timestamp(normalized);
             }
         }
 

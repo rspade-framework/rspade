@@ -1,6 +1,6 @@
 ---
 name: portal-app
-description: "The client-portal screens this application ships - portal_main.php (the portal's init hook) and portal_permission.php (has_client_access / client_role / accessible_client_ids / is_read_only), the Blade auth ladder (login with its second-factor challenge, passkey sign-in and federated sign-in, register from an invite, request-access, password reset, impersonate stop, logout), Portal_Layout and Portal_Workspace_Layout, the dashboard, the workspace tabs (Overview / Requests / Documents) with the request-thread UI, invitations accept/decline, settings, and the #[Portal_Impersonation_Readable] marks that keep View-as-Client read-only. Use when adding or changing a portal screen or endpoint, wiring a new workspace tab, changing what an invite grants, branding the portal auth pages, or deciding which portal endpoints stay callable during impersonation (mark reads #[Portal_Impersonation_Readable])."
+description: "The client-portal screens this application ships - portal_main.php (the portal's init hook) and portal_permission.php (has_client_access / client_role / accessible_client_ids / is_read_only), the Blade auth ladder (login with its second-factor challenge, passkey sign-in and federated sign-in, register from an invite, password reset, impersonate stop, logout), Portal_Layout and Portal_Workspace_Layout, the dashboard, the workspace tabs (Overview / Requests / Documents) with the request-thread UI, invitations accept/decline, settings, and the #[Portal_Impersonation_Readable] marks that keep View-as-Client read-only. Use when adding or changing a portal screen or endpoint, wiring a new workspace tab, changing what an invite grants, branding the portal auth pages, or deciding which portal endpoints stay callable during impersonation (mark reads #[Portal_Impersonation_Readable])."
 ---
 
 # The portal application
@@ -79,8 +79,10 @@ switched on or off, and its custom domain set, on the staff Site Settings screen
 federated - finishes in `Portal_Login_Controller::complete_sign_in($portal_user, $sign_in,
 $client_id)`, which signs in when the caller has not (`sign_in: true`), raises the welcome flash
 and answers `destination()`. Nothing else here calls `Portal_Session::set_portal_user_id()`.
-There is no portal self-signup: portal accounts come from invitations only.
-| `/request-access` GET+POST | `Portal_Request_Access_Controller` | a would-be user asks for an invite; resends a live one |
+There is no portal self-signup and no public "request access" page: portal accounts come from
+invitations only, extended by the site's staff (the client screen's invite and resend). That is
+the template's recommended position; an application that wants a public request page adds its
+own, and then owns the enumeration and invitation-refresh questions such a page raises.
 | `/password/reset` and `/password/reset/:token` | `Portal_Password_Reset_Controller` | request + reset, with an `invalid` page |
 | `/impersonate/stop` GET | `Portal_Impersonate_Controller` | ends a staff "View as Client" (signs the view out; the browser's own portal sign-in, if any, is current again); `stopped` page. Starting one is the staff endpoint `Frontend_Contacts_Controller::begin_portal_impersonation` -> `Portal_Session::begin_impersonation_from_staff()` |
 | `/logout` GET | `Portal_Logout_Controller` | signs the portal account out of this browser (portal session values cleared); any staff sign-in stays |

@@ -57,12 +57,12 @@ something from (User_Session_Activity).
                             <% if (_s.is_signed_in) { %>
                                 Signed in
                             <% } else { %>
-                                <%= _s.sign_out_reason || 'Signed out' %> &middot; <%= Rsx_Time.format_datetime(_s.signed_out_at) %>
+                                <%= _s.sign_out_reason || 'Signed out' %> &middot; <%= Rsx_Time.format_timestamp(_s.signed_out_at) %>
                             <% } %>
                         </View_Field>
-                        <View_Field $label="Last Active"><%= Rsx_Time.format_datetime(_s.last_active) %></View_Field>
-                        <View_Field $label="Signed In"><%= Rsx_Time.format_datetime(_s.signed_in_at) %></View_Field>
-                        <View_Field $label="First Signed In Here"><%= Rsx_Time.format_datetime(_s.first_seen) %></View_Field>
+                        <View_Field $label="Last Active"><%= Rsx_Time.format_timestamp(_s.last_active) %></View_Field>
+                        <View_Field $label="Signed In"><%= Rsx_Time.format_timestamp(_s.signed_in_at) %></View_Field>
+                        <View_Field $label="First Signed In Here"><%= Rsx_Time.format_timestamp(_s.first_seen) %></View_Field>
                         <View_Field $label="Sign-ins"><%= _s.sign_in_count %></View_Field>
                         <View_Field $label="IP Address">
                             <% if (_s.ip_address) { %><%= _s.ip_address %><% } else { %><Empty_Value /><% } %>

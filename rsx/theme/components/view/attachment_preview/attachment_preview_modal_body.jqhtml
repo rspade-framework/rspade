@@ -23,7 +23,7 @@ details and the Download button. On a narrow screen the details stack under the 
                 <% if (_file.created_by_name) { %><%= _file.created_by_name %><% } else { %><Empty_Value /><% } %>
             </View_Field>
             <View_Field $label="Uploaded">
-                <% if (_file.created_at) { %><%= Rsx_Time.format_datetime(_file.created_at) %><% } else { %><Empty_Value /><% } %>
+                <% if (_file.created_at) { %><%= Rsx_Time.format_timestamp(_file.created_at) %><% } else { %><Empty_Value /><% } %>
             </View_Field>
         </View_Fields>
         <a class="btn btn-primary" href="<%= _file.download_url %>" download>

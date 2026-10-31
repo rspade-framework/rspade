@@ -8,7 +8,7 @@ stylesheet. Six are `const CATEGORY = self::TRANSACTIONAL`; `Portal_Sign_In_Code
 
 | Class | Sent from |
 |---|---|
-| `Portal_Invitation_Email` | `Frontend_Clients_Controller` (new-account and existing-account invites) and `Portal_Request_Access_Controller` (resend). Its subject branches on whether the recipient already has an account, and its `tag()` (`new_account` / `existing_account`) records which on the queue row. |
+| `Portal_Invitation_Email` | `Frontend_Clients_Controller` (new-account and existing-account invites, and staff's resend). Its subject branches on whether the recipient already has an account, and its `tag()` (`new_account` / `existing_account`) records which on the queue row. |
 | `Portal_Password_Reset_Email` | `Portal_Password_Reset_Controller` — only when the user can log in, while the page reports success either way (no enumeration). |
 | `Portal_Request_Reply_Email` | `Portal_Request_Threads_Controller` — tells the staff owner a client replied; the body is a truncated snippet, never the whole message. |
 | `Portal_Sign_In_Code_Email` | `Portal_Login_Controller::send_code()` — the six-digit code AND its sign-in link (`$link`, from `Rsx_Portal_Two_Factor::issued_link()` after `issue_code()`) that complete a portal sign-in, only when `rsx.portal.emailed_sign_in_codes` is on (off as shipped). The code comes first, then the link as bold text (it works only in the browser that started the sign-in); a resend is word for word the original, stating the configured window (`rsx.two_factor.challenge_window_minutes`), since the framework restarts the code's clock on every send. `SECURITY`: it reaches an address on the site block list and ignores the opt-out, because the recipient asked for it a moment ago and cannot get in without it. |

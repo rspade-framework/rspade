@@ -10,10 +10,10 @@ dispatcher, bundle, layout, routing attributes and permission facade.
   the bundle of the SIGNED-IN portal (the whole theme, `rsx/models`, `rsx/lib`, this tree).
 - `auth/` — the server-rendered ladder: `Portal_Login_Controller`,
   `Portal_Logout_Controller`, `Portal_Register_Controller` (invite-based),
-  `Portal_Password_Reset_Controller`, `Portal_Request_Access_Controller`,
+  `Portal_Password_Reset_Controller`,
   `Portal_Impersonate_Controller` (the staff "View as Client" stop; starting one is the
   framework's `Portal_Session::begin_impersonation_from_staff()`), plus
-  `portal_auth_layout.blade.php` and the eleven blades of their outcome states (the second-
+  `portal_auth_layout.blade.php` and the ten blades of their outcome states (the second-
   factor challenge page `portal_login_verify.blade.php` among them), and
   `portal_auth_bundle.php` — `Portal_Auth_Bundle`, the bundle those pages and the error
   pages render (see TWO BUNDLES below).
@@ -203,8 +203,8 @@ request. See `php artisan rsx:man portal`.
 - **Authorization is declarative**: `#[Auth]` on every `#[Portal_Route]` and `@auth` on
   every `@portal_spa` action, evaluated in the PORTAL realm before any application code.
   `Portal_Main::pre_dispatch()` performs NO authorization — it runs after the gates.
-- Public surfaces declare `#[Auth('public')]`: login, register, request access, password
-  reset, logout, the impersonation stop.
+- Public surfaces declare `#[Auth('public')]`: login, register, password reset, logout, the
+  impersonation stop.
 - Per-client rules are record-level predicates in the endpoint body, after the gates pass.
 
 ### Passkeys, second factors and federated sign-in
@@ -270,8 +270,14 @@ in here. How this app uses them:
 - **Registration verifies the address.** `Portal_Register_Controller` creates the portal user
   with `is_verified = 1` (the invitation proved the mailbox) and signs them in through
   `complete_sign_in()` - with no emailed code even when `emailed_sign_in_codes` is on, since
-  the invitation already proved the address. There is no portal self-signup: portal accounts
-  come from invitations only.
+  the invitation already proved the address.
+- **Portal access is by invitation only, extended by the site's staff** - the template's
+  recommended position. There is no portal self-signup and no public "request access" page: the
+  login page says access is by invitation and names who to contact (`config('rsx.name')`), and
+  staff invite and resend from the client screen (`Frontend_Clients_Controller`). An
+  application may add a request page of its own; it then owns the questions such a page raises
+  - it must not tell a stranger which addresses have accounts or invitations, and must not let
+  an anonymous visitor extend an invitation's expiry.
 - The framework components are realm-aware on their own - on a portal page they talk to the
   portal controllers - so this app passes them no realm argument.
 - "View as Client" cannot enroll, remove, link or unlink anything: the framework refuses it.

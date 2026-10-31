@@ -93,8 +93,7 @@
 
         <div class="mt-2 text-center">
             <small class="text-muted">
-                Don't have a portal account?
-                <a href="{{ Rsx_Portal::Route('Portal_Request_Access_Controller::index') }}">Create one now</a>
+                Portal access is by invitation. To be invited, contact {{ config('rsx.name', 'us') }}.
             </small>
         </div>
     </form>

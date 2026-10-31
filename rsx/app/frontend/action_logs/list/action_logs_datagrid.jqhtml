@@ -28,7 +28,7 @@
     <Slot:row>
         <tr>
             <td>
-                <%= Rsx_Time.format_datetime(row.created_at) %>
+                <%= Rsx_Time.format_timestamp(row.created_at) %>
             </td>
             <td>
                 <%= row.actor_display || 'System' %>

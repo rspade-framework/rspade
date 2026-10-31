@@ -3,7 +3,7 @@
  * Portal_Auth_Bundle - the bundle for the client portal's sign-in pages and error pages
  *
  * THIS BUNDLE IS SERVED TO VISITORS WHO HAVE NOT SIGNED IN. The portal's login,
- * second-factor, register, request-access and password-reset pages, and its error pages,
+ * second-factor, register and password-reset pages, and its error pages,
  * are all reachable anonymously, so they do not render Portal_Bundle - the signed-in
  * portal's bundle, which carries every portal screen, every model and the component
  * library. They render this one, and whatever is listed below is published to anyone who

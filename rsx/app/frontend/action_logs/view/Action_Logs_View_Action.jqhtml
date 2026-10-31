@@ -27,7 +27,7 @@
                         <span class="badge badge-outline-primary"><%= _log.type_id__label %></span>
                     </Slot:chips>
                     <Slot:meta>
-                        <span><%= Rsx_Time.format_datetime(_log.created_at) %></span>
+                        <span><%= Rsx_Time.format_timestamp(_log.created_at) %></span>
                         <span><%= Rsx_Time.relative(_log.created_at) %></span>
                     </Slot:meta>
                 </Entity_Header>

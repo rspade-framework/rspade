@@ -105,7 +105,7 @@
                         <% } %>
                     </View_Field>
                     <View_Field $label="Last Login" $inline=true>
-                        <% if (_u.last_login) { %><%= Rsx_Time.format_datetime(_u.last_login) %><% } else { %>Never<% } %>
+                        <% if (_u.last_login) { %><%= Rsx_Time.format_timestamp(_u.last_login) %><% } else { %>Never<% } %>
                     </View_Field>
                 </View_Fields>
 

@@ -27,8 +27,8 @@ records nothing, so a session that only browsed lists nothing here.
             <tbody>
                 <% for (const row of this.data.rows) { %>
                 <tr>
-                    <td><%= Rsx_Time.format_datetime(row.last_seen_at) %></td>
-                    <td><%= Rsx_Time.format_datetime(row.first_seen_at) %></td>
+                    <td><%= Rsx_Time.format_timestamp(row.last_seen_at) %></td>
+                    <td><%= Rsx_Time.format_timestamp(row.first_seen_at) %></td>
                     <td><%= row.ip_address %></td>
                     <td><span title="<%= row.user_agent || '' %>"><%= row.device_summary %></span></td>
                 </tr>

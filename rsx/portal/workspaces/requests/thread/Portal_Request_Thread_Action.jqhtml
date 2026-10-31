@@ -63,7 +63,7 @@
                                                 <span class="text-muted small">&lt;<%= entry.author_email %>&gt;</span>
                                             <% } %>
                                         </Slot:author>
-                                        <Slot:time><%= Rsx_Time.format_datetime(entry.created_at) %></Slot:time>
+                                        <Slot:time><%= Rsx_Time.format_timestamp(entry.created_at) %></Slot:time>
                                     </Author_Meta_Row>
                                     <% if (entry.body) { %>
                                         <div class="Portal_Request_Thread_Action__post-body"><%br= entry.body %></div>
