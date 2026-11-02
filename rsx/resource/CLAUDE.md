@@ -81,6 +81,7 @@ password reset), `errors/` (the portal realm's own error pages), `dashboard/`,
 | `rsx/theme/` | The component library (`components/`), SCSS variables, composition tokens, badges, responsive mixins, Bootstrap overrides. Each component group carries its own `CLAUDE.md`. |
 | `rsx/lib/` | App utilities: `action_log/`, `notification/`, `modal/`, `topics/`, `analytics/`, `formatters.{php,js}`. |
 | `rsx/services/` | `Rsx_Service_Abstract` background work: `portal_invitation_service.php`, and `sample_data/` - the sample dataset an empty site can be seeded with (`php artisan rsx_app:seed`, or the first-run screen). A `#[Task]` here becomes an artisan command by adding `#[Command]` - see `rsx_app:seed`. |
+| `rsx/companions/` | Companion applications - long-running processes `rsx-companiond` runs, calling the app through `#[Companion_Endpoint]` methods. `hello/` is the worked example; see its `CLAUDE.md`. |
 | `rsx/handlers/` | Event handlers: `File_Upload_Handlers` (the mandatory upload gate), `Portal_File_Access_Handlers`. |
 | `rsx/emails/` | Email classes (`X_Email extends Rsx_Email_Abstract`) beside their blade templates and `email.scss`. |
 | `rsx/tests/` | The application test suite (`php artisan rsx:test`). |
