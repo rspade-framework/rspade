@@ -152,6 +152,8 @@ class Contact_Duplicate_Question_Test extends Rsx_Test_Abstract
         $result = Ajax::internal('Frontend_Contacts_Controller', 'save', static::__params($client, $email, [
             'id' => (int) $existing->id,
             'first_name' => 'Renamed',
+            '_changed' => ['first_name'],
+            '_loaded_updated_at' => $existing->updated_at,
         ]));
 
         static::__assert_equals((int) $existing->id, (int) $result['contact_id']);

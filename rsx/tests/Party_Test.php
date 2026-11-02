@@ -127,6 +127,8 @@ class Party_Test extends Rsx_Test_Abstract
             'first_name' => 'Edit',
             'last_name' => 'After',
             'title' => 'Director',
+            '_changed' => ['last_name', 'title'],
+            '_loaded_updated_at' => Party_Model::find($created['party_id'])->updated_at,
         ]);
 
         static::__assert_array_has_key('party_id', $updated, 'edit succeeds without a double-insert');

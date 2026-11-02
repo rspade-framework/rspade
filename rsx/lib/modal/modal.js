@@ -104,7 +104,7 @@ class Modal {
      * See: php artisan rsx:man form_conventions (QUESTIONS)
      */
     static _register_question_handler() {
-        Rsx_Form.set_question_handler(async (question) => {
+        Rsx_Form.set_question_handler(async (question, context) => {
             const title = question.title || '';
             const body = question.body || '';
 
@@ -129,6 +129,27 @@ class Modal {
                 return Rsx_Form.CANCELLED;   // Back, X, Escape, backdrop
             }
 
+            if (question.kind === 'field_conflict') {
+                const answer = await Modal.show({
+                    title: title,
+                    body: Modal._field_conflict_body(question, context.form),
+                    max_width: 720,
+                    buttons: [
+                        { label: 'Back', value: null, class: 'btn-link' },
+                        { label: question.cancel_label, value: Modal._QUESTION_NO, class: 'btn-secondary' },
+                        { label: question.confirm_label, value: true, class: 'btn-primary', default: true },
+                    ],
+                });
+
+                if (answer === true) {
+                    return true;
+                }
+                if (answer === Modal._QUESTION_NO) {
+                    return false;
+                }
+                return Rsx_Form.CANCELLED;   // Back, X, Escape, backdrop
+            }
+
             if (question.kind === 'select') {
                 const answer = await Modal.select(title, body, question.options || [], question.default || '');
                 return answer === false ? Rsx_Form.CANCELLED : answer;
@@ -141,6 +162,42 @@ class Modal {
 
             throw new Error(`Modal: no question handler for kind '${question.kind}'. Add it to Modal.on_app_modules_define().`);
         });
+    }
+
+    /**
+     * The body of a Form_Edit 'field_conflict' question: each field both people changed,
+     * with the saved value, the submitted one and who saved it. A value that may not be shown
+     * reads as changed.
+     *
+     * @private
+     * @param {Object} question The question from Form_Edit
+     * @param {Rsx_Form} form The form being submitted
+     * @returns {jQuery}
+     */
+    static _field_conflict_body(question, form) {
+        const $body = $('<div>').append($('<p>').text(question.body));
+        const $rows = $('<tbody>');
+
+        for (const row of question.fields) {
+            const $theirs = $('<td>').text(row.redacted ? '(changed)' : row.theirs);
+
+            if (row.changed_by || row.changed_at) {
+                $theirs.append($('<div>').addClass('text-muted small').text([row.changed_by, row.changed_at].filter(Boolean).join(', ')));
+            }
+
+            $rows.append($('<tr>').append(
+                $('<th>').text(form ? form.label_for(row.field) : row.field),
+                $theirs,
+                $('<td>').text(row.redacted ? '(changed)' : row.yours)
+            ));
+        }
+
+        return $body.append($('<table>').addClass('table table-sm').append(
+            $('<thead>').append($('<tr>').append(
+                $('<th>').text('Field'), $('<th>').text('Saved by them'), $('<th>').text('Yours')
+            )),
+            $rows
+        ));
     }
 
     /**

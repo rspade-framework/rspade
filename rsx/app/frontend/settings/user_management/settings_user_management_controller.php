@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Api\Api_Key_Model;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Forms\Form_Edit;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Response\Error_Response;
@@ -283,6 +284,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
 
         return [
             'id' => $user->id,
+            'updated_at' => $user->updated_at,
             'email' => $user->email,
             'first_name' => $user->first_name,
             'last_name' => $user->last_name,
@@ -366,25 +368,26 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             }
         }
 
-        // Update user
-        $user->email = $email;
-        $user->first_name = $first_name;
-        $user->last_name = $last_name;
-        $user->phone = $params['phone'] ?? null;
-        $user->role_id = $role_id;
-        $user->is_api_access_enabled = !empty($params['is_api_access_enabled']) ? 1 : 0;
+        return Form_Edit::run($user, $params, function (Form_Edit $edit) use ($user, $email, $first_name, $last_name, $role_id, $params) {
+            $edit->set('email', $email);
+            $edit->set('first_name', $first_name);
+            $edit->set('last_name', $last_name);
+            $edit->set('phone', $params['phone'] ?? null);
+            $edit->set('role_id', $role_id);
+            $edit->set('is_api_access_enabled', !empty($params['is_api_access_enabled']) ? 1 : 0);
 
-        $user->save();
+            $user->save();
 
-        // Flash success message for display after redirect
-        Flash_Alert::success('User updated successfully');
+            // Flash success message for display after redirect
+            Flash_Alert::success('User updated successfully');
 
-        return [
-            'id' => $user->id,
-            'email' => $user->email,
-            'first_name' => $user->first_name,
-            'last_name' => $user->last_name,
-        ];
+            return [
+                'id' => $user->id,
+                'email' => $user->email,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+            ];
+        });
     }
 
     /**

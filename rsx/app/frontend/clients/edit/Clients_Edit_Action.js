@@ -101,6 +101,7 @@ class Clients_Edit_Action extends Spa_Action {
 
             // Build form data from client record
             this.data.form_data = {
+                updated_at: client.updated_at,
                 id: client.id,
                 name: client.name,
                 website: client.website,

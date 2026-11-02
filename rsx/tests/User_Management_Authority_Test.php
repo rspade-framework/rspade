@@ -107,6 +107,8 @@ class User_Management_Authority_Test extends Rsx_Test_Abstract
             'first_name' => 'Changed',
             'last_name' => 'Name',
             'role_id' => $role_id,
+            '_changed' => ['email', 'first_name', 'last_name', 'role_id'],
+            '_loaded_updated_at' => $target->updated_at,
         ];
     }
 

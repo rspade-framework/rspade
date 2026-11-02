@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Forms\Form_Edit;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
 use Rsx\App\Frontend\Party\List\Party_DataGrid;
@@ -106,49 +107,66 @@ class Frontend_Party_Controller extends Rsx_Controller_Abstract
             $type_id = (int) $party->type_id; // type_id is immutable - keep the stored value
         }
 
-        DB::transaction(function () use (&$party, $party_id, $type_id, $params) {
-            if (!$party_id) {
-                $party = new Party_Model();
-                $party->site_id = Session::get_site_id() ?: 1;
-                $party->type_id = $type_id; // only set on create (immutable thereafter)
+        if (!$party_id) {
+            $party = new Party_Model();
+            $party->site_id = Session::get_site_id() ?: 1;
+            $party->type_id = $type_id; // only set on create (immutable thereafter)
+        }
+
+        return Form_Edit::run($party, $params, function (Form_Edit $edit) use ($party, $party_id, $type_id, $params) {
+            // Universal fields. `name` is composed for Person, the legal name for Company.
+            $edit->set('email', $params['email'] ?? null);
+            $edit->set('phone', $params['phone'] ?? null);
+            $edit->set('notes', $params['notes'] ?? null);
+
+            if ($edit->changed('first_name') || $edit->changed('last_name') || $edit->changed('legal_name')) {
+                $party->name = static::__compose_name($type_id, $params);
             }
 
-            // Universal fields. `name` is composed for Person, the legal name for Company.
-            $party->email = $params['email'] ?? null;
-            $party->phone = $params['phone'] ?? null;
-            $party->notes = $params['notes'] ?? null;
-            $party->name = static::__compose_name($type_id, $params);
             $party->save();
 
-            // Type-specific detail, filled through the auto-vivifying accessor.
+            // Type-specific detail, filled through the auto-vivifying accessor. A detail
+            // column is not on the record Form_Edit guards, so changed() decides each one.
             if ($type_id === Party_Model::TYPE_PERSON) {
-                $detail = $party->party_person;
-                $detail->first_name = $params['first_name'];
-                $detail->last_name = $params['last_name'];
-                $detail->title = $params['title'] ?? null;
-                $detail->date_of_birth = !empty($params['date_of_birth']) ? $params['date_of_birth'] : null;
-                $detail->save();
+                static::__write_detail($edit, $party->party_person, [
+                    'first_name' => $params['first_name'],
+                    'last_name' => $params['last_name'],
+                    'title' => $params['title'] ?? null,
+                    'date_of_birth' => !empty($params['date_of_birth']) ? $params['date_of_birth'] : null,
+                ]);
             } elseif ($type_id === Party_Model::TYPE_COMPANY) {
-                $detail = $party->party_company;
-                $detail->legal_name = $params['legal_name'];
-                $detail->tax_identifier = $params['tax_identifier'] ?? null;
-                $detail->industry = $params['industry'] ?? null;
-                $detail->employee_count = !empty($params['employee_count']) ? (int) $params['employee_count'] : null;
-                $detail->save();
+                static::__write_detail($edit, $party->party_company, [
+                    'legal_name' => $params['legal_name'],
+                    'tax_identifier' => $params['tax_identifier'] ?? null,
+                    'industry' => $params['industry'] ?? null,
+                    'employee_count' => !empty($params['employee_count']) ? (int) $params['employee_count'] : null,
+                ]);
             }
+
+            // Record action log
+            Action_Log::record(
+                $party_id ? Action_Log_Model::TYPE_PARTY_UPDATED : Action_Log_Model::TYPE_PARTY_CREATED,
+                $party
+            );
+
+            return [
+                'party_id' => $party->id,
+                'message' => $party_id ? 'Party updated' : 'Party created',
+                'redirect' => Rsx::Route('Party_View_Action', $party->id),
+            ];
         });
+    }
 
-        // Record action log
-        Action_Log::record(
-            $party_id ? Action_Log_Model::TYPE_PARTY_UPDATED : Action_Log_Model::TYPE_PARTY_CREATED,
-            $party
-        );
+    /** Write the changed fields of a detail row. */
+    private static function __write_detail(Form_Edit $edit, $detail, array $values): void
+    {
+        foreach ($values as $field => $value) {
+            if ($edit->changed($field)) {
+                $detail->{$field} = $value;
+            }
+        }
 
-        return [
-            'party_id' => $party->id,
-            'message' => $party_id ? 'Party updated' : 'Party created',
-            'redirect' => Rsx::Route('Party_View_Action', $party->id),
-        ];
+        $detail->save();
     }
 
     /**

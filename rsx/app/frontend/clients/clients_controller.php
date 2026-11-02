@@ -14,6 +14,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Files\File_Attachment_Model;
+use App\RSpade\Core\Forms\Form_Edit;
 use App\RSpade\Core\Mail\Rsx_Mail;
 use App\RSpade\Core\Models\Portal_Notification_Model;
 use App\RSpade\Core\Models\Portal_User_Model;
@@ -209,60 +210,58 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             $client = new Client_Model();
         }
 
-        // Set all fields explicitly (no mass assignment)
-        $client->name = $params['name'];
-        $client->website = $params['website'] ?? null;
-        $client->email = $params['email'] ?? null;
-        $client->phone = $params['phone'] ?? null;
-        $client->fax = $params['fax'] ?? null;
+        return Form_Edit::run($client, $params, function (Form_Edit $edit) use ($client, $client_id, $params) {
+            // Set all fields explicitly (no mass assignment)
+            $edit->set('name', $params['name']);
+            $edit->set('website', $params['website'] ?? null);
+            $edit->set('email', $params['email'] ?? null);
+            $edit->set('phone', $params['phone'] ?? null);
+            $edit->set('fax', $params['fax'] ?? null);
 
-        // Address fields
-        $client->address_street = $params['address_street'] ?? null;
-        $client->city = $params['city'] ?? null;
-        $client->state = $params['state'] ?? null;
-        $client->zip = $params['zip'] ?? null;
-        $client->address_country = $params['address_country'] ?? 'US';
+            // Address fields
+            $edit->set('address_street', $params['address_street'] ?? null);
+            $edit->set('city', $params['city'] ?? null);
+            $edit->set('state', $params['state'] ?? null);
+            $edit->set('zip', $params['zip'] ?? null);
+            $edit->set('address_country', $params['address_country'] ?? 'US');
 
-        // Business details
-        $client->industry = $params['industry'] ?? null;
-        $client->company_size = $params['company_size'] ?? null;
-        $client->established_year = !empty($params['established_year']) ? (int)$params['established_year'] : null;
-        $client->revenue_range = $params['revenue_range'] ?? null;
+            // Business details
+            $edit->set('industry', $params['industry'] ?? null);
+            $edit->set('company_size', $params['company_size'] ?? null);
+            $edit->set('established_year', !empty($params['established_year']) ? (int)$params['established_year'] : null);
+            $edit->set('revenue_range', $params['revenue_range'] ?? null);
 
-        // Social media
-        $client->facebook_url = $params['facebook_url'] ?? null;
-        $client->twitter_handle = $params['twitter_handle'] ?? null;
-        $client->linkedin_url = $params['linkedin_url'] ?? null;
-        $client->instagram_handle = $params['instagram_handle'] ?? null;
+            // Social media
+            $edit->set('facebook_url', $params['facebook_url'] ?? null);
+            $edit->set('twitter_handle', $params['twitter_handle'] ?? null);
+            $edit->set('linkedin_url', $params['linkedin_url'] ?? null);
+            $edit->set('instagram_handle', $params['instagram_handle'] ?? null);
 
-        // Additional info
-        $client->status_id = $params['status_id'] ?? Client_Model::STATUS_ACTIVE;
-        $client->preferred_contact_method = $params['preferred_contact_method'] ?? 'email';
-        $client->newsletter_opt_in = !empty($params['newsletter_opt_in']) ? 1 : 0;
-        $client->notes = $params['notes'] ?? null;
+            // Additional info
+            $edit->set('status_id', $params['status_id'] ?? Client_Model::STATUS_ACTIVE);
+            $edit->set('preferred_contact_method', $params['preferred_contact_method'] ?? 'email');
+            $edit->set('newsletter_opt_in', !empty($params['newsletter_opt_in']) ? 1 : 0);
+            $edit->set('notes', $params['notes'] ?? null);
 
-        // Tags (convert array to JSON)
-        if (!empty($params['tags']) && is_array($params['tags'])) {
-            $client->tags = json_encode($params['tags']);
-        } else {
-            $client->tags = null;
-        }
+            // Tags (convert array to JSON)
+            $edit->set('tags', !empty($params['tags']) && is_array($params['tags']) ? json_encode($params['tags']) : null);
 
-        $client->save();
+            $client->save();
 
-        // Record action log
-        Action_Log::record(
-            $client_id ? Action_Log_Model::TYPE_CLIENT_UPDATED : Action_Log_Model::TYPE_CLIENT_CREATED,
-            $client
-        );
+            // Record action log
+            Action_Log::record(
+                $client_id ? Action_Log_Model::TYPE_CLIENT_UPDATED : Action_Log_Model::TYPE_CLIENT_CREATED,
+                $client
+            );
 
-        // Flash success message for display after redirect
-        Flash_Alert::success($client_id ? 'Client updated successfully' : 'Client created successfully');
+            // Flash success message for display after redirect
+            Flash_Alert::success($client_id ? 'Client updated successfully' : 'Client created successfully');
 
-        return [
-            'client_id' => $client->id,
-            'redirect' => Rsx::Route('Clients_View_Action', $client->id),
-        ];
+            return [
+                'client_id' => $client->id,
+                'redirect' => Rsx::Route('Clients_View_Action', $client->id),
+            ];
+        });
     }
 
     /**

@@ -46,6 +46,7 @@ class Tasks_Edit_Action extends Spa_Action {
         try {
             const task = await Task_Model.fetch(this.args.id);
             this.data.form_data = {
+                updated_at: task.updated_at,
                 id: task.id,
                 title: task.title || '',
                 // No `|| ''` on a text-type column: the value is an object, and coercing

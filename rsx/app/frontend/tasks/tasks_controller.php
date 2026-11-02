@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Forms\Form_Edit;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
@@ -308,45 +309,46 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
             $task->site_id = Session::get_site_id() ?: 1;
         }
 
-        DB::transaction(function () use (&$task, $params, $parent_type, $parent_id, $has_hours) {
-            $task->title = $params['title'];
-            $task->description = $params['description'] ?? null;
-            $task->status = !empty($params['status']) ? (int) $params['status'] : Task_Model::STATUS_PENDING;
-            $task->priority = !empty($params['priority']) ? (int) $params['priority'] : Task_Model::PRIORITY_MEDIUM;
-            $task->due_date = !empty($params['due_date']) ? $params['due_date'] : null;
-            $task->completed_date = !empty($params['completed_date']) ? $params['completed_date'] : null;
-            $task->assigned_to_user_id = !empty($params['assigned_to_user_id']) ? (int) $params['assigned_to_user_id'] : null;
-            $task->notes = $params['notes'] ?? null;
-            $task->hour_estimate = $has_hours ? (float) $params['hour_estimate'] : null;
+        return Form_Edit::run($task, $params, function (Form_Edit $edit) use ($task, $task_id, $params, $parent_type, $parent_id, $has_hours) {
+            $edit->set('title', $params['title']);
+            $edit->set('description', $params['description'] ?? null);
+            $edit->set('status', !empty($params['status']) ? (int) $params['status'] : Task_Model::STATUS_PENDING);
+            $edit->set('priority', !empty($params['priority']) ? (int) $params['priority'] : Task_Model::PRIORITY_MEDIUM);
+            $edit->set('due_date', !empty($params['due_date']) ? $params['due_date'] : null);
+            $edit->set('completed_date', !empty($params['completed_date']) ? $params['completed_date'] : null);
+            $edit->set('assigned_to_user_id', !empty($params['assigned_to_user_id']) ? (int) $params['assigned_to_user_id'] : null);
+            $edit->set('notes', $params['notes'] ?? null);
+            $edit->set('hour_estimate', $has_hours ? (float) $params['hour_estimate'] : null);
 
             // Polymorphic parent (nullable).
-            $task->taskable_type = $parent_type;
-            $task->taskable_id = $parent_type ? $parent_id : null;
+            $edit->set('taskable_type', $parent_type);
+            $edit->set('taskable_id', $parent_type ? $parent_id : null);
 
             // DERIVED project_id: chain wins; else the user value (nullable).
             $chain_project_id = $task->resolve_chain_project_id();
             if ($chain_project_id !== null) {
                 $task->project_id = $chain_project_id;
             } else {
-                $task->project_id = !empty($params['project_id']) ? (int) $params['project_id'] : null;
+                $edit->set('project_id', !empty($params['project_id']) ? (int) $params['project_id'] : null);
             }
 
             $task->save();
 
             // Re-derive descendants whose chain runs through this task.
             $task->recompute_descendant_project_ids();
+
+
+            Action_Log::record(
+                $task_id ? Action_Log_Model::TYPE_TASK_UPDATED : Action_Log_Model::TYPE_TASK_CREATED,
+                $task
+            );
+
+            return [
+                'id' => $task->id,
+                'message' => $task_id ? 'Task updated successfully' : 'Task created successfully',
+                'redirect' => Rsx::Route('Tasks_View_Action', $task->id),
+            ];
         });
-
-        Action_Log::record(
-            $task_id ? Action_Log_Model::TYPE_TASK_UPDATED : Action_Log_Model::TYPE_TASK_CREATED,
-            $task
-        );
-
-        return [
-            'id' => $task->id,
-            'message' => $task_id ? 'Task updated successfully' : 'Task created successfully',
-            'redirect' => Rsx::Route('Tasks_View_Action', $task->id),
-        ];
     }
 
     /**

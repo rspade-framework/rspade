@@ -80,11 +80,16 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
         // Create or update. Site scope is applied automatically on a site-scoped
         // model - never hand-write ->where('site_id', ...).
         $contact = $params['id'] ? Contact_Model::find($params['id']) : new Contact_Model();
-        $contact->name  = $params['name'];       // explicit assignment, never mass assignment
-        $contact->email = $params['email'];
-        $contact->save();
 
-        return ['redirect' => Rsx::Route('Contacts_View_Action', $contact->id)];
+        // Writes only what changed, under a row lock, and asks when another save changed
+        // the same field. The model declares $revisions; the edit seed carries updated_at.
+        return Form_Edit::run($contact, $params, function (Form_Edit $edit) use ($contact, $params) {
+            $edit->set('name', $params['name']);     // explicit, never mass assignment
+            $edit->set('email', $params['email']);
+            $contact->save();
+
+            return ['redirect' => Rsx::Route('Contacts_View_Action', $contact->id)];
+        });
     }
 
     #[Ajax_Endpoint]

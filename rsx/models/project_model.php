@@ -99,6 +99,9 @@ class Project_Model extends Rsx_Site_Model_Abstract
     // tab) live-refreshes on edit — including bulk builder writes.
     public static $realtime = true;
 
+    /** Edited through Form_Edit, which reads what another editor changed from here. */
+    public static $revisions = true;
+
     public static $enums = [
         'status' => [
             1 => ['constant' => 'STATUS_PLANNING', 'label' => 'Planning', 'badge' => 'bg-info'],

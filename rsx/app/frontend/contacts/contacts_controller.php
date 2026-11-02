@@ -13,6 +13,7 @@ use libphonenumber\PhoneNumberFormat;
 use libphonenumber\PhoneNumberUtil;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Forms\Form_Edit;
 use App\RSpade\Core\Forms\Form_Questions;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Response\Error_Response;
@@ -323,60 +324,62 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
             $contact = new Contact_Model();
         }
 
-        // Set all fields explicitly
-        $contact->first_name = $params['first_name'];
-        $contact->last_name = $params['last_name'];
-        $contact->title = $params['title'] ?? null;
-        $contact->email = $params['email'] ?? null;
-        $contact->email_secondary = $params['email_secondary'] ?? null;
-        $contact->phone_work = $phones['phone_work'];
-        $contact->phone_cell = $phones['phone_cell'];
-        $contact->phone_other = $phones['phone_other'];
-        $contact->address = $params['address'] ?? null;
-        $contact->city = $params['city'] ?? null;
-        $contact->state = $params['state'] ?? null;
-        $contact->zip = $params['zip'] ?? null;
-        $contact->client_id = (int)$params['client_id'];
-        $contact->is_active = !empty($params['is_active']) ? 1 : 0;
-        $contact->priority = !empty($params['priority']) ? (int)$params['priority'] : 2;
-        $contact->notes = $params['notes'] ?? null;
+        return Form_Edit::run($contact, $params, function (Form_Edit $edit) use ($contact, $contact_id, $params, $phones) {
+            // Set all fields explicitly
+            $edit->set('first_name', $params['first_name']);
+            $edit->set('last_name', $params['last_name']);
+            $edit->set('title', $params['title'] ?? null);
+            $edit->set('email', $params['email'] ?? null);
+            $edit->set('email_secondary', $params['email_secondary'] ?? null);
+            $edit->set('phone_work', $phones['phone_work']);
+            $edit->set('phone_cell', $phones['phone_cell']);
+            $edit->set('phone_other', $phones['phone_other']);
+            $edit->set('address', $params['address'] ?? null);
+            $edit->set('city', $params['city'] ?? null);
+            $edit->set('state', $params['state'] ?? null);
+            $edit->set('zip', $params['zip'] ?? null);
+            $edit->set('client_id', (int)$params['client_id']);
+            $edit->set('is_active', !empty($params['is_active']) ? 1 : 0);
+            $edit->set('priority', !empty($params['priority']) ? (int)$params['priority'] : 2);
+            $edit->set('notes', $params['notes'] ?? null);
 
-        $contact->save();
+            $contact->save();
 
-        // Record action log
-        Action_Log::record(
-            $contact_id ? Action_Log_Model::TYPE_CONTACT_UPDATED : Action_Log_Model::TYPE_CONTACT_CREATED,
-            $contact
-        );
+            // Record action log
+            Action_Log::record(
+                $contact_id ? Action_Log_Model::TYPE_CONTACT_UPDATED : Action_Log_Model::TYPE_CONTACT_CREATED,
+                $contact
+            );
 
-        // Example: Send notification to other users when contact created
-        // if (!$contact_id) {
-        //     // Get user IDs to notify (e.g., admins, team members)
-        //     $notify_user_ids = [/* array of login_user IDs */];
-        //
-        //     // With entity reference (self-polices if contact deleted later)
-        //     Notification::send(
-        //         Notification_Model::TYPE_CONTACT_CREATED,
-        //         $notify_user_ids,
-        //         $contact
-        //     );
-        //
-        //     // Or without entity (metadata only, won't self-police)
-        //     // Notification::send(
-        //     //     Notification_Model::TYPE_CONTACT_CREATED,
-        //     //     $notify_user_ids,
-        //     //     null,
-        //     //     ['contact_name' => $contact->first_name . ' ' . $contact->last_name]
-        //     // );
-        // }
+            // Example: Send notification to other users when contact created
+            // if (!$contact_id) {
+            //     // Get user IDs to notify (e.g., admins, team members)
+            //     $notify_user_ids = [/* array of login_user IDs */];
+            //
+            //     // With entity reference (self-polices if contact deleted later)
+            //     Notification::send(
+            //         Notification_Model::TYPE_CONTACT_CREATED,
+            //         $notify_user_ids,
+            //         $contact
+            //     );
+            //
+            //     // Or without entity (metadata only, won't self-police)
+            //     // Notification::send(
+            //     //     Notification_Model::TYPE_CONTACT_CREATED,
+            //     //     $notify_user_ids,
+            //     //     null,
+            //     //     ['contact_name' => $contact->first_name . ' ' . $contact->last_name]
+            //     // );
+            // }
 
-        // Flash success message for display after redirect
-        Flash_Alert::success($contact_id ? 'Contact updated successfully' : 'Contact created successfully');
+            // Flash success message for display after redirect
+            Flash_Alert::success($contact_id ? 'Contact updated successfully' : 'Contact created successfully');
 
-        return [
-            'contact_id' => $contact->id,
-            'redirect' => Rsx::Route('Contacts_View_Action', $contact->id),
-        ];
+            return [
+                'contact_id' => $contact->id,
+                'redirect' => Rsx::Route('Contacts_View_Action', $contact->id),
+            ];
+        });
     }
 
     /**

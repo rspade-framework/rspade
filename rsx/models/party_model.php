@@ -89,6 +89,9 @@ class Party_Model extends Rsx_Site_Model_Abstract
     // detail-only write refreshes the view too; the base+touch emissions dedupe to one.
     public static $realtime = true;
 
+    /** Edited through Form_Edit, which reads what another editor changed from here. */
+    public static $revisions = true;
+
     public static $enums = [
         'type_id' => [
             1 => ['constant' => 'TYPE_PERSON', 'label' => 'Person', 'badge' => 'bg-primary'],

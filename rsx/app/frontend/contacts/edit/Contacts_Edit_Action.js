@@ -65,6 +65,7 @@ class Contacts_Edit_Action extends Spa_Action {
 
             // Build form data from contact record
             this.data.form_data = {
+                updated_at: contact.updated_at,
                 id: contact.id,
                 first_name: contact.first_name || '',
                 last_name: contact.last_name || '',

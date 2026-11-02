@@ -77,6 +77,7 @@ class Projects_Edit_Action extends Spa_Action {
 
                 // Build form data from project record
                 this.data.form_data = {
+                    updated_at: project.updated_at,
                     id: project.id,
                     name: project.name || '',
                     // No `|| ''` on the text-type columns: the value is an object, and

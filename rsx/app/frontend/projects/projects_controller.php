@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Forms\Form_Edit;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Rsx;
@@ -197,43 +198,44 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
         $contact_ids = $contacts_provided ? array_values(array_unique(array_map('intval', (array) $params['contacts']))) : [];
         $user_ids = $users_provided ? array_values(array_unique(array_map('intval', (array) $params['assigned_users']))) : [];
 
-        DB::transaction(function () use (
-            &$project, $params, $parent_project_id,
+        return Form_Edit::run($project, $params, function (Form_Edit $edit) use (
+            $project, $project_id, $params, $parent_project_id,
             $contacts_provided, $users_provided, $contact_ids, $user_ids
         ) {
             // Set all fields explicitly
-            $project->name = $params['name'];
-            $project->description = $params['description'] ?? null;
-            $project->client_id = (int)$params['client_id'];
-            $project->parent_project_id = $parent_project_id;
-            $project->status = !empty($params['status']) ? (int)$params['status'] : 1;
-            $project->priority = !empty($params['priority']) ? (int)$params['priority'] : 2;
-            $project->start_date = !empty($params['start_date']) ? $params['start_date'] : null;
-            $project->due_date = !empty($params['due_date']) ? $params['due_date'] : null;
-            $project->budget = !empty($params['budget']) ? $params['budget'] : null;
-            $project->notes = $params['notes'] ?? null;
+            $edit->set('name', $params['name']);
+            $edit->set('description', $params['description'] ?? null);
+            $edit->set('client_id', (int)$params['client_id']);
+            $edit->set('parent_project_id', $parent_project_id);
+            $edit->set('status', !empty($params['status']) ? (int)$params['status'] : 1);
+            $edit->set('priority', !empty($params['priority']) ? (int)$params['priority'] : 2);
+            $edit->set('start_date', !empty($params['start_date']) ? $params['start_date'] : null);
+            $edit->set('due_date', !empty($params['due_date']) ? $params['due_date'] : null);
+            $edit->set('budget', !empty($params['budget']) ? $params['budget'] : null);
+            $edit->set('notes', $params['notes'] ?? null);
 
             $project->save();
 
-            if ($contacts_provided) {
+            if ($contacts_provided && $edit->changed('contacts')) {
                 static::__sync_pivot(Project_Contact_Model::class, 'contact_id', $project, $contact_ids);
             }
-            if ($users_provided) {
+            if ($users_provided && $edit->changed('assigned_users')) {
                 static::__sync_pivot(Project_User_Model::class, 'user_id', $project, $user_ids);
             }
+
+
+            // Record action log
+            Action_Log::record(
+                $project_id ? Action_Log_Model::TYPE_PROJECT_UPDATED : Action_Log_Model::TYPE_PROJECT_CREATED,
+                $project
+            );
+
+            return [
+                'project_id' => $project->id,
+                'message' => $project_id ? 'Project updated successfully' : 'Project created successfully',
+                'redirect' => Rsx::Route('Projects_View_Action', $project->id)
+            ];
         });
-
-        // Record action log
-        Action_Log::record(
-            $project_id ? Action_Log_Model::TYPE_PROJECT_UPDATED : Action_Log_Model::TYPE_PROJECT_CREATED,
-            $project
-        );
-
-        return [
-            'project_id' => $project->id,
-            'message' => $project_id ? 'Project updated successfully' : 'Project created successfully',
-            'redirect' => Rsx::Route('Projects_View_Action', $project->id)
-        ];
     }
 
     /**

@@ -280,6 +280,7 @@ handler switches on `question.kind`.
 | kind | Presented as | Answer |
 |---|---|---|
 | `confirm` | `Modal.show()` with THREE buttons: Back, `cancel_label` (default "No"), `confirm_label` (default "Yes", the Enter button) | `true` / `false` |
+| `field_conflict` | `Modal.show()` with the body text and a table of each field, the saved value with who and when, and the submitted value; Back, Keep theirs, Use my values | `true` / `false` |
 | `select` | `Modal.select(title, body, options, default)` | the chosen value |
 | `prompt` | `Modal.prompt(title, body, default, multiline)` | the string |
 | anything else | throws, naming the kind | - |

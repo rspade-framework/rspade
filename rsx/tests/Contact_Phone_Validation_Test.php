@@ -155,6 +155,8 @@ class Contact_Phone_Validation_Test extends Rsx_Test_Abstract
         $result = Frontend_Contacts_Controller::save(request(), static::__params($client, [
             'id' => $contact_id,
             'phone_work' => '',
+            '_changed' => ['phone_work'],
+            '_loaded_updated_at' => Contact_Model::find($contact_id)->updated_at,
         ]));
 
         static::__assert_true(isset($result['contact_id']), 'a blank phone field is a valid submission');

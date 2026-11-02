@@ -127,6 +127,8 @@ file, PascalCase `<Define>`, `_tab_<name>` for a tab body). The rules it demonst
 
 Total lines went UP (~348 -> ~390 across six files); the win is the shell, not the count.
 
+**Saving**: `save` goes through `Form_Edit` and the edit seed carries `updated_at`, so only changed fields are written and two editors of one field are asked (`rsx:man form_conventions`, EDITING A RECORD).
+
 **Realtime**: `this.subscribe(Client_Model, id, () => this.refresh())` in `on_create()`.
 `refresh()`, never `reload()` — the server saying something changed must not destroy the
 user's open tab and scroll position.

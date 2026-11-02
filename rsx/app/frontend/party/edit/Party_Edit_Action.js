@@ -38,6 +38,7 @@ class Party_Edit_Action extends Spa_Action {
             this.data.type_id = party.type_id;
 
             const fd = {
+                updated_at: party.updated_at,
                 id: party.id,
                 type_id: party.type_id,
                 name: party.name || '',
