@@ -387,7 +387,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
             ];
-        });
+        }, Rsx::Route('Settings_User_Management_View_Action', $user->id));
     }
 
     /**

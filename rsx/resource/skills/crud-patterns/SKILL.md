@@ -89,7 +89,7 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
             $contact->save();
 
             return ['redirect' => Rsx::Route('Contacts_View_Action', $contact->id)];
-        });
+        }, $contact->exists ? Rsx::Route('Contacts_View_Action', $contact->id) : null);  // the conflict dialog's "View current"
     }
 
     #[Ajax_Endpoint]

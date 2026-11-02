@@ -137,9 +137,9 @@ class Frontend_Revisions_Controller extends Rsx_Controller_Abstract
     /**
      * One transaction plus its revisions, decoded.
      *
-     * The actor display comes from get_created_by_author(): the transaction row is itself
-     * stamped by the audit matrix that resolved its actor pair, so the two name the same
-     * identity, and the framework's own resolver already handles a soft-deleted actor and
+     * The actor display comes from get_created_by_author(): the framework stamps a
+     * transaction's authorship with its actor pair - the site user for a staff member
+     * working on a site - and the framework's own resolver already handles a soft-deleted actor and
      * a profile URL the current viewer may not reach. That is also the exact
      * {name, url} shape <Record_Author> takes.
      *

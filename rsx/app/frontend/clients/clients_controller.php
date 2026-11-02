@@ -261,7 +261,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
                 'client_id' => $client->id,
                 'redirect' => Rsx::Route('Clients_View_Action', $client->id),
             ];
-        });
+        }, $client->exists ? Rsx::Route('Clients_View_Action', $client->id) : null);
     }
 
     /**

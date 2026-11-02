@@ -235,7 +235,7 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
                 'message' => $project_id ? 'Project updated successfully' : 'Project created successfully',
                 'redirect' => Rsx::Route('Projects_View_Action', $project->id)
             ];
-        });
+        }, $project->exists ? Rsx::Route('Projects_View_Action', $project->id) : null);
     }
 
     /**

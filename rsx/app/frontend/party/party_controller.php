@@ -154,7 +154,7 @@ class Frontend_Party_Controller extends Rsx_Controller_Abstract
                 'message' => $party_id ? 'Party updated' : 'Party created',
                 'redirect' => Rsx::Route('Party_View_Action', $party->id),
             ];
-        });
+        }, $party->exists ? Rsx::Route('Party_View_Action', $party->id) : null);
     }
 
     /** Write the changed fields of a detail row. */

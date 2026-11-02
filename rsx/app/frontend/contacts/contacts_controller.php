@@ -379,7 +379,7 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
                 'contact_id' => $contact->id,
                 'redirect' => Rsx::Route('Contacts_View_Action', $contact->id),
             ];
-        });
+        }, $contact->exists ? Rsx::Route('Contacts_View_Action', $contact->id) : null);
     }
 
     /**

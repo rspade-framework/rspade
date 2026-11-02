@@ -348,7 +348,7 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
                 'message' => $task_id ? 'Task updated successfully' : 'Task created successfully',
                 'redirect' => Rsx::Route('Tasks_View_Action', $task->id),
             ];
-        });
+        }, $task->exists ? Rsx::Route('Tasks_View_Action', $task->id) : null);
     }
 
     /**

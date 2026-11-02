@@ -132,22 +132,17 @@ class Modal {
             if (question.kind === 'field_conflict') {
                 const answer = await Modal.show({
                     title: title,
-                    body: Modal._field_conflict_body(question, context.form),
+                    body: await Modal._field_conflict_body(question, context.form),
                     max_width: 720,
                     buttons: [
                         { label: 'Back', value: null, class: 'btn-link' },
-                        { label: question.cancel_label, value: Modal._QUESTION_NO, class: 'btn-secondary' },
-                        { label: question.confirm_label, value: true, class: 'btn-primary', default: true },
+                        { label: question.confirm_label || 'Overwrite', value: true, class: 'btn-primary', default: true },
                     ],
                 });
 
-                if (answer === true) {
-                    return true;
-                }
-                if (answer === Modal._QUESTION_NO) {
-                    return false;
-                }
-                return Rsx_Form.CANCELLED;   // Back, X, Escape, backdrop
+                // The template asks one thing - overwrite or go back. The protocol also takes
+                // false ("keep theirs, write the rest") for an application that offers it.
+                return answer === true ? true : Rsx_Form.CANCELLED;
             }
 
             if (question.kind === 'select') {
@@ -165,39 +160,112 @@ class Modal {
     }
 
     /**
-     * The body of a Form_Edit 'field_conflict' question: each field both people changed,
-     * with the saved value, the submitted one and who saved it. A value that may not be shown
-     * reads as changed.
+     * The body of a Form_Edit 'field_conflict' question: who changed the record while it was
+     * open, then each value saving will overwrite beside the value about to be written.
+     *
+     * The question names editors as references ({type, id}, null for a write nobody signed
+     * in made) and times as ISO, and says what KIND each field is. Showing them is this
+     * application's choice; this is the simplest one, written to be replaced: a person is
+     * their record fetched through its model's own gated fetch(), printed by name.
      *
      * @private
      * @param {Object} question The question from Form_Edit
      * @param {Rsx_Form} form The form being submitted
-     * @returns {jQuery}
+     * @returns {Promise<jQuery>}
      */
-    static _field_conflict_body(question, form) {
-        const $body = $('<div>').append($('<p>').text(question.body));
-        const $rows = $('<tbody>');
+    static async _field_conflict_body(question, form) {
+        const names = new Map();
+        await Promise.all(question.editors.map(async (ref) => {
+            names.set(Modal._editor_key(ref), await Modal._editor_name(ref));
+        }));
+        const name_of = (ref) => names.get(Modal._editor_key(ref));
+        const several = question.editors.length > 1;
 
-        for (const row of question.fields) {
-            const $theirs = $('<td>').text(row.redacted ? '(changed)' : row.theirs);
+        const notice = several
+            ? `This record was changed by ${question.editors.length} people while you were editing.`
+            : `${Modal._capitalize(name_of(question.editors[0]))} changed this record while you were editing.`;
 
-            if (row.changed_by || row.changed_at) {
-                $theirs.append($('<div>').addClass('text-muted small').text([row.changed_by, row.changed_at].filter(Boolean).join(', ')));
-            }
-
-            $rows.append($('<tr>').append(
-                $('<th>').text(form ? form.label_for(row.field) : row.field),
-                $theirs,
-                $('<td>').text(row.redacted ? '(changed)' : row.yours)
-            ));
+        const $body = $('<div>').append($('<p>').text(notice + ' Saving will overwrite these values:'));
+        const $head = $('<tr>').append($('<th>').text('Field'), $('<th>').text('Will be overwritten'), $('<th>').text('Yours'));
+        if (several) {
+            $head.append($('<th>').text('Changed by'));
         }
 
-        return $body.append($('<table>').addClass('table table-sm').append(
-            $('<thead>').append($('<tr>').append(
-                $('<th>').text('Field'), $('<th>').text('Saved by them'), $('<th>').text('Yours')
-            )),
-            $rows
-        ));
+        const $rows = $('<tbody>');
+        for (const row of question.fields) {
+            const $row = $('<tr>').append(
+                $('<th>').text(form ? form.label_for(row.field) : row.field),
+                $('<td>').text(Modal._field_value(row, row.current)),
+                $('<td>').text(Modal._field_value(row, row.yours))
+            );
+
+            if (several) {
+                const last = row.changes[row.changes.length - 1];
+                $row.append($('<td>').text(`${name_of(last.by)}, ${Rsx_Time.format_timestamp(last.at)}`));
+            }
+
+            $rows.append($row);
+        }
+
+        $body.append($('<table>').addClass('table table-sm').append($('<thead>').append($head), $rows));
+
+        if (question.view_url) {
+            $body.append($('<a>').attr({ href: question.view_url, target: '_blank', rel: 'noopener' }).text('View current'));
+        }
+
+        return $body;
+    }
+
+    /** A value as a row shows it, by the field's kind. */
+    static _field_value(row, value) {
+        if (row.kind === 'secret') {
+            return '(hidden)';
+        }
+        if (row.kind === 'structured') {
+            return '(updated)';
+        }
+
+        return value === '' || value === null ? '(empty)' : value;
+    }
+
+    static _editor_key(ref) {
+        return ref === null ? 'null' : `${ref.type}:${ref.id}`;
+    }
+
+    static _capitalize(text) {
+        return text.charAt(0).toUpperCase() + text.slice(1);
+    }
+
+    /**
+     * A person's name for a {type, id} reference: the record through its model's gated
+     * fetch(). Null is a write nobody signed in made; a model this page cannot load, or a
+     * record the viewer may not see, reads as "another user".
+     *
+     * @private
+     * @param {{type: string, id: number}|null} ref
+     * @returns {Promise<string>}
+     */
+    static async _editor_name(ref) {
+        if (ref === null) {
+            return 'an automated process';
+        }
+
+        // A model this page's bundle does not carry (a portal user's, on a staff page) has
+        // no class here; every model class that is here answers fetch_or_null().
+        const model = Manifest.get_class_by_name(ref.type);
+        if (model === null) {
+            return 'another user';
+        }
+
+        const record = await model.fetch_or_null(ref.id);
+
+        if (!record) {
+            return 'another user';
+        }
+
+        const name = [record.first_name, record.last_name].filter(Boolean).join(' ').trim();
+
+        return name || record.email || 'another user';
     }
 
     /**
