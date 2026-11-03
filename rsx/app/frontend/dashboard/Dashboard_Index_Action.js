@@ -6,12 +6,16 @@
  * real, site-scoped query served by Frontend_Dashboard_Controller.dashboard_data
  * (no invented numbers). Composed from the semantic view-page vocabulary
  * (Page_Scaffold / Stat_Group / Widget_Grid / Section / Record_Table / Feed_Row).
+ *
+ * Gated can_view_data, the check its only data call carries: the page needs exactly what
+ * its data needs. The recent-activity widget is the action log, which is for
+ * administrators, so it draws only when Activity_Feed.can_view() answers true.
  */
 @route('/dashboard')
 @layout('Frontend_Spa_Layout')
 @spa('Frontend_Spa_Controller::index')
 @title('Dashboard')
-@auth('is_logged_in')
+@auth('is_logged_in', 'can_view_data')
 class Dashboard_Index_Action extends Spa_Action {
     // Composes with Page_Scaffold: the layout yields max-width and page padding
     // to the scaffold (see Frontend_Spa_Layout.on_action).

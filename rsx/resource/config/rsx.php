@@ -36,7 +36,7 @@ return [
         'logged_out' => ['level' => 'notice', 'text' => 'You have been logged out successfully.'],
         'account_exists' => [
             'level' => 'notice',
-            'text' => 'You already have an account for this email. Please sign in below, or use "Forgot your password?" if you do not remember it.',
+            'text' => 'You already have an account for this email. Please sign in below to accept the invitation from your dashboard, or use "Forgot your password?" if you do not remember it.',
         ],
         'sign_in_to_view' => ['level' => 'notice', 'text' => 'You are signed out. Please sign in to view the shared document.'],
         'invitation_expired' => [
@@ -501,11 +501,11 @@ return [
     |--------------------------------------------------------------------------
     |
     | The 'auth' block further down holds this application's sign-in posture:
-    | self-signup and a required second factor, both hardcoded booleans and
-    | both OFF as shipped. Each is honoured by the template's own login and
-    | signup controllers, which carry the whole feature; turning one on is
-    | the only step. The portal's equivalent ('portal.emailed_sign_in_codes')
-    | sits in the 'portal' block.
+    | accounts come from invitations only, and a required second factor is a
+    | hardcoded boolean, OFF as shipped, honoured by the template's own login
+    | controller, which carries the whole feature; turning it on is the only
+    | step. The portal's equivalent ('portal.emailed_sign_in_codes') sits in
+    | the 'portal' block.
     |
     */
 
@@ -689,20 +689,12 @@ return [
     ],
 
     'auth' => [
-        // STAFF SELF-SIGNUP - off. Accounts come from an administrator's invitation
-        // (Settings > User Management), accepted on /accept-invite. When true, /signup lets
-        // anyone create a NEW SITE with themselves as its owner (the role the initial user
-        // gets), and the account signs in only after proving its address: the verify screen
-        // emails a six-digit code and a link (Signup_Verification_Email, CATEGORY =
-        // SECURITY), and either one completes the sign-in and marks the address verified.
-        // Off, /signup and its endpoint answer 404 and the login page offers no Sign up link.
-        // On while rsx.mail.delivery is not 'live', the signup page throws saying so - a
-        // verification email nobody receives would create accounts nobody can use.
-        // The policy is this application's code: rsx/app/login/signup/signup_controller.php,
-        // rsx/app/login/login_controller.php (send_code, complete_sign_in) and
-        // rsx/emails/signup_verification_email.php. There is no portal equivalent: portal
-        // accounts come from invitations only.
-        'self_signup' => false,
+        // ACCOUNTS COME FROM INVITATIONS. There is no self-signup, staff or portal: a staff
+        // account is created by accepting an administrator's invitation (Settings > User
+        // Management, accepted on /accept-invite), a portal account by registering from a
+        // portal invitation, and the first account on an empty database is the framework's
+        // initial user (Rsx_Initial_User). A federated sign-in only ever signs in an account
+        // that already exists (rsx/handlers/Sso_Handlers.php).
 
         // REQUIRE A SECOND FACTOR (staff) - off. When true, a staff member who signs in
         // holding no second factor is held on Settings > Password & Security until they

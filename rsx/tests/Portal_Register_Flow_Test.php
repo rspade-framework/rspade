@@ -15,12 +15,15 @@ use Rsx\Models\Client_Model;
 use Rsx\Models\Portal_Invitation_Model;
 use Rsx\Models\Portal_Membership_Model;
 use Rsx\Portal\Auth\Portal_Register_Controller;
+use Rsx\Portal\Invitations\Portal_Invitations_Controller;
 
 /**
  * Portal_Register_Flow_Test - the invite -> register decision tree:
  *   - a live PENDING invite creates the account + client membership and lands on
  *     the invited client's workspace;
- *   - a returning contact whose account already exists is routed to login;
+ *   - a returning contact whose account already exists is routed to login, and the
+ *     invitation stays PENDING (following a link is not accepting it) until the signed-in
+ *     account accepts it from the dashboard, which grants the membership;
  *   - an invitation that cannot be used (expired, used, revoked, unknown, no code) creates
  *     nothing and goes to the sign-in page with the invitation error - portal access is by
  *     invitation, so a dead one offers no way to create an account.
@@ -107,7 +110,7 @@ class Portal_Register_Flow_Test extends Rsx_Test_Abstract
         );
     }
 
-    public static function test_existing_account_is_routed_to_login()
+    public static function test_existing_account_is_routed_to_login_and_the_invitation_stays_pending()
     {
         static::__reset_portal_context();
 
@@ -127,12 +130,24 @@ class Portal_Register_Flow_Test extends Rsx_Test_Abstract
         $response = static::__register(['code' => $invite->invitation_code], false);
 
         static::__assert_equals(1, Portal_User_Model::where('email', $email)->count(), 'no second account created');
-        static::__assert_equals(Portal_Invitation_Model::STATUS_USED, (int) $invite->fresh()->status_id, 'live invite consumed');
+        static::__assert_equals(Portal_Invitation_Model::STATUS_PENDING, (int) $invite->fresh()->status_id, 'the invitation is left pending');
+        static::__assert_false(Portal_Membership_Model::has_membership_row($user->id, $client->id), 'following the link grants nothing by itself');
 
         static::__assert_instance_of(RedirectResponse::class, $response, 'routed to login');
         $target = $response->getTargetUrl();
         static::__assert_true(str_contains($target, 'login'), 'to the login screen');
         static::__assert_true(str_contains($target, 'notice=account_exists'), 'with the account-exists notice');
+
+        // Signed in, the account finds the invitation on its dashboard and accepts it.
+        Portal_Session::cli_set_portal_user_id($user->id);
+
+        $pending = Portal_Invitations_Controller::pending(new Request(), []);
+        static::__assert_true(in_array((int) $invite->id, array_map('intval', array_column($pending['invitations'], 'invitation_id')), true), 'the dashboard offers it');
+
+        $accepted = Portal_Invitations_Controller::accept(new Request(), ['invitation_id' => $invite->id]);
+        static::__assert_equals((int) $client->id, (int) $accepted['client_id']);
+        static::__assert_true(Portal_Membership_Model::has_membership_row($user->id, $client->id), 'accepting grants the membership');
+        static::__assert_equals(Portal_Invitation_Model::STATUS_USED, (int) $invite->fresh()->status_id, 'and consumes the invitation');
     }
 
     /** The sign-in redirect with the invitation error, and nothing created. */

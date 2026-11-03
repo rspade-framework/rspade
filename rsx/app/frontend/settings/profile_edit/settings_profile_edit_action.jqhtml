@@ -58,8 +58,8 @@
                         </div>
 
                         <Form_Field $label="Bio"
-                            $help="Brief description for your profile. Max 500 characters.">
-                            <Text_Input $name="bio" $type="textarea" $rows=4 $placeholder="Tell us about yourself..." $max_length=500 />
+                            $help="<%= 'Brief description for your profile. Max ' + this.data.bio_max_length + ' characters.' %>">
+                            <Text_Input $name="bio" $type="textarea" $rows=4 $placeholder="Tell us about yourself..." $max_length=this.data.bio_max_length />
                         </Form_Field>
                     </Section>
 
@@ -101,7 +101,7 @@
                 <p class="small text-muted mb-0">
                     Your profile information is only visible to team members within your organization.
                     You can adjust privacy settings in
-                    <a href="<%= Rsx.Route('Frontend_Settings_User_Settings_Controller') %>">User Settings</a>.
+                    <a href="<%= Rsx.Route('Settings_User_Settings_Action') %>">User Settings</a>.
                 </p>
             </Section>
         </Slot:sidebar>

@@ -1,10 +1,9 @@
 class Select_Country_Input extends Select_Ajax_Input {
     async on_load() {
-        // Load countries via Ajax endpoint if data not provided
-        if (!this.args.data) {
+        // The framework's country list, unless a $source endpoint is given (parent on_load)
+        if (!this.args.source) {
             this.data.select_values = await Rsx_Reference_Data_Controller.countries();
         } else {
-            // Use parent on_load for custom data endpoints
             await super.on_load();
         }
 

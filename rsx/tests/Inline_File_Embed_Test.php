@@ -12,6 +12,7 @@ use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Files\File_Attachment_Model;
 use App\RSpade\Core\Files\File_Embed_References;
 use App\RSpade\Core\Models\Login_User_Model;
+use App\RSpade\Core\Models\Site_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Revisions\Revision;
 use App\RSpade\Core\Task\Task;
@@ -134,6 +135,34 @@ class Inline_File_Embed_Test extends Rsx_Test_Abstract
         static::__assert_null(static::__fresh($embedded)->fileable_type, 'still unclaimed');
         static::__assert_false(static::__fresh($embedded)->trashed(), 'yet not swept: a record embeds it');
         static::__assert_true(static::__fresh($abandoned)->trashed(), 'an upload nothing embeds is swept as before');
+    }
+
+    /**
+     * The text is user-authored and may name any id: another site's attachment is neither
+     * claimed nor referenced, so a tenant cannot pin another tenant's upload (and its blob)
+     * out of the disposal sweep by typing its id. The owner's own embed beside it still is.
+     */
+    public static function test_another_sites_attachment_id_makes_no_reference()
+    {
+        $other_site = new Site_Model();
+        $other_site->slug = 'embed-other-site-' . uniqid();
+        $other_site->name = 'Embed probe tenant';
+        $other_site->save();
+
+        static::__acting_as_site((int) $other_site->id);
+        $foreign = File_Attachment_Model::create_from_string('embed-' . uniqid('', true), 'foreign.pdf', ['site_id' => (int) $other_site->id]);
+        static::__acting_as_user(self::UPLOADER_USER_ID);
+        $foreign_row = fn () => File_Attachment_Model::without_site_scope(fn () => File_Attachment_Model::withTrashed()->find($foreign->id));
+        static::__assert_equals((int) $other_site->id, (int) $foreign_row()->site_id, 'the probe upload is on the other site');
+
+        $own = static::__upload('own.pdf');
+
+        $project = static::__project_embedding([$foreign->id, $own->id]);
+
+        static::__assert_false(File_Embed_References::is_referenced((int) $foreign->id), 'another site\'s id makes no reference row');
+        static::__assert_null($foreign_row()->fileable_type, 'and is not claimed');
+        static::__assert_true(File_Embed_References::is_referenced((int) $own->id), 'the owner\'s own embed is referenced');
+        static::__assert_equals((int) $project->id, (int) static::__fresh($own)->fileable_id, 'and owned');
     }
 
     public static function test_another_user_cannot_claim_a_pending_upload_by_typing_its_id()

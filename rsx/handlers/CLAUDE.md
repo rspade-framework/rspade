@@ -30,8 +30,8 @@ manifest from its `#[OnEvent]` attributes. There is no registration step.
   provider email matching a `login_users` row is connected and signed in through
   `Rsx_Sso::consume_pending_and_login()`; anything else - an unverified email, no account,
   an open invitation to the address - declines and the framework fails closed. Accounts are
-  created in advance, by an administrator's invitation accepted with a password, or by
-  self-signup when `rsx.auth.self_signup` is on. The rest
+  created in advance, by an administrator's invitation accepted with a password; a provider
+  never creates one. The rest
   are wiring — `sso.login.authorize` permits (it MIRRORS the password door, which
   enforces only a live `login_users` row), `sso.two_factor.verify_url` returns
   `Rsx::Route('Login_Controller::verify')`, `sso.login.destination` finishes through

@@ -16,7 +16,6 @@ use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Dispatch\Rsx_Request_Channel;
 use App\RSpade\Core\Login\Login_Notice;
 use App\RSpade\Core\Login\Login_Redirect;
-use App\RSpade\Core\Mail\Rsx_Mail;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Rsx;
@@ -27,7 +26,6 @@ use App\RSpade\Core\TwoFactor\Rsx_Two_Factor;
 use App\RSpade\Core\TwoFactor\Two_Factor_Failed_Exception;
 use App\RSpade\Lib\Flash\Flash_Alert;
 use Rsx\App\Login\Invite_Helper;
-use Rsx\Emails\Signup_Verification_Email;
 
 /**
  * Login controller for RSX authentication
@@ -43,8 +41,7 @@ use Rsx\Emails\Signup_Verification_Email;
  * Rsx_Two_Factor::is_enabled().
  *
  * ONE COMPLETION FUNCTION. Every staff entrance finishes in complete_sign_in(): the
- * password form, the challenge (verify_2fa - a second factor, or the emailed code or link
- * that verifies an address), a passkey, an accepted invitation
+ * password form, the second-factor challenge (verify_2fa), a passkey, an accepted invitation
  * (Accept_Invite_Controller) and a federated sign-in (Rsx\Handlers\Sso_Handlers). It signs
  * in when the caller has not, parks what the person still owes (an outstanding
  * second-factor enrollment under rsx.auth.require_two_factor) and answers where they land.
@@ -73,22 +70,6 @@ class Login_Controller extends Rsx_Controller_Abstract
      * once the identity holds a factor. A staff session value, so signing out clears it.
      */
     const ENROLL_TWO_FACTOR_KEY = 'auth.enroll_two_factor';
-
-    /**
-     * Marks the pending challenge as an ADDRESS VERIFICATION rather than a sign-in's second
-     * factor, so send_code() knows which email to send and the screen says what it is for.
-     * Parked beside the challenge, with the challenge's own expiry, by Signup_Controller::submit()
-     * (a new account) and by index() (a password sign-in of an identity whose address was never
-     * verified).
-     */
-    const ADDRESS_VERIFICATION_KEY = 'login_pending_address_verification';
-
-    /**
-     * Codes one challenge may have emailed. An application rule, not a security one - the
-     * framework's attempt caps bound guessing - it keeps "Resend code" from mailing an inbox
-     * without limit. Reaching it means starting again.
-     */
-    const MAX_CODES_PER_CHALLENGE = 5;
 
     /**
      * Show login form
@@ -184,22 +165,6 @@ class Login_Controller extends Rsx_Controller_Abstract
                     return redirect(Rsx::Route('Login_Controller::verify'));
                 }
 
-                // AN ADDRESS NEVER VERIFIED IS PROVED BEFORE THE SIGN-IN - a self-signup that
-                // left before confirming, above all: the password alone must not be a way
-                // around the confirmation signup asked for. Same challenge as signup's, an
-                // emailed code and link; passing it marks the address verified. Asked only
-                // when the email can actually reach the address (Rsx_Mail::deliverable_to()):
-                // a code nobody receives would lock the account out, so where mail cannot
-                // arrive the password signs in as it always has.
-                if (!$login_user->is_verified && Rsx_Mail::deliverable_to((string) $login_user->email, Rsx_Mail::SECURITY)) {
-                    Rsx_Two_Factor::begin_challenge($login_user, [Rsx_Two_Factor::ANSWER_ISSUED_CODE]);
-
-                    Session::put_value(self::ADDRESS_VERIFICATION_KEY, true, Rsx_Two_Factor::challenge_expires_at());
-                    static::__park_invite_code($invite_code);
-
-                    return redirect(Rsx::Route('Login_Controller::verify'));
-                }
-
                 // No second factor: this IS the login, and complete_sign_in() performs it.
                 //
                 // It refuses an identity with no enabled site membership (null), which is
@@ -259,21 +224,16 @@ class Login_Controller extends Rsx_Controller_Abstract
     }
 
     /**
-     * The challenge screen - a sign-in's second factor, or a self-signup's address
-     * verification.
+     * The second-factor challenge screen.
      *
-     * Reached from index() or Signup_Controller::submit(), which parked the pending identity
-     * with the session signed out - so this page is served to a session that is deliberately
-     * NOT signed in, which is why the class gate is 'public'.
+     * Reached from index() (or a federated sign-in, through sso.two_factor.verify_url), which
+     * parked the pending identity with the session signed out - so this page is served to a
+     * session that is deliberately NOT signed in, which is why the class gate is 'public'.
      *
      * A visitor who IS signed in is sent to the dashboard: the challenge was answered in
-     * another tab (the email link, or a code typed there), and <Two_Factor_Challenge>'s
-     * Continue reloads this page expecting exactly that. Nothing pending otherwise means the
-     * window expired or somebody typed the address - back to the login page rather than to a
-     * dead end.
-     *
-     * The send endpoint is named only when the challenge accepts an emailed code: the screen
-     * then sends the first code itself and offers "Resend code".
+     * another tab, and <Two_Factor_Challenge>'s Continue reloads this page expecting exactly
+     * that. Nothing pending otherwise means the window expired or somebody typed the address -
+     * back to the login page rather than to a dead end.
      */
     #[Route('/login/verify', methods: ['GET'])]
     public static function verify(Request $request, array $params = [])
@@ -289,67 +249,8 @@ class Login_Controller extends Rsx_Controller_Abstract
         }
 
         return rsx_view('Login_Verify', [
-            'is_address_verification' => static::__is_address_verification(),
-            'has_issued_code' => $pending['has_issued_code'],
             'has_recovery_codes' => $pending['has_recovery_codes'],
         ]);
-    }
-
-    /**
-     * Issue a code for the pending challenge and email it with its sign-in link - the send
-     * endpoint <Two_Factor_Challenge> calls for the first code and for "Resend code".
-     *
-     * Public like the rest of the challenge: the session is deliberately signed out, and the
-     * endpoint acts only on the challenge parked on the caller's own session. The address is
-     * the pending identity's own, read server-side - nothing the browser sends chooses where
-     * a code goes.
-     *
-     * The one staff challenge this application ever issues a code for is an ADDRESS
-     * VERIFICATION (ADDRESS_VERIFICATION_KEY: a self-signup, or the sign-in of an identity
-     * whose address was never verified). A sign-in challenge accepting an emailed code as a
-     * second factor is a policy this application does not have; adding one means adding its
-     * email here, so it fails loud until then.
-     *
-     * A resend while the code is live re-sends the SAME code and the same link (the framework
-     * keeps one per identity), so the email says so and states the minutes that code has left.
-     *
-     * @return null
-     */
-    #[Ajax_Endpoint]
-    public static function send_code(Request $request, array $params = [])
-    {
-        $pending = Rsx_Two_Factor::challenge_pending();
-        $login_user = Rsx_Two_Factor::pending_identity();
-
-        if ($pending === null || $login_user === null) {
-            return response_error(Ajax::ERROR_VALIDATION, 'Your verification window has expired. Please start again.');
-        }
-
-        if (!$pending['has_issued_code']) {
-            return response_error(Ajax::ERROR_VALIDATION, 'This sign-in does not use emailed codes.');
-        }
-
-        if ($pending['codes_issued'] >= static::MAX_CODES_PER_CHALLENGE) {
-            return response_error(Ajax::ERROR_VALIDATION, 'Too many codes have been sent. Please start again.');
-        }
-
-        if (!static::__is_address_verification()) {
-            throw new \RuntimeException(
-                'Login_Controller::send_code() was asked to email a code for a staff challenge that is not an '
-                . 'address verification. This application emails codes only to verify an address; a sign-in '
-                . 'policy that accepts an emailed code as a second factor needs its own email here.'
-            );
-        }
-
-        // The code first, then its link: issued_link() is the code's twin and throws without it.
-        $code = Rsx_Two_Factor::issue_code();
-        $link = Rsx_Two_Factor::issued_link(Rsx::Route('Login_Controller::verify'));
-
-        (new Signup_Verification_Email($login_user, $code, $link))
-            ->to($login_user->email)
-            ->send();
-
-        return null;
     }
 
     /**
@@ -384,21 +285,12 @@ class Login_Controller extends Rsx_Controller_Abstract
         }
 
         // verify_challenge() has signed the identity in, stamped last_login and written the
-        // success row - and, for an emailed code or link, marked the address verified. An
-        // address verification is over with it.
-        $welcome = 'Welcome back!';
-
-        if (static::__is_address_verification()) {
-            Session::forget_value(self::ADDRESS_VERIFICATION_KEY);
-            $welcome = 'Your email address is verified. Welcome!';
-        }
-
+        // success row.
         return [
             'redirect' => static::complete_sign_in(
                 $login_user,
                 sign_in: false,
-                invite_code: static::__consume_invite_code(),
-                welcome: $welcome
+                invite_code: static::__consume_invite_code()
             ),
         ];
     }
@@ -484,8 +376,8 @@ class Login_Controller extends Rsx_Controller_Abstract
      * Finish a staff sign-in: sign the identity in when the caller has not, park what the
      * person still owes, and answer where they land, as a URL.
      *
-     * ONE FUNCTION, EVERY ENTRANCE. The password form, the challenge (a second factor, or a
-     * emailed code or link that verifies an address), a passkey, an accepted invitation
+     * ONE FUNCTION, EVERY ENTRANCE. The password form, the second-factor challenge, a passkey,
+     * an accepted invitation
      * (Accept_Invite_Controller) and a federated sign-in (Rsx\Handlers\Sso_Handlers) all end
      * here. PUBLIC FOR THOSE LAST TWO, and for no other reason. A rule that belongs to "being
      * signed in" written on one door and not another is the door nobody remembers - so it is
@@ -501,7 +393,8 @@ class Login_Controller extends Rsx_Controller_Abstract
      * WHAT IS OWED. With rsx.auth.require_two_factor on, an identity holding no second factor
      * owes an enrollment: ENROLL_TWO_FACTOR_KEY is parked (after the sign-in, which clears the
      * staff realm's session values) and Rsx\Main::pre_dispatch() holds page requests on the
-     * Password & Security screen until a factor exists.
+     * Password & Security screen, and refuses every Ajax call that screen does not need,
+     * until a factor exists.
      *
      * WHERE THEY LAND. An identity holding one usable site is bound to it first, so the session
      * has a site whatever comes next. Then an invite in flight wins; then the site picker when
@@ -579,29 +472,58 @@ class Login_Controller extends Rsx_Controller_Abstract
     }
 
     /**
-     * Where a signed-in user who still owes a second-factor enrollment is held, or null when
-     * this request goes through - Rsx\Main::pre_dispatch() asks it of every request.
+     * The Ajax endpoints a user who still owes a second-factor enrollment may call - the
+     * enrollment screen's own (Password & Security, the framework's second-factor, federated
+     * sign-in and password-confirmation endpoints), the layout's unread count on that screen,
+     * and the session machinery every page runs (realtime tokens, the SPA session check).
+     * Everything else is refused until a factor exists. Sign-out is a page, not a call.
+     */
+    const ENROLLMENT_AJAX_ALLOWED = [
+        'Frontend_Settings_Password_Security_Controller' => '*',
+        'Rsx_Two_Factor_Controller' => '*',
+        'Rsx_Sso_Controller' => '*',
+        'Rsx_Password_Confirmation_Controller' => '*',
+        'Realtime_Controller' => '*',
+        'Spa_Session_Controller' => '*',
+        'Frontend_Notifications_Controller' => ['get_count'],
+    ];
+
+    /**
+     * Does the signed-in user still owe a second-factor enrollment?
      *
-     * Only a PAGE request is held (an Ajax call carries on, so the enrollment screen itself
-     * works); the enrollment screen and sign-out are always reachable; and the step is
-     * forgotten the moment the identity holds a factor, however it was enrolled.
+     * True while ENROLL_TWO_FACTOR_KEY is parked and the identity holds no factor; the step
+     * is forgotten the moment the identity holds one, however it was enrolled.
+     *
+     * @return bool
+     */
+    public static function owes_two_factor_enrollment(): bool
+    {
+        if (!Session::is_logged_in() || !Session::get_value(self::ENROLL_TWO_FACTOR_KEY)) {
+            return false;
+        }
+
+        if (Rsx_Two_Factor::is_enabled(Session::get_login_user())) {
+            Session::forget_value(self::ENROLL_TWO_FACTOR_KEY);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Where a signed-in user who still owes a second-factor enrollment is held, or null when
+     * this PAGE request goes through - Rsx\Main::pre_dispatch() asks it of every request.
+     *
+     * The enrollment screen and sign-out are always reachable. Ajax calls are judged by
+     * outstanding_enrollment_refusal() instead.
      *
      * @param Request $request
      * @return string|null The enrollment screen's URL to redirect to, or null.
      */
     public static function outstanding_enrollment_redirect(Request $request): ?string
     {
-        if (Rsx_Request_Channel::current() !== Rsx_Request_Channel::PAGE || !Session::is_logged_in()) {
-            return null;
-        }
-
-        if (!Session::get_value(self::ENROLL_TWO_FACTOR_KEY)) {
-            return null;
-        }
-
-        if (Rsx_Two_Factor::is_enabled(Session::get_login_user())) {
-            Session::forget_value(self::ENROLL_TWO_FACTOR_KEY);
-
+        if (Rsx_Request_Channel::current() !== Rsx_Request_Channel::PAGE || !static::owes_two_factor_enrollment()) {
             return null;
         }
 
@@ -618,14 +540,37 @@ class Login_Controller extends Rsx_Controller_Abstract
     }
 
     /**
-     * Is the pending challenge an address verification (a self-signup, or an unverified
-     * identity's sign-in) rather than a second factor?
+     * The refusal for an Ajax call made by a user who still owes a second-factor enrollment,
+     * or null when the call goes through - Rsx\Main::pre_dispatch() asks it of every call.
      *
-     * @return bool
+     * Only the endpoints in ENROLLMENT_AJAX_ALLOWED run. Any other call is refused as
+     * unauthorized, coded in its metadata (two_factor_enrollment_required, plus the
+     * enrollment screen's URL as redirect), so the hold cannot be walked around by calling
+     * the application's endpoints from the enrollment screen. The browser side of the hold
+     * is Frontend_Spa_Layout: while it is owed, SPA navigation is off and every link is a
+     * page load that outstanding_enrollment_redirect() answers.
+     *
+     * @param string $controller The called controller's simple name
+     * @param string $action The called endpoint
+     * @return \App\RSpade\Core\Response\Error_Response|null
      */
-    private static function __is_address_verification(): bool
+    public static function outstanding_enrollment_refusal(string $controller, string $action)
     {
-        return (bool) Session::get_value(self::ADDRESS_VERIFICATION_KEY);
+        if (Rsx_Request_Channel::current() !== Rsx_Request_Channel::AJAX || !static::owes_two_factor_enrollment()) {
+            return null;
+        }
+
+        $allowed = self::ENROLLMENT_AJAX_ALLOWED[$controller] ?? null;
+
+        if ($allowed === '*' || (is_array($allowed) && in_array($action, $allowed, true))) {
+            return null;
+        }
+
+        return response_error(Ajax::ERROR_UNAUTHORIZED, [
+            '_message' => 'This site requires two-factor authentication. Set up an authenticator app or a passkey to continue.',
+            'two_factor_enrollment_required' => true,
+            'redirect' => Rsx::Route('Settings_Password_Security_Action'),
+        ]);
     }
 
     /**

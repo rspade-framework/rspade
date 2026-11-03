@@ -42,7 +42,7 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
      *
      * States:
      * - Invalid/expired invite: Show error message
-     * - Valid invite, not logged in: Show links to signup or login
+     * - Valid invite, not logged in: Show links to create the account or sign in
      * - Valid invite, logged in: Show accept button
      * - Already accepted: Show "go to dashboard" link
      */

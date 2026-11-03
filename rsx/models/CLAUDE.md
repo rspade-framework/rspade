@@ -19,8 +19,9 @@ the grouping is for readers only):
   `Portal_Password_Reset_Model`, `Portal_Project_Model`, `Shared_Item_Model`, and the
   request-thread set (`Portal_Request_Thread_Model` plus its `_Message_`, `_Document_` and
   `_Event_` siblings). `Portal_Membership_Model`'s portal-access readers (`has_membership`,
-  `find_for_user_and_client`, `get_for_user`) count a row only while its client is
-  portal-enabled and not deleted; `has_membership_row` / `get_all_for_user` /
+  `find_for_user_and_client`, `get_for_user`) and `live_portal_user_ids()` - the recipient
+  list of every portal notification addressed to a client's members - count a row only while
+  its client is portal-enabled and not deleted; `has_membership_row` / `get_all_for_user` /
   `get_for_client` read every row, for staff screens and for code that creates one.
   `Shared_Item_Model` is per contact and expires: `find_valid_share()` is the one share check.
 - **Activity** — `Action_Log_Model`, `Action_Log_Related_Model`, `Notification_Model`,
@@ -96,6 +97,11 @@ the grouping is for readers only):
   serializing. `client_model.php::to_fetch_array()` keeps `get_created_by_author`
   hand-added on purpose — it resolves a realm-gated profile URL for one viewer, which a
   list payload must not ask per row.
+- **A model written from more than one surface owns its value rules**:
+  `Client_Model::value_errors()` and `Contact_Model::value_errors()` answer `[field =>
+  message]` for every submitted value the record cannot hold (lengths from
+  `field_length()`, enum membership, formats; built on `rsx/lib/field_checks/`), and both the
+  staff save and the external API run them, so the two can never disagree.
 - **Mark growth**: `public static $unbounded = true;` on any model whose row count
   grows with customer activity. `DB-UNBOUNDED-01` lints against it.
 - **Enums** are integer columns with a `$enums` map on the model. Run

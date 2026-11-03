@@ -8,6 +8,7 @@
 namespace Rsx\App\Frontend\Clients;
 
 use Illuminate\Http\Request;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -30,6 +31,7 @@ use Rsx\App\Frontend\Clients\List\Clients_DataGrid;
 use Rsx\Emails\Portal_Invitation_Email;
 use Rsx\Emails\Portal_Shared_Content_Email;
 use Rsx\Lib\ActionLog\Action_Log;
+use Rsx\Lib\FieldChecks\Field_Checks;
 use Rsx\Models\Action_Log_Model;
 use Rsx\Models\Announcement_Model;
 use Rsx\Models\Client_Model;
@@ -129,7 +131,11 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * Ajax endpoint: Get the activity feed (action log) for a client.
      *
      * Shared Activity-tab shape (id, rendered summary html, created_at, type_id).
+     *
+     * The action log is for administrators: the same can_view_user_activity check the
+     * Action Log screen carries, so a per-record feed never shows what that screen refuses.
      */
+    #[Auth('can_view_user_activity')]
     #[Ajax_Endpoint]
     public static function client_activity(Request $request, array $params = [])
     {
@@ -170,7 +176,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
         // Validate required fields
         $errors = [];
 
-        if (empty($params['name'])) {
+        if (!isset($params['name']) || !is_string($params['name']) || trim($params['name']) === '') {
             $errors['name'] = 'Company name is required';
         }
 
@@ -178,18 +184,23 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             $errors['email'] = 'Please enter a valid email address';
         }
 
-        // Convert website to short URL format and validate
-        if (!empty($params['website'])) {
-            $short_url = full_url_to_short_url($params['website']);
-            if (!validate_short_url($short_url)) {
+        // The website is stored in short form (scheme stripped) and must be an http(s) address.
+        if (isset($params['website']) && $params['website'] !== '') {
+            $short_url = is_string($params['website']) ? Field_Checks::website_short_url($params['website']) : null;
+            if ($short_url === null) {
                 $errors['website'] = 'Please enter a valid website URL';
+            } else {
+                $params['website'] = $short_url;
             }
-            // Update params with short URL for storage
-            $params['website'] = $short_url;
         }
 
-        // The address codes are ISO (Client_Model::address_code_errors())
-        $errors += Client_Model::address_code_errors($params['address_country'] ?? null, $params['state'] ?? null);
+        // Lengths, the status and contact-method vocabularies, the year, the social URLs and
+        // the tags (Client_Model::value_errors()); the address codes are ISO.
+        $errors += Client_Model::value_errors($params);
+        $errors += Client_Model::address_code_errors(
+            is_string($params['address_country'] ?? null) ? $params['address_country'] : null,
+            is_string($params['state'] ?? null) ? $params['state'] : null
+        );
 
         // Return validation errors if any
         if (!empty($errors)) {
@@ -431,8 +442,12 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
         $row_number = 2;
         $count = 0;
 
+        // Every cell is written EXPLICITLY by its type. fromArray() would read a value that
+        // begins with "=" as a live formula (a client name "=HYPERLINK(...)" becomes a link
+        // the spreadsheet evaluates) and a phone or zip as a number; here only the id is a
+        // number and everything else, user-entered or not, is text.
         foreach (Clients_DataGrid::iterate_selection($query, 'clients.id') as $client) {
-            $sheet->fromArray([
+            $cells = [
                 $client->id,
                 $client->name,
                 $client->city,
@@ -443,14 +458,17 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
                 $client->status_id__label,
                 $client->priority__label,
                 $client->created_at,
-            ], null, 'A' . $row_number);
+            ];
 
-            // A phone number is a label, not a quantity - written as an explicit string so
-            // a leading "+" or "0" survives and nothing is read as a formula.
-            $sheet->getCell('E' . $row_number)->setValueExplicit(
-                (string)$client->phone,
-                DataType::TYPE_STRING
-            );
+            foreach ($cells as $index => $value) {
+                $coordinate = Coordinate::stringFromColumnIndex($index + 1) . $row_number;
+
+                if ($index === 0) {
+                    $sheet->getCell($coordinate)->setValueExplicit((int) $value, DataType::TYPE_NUMERIC);
+                } else {
+                    $sheet->getCell($coordinate)->setValueExplicit((string) ($value ?? ''), DataType::TYPE_STRING);
+                }
+            }
 
             $row_number++;
             $count++;
@@ -1112,17 +1130,20 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
     }
 
     /**
-     * Ajax endpoint: Toggle project visibility on client portal
+     * Ajax endpoint: Set whether one of a client's projects is visible on its portal.
+     *
+     * Takes the desired state (`visible`), never a toggle, so a panel that is out of date
+     * cannot invert what the user asked for. The project must be this client's.
      */
     #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
-    public static function portal_toggle_project(Request $request, array $params = [])
+    public static function portal_set_project_visible(Request $request, array $params = [])
     {
-        $client_id = $params['client_id'] ?? null;
-        $project_id = $params['project_id'] ?? null;
+        $client_id = (int) ($params['client_id'] ?? 0);
+        $project_id = (int) ($params['project_id'] ?? 0);
 
-        if (!$client_id || !$project_id) {
-            return response_error(Ajax::ERROR_VALIDATION, 'Client ID and Project ID are required');
+        if (!$client_id || !$project_id || !array_key_exists('visible', $params)) {
+            return response_error(Ajax::ERROR_VALIDATION, 'Client ID, Project ID and visible are required');
         }
 
         $client = Client_Model::find($client_id);
@@ -1130,7 +1151,14 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             return response_error(Ajax::ERROR_NOT_FOUND, 'Client not found');
         }
 
-        $visible = Portal_Project_Model::toggle($client->site_id, $client_id, $project_id);
+        // The site-scoped find is the tenant check; the client_id match is the ownership check.
+        $project = Project_Model::find($project_id);
+        if (!$project || (int) $project->client_id !== (int) $client->id) {
+            return response_error(Ajax::ERROR_NOT_FOUND, 'Project not found');
+        }
+
+        $visible = filter_var($params['visible'], FILTER_VALIDATE_BOOLEAN);
+        Portal_Project_Model::set_visible((int) $client->site_id, (int) $client->id, (int) $project->id, $visible);
 
         return ['portal_visible' => $visible];
     }
@@ -1191,6 +1219,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
         if (empty($body)) {
             $errors['body'] = 'Message is required';
         }
+        $errors += Field_Checks::length_errors(Announcement_Model::class, ['title' => $title], ['title' => 'Title']);
         if (!empty($errors)) {
             return response_form_error('Please correct the errors below', $errors);
         }
@@ -1685,7 +1714,12 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             $portal_user = static::_resolve_contact_portal_user($contact, (int) $client->site_id);
 
             if ($portal_user) {
-                static::_notify_document_shared($portal_user, $client, $attachment);
+                // The feed entry points into the client's workspace, so it goes only to a
+                // member whose access to this client is live; the emailed share link above
+                // stands on its own.
+                if (Portal_Membership_Model::has_membership((int) $portal_user->id, (int) $client->id)) {
+                    static::_notify_document_shared($portal_user, $client, $attachment);
+                }
                 continue;
             }
 
@@ -2027,6 +2061,10 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
                 'body' => $body === '' ? 'Message is required' : null,
             ]);
         }
+        $title_errors = Field_Checks::length_errors(Portal_Request_Thread_Model::class, ['title' => $title], ['title' => 'Title']);
+        if (!empty($title_errors)) {
+            return response_form_error('Please correct the errors below.', $title_errors);
+        }
 
         $client = Client_Model::find($client_id);
         if (!$client) {
@@ -2159,7 +2197,8 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * Ajax endpoint: staff posts a reply to a thread. Optionally carries staff
      * attachments (review-exempt informational docs) and/or a status change applied
      * AFTER the message. The body may be empty only when there is at least one
-     * attachment or a status change.
+     * attachment or a status change. A CLOSED thread is refused unless the same
+     * submission changes its status away from Closed (a reopen).
      */
     #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
@@ -2199,6 +2238,13 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
         if ($body === '' && empty($attachment_keys) && $status_change === null) {
             return response_form_error('Validation failed', [
                 'body' => 'Enter a message, attach a file, or change the status',
+            ]);
+        }
+
+        // A closed thread takes no reply unless the same submission reopens it.
+        if ($thread->is_closed() && ($status_change === null || $status_change === Portal_Request_Thread_Model::STATUS_CLOSED)) {
+            return response_form_error('This request is closed', [
+                'body' => 'This request is closed. Reopen it by changing its status to reply.',
             ]);
         }
 
@@ -2249,7 +2295,8 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
     /**
      * Ajax endpoint: staff accepts or rejects a thread document. Accept -> ACCEPTED
      * (moves to the Accepted bucket); Reject -> REJECTED + optional reason (stays in
-     * the thread with its badge/reason). Returns the updated review state.
+     * the thread with its badge/reason). Returns the updated review state. Refused for
+     * a document that is not reviewable (a staff attachment) or already accepted.
      */
     #[Auth('can_edit_data')]
     #[Ajax_Endpoint]
@@ -2269,6 +2316,12 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
         $document = Portal_Request_Document_Model::find($document_id);
         if (!$document) {
             return response_error(Ajax::ERROR_NOT_FOUND, 'Document not found');
+        }
+
+        // Only a client document awaiting review can be decided: a staff attachment is
+        // informational, and an accepted document has no further action.
+        if (!$document->is_reviewable() || $document->is_accepted()) {
+            return response_error(Ajax::ERROR_VALIDATION, 'This document cannot be reviewed');
         }
 
         $staff = Session::get_login_user();

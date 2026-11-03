@@ -23,6 +23,7 @@ use Rsx\Models\Contact_Model;
  *   - a usable number is stored in E.164, whatever spelling arrived
  *   - a blank field is a VALUE - it clears the column rather than being ignored
  *   - the three fields are independent
+ *   - a value that is not a string (an array) is a field error, not a 500
  *
  * The bar is libphonenumber's isPossibleNumber(), so a number in an unassigned range
  * (a placeholder area code on a business card) is accepted - see the controller's
@@ -164,6 +165,29 @@ class Contact_Phone_Validation_Test extends Rsx_Test_Abstract
         $contact = Contact_Model::find($contact_id);
 
         static::__assert_null($contact->phone_work, 'submitting the field blank clears the stored number');
+    }
+
+    /**
+     * A request may carry any shape. A phone posted as an array is a field error on that
+     * field - never a TypeError (a 500) from the normaliser.
+     */
+    public static function test_non_string_phone_is_a_field_error()
+    {
+        $client = static::__seed_client();
+
+        $result = Frontend_Contacts_Controller::save(request(), static::__params($client, [
+            'phone_cell' => ['(920) 614-5140'],
+        ]));
+
+        static::__assert_instance_of(Error_Response::class, $result, 'an array phone is a validation error');
+
+        $metadata = $result->get_metadata();
+
+        static::__assert_equals(
+            'Please enter a valid phone number',
+            $metadata['phone_cell'] ?? null,
+            'the error is reported against the field it came from'
+        );
     }
 
     /**

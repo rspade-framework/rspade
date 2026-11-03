@@ -18,7 +18,9 @@ class Document_Detail_Modal extends Modal_Abstract {
         await body.ready();
 
         // Accepted documents have no further action; rejected/pending can still be acted on.
-        const is_reviewable = int(document.requires_review) === 1;
+        // The server refuses the same cases (request_document_review).
+        const is_reviewable = int(document.requires_review) === 1
+            && int(document.review_status) !== Portal_Request_Document_Model.REVIEW_ACCEPTED;
 
         const buttons = [
             { label: 'Close', value: false, class: 'btn-secondary' },

@@ -62,13 +62,14 @@ class Portal_Register_Controller extends Rsx_Controller_Abstract
             return static::_redirect_to_login_invitation_invalid();
         }
 
-        // An account already exists for this email -> route to login. Consume a still-live
-        // invite so it stops re-appearing.
+        // An account already exists for this email -> route to login, and LEAVE THE INVITATION
+        // PENDING. This is a GET (a mail scanner prefetching the link reaches it too), and
+        // following a link is not accepting it: once signed in, the dashboard lists every
+        // pending invitation addressed to the account and its Accept creates the membership
+        // (Portal_Invitations_Controller::accept). Consuming it here would leave the person
+        // with neither the membership nor the card that grants it.
         $existing_user = Portal_User_Model::find_by_email($invitation->site_id, $invitation->email);
         if ($existing_user) {
-            if ($invitation->is_valid()) {
-                $invitation->mark_used();
-            }
             return static::_redirect_to_login_account_exists($client_id);
         }
 
@@ -154,7 +155,8 @@ class Portal_Register_Controller extends Rsx_Controller_Abstract
     /**
      * Redirect a returning contact to the portal login, flagged so the login page
      * shows the "you already have an account" message, and carrying the invited
-     * client so a successful login can land there (if they have access).
+     * client so a successful login can land there (if they have access). The invitation
+     * itself is untouched: it waits on the dashboard for the signed-in account to accept.
      */
     private static function _redirect_to_login_account_exists(int $client_id)
     {

@@ -11,11 +11,10 @@ timing-indifferent per the Form_Input_Abstract contract (the base buffers a
 pre-ready val() and applies it at _mark_ready). Fires 'input' (user changes only)
 and 'val' (all changes) with the {type,id} object.
 
-Flat submission: two mirror hidden inputs (name="taskable_type"/"taskable_id")
-carry the value to the controller in the SAME flat shape it already reads -
-Rsx_Form.vals() collects hidden [name] inputs directly, so no controller change is
-needed. The composite's own val() (the {type,id} object) rides under its $name and
-is ignored by the controller.
+Submission: the value rides under its $name (`taskable`) as {type, id}, the one
+shape Frontend_Tasks_Controller::save() and resolve_parent_project() read. The
+form's _changed list names `taskable` when the user changed it, which is what
+lets save() write the taskable_type / taskable_id pair on an edit.
 
 $exclude_id - a task id whose subtree is excluded from Task-type options (edit
               mode passes the task's own id to prevent a circular chain).
@@ -32,7 +31,4 @@ $exclude_id - a task id whose subtree is excluded from Task-type options (edit
     <div $sid="entity_wrap" class="Parent_Selector_Input__entity">
         <Ajax_Entity_Select_Input $sid="entity" $parent_type="Project_Model" $placeholder="Search for a parent..." />
     </div>
-
-    <input type="hidden" $sid="h_type" name="taskable_type" />
-    <input type="hidden" $sid="h_id" name="taskable_id" />
 </Define:Parent_Selector_Input>

@@ -3,7 +3,7 @@
  * Login_Bundle - the bundle for the staff sign-in pages
  *
  * THIS BUNDLE IS SERVED TO VISITORS WHO HAVE NOT SIGNED IN. Every page in this module
- * (login, the second-factor screen, signup, invite acceptance, site selection) is
+ * (login, the second-factor screen, invite acceptance, site selection) is
  * reachable anonymously, so whatever is listed below is published to anyone who loads
  * /login - and a bundle that includes a shared directory publishes everything in it:
  * the whole component library, every model's ORM definition, every controller's route
@@ -52,13 +52,13 @@ class Login_Bundle extends Rsx_Module_Bundle_Abstract
                 'rsx/theme/*.scss',             // The theme's remaining own stylesheets - NOT its subdirectories,
                                                 // which are the component library
 
-                // ---- Form_Field (signup, create-account), parent first.
+                // ---- Form_Field (create-account), parent first.
                 'rsx/theme/components/forms/form_field_abstract.jqhtml',
                 'rsx/theme/components/forms/form_field_abstract.js',
                 'rsx/theme/components/forms/form_field.jqhtml',
                 'rsx/theme/components/forms/form_field.js',
 
-                // ---- Text_Input and Hidden_Input (signup, create-account).
+                // ---- Text_Input and Hidden_Input (create-account).
                 'rsx/theme/components/inputs/text/text_input.jqhtml',
                 'rsx/theme/components/inputs/text/text_input.js',
                 'rsx/theme/components/inputs/hidden/hidden_input.jqhtml',

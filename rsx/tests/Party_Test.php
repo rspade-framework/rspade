@@ -16,7 +16,8 @@ use Rsx\Models\Party_Person_Detail_Model;
  * Party_Test - end-to-end coverage of the Class-Table Inheritance demo (see man
  * detail_tables): the controller writes base + detail atomically, name is composed for a
  * Person, a Group has no detail, fetch() embeds the active detail, wrong-type access throws,
- * and editing updates the detail in place (no double-insert).
+ * editing updates the detail in place (no double-insert), a Group's rename is written, and
+ * an edit validates against the STORED type whatever type_id the submission carries.
  */
 class Party_Test extends Rsx_Test_Abstract
 {
@@ -163,5 +164,48 @@ class Party_Test extends Rsx_Test_Abstract
         ]);
 
         static::__assert_false(is_array($result) && isset($result['party_id']), 'missing required detail field is rejected at the controller layer');
+    }
+
+    public static function test_edit_renames_a_group()
+    {
+        $created = static::__save([
+            'type_id' => Party_Model::TYPE_GROUP,
+            'name' => 'Group Before',
+        ]);
+
+        $updated = static::__save([
+            'id' => $created['party_id'],
+            'type_id' => Party_Model::TYPE_GROUP,
+            'name' => 'Group After',
+            '_changed' => ['name'],
+            '_loaded_updated_at' => Party_Model::find($created['party_id'])->updated_at,
+        ]);
+
+        static::__assert_array_has_key('party_id', $updated, 'the rename saves');
+        static::__assert_equals('Group After', Party_Model::find($created['party_id'])->name, 'a Group rename is written');
+    }
+
+    public static function test_edit_validates_against_the_stored_type()
+    {
+        $created = static::__save([
+            'type_id' => Party_Model::TYPE_PERSON,
+            'first_name' => 'Stored',
+            'last_name' => 'Person',
+        ]);
+
+        // A Person edit claiming to be a Group, carrying only a name: the Person rules apply.
+        $result = static::__save([
+            'id' => $created['party_id'],
+            'type_id' => Party_Model::TYPE_GROUP,
+            'name' => 'Tampered',
+            '_changed' => ['name', 'first_name'],
+            '_loaded_updated_at' => Party_Model::find($created['party_id'])->updated_at,
+        ]);
+
+        static::__assert_false(is_array($result) && isset($result['party_id']), 'the stored type\'s required fields are enforced');
+
+        $party = Party_Model::find($created['party_id']);
+        static::__assert_equals(Party_Model::TYPE_PERSON, (int) $party->type_id, 'the type never changes');
+        static::__assert_equals('Stored', Party_Person_Detail_Model::for_parent($party->id)->first_name, 'nothing was written');
     }
 }

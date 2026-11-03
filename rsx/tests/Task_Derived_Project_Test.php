@@ -160,8 +160,7 @@ class Task_Derived_Project_Test extends Rsx_Test_Abstract
         // Parented to $p, but the user tries to force $other->id: chain must win.
         $result = static::__save([
             'title' => 'Chain wins',
-            'taskable_type' => 'Project_Model',
-            'taskable_id' => $p->id,
+            'taskable' => ['type' => 'Project_Model', 'id' => $p->id],
             'project_id' => $other->id,
         ]);
 
@@ -178,8 +177,7 @@ class Task_Derived_Project_Test extends Rsx_Test_Abstract
         // Parented to a client (no chain project): the user value is honored.
         $result = static::__save([
             'title' => 'User picks',
-            'taskable_type' => 'Client_Model',
-            'taskable_id' => $client->id,
+            'taskable' => ['type' => 'Client_Model', 'id' => $client->id],
             'project_id' => $p->id,
         ]);
 
@@ -205,21 +203,18 @@ class Task_Derived_Project_Test extends Rsx_Test_Abstract
         $p = static::__project();
         $a = static::__save([
             'title' => 'A',
-            'taskable_type' => 'Project_Model',
-            'taskable_id' => $p->id,
+            'taskable' => ['type' => 'Project_Model', 'id' => $p->id],
         ]);
         $b = static::__save([
             'title' => 'B',
-            'taskable_type' => 'Task_Model',
-            'taskable_id' => $a['id'],
+            'taskable' => ['type' => 'Task_Model', 'id' => $a['id']],
         ]);
 
         // Try to re-parent A under B (A is B's ancestor) -> cycle rejected.
         $result = static::__save([
             'id' => $a['id'],
             'title' => 'A',
-            'taskable_type' => 'Task_Model',
-            'taskable_id' => $b['id'],
+            'taskable' => ['type' => 'Task_Model', 'id' => $b['id']],
         ]);
 
         static::__assert_false(is_array($result) && isset($result['id']), 'a cycle-creating parent is rejected at the controller');

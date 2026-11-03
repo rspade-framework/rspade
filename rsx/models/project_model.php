@@ -102,6 +102,13 @@ class Project_Model extends Rsx_Site_Model_Abstract
     /** Edited through Form_Edit, which reads what another editor changed from here. */
     public static $revisions = true;
 
+    /**
+     * The shape of the budget column, DECIMAL(15,2): the digits it holds and the digits
+     * after the point. The save endpoint checks a submitted amount against them.
+     */
+    const BUDGET_PRECISION = 15;
+    const BUDGET_SCALE = 2;
+
     public static $enums = [
         'status' => [
             1 => ['constant' => 'STATUS_PLANNING', 'label' => 'Planning', 'badge' => 'bg-info'],

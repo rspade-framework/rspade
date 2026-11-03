@@ -68,7 +68,8 @@
             <td><%= row.phone || '-' %></td>
             <td>
                 <% if (row.website) { %>
-                    <a href="<%= row.website %>" target="_blank" class="text-decoration-none">
+                    <%-- website is stored scheme-less (full_url_to_short_url); the href is the absolute http(s) form --%>
+                    <a href="<%= short_url_to_full_url(row.website) %>" target="_blank" rel="noopener noreferrer" class="text-decoration-none">
                         <i class="bi bi-link-45deg"></i>
                     </a>
                 <% } else { %>

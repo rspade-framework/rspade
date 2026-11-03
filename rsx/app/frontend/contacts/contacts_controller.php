@@ -143,7 +143,11 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
      * One shared shape across all entity Activity tabs (Dashboard's recent-activity
      * items): id, rendered summary html, created_at, type_id. render() already emits
      * the linked "actor verb object" summary.
+     *
+     * The action log is for administrators: the same can_view_user_activity check the
+     * Action Log screen carries, so a per-record feed never shows what that screen refuses.
      */
+    #[Auth('can_view_user_activity')]
     #[Ajax_Endpoint]
     public static function contact_activity(Request $request, array $params = [])
     {
@@ -237,11 +241,11 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
         // Validate required fields
         $errors = [];
 
-        if (empty($params['first_name'])) {
+        if (!isset($params['first_name']) || !is_string($params['first_name']) || trim($params['first_name']) === '') {
             $errors['first_name'] = 'First name is required';
         }
 
-        if (empty($params['last_name'])) {
+        if (!isset($params['last_name']) || !is_string($params['last_name']) || trim($params['last_name']) === '') {
             $errors['last_name'] = 'Last name is required';
         }
 
@@ -266,6 +270,9 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
         foreach (['phone_work', 'phone_cell', 'phone_other'] as $phone_field) {
             $phones[$phone_field] = self::_normalize_phone($params[$phone_field] ?? null, $errors, $phone_field);
         }
+
+        // Lengths (phones in their stored E.164 form), the secondary email and the priority.
+        $errors += Contact_Model::value_errors(array_merge($params, $phones));
 
         if (!empty($errors)) {
             return response_form_error('Please correct the errors below.', $errors);
@@ -339,8 +346,10 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
             $edit->set('state', $params['state'] ?? null);
             $edit->set('zip', $params['zip'] ?? null);
             $edit->set('client_id', (int)$params['client_id']);
-            $edit->set('is_active', !empty($params['is_active']) ? 1 : 0);
-            $edit->set('priority', !empty($params['priority']) ? (int)$params['priority'] : 2);
+            // A new contact is active unless the submission says otherwise; on an edit an
+            // absent key is never in _changed, so it is left as stored.
+            $edit->set('is_active', array_key_exists('is_active', $params) ? (!empty($params['is_active']) ? 1 : 0) : 1);
+            $edit->set('priority', !empty($params['priority']) ? (int)$params['priority'] : Contact_Model::PRIORITY_MEDIUM);
             $edit->set('notes', $params['notes'] ?? null);
 
             $contact->save();
@@ -401,13 +410,19 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
      *
      * A number typed without a '+' is understood to belong to config('rsx.formatting.phone_region').
      *
-     * @param string|null $value Raw submitted value
+     * @param mixed $value Raw submitted value - a request may carry any shape, and one that
+     *                     is not a string or a number is a field error, never a TypeError
      * @param array $errors Error map, appended to by reference when the number is unusable
      * @param string $field Field name the error is reported against
      * @return string|null E.164 number, or null when the field was submitted blank
      */
-    private static function _normalize_phone(?string $value, array &$errors, string $field): ?string
+    private static function _normalize_phone(mixed $value, array &$errors, string $field): ?string
     {
+        if ($value !== null && !is_string($value) && !is_int($value)) {
+            $errors[$field] = 'Please enter a valid phone number';
+            return null;
+        }
+
         $value = trim((string)$value);
 
         if ($value === '') {

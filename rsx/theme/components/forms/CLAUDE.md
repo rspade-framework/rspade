@@ -13,7 +13,8 @@
   `Rsx_Tab` children that register with it, persists the active tab to the URL hash, and
   puts an error-count badge on a tab whose fields failed, switching to the first such tab.
 - `rsx_tab.{jqhtml,js}` — one pane inside `Rsx_Tabs`: `$id`, `$label`, `$icon`. It
-  discovers its child `Form_Field`s and reports their error count to the container.
+  counts the errors on the `Form_Field`s inside it at the moment of the failed submit,
+  matching each field by its input's `$name`, and reports that to the container.
 
 There is no SCSS in this directory — the field look rides Bootstrap's form classes.
 

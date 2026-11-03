@@ -7,8 +7,10 @@
 
 namespace Rsx\Tests;
 
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
 use Rsx\App\Frontend\Clients\Frontend_Clients_Controller;
+use Rsx\App\Frontend\Clients\List\Clients_DataGrid;
 use Rsx\Models\Client_Model;
 
 /**
@@ -291,6 +293,45 @@ class Datagrid_Mass_Actions_Test extends Rsx_Test_Abstract
         static::__assert_equals($client->name, $rows[1][1], 'the name round-trips through CSV escaping intact');
     }
 
+    public static function test_export_neutralises_formula_cells()
+    {
+        static::$marker = 'MassActionFormula' . str_replace('.', '', uniqid('', true));
+
+        $client = new Client_Model();
+        $client->name = static::$marker;
+        $client->city = '=HYPERLINK("http://example.invalid","x")';
+        $client->phone = '@SUM(1+1)';
+        $client->email = '+cmd@example.com';
+        $client->priority = Client_Model::PRIORITY_MEDIUM;
+        $client->save();
+
+        $result = Frontend_Clients_Controller::export_csv(request(), [
+            'mode' => 'additive',
+            'ids' => [(int) $client->id],
+            'filter_params' => ['filter' => static::$marker],
+        ]);
+
+        $rows = static::__parse_csv($result['csv']);
+        $cells = array_combine($rows[0], $rows[1]);
+
+        static::__assert_equals("'=HYPERLINK(\"http://example.invalid\",\"x\")", $cells['City'], 'a leading = is prefixed with a quote');
+        static::__assert_equals("'@SUM(1+1)", $cells['Phone'], 'a leading @ is prefixed');
+        static::__assert_equals("'+cmd@example.com", $cells['Email'], 'a leading + is prefixed');
+        static::__assert_equals(static::$marker, $cells['Company Name'], 'an ordinary cell is untouched');
+    }
+
+    public static function test_build_csv_neutralises_every_formula_lead_and_leaves_numbers()
+    {
+        $csv = Clients_DataGrid::build_csv(['A', 'B', 'C', 'D', 'E', 'F', 'G'], [
+            ['-2+3', "\tTAB", "\rCR", '=1', -5, 12.5, 'plain'],
+        ]);
+
+        $rows = static::__parse_csv($csv);
+
+        static::__assert_equals(["'-2+3", "'\tTAB", "'\rCR", "'=1", '-5', '12.5', 'plain'], $rows[1],
+            'string cells starting - tab CR = are prefixed; numbers and plain text are not');
+    }
+
     public static function test_export_filename_carries_todays_date()
     {
         static::__seed(1);
@@ -305,6 +346,122 @@ class Datagrid_Mass_Actions_Test extends Rsx_Test_Abstract
             'clients_export_' . \App\RSpade\Core\Time\Rsx_Date::today() . '.csv',
             $result['filename']
         );
+    }
+
+    // =====================================================================
+    // export_xlsx
+    // =====================================================================
+
+    /**
+     * Every xlsx cell is written by its type: text that begins with "=" stays text, never a
+     * live formula, and the id stays a number.
+     */
+    public static function test_xlsx_export_writes_no_formula_cells()
+    {
+        static::$marker = 'MassActionXlsx' . str_replace('.', '', uniqid('', true));
+
+        $client = new Client_Model();
+        $client->name = '=HYPERLINK("http://example.invalid","x") ' . static::$marker;
+        $client->city = '=1+1';
+        $client->phone = '+15555550100';
+        $client->priority = Client_Model::PRIORITY_MEDIUM;
+        $client->save();
+
+        $result = Frontend_Clients_Controller::export_xlsx(request(), [
+            'mode' => 'additive',
+            'ids' => [(int) $client->id],
+            'filter_params' => ['filter' => static::$marker],
+        ]);
+
+        static::__assert_equals(1, $result['count'], 'the export covers the one selected row');
+
+        $path = tempnam(sys_get_temp_dir(), 'xlsx_test_');
+        file_put_contents($path, base64_decode($result['xlsx_base64']));
+
+        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+        unlink($path);
+
+        $sheet = $spreadsheet->getActiveSheet();
+
+        static::__assert_equals(DataType::TYPE_NUMERIC, $sheet->getCell('A2')->getDataType(), 'the id is a number');
+        static::__assert_equals((int) $client->id, (int) $sheet->getCell('A2')->getValue());
+
+        static::__assert_equals(DataType::TYPE_STRING, $sheet->getCell('B2')->getDataType(), 'a name beginning = is text');
+        static::__assert_equals($client->name, $sheet->getCell('B2')->getValue(), 'the name is stored verbatim');
+        static::__assert_equals(DataType::TYPE_STRING, $sheet->getCell('C2')->getDataType(), 'a city beginning = is text');
+        static::__assert_equals('=1+1', $sheet->getCell('C2')->getValue());
+        static::__assert_equals(DataType::TYPE_STRING, $sheet->getCell('E2')->getDataType(), 'a phone is text');
+
+        foreach (range('B', 'J') as $column) {
+            static::__assert_true(
+                $sheet->getCell($column . '2')->getDataType() !== DataType::TYPE_FORMULA,
+                "column {$column} holds no formula"
+            );
+        }
+
+        $spreadsheet->disconnectWorksheets();
+    }
+
+    // =====================================================================
+    // Sorting and search (DataGrid_Abstract::fetch / Clients_DataGrid::build_query)
+    // =====================================================================
+
+    /**
+     * A sort value that is not a whitelisted STRING falls back to the default - `true` would
+     * pass a loose in_array and reach orderBy() - and a non-string order is the default
+     * order rather than a TypeError.
+     */
+    public static function test_sort_whitelist_is_strict_and_order_is_validated()
+    {
+        static::__seed(2);
+
+        $result = Clients_DataGrid::fetch(['sort' => true, 'order' => ['asc'], 'filter' => static::$marker]);
+        static::__assert_equals('id', $result['sort'], 'a boolean sort falls back to the default');
+        static::__assert_equals('desc', $result['order'], 'an array order falls back to the default');
+
+        $result = Clients_DataGrid::fetch(['sort' => 'name', 'order' => 'ASC', 'filter' => static::$marker]);
+        static::__assert_equals('name', $result['sort'], 'a whitelisted column is honoured');
+        static::__assert_equals('asc', $result['order'], 'order is case-insensitive');
+
+        $result = Clients_DataGrid::fetch(['sort' => 'deleted_at', 'filter' => static::$marker]);
+        static::__assert_equals('id', $result['sort'], 'an unlisted column falls back to the default');
+    }
+
+    /**
+     * A grid that declares no whitelist refuses a sort request loudly rather than handing
+     * the requested column to orderBy().
+     */
+    public static function test_sort_request_on_a_grid_without_a_whitelist_is_refused()
+    {
+        $grid = new class extends Clients_DataGrid {
+            protected static array $sortable_columns = [];
+        };
+
+        $result = $grid::fetch(['filter' => 'nothing-matches-' . uniqid()]);
+        static::__assert_equals('id', $result['sort'], 'no sort requested: the default applies');
+
+        static::__assert_throws(\RuntimeException::class, function () use ($grid) {
+            $grid::fetch(['sort' => 'name']);
+        }, 'declares no $sortable_columns');
+    }
+
+    /**
+     * The free-text search reaches the street address the edit form writes.
+     */
+    public static function test_search_matches_the_street_address()
+    {
+        $street = 'MassActionStreet' . str_replace('.', '', uniqid('', true));
+
+        $client = new Client_Model();
+        $client->name = 'Street Search Client';
+        $client->address_street = '12 ' . $street . ' Road';
+        $client->priority = Client_Model::PRIORITY_MEDIUM;
+        $client->save();
+
+        $result = Clients_DataGrid::fetch(['filter' => $street]);
+
+        static::__assert_equals(1, $result['total'], 'the street address is searchable');
+        static::__assert_equals((int) $client->id, (int) $result['records'][0]['id']);
     }
 
     /**

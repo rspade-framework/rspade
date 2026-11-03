@@ -71,7 +71,9 @@ of them (`Feed_Row` vs `Author_Meta_Row`, `Empty_State` vs `Empty_Value`, `Kpi_C
 - **A new look is a `$variant` arg on the component, never a page-scoped override.** A
   page that restyles a shared component from its own SCSS defeats the whole group.
 - `Entity_Link` stores a PLAIN object in `this.data`, never a hydrated model instance —
-  a model instance defeats the post-load re-render and the name never paints.
+  a model instance defeats the post-load re-render and the name never paints. A record
+  that is missing or denied (`ERROR_NOT_FOUND`) renders "Unknown"; any other fetch
+  failure propagates.
 - `Person_Avatar` takes a `file_attachment_id`, never an image URL; the thumbnail
   component fetches the picture so a re-uploaded photo replaces itself everywhere.
 - **Giving another record type attachments is three steps and no new component**: two

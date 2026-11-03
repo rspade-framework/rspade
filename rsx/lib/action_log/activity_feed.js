@@ -19,6 +19,20 @@
  */
 class Activity_Feed {
     /**
+     * May the current user see action-log rows at all?
+     *
+     * The action log is for administrators: every endpoint that returns its rows carries
+     * the Action Log screen's own gate (can_view_user_activity), so the screen's
+     * accessibility is the one question. A view page asks it before fetching its activity
+     * feed and before drawing the Activity tab and KPI.
+     *
+     * @returns {boolean}
+     */
+    static can_view() {
+        return Permission.can_access('Action_Logs_Index_Action');
+    }
+
+    /**
      * Return { icon, variant } for an action-log type_id.
      *
      * @param {number} type_id

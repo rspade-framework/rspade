@@ -8,6 +8,7 @@
 namespace Rsx\App\Frontend;
 
 use App\RSpade\Core\Bundle\Rsx_Module_Bundle_Abstract;
+use Rsx\App\Login\Login_Controller;
 
 class Frontend_Bundle extends Rsx_Module_Bundle_Abstract
 {
@@ -43,6 +44,7 @@ class Frontend_Bundle extends Rsx_Module_Bundle_Abstract
      * analytics_measurement_id is exported ONLY when this install configured one, so
      * Analytics (rsx/lib/analytics/) stays completely inert by default - see that
      * directory for the template's worked example of the external-resources pattern.
+     * two_factor_enrollment_owed likewise appears only while it is true.
      */
     public static function load_rsxapp_data(): array
     {
@@ -52,6 +54,13 @@ class Frontend_Bundle extends Rsx_Module_Bundle_Abstract
 
         if (!empty($measurement_id)) {
             $data['analytics_measurement_id'] = $measurement_id;
+        }
+
+        // Present only while the signed-in user owes a second-factor enrollment
+        // (rsx.auth.require_two_factor): Frontend_Spa_Layout then turns SPA navigation off,
+        // so every link is a page load the server holds on the enrollment screen.
+        if (Login_Controller::owes_two_factor_enrollment()) {
+            $data['two_factor_enrollment_owed'] = true;
         }
 
         return $data;

@@ -102,8 +102,10 @@ none of those needs no `.js` file at all.
 Three things must line up or the column silently will not sort:
 
 1. `<th data-sortby="name">` in `Slot:DG_Table_Header` - a **literal** attribute.
-2. `'name'` present in the PHP `$sortable_columns` whitelist. An empty whitelist disables
-   validation entirely; a sort key not in a non-empty whitelist falls back to `$default_sort`.
+2. `'name'` present in the PHP `$sortable_columns` whitelist (strict, string comparison). A
+   sort key not in the whitelist falls back to `$default_sort`, and a non-`asc`/`desc` order
+   to `$default_order`; a grid with an EMPTY whitelist throws on any request that names a
+   sort - a grid that sorts declares its whitelist.
 3. `map_sort_column()` translating the key to a real SQL column when the query joins or aliases.
 
 The JS wraps each sortable `<th>`'s contents in a link and paints a chevron
@@ -235,7 +237,9 @@ An additive selection with no ids selects NOTHING (`whereIn([])`) - deliberately
 
 **CSV export** - `DataGrid_Abstract::build_csv($headers, $rows)` returns an RFC4180 string, written
 through `League\Csv\Writer` over a `php://temp` stream - league/csv is the framework's CSV library
-and no code here escapes a field by hand (`rsx:man csv_exports`). An Ajax response cannot BE a
+and no code here escapes a field by hand (`rsx:man csv_exports`). Every string cell beginning with
+`=` `+` `-` `@`, a tab or a carriage return is prefixed with a single quote (`EscapeFormula`), so a
+spreadsheet shows a user-entered `=HYPERLINK(...)` as text instead of running it. An Ajax response cannot BE a
 download, so the endpoint returns
 `['csv' => ..., 'filename' => ..., 'count' => ...]` and the client calls
 `trigger_file_download(content, filename[, mime_type])` from `rsx/lib/file_download.js`. Menu items for gated actions

@@ -8,7 +8,7 @@ has no assets of its own), plus one loose file.
 | Module | What it is | Status |
 |---|---|---|
 | `frontend/` | The main authenticated SPA — one bootstrap controller, one persistent layout, and a feature directory per screen. Own `CLAUDE.md`. | The application. |
-| `login/` | The server-rendered auth ladder: login, signup, invite acceptance, site selection, site-unauthorized. Own `CLAUDE.md`. | Live, public by declaration. |
+| `login/` | The server-rendered auth ladder: login, invite acceptance, site selection, site-unauthorized. No self-signup: accounts come from invitations. Own `CLAUDE.md`. | Live, public by declaration. |
 | `errors/` | The staff realm's full-page error screens - 404, 403, 419 and a catch-all - declared as `#[Route('/error/...')]` and invoked by the framework, never linked to. Own `CLAUDE.md`. | Live, public by declaration. |
 | `api/` | The external bearer REST surface under `/api/vN/`. Own `CLAUDE.md`. | Live. |
 | `apidocs/` | A CONTROLLER AND NOTHING ELSE: two methods mounting the framework's API reference console and its OpenAPI document. The console, including its bundle, is framework property - `Rsx_Api_Docs::page()` renders the whole page. Gate is `public`, with `Session::has_api_access()` decided in the body. | Live. |

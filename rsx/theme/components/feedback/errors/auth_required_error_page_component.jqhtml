@@ -6,6 +6,9 @@ This is shown when accessing protected routes or endpoints without valid authent
 
 $message - Custom error message (optional, auto-generated if not provided)
 $redirect_url - URL to return to after login (optional)
+
+The link goes to the sign-in page of the experience the page belongs to: the portal's
+on a portal page, the staff one otherwise (each bundle carries only its own routes).
 --%>
 <Define:Auth_Required_Error_Page_Component class="text-center py-5">
     <div class="mb-4">
@@ -15,7 +18,8 @@ $redirect_url - URL to return to after login (optional)
     <p class="text-muted mb-4">
         <%= this.args.message || 'Please log in to continue' %>.
     </p>
-    <a href="<%= Rsx.Route('Login_Controller') %>" class="btn btn-primary">
+    <% const _login_url = Rsx_Portal.is_portal() ? Rsx_Portal.Route('Portal_Login_Controller::index') : Rsx.Route('Login_Controller'); %>
+    <a href="<%= _login_url %>" class="btn btn-primary">
         Log In
     </a>
 </Define:Auth_Required_Error_Page_Component>

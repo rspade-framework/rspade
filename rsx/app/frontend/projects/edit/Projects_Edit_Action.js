@@ -31,8 +31,9 @@ class Projects_Edit_Action extends Spa_Action {
             description: null,
             client_id: this.args.client_id || '',
             parent_project_id: '',
-            status: '1',
-            priority: '2',
+            // A new project is work in flight: the list opens on Active.
+            status: Project_Model.STATUS_ACTIVE,
+            priority: Project_Model.PRIORITY_MEDIUM,
             start_date: '',
             due_date: '',
             budget: '',
@@ -48,22 +49,6 @@ class Projects_Edit_Action extends Spa_Action {
         this.data.contact_options = [];
         this.data.user_options = [];
         this.data.show_contacts = this.data.is_edit || this.data.from_client;
-
-        // Status options
-        this.data.status_options = [
-            {value: '1', label: 'Active'},
-            {value: '2', label: 'On Hold'},
-            {value: '3', label: 'Completed'},
-            {value: '4', label: 'Cancelled'},
-        ];
-
-        // Priority options
-        this.data.priority_options = [
-            {value: '1', label: 'Low'},
-            {value: '2', label: 'Medium'},
-            {value: '3', label: 'High'},
-            {value: '4', label: 'Urgent'},
-        ];
 
         this.data.error_data = null;
         this._watched_form = null;
@@ -86,8 +71,8 @@ class Projects_Edit_Action extends Spa_Action {
                     description: project.description,
                     client_id: project.client_id || '',
                     parent_project_id: project.parent_project_id || '',
-                    status: str(project.status || '1'),
-                    priority: str(project.priority || '2'),
+                    status: project.status || Project_Model.STATUS_ACTIVE,
+                    priority: project.priority || Project_Model.PRIORITY_MEDIUM,
                     start_date: project.start_date || '',
                     due_date: project.due_date || '',
                     budget: project.budget || '',

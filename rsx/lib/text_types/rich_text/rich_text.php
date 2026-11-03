@@ -57,7 +57,8 @@ class Rich_Text extends Rsx_Text_Abstract
     }
 
     /**
-     * The record now owns each file its text embeds, and the embed references match the text.
+     * The record now owns each file its text embeds, and the embed references match the text
+     * - both limited to attachments on the record's own site.
      * Runs for every model that declares a Rich_Text column, on every save that changes it.
      *
      * @param \App\RSpade\Core\Database\Models\Rsx_Model_Abstract $model
@@ -70,21 +71,28 @@ class Rich_Text extends Rsx_Text_Abstract
         $value = $model->$column;
         $ids = $value instanceof self ? $value->file_ids() : [];
 
+        // The ids the text names that are attachments on the OWNER's site. Only these are
+        // claimed and only these are referenced: the text is user-authored and may name any
+        // id, and a reference to another site's attachment would hold that tenant's upload
+        // (and its blob) out of the disposal sweep.
+        $site_ids = [];
+
         if ($ids) {
             // The owner's site, explicitly: a save can run in a task or command with no site
             // declared, and the claim's write must be on the attachment's own site.
-            File_Attachment_Model::without_site_scope(function () use ($model, $ids) {
+            File_Attachment_Model::without_site_scope(function () use ($model, $ids, &$site_ids) {
                 $query = File_Attachment_Model::withTrashed()->whereIn('id', $ids);
                 if (isset($model->site_id)) {
                     $query->where('site_id', $model->site_id);
                 }
                 foreach ($query->get() as $attachment) {
+                    $site_ids[] = (int) $attachment->id;
                     $attachment->claim_for_embed($model);
                 }
             });
         }
 
-        File_Embed_References::sync($model, $column, $ids);
+        File_Embed_References::sync($model, $column, $site_ids);
     }
 
     /**

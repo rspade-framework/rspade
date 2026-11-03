@@ -178,15 +178,16 @@ class Portal_Request_Thread_Model extends Rsx_Site_Model_Abstract
     }
 
     /**
-     * Recipient portal user ids for client-level notifications: active members of the
-     * thread's client.
+     * Recipient portal user ids for client-level notifications: ACTIVE portal accounts
+     * holding a LIVE membership of the thread's client. A member whose access was revoked
+     * - the client's portal disabled, the client deleted - gets nothing, so every sender
+     * (staff reply, status change, document decision) stops at the revocation.
      *
      * @return int[]
      */
     public function resolve_recipient_ids(): array
     {
-        $portal_user_ids = Portal_Membership_Model::get_for_client((int) $this->client_id)
-            ->pluck('portal_user_id')->unique()->all();
+        $portal_user_ids = Portal_Membership_Model::live_portal_user_ids((int) $this->client_id);
         if (empty($portal_user_ids)) {
             return [];
         }

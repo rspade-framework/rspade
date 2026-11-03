@@ -273,6 +273,11 @@ in here. How this app uses them:
   with `is_verified = 1` (the invitation proved the mailbox) and signs them in through
   `complete_sign_in()` - with no emailed code even when `emailed_sign_in_codes` is on, since
   the invitation already proved the address.
+- **An existing account is sent to sign in, and the invitation stays PENDING.** A registration
+  link for an address that already has a portal account goes to the sign-in page with the
+  `account_exists` notice and consumes nothing (a GET, which a mail scanner's prefetch also
+  reaches); once signed in, the dashboard's Accept card (`Portal_Invitations_Controller::accept`)
+  creates the membership.
 - **A dead invitation offers no account.** Unknown, revoked, used and expired codes go to the
   sign-in page with the `invitation_expired` notice (`rsx.login_notices`, `Login_Notice`). The
   redirect survives every hop: register, account-exists, forgot password, and the second factor,
@@ -280,8 +285,9 @@ in here. How this app uses them:
 - **A share link drives the invitation.** `Portal_Share_Link_Controller` sends a follower to
   their documents, the sign-in page with a notice, or the accept-invite page, carrying the link
   back as the redirect (`rsx:man portal`, A SHARE LINK LEADS THERE).
-- **Portal access is by invitation only, extended by the site's staff** - the template's
-  recommended position. There is no portal self-signup and no public "request access" page: the
+- **Portal access is by invitation only, extended by the site's staff.** There is no portal
+  self-signup and no public "request access" page - registering from an invitation is the only
+  way a portal account comes into being: the
   login page says access is by invitation and names who to contact (`config('rsx.name')`), and
   staff invite and resend from the client screen (`Frontend_Clients_Controller`). An
   application may add a request page of its own; it then owns the questions such a page raises

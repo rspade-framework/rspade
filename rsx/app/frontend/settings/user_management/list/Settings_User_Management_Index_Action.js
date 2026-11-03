@@ -25,7 +25,10 @@ class Settings_User_Management_Index_Action extends Spa_Action {
     }
 
     /**
-     * Add user workflow: show add modal, refresh grid, show invite modal
+     * Add user workflow: show add modal, refresh grid, show the invitation it sent.
+     *
+     * add_user mints the invitation and emails it; its link is shown as it is. Calling
+     * send_invite here would mint a second code, ending the link in the first email.
      */
     async handle_add_user() {
         let that = this;
@@ -37,8 +40,8 @@ class Settings_User_Management_Index_Action extends Spa_Action {
             // Refresh the user list
             that.sid('users_datagrid').reload();
 
-            // Show send invite modal
-            await Send_User_Invite_Modal.show(user.id);
+            // Show the invitation add_user sent
+            await Send_User_Invite_Modal.show_sent(user.invite_url);
         }
     }
 

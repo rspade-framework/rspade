@@ -6,20 +6,15 @@ class Select_Ajax_Input extends Select_Input {
         this.data.select_values = [];
     }
 
+    /**
+     * Load the option list from $source, a controller Ajax endpoint
+     * (Controller.method), through the house Ajax transport. A failure is not
+     * caught: it reaches the framework's error handling like any other Ajax call.
+     * Subclasses that know their own endpoint override on_load() instead.
+     */
     async on_load() {
-        // Load options from Ajax endpoint if provided
-        if (this.args.data) {
-            try {
-                const response = await fetch(this.args.data);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
-                this.data.select_values = data;
-            } catch (error) {
-                console.error('Failed to load select options:', error);
-                this.data.select_values = [];
-            }
+        if (this.args.source) {
+            this.data.select_values = await Ajax.call(this.args.source, {});
         }
     }
 

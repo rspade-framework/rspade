@@ -80,7 +80,7 @@ class Endpoint_Data_Gates_Test extends Rsx_Test_Abstract
     ];
 
     /**
-     * The public sign-in and sign-up ladder: authorized by the credential or invitation
+     * The public sign-in ladder: authorized by the credential or invitation
      * code it is handed, before any identity exists.
      */
     private const PUBLIC_LADDER = [
@@ -88,8 +88,6 @@ class Endpoint_Data_Gates_Test extends Rsx_Test_Abstract
         'Accept_Invite_Controller::create_account_submit' => 'authorized by the invitation code',
         'Login_Controller::passkey_login' => 'authorized by the passkey',
         'Login_Controller::verify_2fa' => 'authorized by the parked second-factor challenge',
-        'Signup_Controller::submit' => 'public registration, off unless rsx.auth.self_signup',
-        'Login_Controller::send_code' => 'authorized by the parked address-verification challenge',
     ];
 
     /**

@@ -9,7 +9,8 @@ $icon - override the type icon class [optional]
 $placeholder - text shown while the name loads (default "------") [optional]
 
 Fetches the record via fetch_cached (non-critical display data) and shows its
-name behind a type icon. Generalizes the former Client_Label / Client_Label_Link
+name behind a type icon; a record that is missing or not visible to the viewer
+shows "Unknown". Generalizes the former Client_Label / Client_Label_Link
 into one component usable for any model with a view route.
 
 Usage:

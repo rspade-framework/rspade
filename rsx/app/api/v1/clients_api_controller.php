@@ -7,6 +7,7 @@ use App\RSpade\Core\Api\Rsx_Api;
 use App\RSpade\Core\Api\Rsx_Api_Controller_Abstract;
 use App\RSpade\Core\Files\File_Attachment_Model;
 use App\RSpade\Core\Time\Rsx_Time;
+use Rsx\Lib\FieldChecks\Field_Checks;
 use Rsx\Models\Client_Model;
 
 /**
@@ -124,9 +125,13 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
     /**
      * Create a client.
      *
-     * Requires name (mirrors the staff save form). A supplied email must be valid and
-     * a supplied website must be a valid URL (stored in short form). site_id is stamped
-     * automatically from the authenticated key.
+     * Requires a non-blank name (mirrors the staff save form). A supplied email must be
+     * valid and a supplied website must be an http(s) URL (stored in short form). Every
+     * string must fit its column, status_id must be a declared status,
+     * preferred_contact_method one of email / phone / text / any, established_year a year
+     * from 1800 to this one, and facebook_url / linkedin_url absolute http(s) addresses -
+     * otherwise a 422 names the field. site_id is stamped automatically from the
+     * authenticated key.
      *
      * @api-response
      * {
@@ -170,6 +175,11 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
     {
         $errors = [];
 
+        // `required` only means the key is present; a blank name is refused like the staff form.
+        if (trim($params['name']) === '') {
+            $errors['name'] = 'Company name is required';
+        }
+
         if (isset($params['email']) && $params['email'] !== '' && !filter_var($params['email'], FILTER_VALIDATE_EMAIL)) {
             $errors['email'] = 'Please enter a valid email address';
         }
@@ -177,12 +187,14 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
         // Website is stored in short-url form (protocol stripped), validated like the staff form.
         $website = null;
         if (isset($params['website']) && $params['website'] !== '') {
-            $website = full_url_to_short_url($params['website']);
-            if (!validate_short_url($website)) {
+            $website = Field_Checks::website_short_url($params['website']);
+            if ($website === null) {
                 $errors['website'] = 'Please enter a valid website URL';
             }
         }
 
+        // Lengths, status, contact method, year and social URLs - the staff form's rules.
+        $errors += Client_Model::value_errors(array_merge($params, ['website' => $website]));
         $errors += Client_Model::address_code_errors($params['address_country'], $params['state'] ?? null);
 
         if (!empty($errors)) {
@@ -226,7 +238,8 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
      *
      * Applies only the fields present in the request; omitted fields are left
      * unchanged. A present name must be non-empty, a present email must be valid, and
-     * a present website must be a valid URL (stored in short form).
+     * a present website must be an http(s) URL (stored in short form). The value rules of
+     * create apply to every field sent; a value that breaks one is a 422 naming the field.
      *
      * @api-response
      * {
@@ -283,11 +296,19 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
         $website_present = array_key_exists('website', $params);
         $website_value = null;
         if ($website_present && $params['website'] !== '') {
-            $website_value = full_url_to_short_url($params['website']);
-            if (!validate_short_url($website_value)) {
+            $website_value = Field_Checks::website_short_url($params['website']);
+            if ($website_value === null) {
                 $errors['website'] = 'Please enter a valid website URL';
             }
         }
+
+        // Lengths, status, contact method, year and social URLs, on the fields sent.
+        $checked = $params;
+        unset($checked['id']);
+        if ($website_present) {
+            $checked['website'] = $website_value;
+        }
+        $errors += Client_Model::value_errors($checked);
 
         // Either address code sent is checked against the pair it will form with the stored one.
         if (array_key_exists('address_country', $params) || array_key_exists('state', $params)) {

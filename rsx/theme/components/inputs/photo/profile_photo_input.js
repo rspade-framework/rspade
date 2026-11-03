@@ -101,12 +101,12 @@ class Profile_Photo_Input extends Form_Input_Abstract {
         return limits.length ? Math.min(...limits) : 0;
     }
 
-    upload_photo(file) {
+    async upload_photo(file) {
         // Validate file size against the EFFECTIVE ceiling (see _max_bytes).
         const max_bytes = this._max_bytes();
         if (max_bytes > 0 && file.size > max_bytes) {
-            alert(`File size must be less than ${Ajax.bytes_to_size_label(max_bytes)}`);
             this.$sid('file_input').val(''); // Clear selection
+            Modal.error(`File size must be less than ${Ajax.bytes_to_size_label(max_bytes)}`, 'Upload failed');
             return;
         }
 
@@ -118,46 +118,35 @@ class Profile_Photo_Input extends Form_Input_Abstract {
         const form_data = new FormData();
         form_data.append('file', file);
 
-        // Upload file via AJAX
-        $.ajax({
-            // Rebased onto this page's channel (staff or portal) - see
-            // Rsx_Portal.internal_url(). The $.ajax chokepoint attaches the CSRF header.
-            url: Rsx_Portal.internal_url('/_upload'),
-            type: 'POST',
-            data: form_data,
-            processData: false,
-            contentType: false,
-            success: (response) => {
-                // Update attachment key (this will also update thumbnail). _set_value(), not
-                // val(): this is the user's change, and val() is a programmatic write that
-                // would make it the new unchanged state.
-                this._set_value(response.attachment.key);
+        // Ajax.upload() is the one browser upload transport: the ceiling check, the
+        // staff/portal channel and the CSRF header are all its job. A refusal (gate,
+        // size, transport) arrives as an Error and is shown to the user - an upload
+        // failure is an expected outcome here, not a defect.
+        let result = null;
+        let failure = null;
+        try {
+            result = await this.alive(Ajax.upload(form_data));
+        } catch (e) {
+            failure = e;
+        }
 
-                // Hide spinner, restore opacity
-                this.$sid('spinner').addClass('d-none');
-                this.$sid('photo').css('opacity', '1');
+        // Hide spinner, restore opacity, clear the file input for future uploads
+        this.$sid('spinner').addClass('d-none');
+        this.$sid('photo').css('opacity', '1');
+        this.$sid('file_input').val('');
 
-                // Clear file input for future uploads
-                this.$sid('file_input').val('');
+        if (failure) {
+            Modal.error(failure.message || 'The photo could not be uploaded.', 'Upload failed');
+            return;
+        }
 
-                // Announce the user's change ('input' then 'val').
-                this._notify_input(this._get_value());
-            },
-            error: (xhr, status, error) => {
-                console.error('Profile photo upload failed:', error);
-                console.error('Response:', xhr.responseJSON);
+        // Update attachment key (this will also update thumbnail). _set_value(), not
+        // val(): this is the user's change, and val() is a programmatic write that
+        // would make it the new unchanged state.
+        this._set_value(result.attachment.key);
 
-                // Hide spinner, restore opacity
-                this.$sid('spinner').addClass('d-none');
-                this.$sid('photo').css('opacity', '1');
-
-                // Clear file input
-                this.$sid('file_input').val('');
-
-                // Show error to user
-                alert('Upload failed: ' + (xhr.responseJSON?.error || error));
-            },
-        });
+        // Announce the user's change ('input' then 'val').
+        this._notify_input(this._get_value());
     }
 
     remove_photo() {

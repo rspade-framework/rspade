@@ -102,7 +102,7 @@
                         <div class="row">
                             <div class="col-tablet-6">
                                 <Form_Field $label="Established Year">
-                                    <Text_Input $name="established_year" $type="number" $min=1800 $max=2025 $placeholder="2020" $max_length=-1 $disabled=true />
+                                    <Text_Input $name="established_year" $type="number" $min=Client_Model.ESTABLISHED_YEAR_MIN $max="<%= Rsx_Date.year(Rsx_Date.today()) %>" $placeholder="2020" $max_length=-1 $disabled=true />
                                 </Form_Field>
                             </div>
                             <div class="col-tablet-6">

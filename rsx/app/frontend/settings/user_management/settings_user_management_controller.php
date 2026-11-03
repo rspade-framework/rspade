@@ -19,6 +19,7 @@ use App\RSpade\Core\TwoFactor\Rsx_Two_Factor;
 use App\RSpade\Lib\Flash\Flash_Alert;
 use Rsx\App\Frontend\Settings\UserManagement\List\Users_DataGrid;
 use Rsx\Emails\User_Invitation_Email;
+use Rsx\Lib\FieldChecks\Field_Checks;
 use Rsx\Lib\Sessions\Session_Listing;
 
 /**
@@ -84,6 +85,8 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             $errors['last_name'] = 'Last name is required';
         }
 
+        $errors += static::__length_errors($params);
+
         // Validate role: a real, selectable role the signed-in user may administer.
         $role_id = static::_validate_role_id($params['role_id'] ?? null, null, $errors);
 
@@ -137,6 +140,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             'email' => $user->email,
             'first_name' => $user->first_name,
             'last_name' => $user->last_name,
+            'invite_url' => $invite_url,
         ];
     }
 
@@ -291,6 +295,8 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             'phone' => $user->phone,
             'role_id' => $user->role_id,
             'is_api_access_enabled' => (bool) $user->is_api_access_enabled,
+            // The form offers no lower role on the caller's own record; save_user refuses one.
+            'is_self' => (int) $user->id === (int) Session::get_user_id(),
         ];
     }
 
@@ -334,6 +340,8 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             $errors['last_name'] = 'Last name is required';
         }
 
+        $errors += static::__length_errors($params);
+
         $site_id = Session::get_site_id();
 
         // The target's CURRENT role first: a caller who may not administer it changes
@@ -348,6 +356,15 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         // Then the NEW role: a real role the signed-in user may administer, selectable
         // unless it is the role the user already holds.
         $role_id = static::_validate_role_id($params['role_id'] ?? null, (int) $user->role_id, $errors);
+
+        // Nobody lowers their own role. Peers at the same level may still administer each
+        // other; what is refused is a user demoting themselves out of the access that lets
+        // them undo it. Higher role ids are lower privilege.
+        if ($role_id !== null
+            && (int) $user->id === (int) Session::get_user_id()
+            && $role_id > (int) $user->role_id) {
+            $errors['role_id'] = 'You cannot lower your own role';
+        }
 
         // Return validation errors if any
         if (!empty($errors)) {
@@ -393,8 +410,9 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
     /**
      * Ajax endpoint: Send/resend user invitation
      *
-     * Generates new invite code and expiration for pending/expired invitations.
-     * Used for both initial invites (after user creation) and resending.
+     * Generates new invite code and expiration for pending/expired invitations - the
+     * Resend Invite action. Creating a user (add_user) already sends the first invitation
+     * and returns its link, so this is never called straight after a create.
      *
      * A write like every other here: only for a user whose role the caller administers
      * (__administrable_user()). Re-sending mints a new code, which ends the link the invitee
@@ -809,5 +827,23 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         }
 
         return $role_id;
+    }
+
+    /**
+     * Length errors for the user fields both add_user and save_user write: each must fit
+     * its users column (User_Model::field_length()), or the save is a field error rather
+     * than a database exception.
+     *
+     * @param array $params
+     * @return array<string, string>
+     */
+    private static function __length_errors(array $params): array
+    {
+        return Field_Checks::length_errors(User_Model::class, $params, [
+            'email' => 'Email address',
+            'first_name' => 'First name',
+            'last_name' => 'Last name',
+            'phone' => 'Phone',
+        ]);
     }
 }

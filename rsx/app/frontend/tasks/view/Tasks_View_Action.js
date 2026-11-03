@@ -45,7 +45,7 @@ class Tasks_View_Action extends Spa_Action {
             const [task, subtasks_result, activity_result, attachments_result] = await Promise.all([
                 Task_Model.fetch(this.args.id),
                 Frontend_Tasks_Controller.task_subtasks({ id: this.args.id }).catch(() => ({ subtasks: [] })),
-                Frontend_Tasks_Controller.task_activity({ id: this.args.id }).catch(() => ({ activity: [] })),
+                Activity_Feed.can_view() ? Frontend_Tasks_Controller.task_activity({ id: this.args.id }).catch(() => ({ activity: [] })) : {activity: []},
                 Frontend_Tasks_Controller.task_attachments({ id: this.args.id }).catch(() => ({ attachments: [] })),
             ]);
             this.data.task = task;

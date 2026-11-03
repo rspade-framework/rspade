@@ -44,8 +44,9 @@ new feature, and copy its structure rather than inventing one.
   Mandatory. The manifest build FAILS without it. There is no attribute-free
   "open".
 - **Every data endpoint names this application's data checks**: reads `can_view_data`
-  (class level), writes `can_edit_data` (method level), the activity log
-  `can_view_user_activity`, settings `can_manage_site_settings`,
+  (class level), writes `can_edit_data` (method level), the action log
+  (the Action Log screens, the dashboard feed and every per-record `*_activity` endpoint)
+  `can_view_user_activity`, record revision history `can_view_data`, settings `can_manage_site_settings`,
   user management `can_manage_users`; only the caller's own records
   (notifications, profile, password, preferences, API keys) stay on `is_logged_in`.
   `rsx/tests/Endpoint_Data_Gates_Test.php` fails on a write-shaped endpoint without

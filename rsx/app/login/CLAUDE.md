@@ -5,13 +5,18 @@
 Blade pages, not SPA actions: this is what an unauthenticated visitor sees. Every
 controller is class-level `#[Auth('public')]` with a written justification in its docblock.
 
+**There is no self-signup.** A staff account comes into being in exactly two ways: accepting
+an administrator's invitation (`/accept-invite`, below), and the framework's initial user on an
+empty database (`Rsx_Initial_User::create()` - the first-run screen, the `RSPADE_DEFAULT_*`
+post-migrate step, the test seed). Nothing on these pages lets a visitor create an account of
+their own, and a federated sign-in never creates one either.
+
 | Rung | Class / file | Route | What it does |
 |---|---|---|---|
-| Login | `Login_Controller` (`login_controller.php`) | `/login` GET+POST | Turnstile, then `RsxAuth::verify_credentials($credentials, record: false)` - the password is checked and NOBODY is signed in. A failure records `STATUS_FAILED_PASSWORD` itself. On success `__account_refusal()` is asked (the application's own account rules; it admits everybody as shipped), then a second factor issues the challenge, an address never verified owes the emailed verification (when mail can reach it), otherwise `complete_sign_in(sign_in: true)`. `complete_sign_in()` (which calls `RsxAuth::login()`) and a passed challenge are the only things that sign anybody in. |
-| Challenge | `Login_Controller::verify` + `verify_2fa` + `send_code` | `/login/verify` GET + two `#[Ajax_Endpoint]`s | The screen hosting `<Two_Factor_Challenge>` - a second factor, or an ADDRESS VERIFICATION (a self-signup, or an unverified address signing in; `ADDRESS_VERIFICATION_KEY` marks it) - with `$cancel_url` = `/login`, and the endpoint it posts to. For an address verification the screen also names `send_code`, which issues the code and emails it WITH its sign-in link (`Signup_Verification_Email`); the link brings this browser back here and the widget submits it. A signed-in visitor is sent to the dashboard (the challenge was answered in another tab); nothing pending redirects back to `/login`. `login_verify.js` hides the recovery-code hint when the widget fires `completed`. |
+| Login | `Login_Controller` (`login_controller.php`) | `/login` GET+POST | Turnstile, then `RsxAuth::verify_credentials($credentials, record: false)` - the password is checked and NOBODY is signed in. A failure records `STATUS_FAILED_PASSWORD` itself. On success `__account_refusal()` is asked (the application's own account rules; it admits everybody as shipped), then a second factor issues the challenge, otherwise `complete_sign_in(sign_in: true)`. `complete_sign_in()` (which calls `RsxAuth::login()`) and a passed challenge are the only things that sign anybody in. |
+| Challenge | `Login_Controller::verify` + `verify_2fa` | `/login/verify` GET + an `#[Ajax_Endpoint]` | The screen hosting `<Two_Factor_Challenge>` for a second factor (an authenticator code, a passkey or a recovery code - this application emails no staff codes), with `$cancel_url` = `/login`, and the endpoint it posts to. A signed-in visitor is sent to the dashboard (the challenge was answered in another tab); nothing pending redirects back to `/login`. `login_verify.js` hides the recovery-code hint when the widget fires `completed`. |
 | Passkey sign-in | `Login_Controller::passkey_login` | an `#[Ajax_Endpoint]` | The endpoint `<Passkey_Sign_In>` on the login page posts to: `Rsx_Two_Factor::verify_passkey_login()`, then `complete_sign_in(sign_in: false)`. Passwordless - no password stage, no second factor after it. |
 | Logout | `Login_Controller::logout` | `/logout` | `RsxAuth::logout()` then `Login_Redirect::consume($default)`. |
-| Signup | `Signup_Controller` (`signup/`) | `/signup` GET + an `#[Ajax_Endpoint]` `submit` | **OFF as shipped** (`config('rsx.auth.self_signup')`, a hardcoded boolean): page and `submit` answer 404 and the login page shows no Sign up link. On, both THROW while `Rsx_Mail::delivers()` is false (naming the delivery mode). `submit` (Turnstile first) creates, in one transaction, the `Login_User_Model` (`is_verified = 0`), a NEW `Site_Model` (its slug read from the workspace name by `Signup_Controller::site_slug_for()`: a DNS label, made unique with a numeric suffix, never moved by a rename - so a `:slug` portal address is readable) and the owner membership at `ROLE_ROOT_ADMIN` (the initial user's role), then `begin_challenge($identity, [ANSWER_ISSUED_CODE])` and the verify screen - nobody is signed in until the emailed code or link is answered. An address that already has an account gets the same answer and nothing is written or sent. |
 | Accept invite | `Accept_Invite_Controller` (`accept_invite/`) | `/accept-invite`, `/accept-invite/create-account`, `/accept-invite/success` | Six states (invalid, expired, email mismatch, already accepted, not logged in, logged in) plus the create-account form for an invitee with no login account. `create_account_submit` validates Turnstile first, refuses any address but the invited one, creates the account with the invitation's address and `is_verified = 1` (the invitation proved the mailbox), and signs it in through `Login_Controller::complete_sign_in(sign_in: true)`; when that refuses (the invited membership or its site disabled since) the account still exists and the visitor is sent to `/login` with a flash. `accept` (a signed-in user) marks that identity verified too. |
 | Site selection | `Site_Selection_Controller` | `/login/select-site`, `/login/site/:id` | The picker: one button per site from `usable_sites()` (the identity's `->active()` memberships across every site, by name), rendered by the `Login_Site_Picker` partial (`login_site_picker.blade.php`). Not signed in -> `/login`; no usable site -> logout; exactly one -> selected. `select` accepts only an active membership (`->active()`, unscoped by the session's current site; error card otherwise), sets the site and lands on the dashboard. |
 | Site unauthorized | `Site_Unauthorized_Controller` | `/login/site-unauthorized` | The signed-in identity's session names a site it is not a member of; offers the sites it does have (`usable_sites()` through the same `Login_Site_Picker` partial). Nothing in this mono-site template routes to it - the framework ends such a session itself (see SITE MEMBERSHIP below), so it is kept as the pattern for an app that declares the requested site from the host. |
@@ -41,7 +46,7 @@ definition and every controller's Ajax stubs. It lists:
   component library). That is what makes the auth ladder look like the staff application
   rather than like a separate product;
 - `Form_Field` with its parent `Form_Field_Abstract`, `Text_Input` and `Hidden_Input`
-  (signup, create-account) - the `.jqhtml` and `.js` of each;
+  (create-account) - the `.jqhtml` and `.js` of each;
 - the modal library (`rsx/lib/modal/modal.js`, `rsx_modal.{jqhtml,js,scss}`) - invite
   acceptance reports a failure with `Modal.alert()`, and the framework shows an unhandled
   Ajax error through it. `Modal.select()` does not work here: `Select_Input` is not in the
@@ -76,12 +81,11 @@ this directory.
 **Turnstile.** On every page that has it the widget sits BELOW the card, centred, in the
 layout's `below_card` section (`$auth-below-card-gap`, 22px), tied back to its form by id:
 `<Turnstile_Input $form="login-form" />` for the native login form, and
-`$form="signup-form"` / `$form="create-account-form"` for the `<Rsx_Form id="...">` on
-`signup/signup_index.blade.php` and `accept_invite/create_account.blade.php`, whose `vals()`
-collects a hidden field associated by id; the endpoint
-answers it as the FIRST statement of the POST branch — `Rsx_Turnstile::validate($request)` in
-`Login_Controller::index()`, and the two-arg `validate($request, $params)` in
-`Signup_Controller::submit()` and `Accept_Invite_Controller::create_account_submit()` because a
+`$form="create-account-form"` for the `<Rsx_Form id="...">` on
+`accept_invite/create_account.blade.php`, whose `vals()` collects a hidden field associated by
+id; the endpoint answers it as the FIRST statement of the POST branch —
+`Rsx_Turnstile::validate($request)` in `Login_Controller::index()`, and the two-arg
+`validate($request, $params)` in `Accept_Invite_Controller::create_account_submit()` because a
 batched sub-call carries the field in `$params`. The field always submits (sentinel `inactive` while the
 feature is off), so validating it is not optional.
 
@@ -97,10 +101,9 @@ Ajax call. So no controller here restates either column: the site lists
 filter with `->active()`, `select` answering the error card for an unusable site,
 `complete_sign_in()` has no zero-sites branch (a successful sign-in guarantees at least
 one active membership), and `rsx/main.php` checks no membership. Identity state - `status_id`, `is_activated`, `is_verified` - is this application's
-vocabulary. This template reads one of them: an identity with `is_verified = 0` owes the
-emailed address verification on a password sign-in (below). `status_id` and `is_activated`
-are enforced nowhere: neither `Login_Controller::index()` nor `Rsx\Main::pre_dispatch()`
-reads them. An application that wants Suspended to refuse sign-in checks it in both places.
+vocabulary, and this template enforces none of it: neither `Login_Controller::index()` nor
+`Rsx\Main::pre_dispatch()` reads them. `is_verified` is set when an invitation is accepted
+(the invitation reached the address) and is shown on the profile screen. An application that wants Suspended to refuse sign-in checks it in both places.
 See `rsx:man session`.
 
 **The throttle, and a password that must be reset.** `login_controller.php` catches
@@ -153,35 +156,30 @@ belongs to "being signed in" goes there, once. It is public for its two outside 
 `Accept_Invite_Controller` and `Sso_Handlers`. Outside it, nothing in this application calls
 `RsxAuth::login()`.
 
-**Address verification.** A self-signup and the password sign-in of an identity whose
-`is_verified` is 0 both end on the verify screen with `begin_challenge($identity,
-[ANSWER_ISSUED_CODE])` and `ADDRESS_VERIFICATION_KEY` parked beside it (after the challenge,
-whose sign-out clears staff session values). The widget calls `send_code`, which mints the
-code, then its link (`Rsx_Two_Factor::issued_link(Rsx::Route('Login_Controller::verify'))`),
-and sends `Signup_Verification_Email` (capped at `MAX_CODES_PER_CHALLENGE`). Typing the code or
-opening the link in this browser answers the challenge; the FRAMEWORK sets `is_verified = 1`
-and signs the identity in. The sign-in case is asked only when `Rsx_Mail::deliverable_to()`
-says the email can arrive - otherwise the password signs in as before, so broken mail never
-locks an account out. `send_code` throws for any other staff challenge: this application
-emails no second-factor codes.
-
 **Federated sign-in signs in existing accounts only.** `Sso_Handlers` answers the
 framework's `sso.identity.unlinked` hook: a VERIFIED provider email matching a `login_users`
 row is signed straight in (finishing through `Login_Controller::complete_sign_in()`), and
-everything else declines. Accounts are created in advance - an administrator's invitation,
-accepted on `/accept-invite` with a password - so the accept-invite flow never sees a
-provider identity.
+everything else declines - an unknown address is never given an account. Accounts are
+created in advance - an administrator's invitation, accepted on `/accept-invite` with a
+password - so the accept-invite flow never sees a provider identity.
 
 **Forced enrollment is written and switched OFF** (`rsx.auth.require_two_factor`, false as
 shipped). Off, nobody is required to enroll: a user adds a factor from Settings > Password &
 Security, and the login flow challenges whoever has one. On, `complete_sign_in()` parks
 `ENROLL_TWO_FACTOR_KEY` for an identity holding no factor (the sign-in itself still succeeds),
-and `Rsx\Main::pre_dispatch()` asks `Login_Controller::outstanding_enrollment_redirect()`,
-which redirects every PAGE request to `Settings_Password_Security_Action` with a warning flash
-- leaving that screen, `/logout` and every Ajax call alone - and forgets the step on the first
-page request after `Rsx_Two_Factor::is_enabled()` answers true. Navigation inside the SPA does
-not reach the server, so a user can move between SPA screens until their next full page load;
-the hold is on page loads, not a gate.
+and `Rsx\Main::pre_dispatch()` holds the user on `Settings_Password_Security_Action`:
+`Login_Controller::outstanding_enrollment_redirect()` redirects every PAGE request there with a
+warning flash (that screen and `/logout` excepted), and
+`Login_Controller::outstanding_enrollment_refusal()` refuses every Ajax call outside
+`ENROLLMENT_AJAX_ALLOWED` - the Password & Security screen's own endpoints, the framework's
+second-factor, SSO and password-confirmation endpoints, the layout's unread count, realtime
+tokens and the SPA session check - as `unauthorized`, coded with
+`two_factor_enrollment_required` and the screen's URL as `redirect`. In the browser,
+`Frontend_Bundle::load_rsxapp_data()` publishes `page_data.two_factor_enrollment_owed` and
+`Frontend_Spa_Layout` turns SPA navigation off, so every link is a page load the redirect
+answers. The step is forgotten on the first request after `Rsx_Two_Factor::is_enabled()`
+answers true (`owes_two_factor_enrollment()`). It is parked at sign-in, so turning the setting
+on reaches each user at their next sign-in.
 
 **`Login_Redirect`.** One call site: `Login_Controller::logout()`, `consume($default)` on
 logout. Login itself does not round-trip the parameter — see HOW TO CUSTOMIZE.
@@ -210,11 +208,10 @@ Blade page's JS in this module needs that guard.
   of the app. `login_layout.blade.php` is the card shell every blade extends and
   `login_layout.scss` its geometry (card width, padding, centring); a brand background on
   the sign-in page goes on `.Login_Layout__viewport`, in tokens. `login_index.scss` holds
-  only the SSO "or" divider; `signup/signup_index.scss` is an empty placeholder.
+  only the SSO "or" divider.
 - **The site a staff request serves** is the one its sign-in bound (`complete_sign_in()` or
   the site picker): `Rsx\Main::init()` declares site 1 only for a command, task or test, so a
-  self-signup's new site and a multi-site member's chosen site are what every later request
-  reads. A visitor who has not signed in has no site.
+  multi-site member's chosen site is what every later request reads. A visitor who has not signed in has no site.
 - **Add a rung**: a controller with `#[Auth('public')]` and a justification, a blade
   extending `Login_Layout`, and Turnstile validated first in any POST branch.
 - **Use a component, model or script on one of these pages that the bundle does not
@@ -228,12 +225,11 @@ Blade page's JS in this module needs that guard.
   `rspade:bundles`.
 - **Change where a signed-in user lands, or what a sign-in owes**: `complete_sign_in()` in
   `login_controller.php`, and nowhere else - every entrance finishes there.
-- **Turn self-signup on**: `rsx.auth.self_signup => true` in `rsx/resource/config/rsx.php`,
-  with `rsx.mail.delivery` live (the signup page throws until it is). Nothing else to wire.
 - **Require a second factor**: `rsx.auth.require_two_factor => true`. Another step a
   signed-in user must do first (accept terms, a profile picture) takes the same shape: park it
-  in `complete_sign_in()` with `Session::put_value()` and redirect page requests from
-  `Main::pre_dispatch()` while it is set; a step skipped for good is
+  in `complete_sign_in()` with `Session::put_value()`, and from `Main::pre_dispatch()`
+  redirect page requests and refuse Ajax calls outside the step screen's allow-list while it
+  is set; a step skipped for good is
   `$login_user->set_variable()`. `rsx:man two_factor` (REQUIRING A SECOND FACTOR),
   `rsx:man user_preference_variables`.
 - **Change the SSO account policy**: `rsx/handlers/Sso_Handlers.php`, one method. Removing

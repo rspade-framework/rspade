@@ -71,7 +71,7 @@ class Clients_View_Action extends Spa_Action {
                 client_promise,
                 Frontend_Clients_Controller.client_contacts({id: this.args.id}).catch(() => ({contacts: []})),
                 Frontend_Clients_Controller.client_projects({id: this.args.id}).catch(() => ({projects: []})),
-                Frontend_Clients_Controller.client_activity({id: this.args.id}).catch(() => ({activity: []})),
+                Activity_Feed.can_view() ? Frontend_Clients_Controller.client_activity({id: this.args.id}).catch(() => ({activity: []})) : {activity: []},
             ]);
             this.data.client = client;
             this.data.contacts = contacts_result.contacts;

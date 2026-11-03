@@ -46,7 +46,7 @@ announcements, notifications, an action log, and a client portal.
 | Module | What it is |
 |---|---|
 | `frontend/` | The main authenticated SPA. `Frontend_Spa_Controller` + `Frontend_Spa_Layout` (persistent chrome, primary nav), then one directory per feature: `dashboard`, `clients`, `contacts`, `projects`, `tasks`, `party`, `action_logs`, `notifications`, `reports`, `settings`, `system`. |
-| `login/` | Server-rendered auth flows: login, signup, invite acceptance, site selection, site-unauthorized. |
+| `login/` | Server-rendered auth flows: login, invite acceptance, site selection, site-unauthorized. |
 | `errors/` | The full-page error screens, declared as `#[Route('/error/404')]` and friends and invoked by the framework when a request ends on that status. |
 | `api/` | External bearer REST surface, `v1/` (contacts, clients). Every path starts `/api/vN/`. |
 | `apidocs/` | The live API documentation and tester SPA. |
@@ -98,8 +98,8 @@ rarely, and load-bearing every time.
 **`main.php`** (`Main extends Main_Abstract`) - the STAFF request lifecycle. `init()`
 runs once per process, before anything asks a question of the session. This application
 declares site 1 there for a command, task or test only (`Session::set_site_id(1)`); a web
-request serves the site its sign-in bound, so a self-signup's new site and a multi-site
-member's chosen site hold (a declaration here would outrank them). An app that resolves the
+request serves the site its sign-in bound, so a multi-site member's chosen site holds (a
+declaration here would outrank it). An app that resolves the
 site from the host does it here.
 `pre_dispatch()` runs before every staff route and is where cross-cutting request work
 lives (this app refuses a
@@ -113,13 +113,13 @@ second factor, accept terms) is that kind of redirect: `Login_Controller::comple
 parks what is outstanding with `Session::put_value()` and `pre_dispatch()` sends page requests
 to its screen - the shipped example is the second-factor enrollment below.
 
-**Sign-in posture (all OFF as shipped).** `rsx.auth.self_signup` (anyone may create a new site
-of their own, after confirming their email by an emailed code or link - needs live mail) and
-`rsx.auth.require_two_factor` (staff must enroll a second factor) in
-`rsx/resource/config/rsx.php`, and `rsx.portal.emailed_sign_in_codes` (portal sign-ins owe an
-emailed code or link). Each is a hardcoded boolean honoured by the template's own login and
-signup controllers, which carry the whole feature: flipping one is the only step. Accepting an
-invitation verifies the address. Every staff sign-in finishes in
+**Sign-in posture.** There is no self-signup, staff or portal: an account comes from accepting
+an invitation (which verifies the address), and the first account on an empty database is the
+framework's initial user. Two features are coded in and OFF as shipped, each a hardcoded
+boolean honoured by the template's own login controllers: `rsx.auth.require_two_factor` (staff
+must enroll a second factor) in `rsx/resource/config/rsx.php`, and
+`rsx.portal.emailed_sign_in_codes` (portal sign-ins owe an emailed code or link); flipping one
+is the only step. Every staff sign-in finishes in
 `Login_Controller::complete_sign_in()`, every portal one in
 `Portal_Login_Controller::complete_sign_in()`.
 

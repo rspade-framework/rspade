@@ -1,6 +1,6 @@
 <Define:Search_Bar class="input-group">
   <span class="input-group-text">
-    <Icon $name="search" />
+    <i class="bi bi-search"></i>
   </span>
   <input type="search"
          class="form-control"

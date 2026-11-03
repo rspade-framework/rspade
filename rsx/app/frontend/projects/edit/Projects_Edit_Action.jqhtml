@@ -50,6 +50,19 @@
 
                         <div class="row">
                             <div class="col-tablet-6">
+                                <Form_Field $label="Status">
+                                    <Select_Input $name="status" $options="<%= JSON.stringify(Project_Model.status__enum_select()) %>" />
+                                </Form_Field>
+                            </div>
+                            <div class="col-tablet-6">
+                                <Form_Field $label="Priority">
+                                    <Select_Input $name="priority" $options="<%= JSON.stringify(Project_Model.priority__enum_select()) %>" />
+                                </Form_Field>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-tablet-6">
                                 <% if (this.data.is_edit || this.data.from_client) { %>
                                     <%-- Client is locked (editing or adding from client view) --%>
                                     <Hidden_Input $name="client_id" />

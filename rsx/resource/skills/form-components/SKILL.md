@@ -79,10 +79,10 @@ message is never hidden behind an inactive tab.
 <Rsx_Form $controller="Frontend_Clients_Controller" $method="save" $data=this.data.form_data>
     <Form_Errors />
     <Rsx_Tabs>
-        <Rsx_Tab $sid="basic" $label="Basic Information" $icon="bi-building">
+        <Rsx_Tab $id="basic" $label="Basic Information" $icon="bi-building">
             <Form_Field $label="Name"><Text_Input $name="name" $max_length=255 /></Form_Field>
         </Rsx_Tab>
-        <Rsx_Tab $sid="address" $label="Address" $icon="bi-geo-alt">
+        <Rsx_Tab $id="address" $label="Address" $icon="bi-geo-alt">
             <Form_Field $label="Street"><Text_Input $name="street" $max_length=255 /></Form_Field>
         </Rsx_Tab>
     </Rsx_Tabs>

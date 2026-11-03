@@ -6,7 +6,7 @@ Four SPA actions under `Settings_Layout` and one controller
 (`Frontend_Settings_User_Management_Controller`, gated `can_manage_users` at class level):
 
 - `list/` — `Settings_User_Management_Index_Action` and `Users_DataGrid` over `User_Model`,
-  with the add-user and send-invite modals.
+  with the add-user modal and the sent-invitation dialog.
 - `view/` — `Settings_User_Management_View_Action` (`/frontend/settings/user_management/:id`),
   the edit-user modal, resend-invitation, and the user's **Sessions** on this site.
 - `session_view/` — `Settings_User_Management_Session_View_Action`
@@ -36,6 +36,11 @@ rather than only the selectable ones. Reads (`get_user`, the grid, `get_user_api
 `can_manage_users`; `get_user` and `get_user_session` report `can_administer` and the pages
 show Edit, Enable/Disable and Sign out only when they would be accepted.
 
+**Adding a user sends ONE invitation.** `add_user` creates the pending membership, mints its
+code, emails it and returns `invite_url`; the list page shows that link with
+`Send_User_Invite_Modal.show_sent()` and never calls `send_invite` after a create, which would
+mint a second code and kill the first email's link.
+
 **Resending an invitation is a write like any other.** `send_invite` mints a new code - which
 ends the link the invitee already holds - emails it and returns `invite_url`, and only for a
 pending user whose role the caller administers (`__administrable_user()`); a superior's
@@ -45,7 +50,14 @@ an invitee's level can quietly break their invitation.
 
 **Disabling is `users.is_enabled`** (`set_user_enabled`), never a role: the framework refuses
 a disabled membership at sign-in and ends its live sessions, while the role and ACL rows are
-kept so re-enabling restores them. Nobody disables themselves.
+kept so re-enabling restores them.
+
+**Nobody acts against their own access.** `set_user_enabled` refuses to switch the caller
+off, and `save_user` refuses a role on the caller's own record lower than the one they hold
+(`role_id` field error, "You cannot lower your own role"). The view page hides Enable/Disable
+on the caller's own row and the edit form offers only the role they already hold
+(`get_user_for_edit` reports `is_self`). Peer administration otherwise stands: a Site Owner
+may still demote or disable another Site Owner.
 
 ## SESSIONS
 

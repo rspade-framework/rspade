@@ -23,7 +23,6 @@ use App\RSpade\Core\Testing\Rsx_Test_Abstract;
 use Rsx\App\Frontend\Clients\Frontend_Clients_Controller;
 use Rsx\App\Frontend\Contacts\Frontend_Contacts_Controller;
 use Rsx\App\Frontend\Settings\SiteSettings\Frontend_Settings_Site_Settings_Controller;
-use Rsx\App\Login\Signup\Signup_Controller;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Contact_Model;
 use Rsx\Models\Portal_Invitation_Model;
@@ -40,9 +39,6 @@ use Rsx\Models\Portal_Invitation_Model;
  *   SITE SETTINGS save the site's portal switch and, when PORTAL_CUSTOM_DOMAINS is not
  *   'off', its custom domain - normalised, refused when it is not a hostname, refused when
  *   another site holds it - and show the portal address as it is served.
- *
- *   SELF-SIGNUP gives a new site a slug read from its name: a DNS label, made unique with a
- *   numeric suffix.
  *
  * Multi tenancy is exercised through config overrides (the dev box stays single). Fixtures
  * that toggle a site's portal are fresh sites, never site 1: the portal's site lookups are
@@ -350,57 +346,5 @@ class Portal_Tenancy_App_Test extends Rsx_Test_Abstract
 
         Frontend_Settings_Site_Settings_Controller::update(new Request(), ['name' => 'Domains', 'portal_domain' => '']);
         static::__assert_null($site->fresh()->portal_domain, 'a blank domain clears it');
-    }
-
-    // =====================================================================
-    // Self-signup slug
-    // =====================================================================
-
-    public static function test_a_signup_slug_is_read_from_the_site_name()
-    {
-        $tag = strtolower(random_hash(6));
-
-        static::__assert_equals("acme-sons-ltd-{$tag}", Signup_Controller::site_slug_for("  Acme & Sons, Ltd. {$tag}!"));
-        static::__assert_equals("cafe-munchen-{$tag}", Signup_Controller::site_slug_for("Café München {$tag}"));
-        static::__assert_equals('site', Signup_Controller::site_slug_for('!!! ---'), 'nothing usable gives "site"');
-
-        $long = Signup_Controller::site_slug_for(str_repeat('abcdefghij ', 12) . $tag);
-        static::__assert_true(strlen($long) <= 63, 'at most 63 characters');
-        static::__assert_true((bool) preg_match('/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/', $long), "a DNS label: {$long}");
-    }
-
-    public static function test_a_signup_slug_takes_the_first_free_suffix()
-    {
-        $name = 'Suffix Works ' . strtolower(random_hash(6));
-        $base = Signup_Controller::site_slug_for($name);
-
-        foreach ([$base, $base . '-2'] as $slug) {
-            $site = new Site_Model();
-            $site->name = $name;
-            $site->slug = $slug;
-            $site->is_enabled = 1;
-            $site->save();
-        }
-
-        static::__assert_equals($base . '-3', Signup_Controller::site_slug_for($name), 'the first free suffix');
-
-        // A deleted site still holds its slug (the unique index covers it).
-        Site_Model::where('slug', $base . '-2')->first()->delete();
-        static::__assert_equals($base . '-3', Signup_Controller::site_slug_for($name), 'a deleted site keeps its slug');
-
-        // A base at the length limit is shortened to make room for its suffix.
-        $long_name = str_repeat('z', 70) . strtolower(random_hash(4));
-        $long_base = Signup_Controller::site_slug_for($long_name);
-        static::__assert_equals(63, strlen($long_base));
-
-        $site = new Site_Model();
-        $site->name = $long_name;
-        $site->slug = $long_base;
-        $site->is_enabled = 1;
-        $site->save();
-
-        $next = Signup_Controller::site_slug_for($long_name);
-        static::__assert_equals(63, strlen($next), 'still 63 characters');
-        static::__assert_true(str_ends_with($next, '-2'), "suffixed: {$next}");
     }
 }

@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use App\RSpade\Core\Files\File_Attachment_Model;
 use App\RSpade\Core\Files\File_Storage_Model;
 use App\RSpade\Core\Models\Login_User_Model;
+use App\RSpade\Core\Models\Portal_Notification_Model;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Session\Session;
@@ -21,6 +22,7 @@ use Rsx\Models\Contact_Model;
 use Rsx\Models\Portal_Membership_Model;
 use Rsx\Models\Portal_Request_Document_Model;
 use Rsx\Models\Portal_Request_Event_Model;
+use Rsx\Models\Portal_Request_Message_Model;
 use Rsx\Models\Portal_Request_Thread_Model;
 use Rsx\Portal\Workspaces\Requests\Portal_Request_Threads_Controller;
 
@@ -35,6 +37,8 @@ use Rsx\Portal\Workspaces\Requests\Portal_Request_Threads_Controller;
  *   - portal reply with a file -> a reviewable PENDING Portal_Request_Document.
  *   - staff accept -> ACCEPTED; reject(reason) -> REJECTED + reason.
  *   - staff reply with a status change -> set_status + an event.
+ *   - a closed thread takes no staff reply unless the same submission reopens it.
+ *   - only a reviewable, not-yet-accepted document can be accepted or rejected.
  *   - membership scoping (non-member denied) and role gating (viewer cannot reply).
  *   - audience-split labels for RESPONSE_SUBMITTED ("Response Submitted" vs "Needs Review").
  *
@@ -425,5 +429,116 @@ class Portal_Request_Threads_Test extends Rsx_Test_Abstract
         $reloaded = Portal_Request_Thread_Model::find($thread->id);
         static::__assert_equals('Response Submitted', $reloaded->status_label(true), 'portal sees Response Submitted');
         static::__assert_equals('Needs Review', $reloaded->status_label(false), 'staff sees Needs Review');
+    }
+    // ---------------------------------------------------------------------
+    // notification recipients follow live access
+    // ---------------------------------------------------------------------
+
+    /**
+     * A thread's notifications reach only members whose access is live: disabling the
+     * client's portal or deleting the client drops every member from the recipient list (the
+     * rows are kept), a member's other client is unaffected, and a staff reply on a closed
+     * portal's thread writes no notification for the revoked member.
+     */
+    public static function test_notification_recipients_exclude_revoked_members()
+    {
+        $client = static::__make_client();
+        $member = static::__make_member($client);
+        $thread = static::__create_thread($client);
+
+        $other_client = static::__make_client();
+        static::__add_member($other_client, $member);
+        $other_thread = static::__create_thread($other_client);
+
+        static::__assert_equals([(int) $member->id], $thread->resolve_recipient_ids(), 'a live member is a recipient');
+
+        $client->portal_enabled = false;
+        $client->save();
+
+        static::__assert_equals([], Portal_Request_Thread_Model::find($thread->id)->resolve_recipient_ids(), 'Disable Portal drops the member');
+        static::__assert_equals([(int) $member->id], $other_thread->resolve_recipient_ids(), 'the member\'s other client still reaches them');
+
+        $before = Portal_Notification_Model::where('portal_user_id', $member->id)->count();
+        Frontend_Clients_Controller::request_thread_reply(new Request(), [
+            'thread_id' => $thread->id,
+            'body' => 'A reply after the portal was closed.',
+        ]);
+        static::__assert_equals($before, Portal_Notification_Model::where('portal_user_id', $member->id)->count(), 'the revoked member is sent nothing');
+
+        $client->portal_enabled = true;
+        $client->save();
+        static::__assert_equals([(int) $member->id], Portal_Request_Thread_Model::find($thread->id)->resolve_recipient_ids(), 're-enabling restores the member');
+
+        $client->delete();
+        static::__assert_equals([], Portal_Request_Thread_Model::find($thread->id)->resolve_recipient_ids(), 'deleting the client drops the member');
+    }
+
+    // ---------------------------------------------------------------------
+    // state rules enforced on the server
+    // ---------------------------------------------------------------------
+
+    public static function test_a_closed_thread_takes_no_reply_unless_it_is_reopened()
+    {
+        $client = static::__make_client();
+        $thread = static::__create_thread($client);
+        Frontend_Clients_Controller::request_thread_reply(new Request(), [
+            'thread_id' => $thread->id,
+            'body' => '',
+            'status' => Portal_Request_Thread_Model::STATUS_CLOSED,
+        ]);
+        $messages = Portal_Request_Message_Model::where('thread_id', $thread->id)->count();
+
+        $refused = Frontend_Clients_Controller::request_thread_reply(new Request(), [
+            'thread_id' => $thread->id,
+            'body' => 'One more thing.',
+        ]);
+        static::__assert_instance_of(\App\RSpade\Core\Response\Error_Response::class, $refused, 'a reply into a closed thread is refused');
+        static::__assert_equals($messages, Portal_Request_Message_Model::where('thread_id', $thread->id)->count(), 'nothing was posted');
+
+        $reopened = Frontend_Clients_Controller::request_thread_reply(new Request(), [
+            'thread_id' => $thread->id,
+            'body' => 'Reopening - one more thing.',
+            'status' => Portal_Request_Thread_Model::STATUS_NEEDS_MORE_INFO,
+        ]);
+        static::__assert_array_has_key('message_id', $reopened, 'a reply that reopens the thread is accepted');
+        static::__assert_false(Portal_Request_Thread_Model::find($thread->id)->is_closed(), 'the thread is open again');
+    }
+
+    public static function test_only_a_reviewable_unaccepted_document_can_be_reviewed()
+    {
+        $client = static::__make_client();
+        $thread = static::__create_thread($client);
+        $member = static::__make_member($client);
+        $staff = Session::get_login_user();
+
+        static::__login_portal($member);
+        $reply = Portal_Request_Threads_Controller::reply(new Request(), [
+            'thread_id' => $thread->id,
+            'body' => 'Here it is.',
+        ]);
+        $document = static::__submit_document($thread, (int) $reply['message_id']);
+        static::__back_to_staff($staff);
+
+        Frontend_Clients_Controller::request_document_review(new Request(), [
+            'document_id' => $document->id,
+            'decision' => 'accept',
+        ]);
+        $again = Frontend_Clients_Controller::request_document_review(new Request(), [
+            'document_id' => $document->id,
+            'decision' => 'reject',
+            'reason' => 'Changed my mind.',
+        ]);
+        static::__assert_instance_of(\App\RSpade\Core\Response\Error_Response::class, $again, 'an accepted document has no further action');
+        static::__assert_true(Portal_Request_Document_Model::find($document->id)->is_accepted(), 'it stays accepted');
+
+        $staff_doc = static::__submit_document($thread, (int) $reply['message_id'], 'informational.pdf');
+        $staff_doc->requires_review = 0;
+        $staff_doc->save();
+        $informational = Frontend_Clients_Controller::request_document_review(new Request(), [
+            'document_id' => $staff_doc->id,
+            'decision' => 'accept',
+        ]);
+        static::__assert_instance_of(\App\RSpade\Core\Response\Error_Response::class, $informational, 'a document that needs no review cannot be reviewed');
+        static::__assert_equals(Portal_Request_Document_Model::REVIEW_PENDING, (int) Portal_Request_Document_Model::find($staff_doc->id)->review_status);
     }
 }

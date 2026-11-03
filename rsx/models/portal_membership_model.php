@@ -118,6 +118,31 @@ class Portal_Membership_Model extends Rsx_Site_Model_Abstract
     }
 
     /**
+     * The portal user ids holding a LIVE membership - of one client, or of any client on
+     * the site when $client_id is null. The recipient list of every portal notification
+     * addressed to a client's members: a member whose access has been revoked (Disable
+     * Portal, a deleted client) is not told about a client they can no longer open.
+     *
+     * Walks the memberships a page at a time ($unbounded); the ids are de-duplicated.
+     *
+     * @return int[]
+     */
+    public static function live_portal_user_ids(?int $client_id = null): array
+    {
+        $query = static::__live(static::query());
+        if ($client_id !== null) {
+            $query->where('client_id', $client_id);
+        }
+
+        $ids = [];
+        foreach ($query->result_set() as $membership) {
+            $ids[(int) $membership->portal_user_id] = true;
+        }
+
+        return array_keys($ids);
+    }
+
+    /**
      * Narrow a membership query to clients that are live for the portal: the client row
      * exists (Client_Model's SoftDeletes and site scope apply to the subquery) and has
      * portal_enabled on.

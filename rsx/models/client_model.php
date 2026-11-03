@@ -7,6 +7,8 @@ use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
 use App\RSpade\Core\Models\Country_Model;
 use App\RSpade\Core\Models\Region_Model;
 use App\RSpade\Core\Models\User_Model;
+use App\RSpade\Core\Time\Rsx_Date;
+use Rsx\Lib\FieldChecks\Field_Checks;
 use Rsx\Lib\TextTypes\RawText\Raw_Text;
 use Rsx\Models\Client_Department_Model;
 use Rsx\Models\Contact_Model;
@@ -227,6 +229,115 @@ class Client_Model extends Rsx_Site_Model_Abstract
     public function getClientIdFormattedAttribute(): string
     {
         return $this->client_id_formatted();
+    }
+
+    /**
+     * The values preferred_contact_method may hold. The edit form's dropdown offers these
+     * same four (Clients_Edit_Action.js, contact_method_options).
+     */
+    const CONTACT_METHODS = ['email', 'phone', 'text', 'any'];
+
+    /**
+     * The longest one tag may be. Tags live in a JSON column, which has no length of its
+     * own; this is the application's bound on one entry.
+     */
+    const TAG_MAX_LENGTH = 100;
+
+    /**
+     * The earliest established_year accepted; the latest is the current year.
+     */
+    const ESTABLISHED_YEAR_MIN = 1800;
+
+    /**
+     * Answers [field => message] for every submitted value a client cannot hold; empty when
+     * all of them can. Checks only the keys $values carries, so an API update that sends
+     * three fields is checked on those three. Every write path (the staff form, the external
+     * API) runs it, beside address_code_errors().
+     *
+     *   - every character column fits its Client_Model::field_length()
+     *   - status_id is one of the declared statuses, preferred_contact_method one of
+     *     CONTACT_METHODS
+     *   - established_year is a whole year between ESTABLISHED_YEAR_MIN and this year
+     *   - facebook_url / linkedin_url are absolute http(s) addresses (they are printed into
+     *     an href)
+     *   - tags is a list of non-blank strings of at most TAG_MAX_LENGTH characters
+     *
+     * `website` is checked in its STORED short form: the caller converts it with
+     * Field_Checks::website_short_url() first.
+     *
+     * @param array $values Submitted values keyed by column name
+     * @return array<string, string>
+     */
+    public static function value_errors(array $values): array
+    {
+        $errors = Field_Checks::length_errors(static::class, $values, [
+            'name' => 'Company name',
+            'website' => 'Website',
+            'email' => 'Email',
+            'phone' => 'Phone',
+            'fax' => 'Fax',
+            'address_street' => 'Street address',
+            'city' => 'City',
+            'state' => 'State',
+            'zip' => 'ZIP / postal code',
+            'address_country' => 'Country',
+            'industry' => 'Industry',
+            'company_size' => 'Company size',
+            'revenue_range' => 'Revenue range',
+            'facebook_url' => 'Facebook URL',
+            'twitter_handle' => 'Twitter handle',
+            'linkedin_url' => 'LinkedIn URL',
+            'instagram_handle' => 'Instagram handle',
+            'preferred_contact_method' => 'Preferred contact method',
+        ]);
+
+        if (array_key_exists('status_id', $values) && $values['status_id'] !== null
+            && !Field_Checks::is_enum_value(static::class, 'status_id', $values['status_id'])) {
+            $errors['status_id'] = 'Choose a status from the list';
+        }
+
+        if (array_key_exists('preferred_contact_method', $values) && $values['preferred_contact_method'] !== null
+            && !isset($errors['preferred_contact_method'])
+            && !in_array($values['preferred_contact_method'], self::CONTACT_METHODS, true)) {
+            $errors['preferred_contact_method'] = 'Choose a contact method from the list';
+        }
+
+        $year = $values['established_year'] ?? null;
+        if ($year !== null && $year !== '') {
+            $this_year = Rsx_Date::year(Rsx_Date::today());
+            $is_whole = is_int($year) || (is_string($year) && ctype_digit($year));
+
+            if (!$is_whole || (int) $year < self::ESTABLISHED_YEAR_MIN || (int) $year > $this_year) {
+                $errors['established_year'] = 'Year established must be a year between ' . self::ESTABLISHED_YEAR_MIN . " and {$this_year}";
+            }
+        }
+
+        foreach (['facebook_url' => 'Facebook URL', 'linkedin_url' => 'LinkedIn URL'] as $field => $label) {
+            $url = $values[$field] ?? null;
+
+            if ($url !== null && $url !== '' && !isset($errors[$field])
+                && (!is_string($url) || !Field_Checks::is_web_url($url))) {
+                $errors[$field] = "{$label} must be a full web address starting with https://";
+            }
+        }
+
+        if (array_key_exists('tags', $values) && $values['tags'] !== null && $values['tags'] !== '') {
+            $tags = $values['tags'];
+            $valid = is_array($tags) && array_is_list($tags);
+
+            foreach ($valid ? $tags : [] as $tag) {
+                if (!is_string($tag) || trim($tag) === '' || mb_strlen($tag) > self::TAG_MAX_LENGTH) {
+                    $valid = false;
+                    break;
+                }
+            }
+
+            if (!$valid) {
+                $errors['tags'] = 'Each tag must be text of 1 to ' . self::TAG_MAX_LENGTH . ' characters';
+            }
+        }
+
+        return $errors;
     }
 
     /**

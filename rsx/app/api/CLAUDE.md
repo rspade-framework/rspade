@@ -49,6 +49,12 @@ Controllers extend `Rsx_Api_Controller_Abstract`. Endpoints are static methods
 allowed. The dispatcher authenticates, validates + coerces the declared params, and
 passes them as `$params`; an undeclared parameter is rejected 422.
 
+`required: true` means only that the key is PRESENT - `''` passes it - so an endpoint refuses
+a blank required string itself. Value rules beyond the declared type (column lengths, enum
+membership, URL schemes) are the same ones the staff form runs - `Client_Model::value_errors()`,
+`Contact_Model::value_errors()`, `Field_Checks` - answered as `Rsx_Api::validation_error()` 422
+naming the field, never left to a database exception.
+
 ```php
 #[Api_Endpoint('/api/v1/contacts/:id', methods: ['GET'])]
 #[Api_Param('id', type: 'int', required: true, description: 'Contact ID')]

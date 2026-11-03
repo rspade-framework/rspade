@@ -15,10 +15,10 @@ Features:
 
 Usage:
 <Rsx_Tabs>
-    <Rsx_Tab $sid="basic-info" $label="Basic Information" $icon="bi-building">
+    <Rsx_Tab $id="basic-info" $label="Basic Information" $icon="bi-building">
         <Form_Field $label="Name"><Text_Input $name="name" /></Form_Field>
     </Rsx_Tab>
-    <Rsx_Tab $sid="address" $label="Address" $icon="bi-geo-alt">
+    <Rsx_Tab $id="address" $label="Address" $icon="bi-geo-alt">
         <Form_Field $label="Street"><Text_Input $name="street" /></Form_Field>
     </Rsx_Tab>
 </Rsx_Tabs>

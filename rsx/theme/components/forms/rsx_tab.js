@@ -7,8 +7,7 @@
  * JavaScript Responsibilities:
  * - Auto-registers with parent Rsx_Tabs component on creation
  * - Sets tab pane ID attribute from $id argument
- * - Discovers and tracks child Form_Field components
- * - Counts validation errors within this tab's fields
+ * - Counts validation errors within this tab's Form_Field components
  * - Provides error count to parent for badge display
  */
 class Rsx_Tab extends Component {
@@ -25,21 +24,6 @@ class Rsx_Tab extends Component {
         if (that.tabs_container) {
             that.tabs_container.register_tab(that);
         }
-
-        // Store reference to all Form_Field components within this tab
-        that.fields = [];
-    }
-
-    on_ready() {
-        let that = this;
-
-        // Find all Form_Field components within this tab
-        that.$.find('.Form_Field').each((index, element) => {
-            const field_component = $(element).component();
-            if (field_component) {
-                that.fields.push(field_component);
-            }
-        });
     }
 
     /**
@@ -48,14 +32,18 @@ class Rsx_Tab extends Component {
      * @returns {number} Count of errors in this tab
      */
     count_errors(errors) {
-        let that = this;
+        // Read at call time, not cached at on_ready(): a re-render of this tab's
+        // content replaces its Form_Field instances. A field's name lives on its
+        // input; Form_Field_Abstract copies it into _field_name.
         let count = 0;
 
-        for (let field of that.fields) {
-            if (errors[field.args.name]) {
+        // Every Form_Field_Abstract is a component with a _field_name by the time a
+        // submit can fail (its on_ready() throws without one).
+        this.$.find('.Form_Field_Abstract').each((index, element) => {
+            if (errors[$(element).component()._field_name]) {
                 count++;
             }
-        }
+        });
 
         return count;
     }

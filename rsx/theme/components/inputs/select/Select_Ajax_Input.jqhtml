@@ -4,7 +4,10 @@ Select_Ajax_Input
 Dropdown select widget that loads options via Ajax.
 Extends Select_Input with Ajax data loading capability.
 
-$data - Ajax endpoint URL that returns array of options
+$source - Ajax endpoint returning the option array (a controller stub method,
+          e.g. $source=My_Controller.options); each option is a {value, label}
+          object or a plain value. Subclasses with a fixed endpoint
+          (Select_Country_Input, Select_State_Input) override on_load() instead.
 $placeholder - Placeholder option text (default: "Please wait...")
 $disabled - Boolean to disable the select
 
@@ -12,7 +15,8 @@ Widget interface:
 - val() - Get/set selected value (handles pre-initialization calls)
 
 Features:
-- Loads options asynchronously from endpoint during on_load()
+- Loads options asynchronously from $source during on_load(); a failed call is
+  not swallowed
 - Shows "Please wait..." while loading
 - Handles val() calls before initialization completes
 - Re-renders with actual options once loaded

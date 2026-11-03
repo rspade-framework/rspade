@@ -11,6 +11,8 @@ Follows `rsx/app/frontend/clients/CLAUDE.md` and the app skill `crud-patterns`: 
   existing contact" (`false`) is an ANSWER, writing nothing and returning a redirect to that
   record; Back leaves the form open. The app's worked example of validate -> ask -> write;
   the dialog itself is `rsx/lib/modal/modal.js`'s registered handler.
+- **`is_active` and `priority` are on the form** (a `Checkbox_Input` and an enum select); a new contact is active, and `save()` writes `is_active = 1` for a create that does not send the key. An inactive contact shows an Inactive badge and is not offered for portal invitation.
+- **The value rules are `Contact_Model::value_errors()`** (column lengths, a valid secondary email, a declared priority) - run by `save()` and by the external API alike.
 - **Phone numbers are normalised server-side to E.164** in `save()` via libphonenumber — the app's worked example of format validation living only on the server.
 - **`edit/form/client_selector_input`** is defined here and reused by `../projects/edit/`.
 - **`?client_id=` mode**: arriving from a client repoints the breadcrumb and Back link and swaps the client picker for a `Hidden_Input`.

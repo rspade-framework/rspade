@@ -56,6 +56,19 @@
                                 <% } %>
                             </div>
                         </div>
+                        <div class="row">
+                            <div class="col-tablet-6">
+                                <Form_Field $label="Priority">
+                                    <Select_Input $name="priority" $options="<%= JSON.stringify(Contact_Model.priority__enum_select()) %>" />
+                                </Form_Field>
+                            </div>
+                            <div class="col-tablet-6">
+                                <%-- An inactive contact shows an Inactive badge and is not offered for portal invitation. --%>
+                                <Form_Field $label="Status">
+                                    <Checkbox_Input $name="is_active" $label="Active" />
+                                </Form_Field>
+                            </div>
+                        </div>
                     </Section>
 
                     <Section $title="Contact Information">

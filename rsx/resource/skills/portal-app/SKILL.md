@@ -163,7 +163,7 @@ Invitations carry `status_id` (PENDING/USED/EXPIRED/REVOKED) and expire after `r
 
 | state | outcome |
 |---|---|
-| existing account | login page (`message=account_exists`, forgot-password offered) |
+| existing account | login page (`notice=account_exists`, forgot-password offered); the invitation stays PENDING and the dashboard's Accept grants the membership |
 | live PENDING | register + join the invited client + land on its workspace |
 | EXPIRED | **account-only** creation (verified, NO membership - an admin re-invites) |
 | REVOKED | "cancelled" page |

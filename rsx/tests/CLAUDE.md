@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Fifty-nine test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Sixty-four test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -10,16 +10,34 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   `__assert_throws` and `__acting_as_site`.
 - **App libraries**: `Formatters_Test` (phone and currency, transactions off),
   `Analytics_Test` (the external-resource example ships inert).
-- **Domain models**: `Party_Test` (class-table inheritance end to end),
+- **Domain models**: `Party_Test` (class-table inheritance end to end, a Group rename, and
+  an edit validated against the STORED type),
   `Client_Region_Name_Test` (a client's region is resolved within its own country - two
   countries sharing a region code never borrow each other's name),
   `Client_Address_Codes_Test` (a client's address codes are ISO: an enabled alpha-2 country,
   a subdivision of THAT country or `N/A` - the rule the staff save and the API both check),
   `Polymorphic_Parents_Test` (type-ref pairs read through stock `morphTo()`),
   `Task_Derived_Project_Test` (the derived `project_id`, chain resolution and cycle guard),
-  `Contact_Phone_Validation_Test` (server-side E.164 normalisation),
+  `Contact_Phone_Validation_Test` (server-side E.164 normalisation; a phone posted as an
+  array is a field error),
   `Contact_Duplicate_Question_Test` (the duplicate-email question: asking writes nothing,
   `true` creates the second contact, `false` hands back the existing one, an edit never asks).
+- **Saves write what was sent**: `Save_Correctness_Test` — a task's parent arrives as the
+  one field `taskable` and an edit that changed it is written; a reference a task or project
+  already holds is accepted as it stands (a deleted parent, project or linked contact does not
+  block the save, and is offered marked `(deleted)`), while a new reference to a deleted row is
+  refused; a new project is Active and its status and priority are written; a new contact is
+  active and `is_active` is written as sent; a project's portal visibility is SET, only for
+  that client's project. `Settings_Saves_Test` — adding a user sends one invitation whose
+  returned link is the live one; `save_profile` leaves absent fields as stored, refuses a
+  blank name and reports a photo it cannot attach as a field error; an over-long profile or
+  user value (the bio against `BIO_MAX_LENGTH`) is a field error.
+- **Values a record cannot hold are field errors**: `Client_Validation_Test` (staff save and
+  API: lengths, status and contact-method vocabularies, the year, http(s)-only links, tag
+  shape, a blank API name), `Contact_Validation_Test` (staff save and API: lengths, secondary
+  email, priority, blank API names), `Crud_Validation_Test` (projects, tasks and parties:
+  lengths, ISO dates, enums, an exact budget with 0 stored as 0.00, pivot ids that are not
+  ids; plus the shared `Field_Checks` URL and decimal rules).
 - **Error pages**: `App_Error_Pages_Test` — this application's `/error/` declarations actually
   answer: an unmatched staff URL and a gate denial render `Errors_Layout` with 404 and 403,
   a foreign-origin form POST renders the 419 page, a portal failure renders
@@ -27,7 +45,10 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   detail block. The framework suite pins the funnel; this pins the declarations. Named
   `App_` because the framework suite already has an `Error_Pages_Test`, and a same-named
   class in `rsx/` would override it out of the run.
-- **UI seams**: `Datagrid_Mass_Actions_Test` (selection modes and CSV export),
+- **UI seams**: `Datagrid_Mass_Actions_Test` (selection modes and CSV export, a cell beginning
+  `=` `+` `-` `@` tab or CR exported behind a single quote; the xlsx export writes every cell by
+  type so no text becomes a formula; the sort whitelist is strict, a non-string order falls back
+  and a grid with no whitelist refuses a sort request; the search reaches `address_street`),
   `Revision_History_Test` (the history endpoint's allowlist and its no-enumeration rule),
   `Task_Record_Attachments_Test` (a task's file list: claim, all-or-nothing, single claim, row shape),
   `Timezone_Settings_Test`, `Api_Key_Scope_Ui_Test` (presets re-derived by name, so a
@@ -47,12 +68,16 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 - **Credentials never serialize**: `Portal_Credential_Never_Export_Test` (a portal user's
   password, an invitation's code and a reset's token are absent from `toArray()` and its JSON).
 - **Portal**: `Portal_Workspaces_Test`, `Portal_Documents_Test`,
-  `Portal_Request_Threads_Test`, `Portal_Thread_Upload_Claim_Test` (a client's file end to end:
+  `Portal_Request_Threads_Test` (including notification recipients: a member of a client
+  whose portal is disabled, or which is deleted, is dropped and sent nothing; a closed thread
+  takes no staff reply unless it is reopened; only a reviewable, unaccepted document is reviewed), `Portal_Thread_Upload_Claim_Test` (a client's file end to end:
   uploaded through `/_upload` in the portal realm, claimed onto the thread by the reply
   endpoint as a pending document, readable by that client's member and no other client's,
   and never re-claimed by another client presenting its key), `Portal_Invitation_Lifecycle_Test` (including the hourly expiry reaching
   every site's invitations),
-  `Portal_Register_Flow_Test`, `Portal_User_Admin_Test`, `Portal_Impersonation_Test`
+  `Portal_Register_Flow_Test` (an existing account's registration link sends it to sign in
+  and leaves the invitation PENDING; the dashboard's Accept then grants the membership),
+  `Portal_User_Admin_Test`, `Portal_Impersonation_Test`
   (the per-endpoint read-only guard — every Ajax call is a POST, so a blanket POST block
   would break the portal), `Portal_Client_Authorization_Test` (the permission facade
   beneath those screens — membership, role, `accessible_client_ids()`, the shared-item and
@@ -62,18 +87,23 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   `Portal_Member_Validation_Test` (a membership goes only to the client's own contact, with
   an enum role), `Portal_Notifications_Test` (the notification endpoints return only
   the caller's own feed, and `clients.portal_last_activity_at` is stamped - and not during View as Client),
-  `Announcement_Test`, `Portal_Tenancy_App_Test` (a site with no client portal - off for the
+  `Announcement_Test` (a member of a closed portal hears no announcement, targeted or
+  site-wide), `Portal_Tenancy_App_Test` (a site with no client portal - off for the
   install or for the site - refuses the invite, the resend and View as Client with nothing
   written or sent; a sent link names the record's site's portal; Site Settings save the
-  portal switch and validate the custom domain - not a hostname, another site's; the
-  self-signup slug is a DNS label read from the name with the first free numeric suffix).
+  portal switch and validate the custom domain - not a hostname, another site's).
 - **Authorization**: `Endpoint_Data_Gates_Test` reads the manifest's surface index and fails
   when a write-shaped `rsx/app` Ajax or API endpoint lacks `can_edit_data` (or an
   administrative check), or when any other one carries nothing beyond `is_logged_in` - the
   own-record and sign-in endpoints it excuses are listed by name, with the reason.
   `User_Management_Authority_Test` (equal-or-lower administration: a superior's current
   role, a new role above the caller's, a superior's invitation refused for resending, disabling through
-  `users.is_enabled`, site-scoped session lists), `Session_Screens_Test` (the "where you're
+  `users.is_enabled`, nobody lowering their own role while a peer still may, site-scoped
+  session lists), `Action_Log_Access_Test` (the action log is for administrators: every
+  surface returning its rows - the Action Log screens and each per-record `*_activity`
+  endpoint - names `can_view_user_activity` and refuses a User or Viewer, the dashboard feed is
+  empty for them, while a record's revision history opens for every role; the dashboard page
+  and its data call refuse together under a view-data DENY), `Session_Screens_Test` (the "where you're
   signed in" screens: user management's this-site list and session page, Password & Security
   and portal settings - the three-month cut, the record rule that answers another user's,
   another site's or a dormant session as not found, Sign out refused for a superior and for
@@ -88,15 +118,14 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   `Api_Access_Permission_Test` (the API and
   key minting require a GRANTED `can_use_api`, a DENY wins), `Cross_Site_Reference_Test`
   (saves refuse another site's ids, grids print no foreign row),
-  `Self_Registration_Policy_Test` (self-signup: off answers 404, on without live mail
-  throws, on creates a new site + owner + a pending address verification and signs nobody in,
-  the emailed code and the emailed link each sign the owner in verified on the new site, an
-  existing address gets the same answer with nothing written; an unverified address signing
-  in with a password owes the same verification; an invitation's account is verified and
-  refuses another address; SSO declines an open invitation, an unverified and an unknown
-  address), `Require_Two_Factor_Test` (`rsx.auth.require_two_factor`: off holds nothing; on,
+  `Account_Creation_Policy_Test` (there is no self-signup: no route is a signup and no
+  switch exists; a password sign-in of an unverified address owes no emailed step; an
+  invitation's account is verified and refuses another address; SSO declines an open
+  invitation, an unverified and an unknown address and creates no account), `Require_Two_Factor_Test` (`rsx.auth.require_two_factor`: off holds nothing; on,
   the password still signs in, page requests are held on Password & Security while the
-  enrollment screen, sign-out and Ajax go through, and enrolling releases the hold).
+  enrollment screen and sign-out go through, an Ajax call outside the enrollment allow-list is
+  refused as a coded unauthorized, the browser is told the step is owed, and enrolling
+  releases the hold).
 - **Public bundles**: `Public_Bundle_Contents_Test` — the three bundles served to visitors
   who have not signed in (`Login_Bundle`, `Errors_Bundle`, `Portal_Auth_Bundle`) publish
   none of this application's internals. It derives the internals from the manifest - every
@@ -152,7 +181,7 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   upload makes the record own it (`inline_embed`, a reference row); the unclaimed sweep skips a
   referenced file; another user cannot claim a pending upload by typing its id; removing a token
   keeps the file and its owner; a second record's copy adds a reference without moving
-  ownership; `resolve_files` leaves out what the viewer may not see; the claim runs under
+  ownership; another site's id in the text is neither claimed nor referenced; `resolve_files` leaves out what the viewer may not see; the claim runs under
   `Revision::without()` and through a query-builder `update()`.
 - **Declared text types, the converted columns**: `Text_Type_Descriptions_Test` — the
   `description` columns that moved from plain text to `Rich_Text` and still exist (`tasks`,

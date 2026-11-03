@@ -93,7 +93,8 @@ class Clients_DataGrid extends DataGrid_Abstract
             $filter = $params['filter'];
             $query->where(function ($q) use ($filter) {
                 $q->where('name', 'LIKE', "%{$filter}%")
-                    ->orWhere('address', 'LIKE', "%{$filter}%")
+                    ->orWhere('address_street', 'LIKE', "%{$filter}%")
+                    ->orWhere('zip', 'LIKE', "%{$filter}%")
                     ->orWhere('city', 'LIKE', "%{$filter}%")
                     ->orWhere('state', 'LIKE', "%{$filter}%")
                     ->orWhere('phone', 'LIKE', "%{$filter}%")

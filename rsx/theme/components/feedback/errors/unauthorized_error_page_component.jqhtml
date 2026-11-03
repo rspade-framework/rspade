@@ -7,6 +7,10 @@ but lacks the required permissions for the requested action.
 
 $message - Custom error message (optional, auto-generated if not provided)
 $section - Section/resource name being accessed (e.g., "Project", "Admin Area")
+
+The escape link goes to the home of the experience the page belongs to: the portal
+dashboard on a portal page, the staff dashboard otherwise (each bundle carries only
+its own routes).
 --%>
 <Define:Unauthorized_Error_Page_Component class="text-center py-5">
     <div class="mb-4">
@@ -16,7 +20,8 @@ $section - Section/resource name being accessed (e.g., "Project", "Admin Area")
     <p class="text-muted mb-4">
         <%= this.args.message || 'You do not have permission to perform this action' %>.
     </p>
-    <a href="<%= Rsx.Route('Dashboard_Index_Action') %>" class="btn btn-primary">
+    <% const _home_url = Rsx_Portal.is_portal() ? Rsx_Portal.Route('Portal_Dashboard_Action') : Rsx.Route('Dashboard_Index_Action'); %>
+    <a href="<%= _home_url %>" class="btn btn-primary">
         Go to Dashboard
     </a>
 </Define:Unauthorized_Error_Page_Component>

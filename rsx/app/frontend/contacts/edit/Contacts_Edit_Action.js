@@ -36,18 +36,11 @@ class Contacts_Edit_Action extends Spa_Action {
             state: '',
             zip: '',
             client_id: this.args.client_id || '',
+            // A new contact is active.
             is_active: '1',
-            priority: '2',
+            priority: Contact_Model.PRIORITY_MEDIUM,
             notes: '',
         };
-
-        // Priority options
-        this.data.priority_options = [
-            {value: '1', label: 'Low'},
-            {value: '2', label: 'Medium'},
-            {value: '3', label: 'High'},
-            {value: '4', label: 'Urgent'},
-        ];
 
         this.data.error_data = null;
         this._watched_form = null;
@@ -81,7 +74,7 @@ class Contacts_Edit_Action extends Spa_Action {
                 zip: contact.zip || '',
                 client_id: contact.client_id || '',
                 is_active: contact.is_active ? '1' : '0',
-                priority: str(contact.priority || '2'),
+                priority: contact.priority || Contact_Model.PRIORITY_MEDIUM,
                 notes: contact.notes || '',
             };
         } catch (e) {

@@ -5,7 +5,9 @@
  * Error_Screens mounts whatever the running bundle registered - a denied @auth gate,
  * a URL no action claims, an action that failed to boot - into the live layout's
  * content area. Every bundle that includes rsx/theme gets this registration, so the
- * staff app and the portal both answer with the components beside this file.
+ * staff app and the portal both answer with the components beside this file; the
+ * bodies with an escape link (unauthorized, auth-required) pick the portal or staff
+ * target from Rsx_Portal.is_portal().
  *
  * To use a different body for one outcome, name that component here.
  */

@@ -85,7 +85,7 @@
  * const user = await Add_User_Modal.show();
  * if (user) {
  *     $('.Users_DataGrid').component().reload();
- *     await Send_User_Invite_Modal.show(user.id);
+ *     await Send_User_Invite_Modal.show_sent(user.invite_url);
  * }
  * ```
  *

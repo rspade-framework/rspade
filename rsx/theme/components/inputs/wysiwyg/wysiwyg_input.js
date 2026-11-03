@@ -23,7 +23,8 @@
  * it, or picked with the toolbar's attach button is uploaded and embedded at that point as
  * a non-editable card (wysiwyg_file_blot.js). The stored value carries it as the token
  * {{#file:<attachment id>}}; saving the record makes the record own the file (Rich_Text).
- * Without uploads the editor keeps Quill's own image handling and offers no attach button.
+ * Without uploads the editor offers neither an attach button nor an image button (a
+ * Quill image would be a data: URL, which the sanitizer strips on save).
  */
 class Wysiwyg_Input extends Form_Input_Abstract {
     // A NAME, not a class reference - see Raw_Text_Input for why.
@@ -119,7 +120,10 @@ class Wysiwyg_Input extends Form_Input_Abstract {
 
         Wysiwyg_File_Blot.register();
 
-        const insert_group = uploads_enabled ? ['link', 'image', 'inline_file'] : ['link', 'image'];
+        // Without uploads there is no image button: Quill's own image handler embeds a
+        // base64 data: URL, which both rich-text sanitizers strip on save. With uploads,
+        // the image button's file pick goes through the uploader override below.
+        const insert_group = uploads_enabled ? ['link', 'image', 'inline_file'] : ['link'];
         if (uploads_enabled) {
             Quill.import('ui/icons')['inline_file'] = Wysiwyg_File_Blot.ATTACH_ICON;
         }

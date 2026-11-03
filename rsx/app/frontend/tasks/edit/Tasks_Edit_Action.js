@@ -92,10 +92,7 @@ class Tasks_Edit_Action extends Spa_Action {
             return;
         }
 
-        const res = await this.alive(Frontend_Tasks_Controller.resolve_parent_project({
-            taskable_type: p.type,
-            taskable_id: p.id,
-        }));
+        const res = await this.alive(Frontend_Tasks_Controller.resolve_parent_project({ taskable: p }));
 
         if (res.derived) {
             this._set_project_derived(true, res.project_id, res.project_name);

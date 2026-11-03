@@ -30,7 +30,6 @@ class Parent_Selector_Input extends Form_Input_Abstract {
         entity.val(type && id ? id : '');
 
         this._toggle_entity(!!type);
-        this._sync_hidden(type, type && id ? id : '');
     }
 
     // -- Lifecycle -----------------------------------------------------------
@@ -48,13 +47,11 @@ class Parent_Selector_Input extends Form_Input_Abstract {
             entity.set_exclude(type === 'Task_Model' ? that._exclude_id() : null);
             entity.val('');
             that._toggle_entity(!!type);
-            that._sync_hidden(type, '');
             that._emit();
         });
 
-        // Entity change: sync the hidden id and re-emit.
-        this.sid('entity').on('input', function (comp, id) {
-            that._sync_hidden(that._type(), id || '');
+        // Entity change: re-emit.
+        this.sid('entity').on('input', function () {
             that._emit();
         });
     }
@@ -72,11 +69,6 @@ class Parent_Selector_Input extends Form_Input_Abstract {
 
     _toggle_entity(show) {
         this.$sid('entity_wrap').toggle(!!show);
-    }
-
-    _sync_hidden(type, id) {
-        this.$sid('h_type').val(type || '');
-        this.$sid('h_id').val(id || '');
     }
 
     _emit() {

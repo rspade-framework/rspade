@@ -282,6 +282,36 @@ class User_Management_Authority_Test extends Rsx_Test_Abstract
     }
 
     // ---------------------------------------------------------------------
+    // your own record
+    // ---------------------------------------------------------------------
+
+    /**
+     * Nobody lowers their own role. A peer may still be demoted, the caller's own record
+     * saves with the role it already holds, and the edit form says it is the caller's own.
+     */
+    public static function test_nobody_lowers_their_own_role()
+    {
+        $owner = static::__member(User_Model::ROLE_SITE_OWNER, 'owner');
+        $peer = static::__member(User_Model::ROLE_SITE_OWNER, 'peerowner');
+        static::__act_as($owner);
+
+        $refused = Frontend_Settings_User_Management_Controller::save_user(new Request(), static::__save_params($owner, User_Model::ROLE_MANAGER));
+        static::__assert_instance_of(Error_Response::class, $refused, 'self-demotion is refused');
+        static::__assert_equals(Ajax::ERROR_VALIDATION, $refused->get_error_code(), 'as a field error');
+        static::__assert_equals(User_Model::ROLE_SITE_OWNER, (int) static::__reload($owner)->role_id, 'the role is untouched');
+
+        $kept = Frontend_Settings_User_Management_Controller::save_user(new Request(), static::__save_params(static::__reload($owner), User_Model::ROLE_SITE_OWNER));
+        static::__assert_false($kept instanceof Error_Response, 'saving your own record with your own role is permitted');
+
+        $demoted = Frontend_Settings_User_Management_Controller::save_user(new Request(), static::__save_params($peer, User_Model::ROLE_SITE_ADMIN));
+        static::__assert_false($demoted instanceof Error_Response, 'peer administration stands');
+        static::__assert_equals(User_Model::ROLE_SITE_ADMIN, (int) static::__reload($peer)->role_id, 'the peer is demoted');
+
+        $own_form = Frontend_Settings_User_Management_Controller::get_user_for_edit(new Request(), ['user_id' => $owner->id]);
+        static::__assert_true($own_form['is_self'], 'the edit form knows it is the caller\'s own record');
+    }
+
+    // ---------------------------------------------------------------------
     // the view page
     // ---------------------------------------------------------------------
 

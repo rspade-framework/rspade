@@ -76,17 +76,24 @@ class Portal_Project_Model extends Rsx_Site_Model_Abstract
     }
 
     /**
-     * Toggle project visibility for a client portal
+     * Set whether a project is visible on a client's portal. Idempotent: setting the state
+     * it already has writes nothing. The caller has checked the project is the client's.
      */
-    public static function toggle(int $site_id, int $client_id, int $project_id): bool
+    public static function set_visible(int $site_id, int $client_id, int $project_id, bool $visible): void
     {
         $existing = static::where('client_id', $client_id)
             ->where('project_id', $project_id)
             ->first();
 
+        if (!$visible) {
+            if ($existing) {
+                $existing->delete();
+            }
+            return;
+        }
+
         if ($existing) {
-            $existing->delete();
-            return false;
+            return;
         }
 
         $record = new static();
@@ -94,6 +101,5 @@ class Portal_Project_Model extends Rsx_Site_Model_Abstract
         $record->client_id = $client_id;
         $record->project_id = $project_id;
         $record->save();
-        return true;
     }
 }

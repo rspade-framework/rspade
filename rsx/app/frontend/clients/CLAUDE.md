@@ -36,9 +36,10 @@ feature rather than a Blade one.
 **The gates are the permission model.** The class is `#[Auth('is_logged_in', 'can_view_data')]`,
 and EVERY write - `save`, `delete`, `bulk_delete`, `restore`, the document and share
 endpoints, and every portal-membership, invitation, announcement and request-thread write -
-adds a method-level `#[Auth('can_edit_data')]`. The record-scoped activity tabs
-(`client_activity`) are record history and read on `can_view_data`; the site-wide audit log is
-`../action_logs/`, on `can_view_user_activity`. `rsx/tests/Endpoint_Data_Gates_Test.php` fails
+adds a method-level `#[Auth('can_edit_data')]`. The record-scoped activity tab
+(`client_activity`) is the action log, for administrators: it adds `can_view_user_activity`
+like `../action_logs/`, and the tab and its KPI draw only when `Activity_Feed.can_view()`.
+The revision History page reads on `can_view_data`. `rsx/tests/Endpoint_Data_Gates_Test.php` fails
 when a write-shaped endpoint lacks `can_edit_data`.
 
 **Portal access follows the client.** "Disable Portal" (`toggle_portal`) and deleting the
@@ -47,7 +48,10 @@ memberships only through `Portal_Membership_Model::has_membership()` /
 `find_for_user_and_client()` / `get_for_user()`, which count a row only while its client is
 portal-enabled and not deleted. The staff panel reads every row (`has_membership_row()`,
 `get_all_for_user()`, `get_for_client()`), so a closed portal's members are still listed and
-re-inviting one creates no duplicate. `portal_add_member` accepts only one of THIS client's
+re-inviting one creates no duplicate. **Portal notifications follow the client too**: a request-thread
+reply, status change or document decision, an announcement and a document-shared feed entry
+reach only members whose access is live (`Portal_Membership_Model::live_portal_user_ids()`,
+`has_membership()`), so a revoked member is told nothing after the revocation. `portal_add_member` accepts only one of THIS client's
 contacts, and every membership role write accepts only a `Portal_Membership_Model` role id.
 
 **The address codes are ISO.** `address_country` is an ISO 3166-1 alpha-2 code (`US`) and
@@ -64,6 +68,14 @@ none.** Every endpoint that emails or hands out a portal link - `portal_bulk_inv
 pass `site_id:` to `Rsx_Portal::Route()`. `portal_members` reports `has_portal`, and the panel
 then shows a warning and hides Add Member, Resend and Share. A thread reply or document review
 on such a site still saves; only its portal notification is skipped.
+
+**Request-thread state is enforced on the server.** `request_thread_reply` refuses a closed
+thread unless the same submission changes its status away from Closed, and
+`request_document_review` refuses a document that is not reviewable (a staff attachment) or is
+already accepted; the dialogs hide those actions to match.
+
+**Project visibility on the portal is SET, never toggled.** `portal_set_project_visible`
+takes `visible` and refuses a project that is not the client's.
 
 **A document share is per contact and expires.** `documents_share` writes one
 `Shared_Item_Model` row per chosen contact with an expiry (`rsx.portal.shared_link_default_expiry_days`),
@@ -137,12 +149,13 @@ user's open tab and scroll position.
 
 The list screen is `list/clients_datagrid.{php,js,jqhtml}` fed by
 `Frontend_Clients_Controller::datagrid_fetch`, with `bulk_delete`, `export_csv` and `export_xlsx`
-serving the footer mass actions.
+serving the footer mass actions. `export_xlsx` writes every cell explicitly by type (the id a
+number, everything else a string), so no stored text becomes a live formula.
 
 What this module's grid declares:
 
-- **PHP** (`Clients_DataGrid`) - `build_query()` with the free-text search across name/address/
-  city/state/phone/website plus the `status_id` and `priority` quick filters; a
+- **PHP** (`Clients_DataGrid`) - `build_query()` with the free-text search across name, the
+  address the form writes (`address_street`/`city`/`state`/`zip`), phones and website, plus the `status_id` and `priority` quick filters; a
   `$sortable_columns` whitelist; `$secondary_sort = 'id'` so paging stays stable under the
   low-cardinality `priority` sort. No join, so column names are unqualified.
 - **jqhtml** - `extends="DataGrid_Abstract"` with `$data_source`, `$sort="id"`, `$order="desc"`;
@@ -176,7 +189,11 @@ hardcoded path (`URL-HARDCODE-01`), an interpolated one included.
   `#[Auth('can_edit_data')]` on the method.
 - **Keep validation on the server.** `save()` validates and returns
   `response_form_error($message, ['field' => 'Message'])`; the form paints it under the
-  field. `$required` on a field is an asterisk announcing a server rule, not a check.
+  field. `$required` on a field is an asterisk announcing a server rule, not a check. The
+  value rules a client must satisfy - every column's length, the status and contact-method
+  vocabularies, the year, http(s)-only links, the tag shape - are ONE method,
+  `Client_Model::value_errors()`, which the staff `save()` and the external API both run
+  beside `address_code_errors()`; add a rule there, not in one caller.
 - **A blank field is a value, not an omission** — it arrives as `''` and must validate.
   Never "keep the old value when blank": that makes a failed clear look like a success.
 - **The `portal/` subtree is optional.** Delete it (and the portal endpoints on the

@@ -48,7 +48,7 @@ class Contacts_View_Action extends Spa_Action {
             const [contact, projects_result, activity_result] = await Promise.all([
                 Contact_Model.fetch(this.args.id),
                 Frontend_Contacts_Controller.contact_projects({id: this.args.id}).catch(() => ({projects: []})),
-                Frontend_Contacts_Controller.contact_activity({id: this.args.id}).catch(() => ({activity: []})),
+                Activity_Feed.can_view() ? Frontend_Contacts_Controller.contact_activity({id: this.args.id}).catch(() => ({activity: []})) : {activity: []},
             ]);
             this.data.contact = contact;
             this.data.projects = projects_result.projects;

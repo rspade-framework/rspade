@@ -50,7 +50,7 @@ class Projects_View_Action extends Spa_Action {
                 Frontend_Projects_Controller.project_tasks({id: this.args.id}).catch(() => ({tasks: []})),
                 Frontend_Projects_Controller.project_subprojects({id: this.args.id}).catch(() => ({subprojects: []})),
                 Frontend_Projects_Controller.project_people({id: this.args.id}).catch(() => ({contacts: [], users: []})),
-                Frontend_Projects_Controller.project_activity({id: this.args.id}).catch(() => ({activity: []})),
+                Activity_Feed.can_view() ? Frontend_Projects_Controller.project_activity({id: this.args.id}).catch(() => ({activity: []})) : {activity: []},
             ]);
             this.data.project = project;
             this.data.tasks = tasks_result.tasks;

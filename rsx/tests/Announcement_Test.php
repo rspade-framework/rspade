@@ -189,6 +189,36 @@ class Announcement_Test extends Rsx_Test_Abstract
         static::__assert_count(0, Portal_Notification_Model::feed($suspended->id), 'suspended member excluded');
     }
 
+    public static function test_a_member_of_a_closed_portal_is_excluded()
+    {
+        $client = static::__make_client();
+        $member = static::__make_portal_user();
+        static::__add_member($client, $member);
+
+        $closed = static::__make_client();
+        $closed->portal_enabled = false;
+        $closed->save();
+        $revoked = static::__make_portal_user();
+        static::__add_member($closed, $revoked);
+
+        $targeted = new Announcement_Model();
+        $targeted->client_id = $closed->id;
+        $targeted->title = 'Closed portal';
+        $targeted->body = 'Nobody should hear this';
+        $targeted->save();
+        static::__assert_equals(0, $targeted->publish(), 'a client with its portal disabled reaches nobody');
+
+        $site_wide = new Announcement_Model();
+        $site_wide->client_id = null;
+        $site_wide->title = 'Everyone';
+        $site_wide->body = 'Every live member';
+        $site_wide->save();
+        $site_wide->publish();
+
+        static::__assert_count(1, Portal_Notification_Model::feed($member->id), 'a live member hears the site-wide one');
+        static::__assert_count(0, Portal_Notification_Model::feed($revoked->id), 'a revoked member hears nothing');
+    }
+
     // =====================================================================
     // idempotent re-publish
     // =====================================================================

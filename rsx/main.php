@@ -38,9 +38,8 @@ class Main extends Main_Abstract
         // declared here for a web request: a declaration would OUTRANK the sign-in's site
         // (a request override wins over the stored session) and pin every member of every
         // other site to site 1 - where they hold no membership, so the framework would end
-        // their session. Self-signup (rsx.auth.self_signup) creates a new site per signer,
-        // which is exactly that case. A visitor who has not signed in has no site, and
-        // nothing on the sign-in pages asks for one.
+        // their session. A visitor who has not signed in has no site, and nothing on the
+        // sign-in pages asks for one.
         //
         // A COMMAND, a task and a test run have no sign-in to carry a site, and serve site 1
         // - the template's own. init() runs from the framework service provider in both
@@ -73,8 +72,10 @@ class Main extends Main_Abstract
      *     and an API caller needs both.
      *   - AN OUTSTANDING SECOND-FACTOR ENROLLMENT (rsx.auth.require_two_factor, off as
      *     shipped). A signed-in user who owes one is redirected to the Password & Security
-     *     screen on every page request until they hold a factor - the rule and its exemptions
-     *     are Login_Controller::outstanding_enrollment_redirect().
+     *     screen on every page request, and every Ajax call that screen, sign-out and the
+     *     session machinery do not need is refused (a coded unauthorized envelope), until
+     *     they hold a factor - the rules and their exemptions are
+     *     Login_Controller::outstanding_enrollment_redirect() / outstanding_enrollment_refusal().
      * Site membership is not checked here - users.is_enabled is the framework's switch and
      * the framework enforces it before dispatch.
      *
@@ -99,11 +100,21 @@ class Main extends Main_Abstract
         }
 
         // A step the signed-in user still owes, parked at sign-in by
-        // Login_Controller::complete_sign_in(): page requests are held on its screen.
+        // Login_Controller::complete_sign_in(): page requests are held on its screen...
         $enrollment_url = Login_Controller::outstanding_enrollment_redirect($request);
 
         if ($enrollment_url !== null) {
             return redirect($enrollment_url);
+        }
+
+        // ...and Ajax calls are refused, except those the enrollment screen needs.
+        $enrollment_refusal = Login_Controller::outstanding_enrollment_refusal(
+            (string) ($params['controller'] ?? ''),
+            (string) ($params['action'] ?? '')
+        );
+
+        if ($enrollment_refusal !== null) {
+            return $enrollment_refusal;
         }
 
         // Return null to continue normal dispatch

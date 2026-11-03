@@ -35,7 +35,10 @@
             </Stat_Group>
 
             <Widget_Grid>
-                <%-- Recent activity feed (from the action log) --%>
+                <%-- Recent activity feed (from the action log). The action log is for
+                     administrators, so the whole widget - and its "View all" link to the
+                     Action Log screen - shows only to a user who may open that screen. --%>
+                <% if (Activity_Feed.can_view()) { %>
                 <Section $title="Recent Activity" $flush=true>
                     <Slot:actions>
                         <a href="<%= Rsx.Route('Action_Logs_Index_Action') %>">View all</a>
@@ -56,6 +59,7 @@
                         <% } %>
                     </Slot:body>
                 </Section>
+                <% } %>
 
                 <%-- Open tasks needing attention (due today or overdue) --%>
                 <Section $title="Today's Tasks" $flush=true>

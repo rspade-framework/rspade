@@ -43,7 +43,7 @@ class Party_View_Action extends Spa_Action {
             // non-fatal and degrades to empty.
             const [party, activity_result] = await Promise.all([
                 Party_Model.fetch(this.args.id),
-                Frontend_Party_Controller.party_activity({id: this.args.id}).catch(() => ({activity: []})),
+                Activity_Feed.can_view() ? Frontend_Party_Controller.party_activity({id: this.args.id}).catch(() => ({activity: []})) : {activity: []},
             ]);
             this.data.party = party;
 

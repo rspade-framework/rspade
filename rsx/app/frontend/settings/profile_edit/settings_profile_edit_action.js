@@ -27,13 +27,16 @@ class Settings_Profile_Edit_Action extends Spa_Action {
             department: '',
             bio: '',
         };
+        this.data.bio_max_length = null;
 
         this.data.error_data = null;
     }
 
     async on_load() {
         try {
-            this.data.form_data = await Frontend_Settings_Profile_Edit_Controller.get_profile_for_edit();
+            const profile = await Frontend_Settings_Profile_Edit_Controller.get_profile_for_edit();
+            this.data.form_data = profile.form;
+            this.data.bio_max_length = profile.bio_max_length;
         } catch (e) {
             this.data.error_data = e;
         }

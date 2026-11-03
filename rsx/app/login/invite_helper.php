@@ -94,8 +94,8 @@ class Invite_Helper
     /**
      * Check if a specific email address can accept an invitation
      *
-     * Used during signup to validate that the email address being used
-     * matches the invitation email
+     * Used when an invitee creates their account, to validate that the email address being
+     * used matches the invitation email
      *
      * @param User_Model $invitation Invitation record
      * @param string $email Email address to check

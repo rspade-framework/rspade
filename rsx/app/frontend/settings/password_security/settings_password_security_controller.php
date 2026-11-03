@@ -22,7 +22,7 @@ use Rsx\Lib\Sessions\Session_Listing;
 #[Auth('is_logged_in')]
 class Frontend_Settings_Password_Security_Controller extends Rsx_Controller_Abstract
 {
-    /** The shortest password this application accepts - the same rule signup applies. */
+    /** The shortest password this application accepts - the same rule accepting an invitation applies. */
     const PASSWORD_MIN_LENGTH = 8;
 
     /**

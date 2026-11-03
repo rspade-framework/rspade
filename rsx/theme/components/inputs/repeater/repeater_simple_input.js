@@ -83,14 +83,15 @@ class Repeater_Simple_Input extends Form_Input_Abstract {
         this.$sid('list').off('click.repeater_simple').on('click.repeater_simple', '.Repeater_Simple_Input__remove', async (e) => {
             e.preventDefault();
             const $btn = $(e.currentTarget);
-            const index = int($btn.data('index'));
 
             if (this.args.confirm_remove) {
                 const confirmed = await this.alive(Modal.confirm(this.args.confirm_title, this.args.confirm_message));
                 if (!confirmed) return;
             }
 
-            this._remove_item(index);
+            // The LIVE attribute, read after the confirm: _remove_item() re-indexes the
+            // rows with .attr(), and jQuery's .data() would answer a cached stale index.
+            this._remove_item(int($btn.attr('data-index')));
         });
 
         // Add button handler

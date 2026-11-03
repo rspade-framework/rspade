@@ -23,7 +23,7 @@
         const _subprojects = this.data.subprojects;
         const _contacts = this.data.contacts;
         const _assigned_users = this.data.assigned_users;
-        const _activity = this.data.activity;
+        const _activity = this.data.activity; const _can_view_activity = Activity_Feed.can_view();
         const _open_tasks = _tasks.filter(t => t.status === Task_Model.STATUS_PENDING || t.status === Task_Model.STATUS_IN_PROGRESS).length;
         const _overdue_tasks = _tasks.filter(t => t.is_overdue).length;
         const _has_overdue = _overdue_tasks > 0;
@@ -31,7 +31,7 @@
             { key: 'overview', label: 'Overview' },
             { key: 'tasks', label: 'Tasks', count: _tasks.length },
             { key: 'subprojects', label: 'Subprojects', count: _subprojects.length },
-            { key: 'activity', label: 'Activity', count: _activity.length },
+            ...(_can_view_activity ? [{ key: 'activity', label: 'Activity', count: _activity.length }] : []),
         ];
     %>
     <Page_Scaffold>
@@ -207,6 +207,7 @@
                         </Section>
                     </Tab_Panel>
 
+                    <% if (_can_view_activity) { %>
                     <Tab_Panel $key="activity">
                         <Section $title="Activity" $count=_activity.length $flush=true>
                             <% if (_activity.length === 0) { %>
@@ -224,6 +225,7 @@
                             <% } %>
                         </Section>
                     </Tab_Panel>
+                    <% } %>
                 </Tab_Panels>
             </Card_Widget>
         </Slot:main>

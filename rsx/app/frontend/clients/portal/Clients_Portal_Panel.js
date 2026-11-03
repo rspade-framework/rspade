@@ -157,13 +157,20 @@ class Clients_Portal_Panel extends Component {
             });
         }
 
-        // Toggle project visibility
+        // Project visibility: send the state the switch now shows, and show what the server holds.
         this.$.on('change.cpp', '[data-toggle-project]', async (e) => {
-            const project_id = $(e.currentTarget).data('toggle-project');
-            await Frontend_Clients_Controller.portal_toggle_project({
-                client_id: this.args.client_id,
-                project_id: project_id,
-            });
+            const $switch = $(e.currentTarget);
+            try {
+                const result = await this.alive(Frontend_Clients_Controller.portal_set_project_visible({
+                    client_id: this.args.client_id,
+                    project_id: $switch.data('toggle-project'),
+                    visible: $switch.prop('checked'),
+                }));
+                $switch.prop('checked', !!result.portal_visible);
+            } catch (err) {
+                await this.alive(Modal.alert('Error', err.message || 'Failed to change project visibility'));
+                this.reload();
+            }
         });
 
         // Post announcement

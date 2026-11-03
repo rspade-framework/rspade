@@ -35,6 +35,7 @@ use DB;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\LazyCollection;
+use League\Csv\EscapeFormula;
 use League\Csv\Writer;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Database\Rsx_Result_Set;
@@ -231,6 +232,15 @@ abstract class DataGrid_Abstract
      * one to disk on its own - so a grid with a lot of selected rows does not decide how
      * much memory the request needs.
      *
+     * FORMULA NEUTRALISATION. A spreadsheet opening a CSV executes any cell that begins
+     * with = + - @ (or a tab or carriage return) as a formula, so a contact named
+     * `=HYPERLINK(...)` becomes a live link - or worse - on the machine of whoever opens
+     * the export. League\Csv\EscapeFormula prefixes every such STRING cell with a single
+     * quote, the OWASP-recommended neutralisation, and the spreadsheet shows the text.
+     * Integers and floats pass untouched, so a numeric -5 stays a number; a string that
+     * happens to start with one of those characters ("-5", an E.164 "+1555...") is
+     * prefixed, which is the price of never guessing which text is safe.
+     *
      * @param array $headers Column headings
      * @param array $rows List of rows, each a flat list of scalar values
      * @return string
@@ -238,6 +248,7 @@ abstract class DataGrid_Abstract
     public static function build_csv(array $headers, array $rows): string
     {
         $writer = Writer::from(fopen('php://temp', 'r+'));
+        $writer->addFormatter((new EscapeFormula())->escapeRecord(...));
 
         $writer->insertOne($headers);
         $writer->insertAll($rows);
@@ -287,17 +298,29 @@ abstract class DataGrid_Abstract
         // a per_page of 0 is a nonsense request for nothing, not a request for the maximum.
         $per_page = min(max(1, $per_page), static::$max_per_page);
 
-        $sort = $params['sort'] ?? static::$default_sort;
+        // Sort column: the request may only name a column in the whitelist (strict
+        // comparison, strings only); anything else falls back to the grid's own default.
+        // A grid that receives a sort request with no whitelist at all is a grid defect -
+        // every request-supplied column would reach orderBy() - and is refused loudly.
+        $sort = static::$default_sort;
+        $requested_sort = $params['sort'] ?? null;
+        if ($requested_sort !== null && $requested_sort !== '') {
+            if (empty(static::$sortable_columns)) {
+                shouldnt_happen(
+                    static::class . ' received a sort request but declares no $sortable_columns. '
+                    . 'A grid names every column a request may sort by.'
+                );
+            }
 
-        $order = strtolower($params['order'] ?? static::$default_order);
-
-        // Validate sort column (must be in sortable_columns if defined, otherwise use default)
-        if (!empty(static::$sortable_columns) && !in_array($sort, static::$sortable_columns)) {
-            $sort = static::$default_sort;
+            if (is_string($requested_sort) && in_array($requested_sort, static::$sortable_columns, true)) {
+                $sort = $requested_sort;
+            }
         }
 
-        // Validate order (must be 'asc' or 'desc')
-        if (!in_array($order, ['asc', 'desc'])) {
+        // Sort order: 'asc' or 'desc' as a string, otherwise the grid's default.
+        $requested_order = $params['order'] ?? null;
+        $order = is_string($requested_order) ? strtolower($requested_order) : '';
+        if (!in_array($order, ['asc', 'desc'], true)) {
             $order = static::$default_order;
         }
 

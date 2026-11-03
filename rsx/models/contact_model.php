@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Models\User_Model;
+use Rsx\Lib\FieldChecks\Field_Checks;
 use Rsx\Models\Client_Department_Model;
 use Rsx\Models\Client_Model;
 /**
@@ -251,6 +252,52 @@ class Contact_Model extends Rsx_Site_Model_Abstract
     public function getPortalUserIdAttribute()
     {
         return $this->portal_user_id();
+    }
+
+    /**
+     * Answers [field => message] for every submitted value a contact cannot hold; empty when
+     * all of them can. Checks only the keys $values carries (an API update sends a few).
+     * Every write path (the staff form, the external API) runs it, after its own
+     * required-field rules.
+     *
+     *   - every character column fits its Contact_Model::field_length()
+     *   - email_secondary, when not blank, is a valid address
+     *   - priority is one of the declared priorities
+     *
+     * Phone numbers are checked in their STORED form: the staff form normalises them to
+     * E.164 first.
+     *
+     * @param array $values Submitted values keyed by column name
+     * @return array<string, string>
+     */
+    public static function value_errors(array $values): array
+    {
+        $errors = Field_Checks::length_errors(static::class, $values, [
+            'first_name' => 'First name',
+            'last_name' => 'Last name',
+            'title' => 'Title',
+            'email' => 'Email',
+            'email_secondary' => 'Secondary email',
+            'phone_work' => 'Work phone',
+            'phone_cell' => 'Cell phone',
+            'phone_other' => 'Other phone',
+            'city' => 'City',
+            'state' => 'State',
+            'zip' => 'ZIP / postal code',
+        ]);
+
+        $secondary = $values['email_secondary'] ?? null;
+        if ($secondary !== null && $secondary !== '' && !isset($errors['email_secondary'])
+            && !filter_var($secondary, FILTER_VALIDATE_EMAIL)) {
+            $errors['email_secondary'] = 'Please enter a valid email address';
+        }
+
+        if (array_key_exists('priority', $values) && $values['priority'] !== null && $values['priority'] !== ''
+            && !Field_Checks::is_enum_value(static::class, 'priority', $values['priority'])) {
+            $errors['priority'] = 'Choose a priority from the list';
+        }
+
+        return $errors;
     }
 
     /**

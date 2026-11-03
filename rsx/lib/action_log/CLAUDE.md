@@ -10,7 +10,8 @@
   the log row and returning a one-line HTML summary with `Rsx::Route()` links. The enum's
   `renderer` property names the method; `Action_Log_Model::render()` calls it.
 - `activity_feed.js` — `Activity_Feed.decorate(type_id)`, mapping a type id to the
-  `{icon, variant}` pair a feed row is drawn with.
+  `{icon, variant}` pair a feed row is drawn with, and `Activity_Feed.can_view()`, whether
+  the current user may see action-log rows at all.
 
 ## HOW IT IS USED
 
@@ -32,12 +33,23 @@ mounts the same component but decorates server-side in its own controller — th
 twin of `decorate()`, and the pair to keep in step. The browsable list and detail screens
 are `rsx/app/frontend/action_logs/`, which uses a datagrid rather than `Feed_Row`.
 
+**The action log is for administrators.** Every surface that returns its rows carries
+`can_view_user_activity`: the Action Log screens, `Action_Log_Model::fetch()`, each view
+page's `*_activity` endpoint (a method-level `#[Auth]` on top of the class's
+`can_view_data`) and the dashboard's feed (filled only for a holder). On the client
+`Activity_Feed.can_view()` - `Permission.can_access('Action_Logs_Index_Action')` - decides
+whether a view page fetches its feed and draws the Activity tab and KPI, and whether the
+dashboard draws its Recent Activity widget. A record's REVISION history is a different
+surface with a different audience: every staff member who may read the record.
+
 ## HOW TO CUSTOMIZE
 
 - **Add an entry type**: a `TYPE_*` constant and `$enums` row on `Action_Log_Model`
   (`rsx:constants:regenerate` afterwards), a renderer method here, and an icon bucket in
   `Activity_Feed.decorate()` — its buckets are `Math.floor(type_id / 10)`, so a new entity
   takes the next free ten.
+- **A new surface showing action-log rows** names `can_view_user_activity` on the server and
+  asks `Activity_Feed.can_view()` before drawing them.
 - **Keep renderer output narrow.** It is HTML in a feed line: a verb, the actor, a link to
   the subject. Anything larger belongs on the record's own page.
 - **Every renderer must survive a deleted subject** — the log outlives what it describes,

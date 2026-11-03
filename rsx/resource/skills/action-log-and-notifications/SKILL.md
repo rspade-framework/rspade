@@ -78,10 +78,16 @@ Live examples: `rsx/app/frontend/clients/clients_controller.php`,
 
 ## Displaying activity
 
-`Action_Log_Model::render()` emits the linked summary HTML. An Activity tab fetches
+`Action_Log_Model::render()` emits the linked summary HTML. **The action log is for
+administrators**: an endpoint returning its rows names `#[Auth('can_view_user_activity')]`
+(method level on a `*_activity` endpoint, on top of the class's `can_view_data`), and the
+page fetches and draws the feed only when `Activity_Feed.can_view()` answers true - the
+Activity tab and KPI are left out otherwise. An Activity tab fetches
 `{id, html, created_at, type_id}` and decorates it:
 
 ```javascript
+Activity_Feed.can_view() ? Controller.x_activity({id}).catch(() => ({activity: []})) : {activity: []}
+// ...
 this.data.activity = result.activity.map(a => ({ ...a, ...Activity_Feed.decorate(a.type_id) }));
 ```
 

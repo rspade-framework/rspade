@@ -43,8 +43,12 @@ its own realtime posture accordingly.
             { key: 'overview', label: 'Overview' },
             { key: 'contacts', label: 'Contacts', count: _contacts.length },
             { key: 'projects', label: 'Projects', count: _projects.length },
-            { key: 'activity', label: 'Activity', count: _activity.length },
         ];
+        // The action log is for administrators (Activity_Feed.can_view()).
+        const _can_view_activity = Activity_Feed.can_view();
+        if (_can_view_activity) {
+            _tabs.push({ key: 'activity', label: 'Activity', count: _activity.length });
+        }
         if (_client.portal_enabled) {
             _tabs.push({ key: 'portal', label: 'Portal' });
         }
@@ -91,9 +95,11 @@ its own realtime posture accordingly.
                         <Clients_View_Tab_Projects $client_id=_client.id $projects=_projects />
                     </Tab_Panel>
 
+                    <% if (_can_view_activity) { %>
                     <Tab_Panel $key="activity">
                         <Clients_View_Tab_Activity $activity=_activity />
                     </Tab_Panel>
+                    <% } %>
 
                     <% if (_client.portal_enabled) { %>
                     <Tab_Panel $key="portal">

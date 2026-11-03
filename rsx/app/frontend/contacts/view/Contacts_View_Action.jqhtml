@@ -21,11 +21,11 @@
         <%
         const _contact = this.data.contact;
         const _projects = this.data.projects;
-        const _activity = this.data.activity;
+        const _activity = this.data.activity; const _can_view_activity = Activity_Feed.can_view();
         const _tabs = [
             { key: 'overview', label: 'Overview' },
             { key: 'projects', label: 'Projects', count: _projects.length },
-            { key: 'activity', label: 'Activity', count: _activity.length },
+            ...(_can_view_activity ? [{ key: 'activity', label: 'Activity', count: _activity.length }] : []),
         ];
     %>
         <Page_Scaffold>
@@ -139,6 +139,7 @@
                             </Section>
                         </Tab_Panel>
 
+                        <% if (_can_view_activity) { %>
                         <Tab_Panel $key="activity">
                             <Section $title="Activity" $count=_activity.length $flush=true>
                                 <% if (_activity.length === 0) { %>
@@ -156,6 +157,7 @@
                                 <% } %>
                             </Section>
                         </Tab_Panel>
+                        <% } %>
                     </Tab_Panels>
                 </Card_Widget>
             </Slot:main>
@@ -167,10 +169,12 @@
                             <Slot:label>Projects</Slot:label>
                             <Slot:value><%= _projects.length %></Slot:value>
                         </Kpi_Cell>
+                        <% if (_can_view_activity) { %>
                         <Kpi_Cell $clickable=true $tab="activity" $tooltip="Recorded activity for this contact">
                             <Slot:label>Activity</Slot:label>
                             <Slot:value><%= _activity.length %></Slot:value>
                         </Kpi_Cell>
+                        <% } %>
                     </Sidebar_Kpi_Group>
 
                     <View_Fields>

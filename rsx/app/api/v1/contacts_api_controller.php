@@ -123,8 +123,10 @@ class Contacts_Api_Controller extends Rsx_Api_Controller_Abstract
     /**
      * Create a contact.
      *
-     * Requires first_name, last_name, client_id and a valid email (mirrors the staff
-     * save form). site_id is stamped automatically from the authenticated key.
+     * Requires a non-blank first_name and last_name, client_id and a valid email (mirrors
+     * the staff save form). Every string must fit its column, a supplied email_secondary
+     * must be valid and priority must be a declared priority - otherwise a 422 names the
+     * field. site_id is stamped automatically from the authenticated key.
      *
      * @api-response
      * {
@@ -160,14 +162,29 @@ class Contacts_Api_Controller extends Rsx_Api_Controller_Abstract
     #[Api_Param('priority', type: 'int', default: 2, description: 'Priority (1=Low..4=Urgent; 2=Medium)')]
     public static function create(Request $request, array $params = [])
     {
+        // `required` only means the key is present; a blank name is refused like the staff form.
+        $errors = [];
+        if (trim($params['first_name']) === '') {
+            $errors['first_name'] = 'First name is required';
+        }
+        if (trim($params['last_name']) === '') {
+            $errors['last_name'] = 'Last name is required';
+        }
         if (!filter_var($params['email'], FILTER_VALIDATE_EMAIL)) {
-            return Rsx_Api::validation_error(['email' => 'Please enter a valid email address']);
+            $errors['email'] = 'Please enter a valid email address';
         }
 
         // The client must be one of the caller's site's: the site-scoped find answers
         // null for a client of another site, exactly as for one that does not exist.
         if (!Client_Model::find($params['client_id'])) {
-            return Rsx_Api::validation_error(['client_id' => 'No such client']);
+            $errors['client_id'] = 'No such client';
+        }
+
+        // Lengths, the secondary email and the priority - the staff form's rules.
+        $errors += Contact_Model::value_errors($params);
+
+        if (!empty($errors)) {
+            return Rsx_Api::validation_error($errors);
         }
 
         $contact = new Contact_Model();
@@ -201,7 +218,8 @@ class Contacts_Api_Controller extends Rsx_Api_Controller_Abstract
      *
      * Applies only the fields present in the request; omitted fields are left
      * unchanged. A present required field (first_name, last_name, client_id, email)
-     * must be non-empty, and email must be valid.
+     * must be non-empty, and email must be valid. The value rules of create apply to
+     * every field sent.
      *
      * @api-response
      * {
@@ -264,6 +282,8 @@ class Contacts_Api_Controller extends Rsx_Api_Controller_Abstract
         if (array_key_exists('client_id', $params) && !Client_Model::find($params['client_id'])) {
             $errors['client_id'] = 'No such client';
         }
+        // Lengths, the secondary email and the priority, on the fields sent.
+        $errors += Contact_Model::value_errors($params);
         if (!empty($errors)) {
             return Rsx_Api::validation_error($errors);
         }

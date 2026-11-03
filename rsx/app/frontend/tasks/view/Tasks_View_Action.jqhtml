@@ -20,7 +20,7 @@
     <%
         const _task = this.data.task;
         const _subtasks = this.data.subtasks;
-        const _activity = this.data.activity;
+        const _activity = this.data.activity; const _can_view_activity = Activity_Feed.can_view();
         const _open = _task.status === Task_Model.STATUS_PENDING || _task.status === Task_Model.STATUS_IN_PROGRESS;
         const _overdue = !!_task.due_date && Rsx_Date.is_past(_task.due_date) && _open;
         const _pri_chip = (_task.priority__badge || 'bg-secondary').replace('bg-', 'badge-outline-');
@@ -28,7 +28,7 @@
         const _tabs = [
             { key: 'overview', label: 'Overview' },
             { key: 'subtasks', label: 'Subtasks', count: _subtasks.length },
-            { key: 'activity', label: 'Activity', count: _activity.length },
+            ...(_can_view_activity ? [{ key: 'activity', label: 'Activity', count: _activity.length }] : []),
         ];
     %>
     <Page_Scaffold>
@@ -155,6 +155,7 @@
                         </Section>
                     </Tab_Panel>
 
+                    <% if (_can_view_activity) { %>
                     <Tab_Panel $key="activity">
                         <Section $title="Activity" $count=_activity.length $flush=true>
                             <% if (_activity.length === 0) { %>
@@ -172,6 +173,7 @@
                             <% } %>
                         </Section>
                     </Tab_Panel>
+                    <% } %>
                 </Tab_Panels>
             </Card_Widget>
         </Slot:main>
@@ -187,10 +189,12 @@
                         <Slot:label>Est. Hours</Slot:label>
                         <Slot:value><% if (_task.hour_estimate !== null && _task.hour_estimate !== undefined && _task.hour_estimate !== '') { %><%= _task.hour_estimate %><% } else { %>&mdash;<% } %></Slot:value>
                     </Kpi_Cell>
+                    <% if (_can_view_activity) { %>
                     <Kpi_Cell $clickable=true $tab="activity" $tooltip="Recorded activity for this task">
                         <Slot:label>Activity</Slot:label>
                         <Slot:value><%= _activity.length %></Slot:value>
                     </Kpi_Cell>
+                    <% } %>
                     <% if (_overdue) { %>
                     <Kpi_Cell $alert=true $tooltip="This open task is past its due date">
                         <Slot:label>Overdue</Slot:label>

@@ -22,7 +22,9 @@ One subdirectory per input family; every input extends the framework's
 - `wysiwyg/` — `Wysiwyg_Input`, async-initialised rich text. Edits a `Rich_Text` VALUE,
   not a string (`static ACCEPTS = Rich_Text`). When the app accepts uploads
   (`rsxapp.files.uploads_enabled`), a dropped, pasted or attach-button file is uploaded and
-  embedded as a non-editable card (`Wysiwyg_File_Blot`), stored as `{{#file:N}}`.
+  embedded as a non-editable card (`Wysiwyg_File_Blot`), stored as `{{#file:N}}`; without
+  uploads the toolbar has no attach and no image button (a Quill image is a `data:` URL,
+  which the sanitizer strips on save).
 - `raw_text/` — `Raw_Text_Input`, a textarea editing a `Raw_Text` value.
 - `hidden/` — `Hidden_Input`.
 

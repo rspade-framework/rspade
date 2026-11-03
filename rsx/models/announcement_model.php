@@ -108,25 +108,20 @@ class Announcement_Model extends Rsx_Site_Model_Abstract
      * Resolve the recipient portal user ids for this announcement's audience.
      *
      * Audience (basic version):
-     *   - client_id set  -> all active portal members of that client.
-     *   - client_id null -> every active portal member on the site (site-wide).
+     *   - client_id set  -> the live members of that client.
+     *   - client_id null -> every live member of any client on the site (site-wide).
      *
      * Returns a de-duplicated list of Portal_User_Model ids. Only ACTIVE portal
-     * accounts are targeted (a suspended/inactive user gets nothing).
+     * accounts holding a LIVE membership are targeted: a suspended user, and a member
+     * of a client whose portal is disabled or which is deleted, gets nothing.
      *
      * @return int[]
      */
     public function resolve_recipient_ids(): array
     {
-        if ($this->client_id) {
-            $memberships = Portal_Membership_Model::get_for_client((int) $this->client_id);
-        } else {
-            // Site-wide: every membership on the site (the global scope already
-            // restricts to this site_id).
-            $memberships = Portal_Membership_Model::query()->get();
-        }
-
-        $portal_user_ids = $memberships->pluck('portal_user_id')->unique()->all();
+        $portal_user_ids = Portal_Membership_Model::live_portal_user_ids(
+            $this->client_id ? (int) $this->client_id : null
+        );
         if (empty($portal_user_ids)) {
             return [];
         }

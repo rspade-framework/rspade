@@ -55,7 +55,16 @@ class Entity_Link extends Component {
         if (this.args.id && this.args.model) {
             const model_class = Manifest.get_class_by_name(this.args.model);
             if (model_class) {
-                const record = await model_class.fetch_cached(this.args.id);
+                // A missing or denied record (one answer, by design) is an expected
+                // state here - the reference may point at a deleted row or one the
+                // viewer cannot see - and renders the template's "Unknown" branch.
+                // Any other failure (transport, validation) still propagates.
+                let record = null;
+                try {
+                    record = await model_class.fetch_cached(this.args.id);
+                } catch (e) {
+                    if (e.code !== Ajax.ERROR_NOT_FOUND) throw e;
+                }
                 // Store a PLAIN object, never the hydrated model instance: a
                 // model instance in this.data defeats the framework's post-load
                 // re-render heuristic (it serializes this.data to detect the

@@ -9,9 +9,11 @@ written by `Action_Log::record()` from the feature controllers, never from here.
 
 **Gated `can_view_user_activity`** - the controller, both actions and
 `Action_Log_Model::fetch()` - because the site-wide log is the activity history of the
-site's users (`PERM_VIEW_USER_ACTIVITY`, Manager and above by default). The dashboard's
-recent-activity strip reads the same log and is empty for anyone without it. The per-record
-activity tabs are record history and read on `can_view_data`.
+site's users (`PERM_VIEW_USER_ACTIVITY`, Manager and above by default). The action log is
+for administrators wherever it appears: the dashboard's recent-activity widget and every
+per-record Activity tab carry the same check (the `*_activity` endpoints name it at method
+level) and are drawn only when `Activity_Feed.can_view()` answers true. A record's revision
+History is the different, wider surface - every staff member who may read the record.
 
 This is the BROWSE surface. The per-record activity tabs on the entity view pages are a
 different presentation of the same data, mounted as `Feed_Row` — see
