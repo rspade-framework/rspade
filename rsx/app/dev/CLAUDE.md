@@ -28,7 +28,7 @@ together with `../ssr_test/` frees the theme components `Page`, `Page_Header`,
 consumer. `Card_Title` stays — every datagrid uses it.
 
 **To open it instead:** replace `closed` with a real check on every class
-`grep -rn "closed" rsx/app/dev` finds, and fix the two `// TODO: Implement developer role
-check` sites in `acl/dev_acl_controller.php` first.
+`grep -rn "closed" rsx/app/dev` finds, and fix the `// TODO: Implement developer role
+check` site in `acl/dev_acl_controller.php` first.
 
 **Related:** `../CLAUDE.md` · `rsx/theme/components/page/CLAUDE.md` · app skill `modals`

@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Fifty-seven test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Fifty-nine test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -133,7 +133,13 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   `user.initial.created` handler (the founder gets the top role), asserted on an account
   the test creates.
 - **External API**: `Client_Attachments_Api_Test` — the app-owned half of file attachment
-  (claim once, ownership re-verified on delete, retention and share revocation).
+  (claim once, ownership re-verified on delete, retention and share revocation);
+  `Contacts_Api_Client_Site_Test` — the contacts API accepts only a `client_id` of the
+  caller's own site.
+- **Document sharing**: `Portal_Share_Link_Test` — sharing a document mints the invitation and
+  sends nothing until the send step, which emails the share and the invitation once; the
+  share link answers by who follows it (documents page, sign-in with a notice, accept-invite,
+  or sign-in with an error).
 - **Declared text types**: `Text_Type_Assignment_Test` — what assignment does at a declared
   column on a real model: a typeless request value reads back as the COLUMN's type (the cast
   disables Eloquent's object caching; this is the test that notices if it comes back), the

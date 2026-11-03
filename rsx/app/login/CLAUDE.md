@@ -186,6 +186,12 @@ the hold is on page loads, not a gate.
 **`Login_Redirect`.** One call site: `Login_Controller::logout()`, `consume($default)` on
 logout. Login itself does not round-trip the parameter — see HOW TO CUSTOMIZE.
 
+**`Login_Notice`.** The sentence a flow sends a visitor to the sign-in page with (a link that
+expired, a session that ended): the sending side puts `Login_Notice::params($code)` on the
+URL, `login_index.blade.php` prints `Login_Notice::current()`, and the codes and their
+wording are declared in `rsx.login_notices` (`rsx/resource/config/rsx.php`). No free text
+crosses the URL, and never a flash, which a second redirect loses.
+
 **`RSPADE_LOGIN_AUTOFILL`.** `login_index.blade.php:20` reads
 `config('rsx.development.login_autofill')` and, when it is on, prefills
 `config('rsx.default_user.email')`/`.password` and renders a warning banner saying how to

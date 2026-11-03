@@ -50,6 +50,10 @@ new feature, and copy its structure rather than inventing one.
   (notifications, profile, password, preferences, API keys) stay on `is_logged_in`.
   `rsx/tests/Endpoint_Data_Gates_Test.php` fails on a write-shaped endpoint without
   `can_edit_data` and on a read with no check beyond `is_logged_in`.
+- **Every edit endpoint saves through `Form_Edit::run($record, $params, fn (Form_Edit $edit) => ...)`**
+  - only the changed fields are written, under a row lock, and a save that overlaps another
+  editor's change asks first (`rsx:man form_conventions`, EDITING A RECORD). The model
+  declares `$revisions = true` and the edit form's `$data` carries `updated_at`.
 - **Every id a save stores is looked up through its site-scoped model first** (another
   tenant's id is then a field error), and a list grid joins related tables on the base
   row's own `site_id`.

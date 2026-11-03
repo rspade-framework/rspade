@@ -15,7 +15,6 @@ This directory contains Docker-specific configuration for RSX applications.
 - Installing system packages (e.g., image processing libraries, additional utilities)
 - Installing PHP extensions not included in the base image
 - Initializing application services
-- Running database migrations or seeders
 - Configuring environment-specific settings
 
 ### Example
@@ -29,9 +28,6 @@ apt-get update && apt-get install -y imagemagick
 
 # Install PHP Redis extension
 docker-php-ext-install redis
-
-# Run migrations on first startup
-php artisan migrate --force
 ```
 
 ## Notes
