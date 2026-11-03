@@ -175,7 +175,7 @@
                                 <li><code>PERM_MANAGE_SITE_BILLING (2)</code> - Site owner and above</li>
                                 <li><code>PERM_MANAGE_SITE_SETTINGS (3)</code> - Site admin and above</li>
                                 <li><code>PERM_MANAGE_SITE_USERS (4)</code> - Site admin and above</li>
-                                <li><code>PERM_VIEW_USER_ACTIVITY (5)</code> - Manager and above</li>
+                                <li><code>PERM_VIEW_USER_ACTIVITY (5)</code> - Site admin and above</li>
                                 <li><code>PERM_EDIT_DATA (6)</code> - User and above</li>
                                 <li><code>PERM_VIEW_DATA (7)</code> - Viewer and above</li>
                             </ul>

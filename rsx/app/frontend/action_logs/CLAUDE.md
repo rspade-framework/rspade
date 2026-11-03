@@ -9,7 +9,7 @@ written by `Action_Log::record()` from the feature controllers, never from here.
 
 **Gated `can_view_user_activity`** - the controller, both actions and
 `Action_Log_Model::fetch()` - because the site-wide log is the activity history of the
-site's users (`PERM_VIEW_USER_ACTIVITY`, Manager and above by default). The action log is
+site's users (`PERM_VIEW_USER_ACTIVITY`, Site Admin and above by default). The action log is
 for administrators wherever it appears: the dashboard's recent-activity widget and every
 per-record Activity tab carry the same check (the `*_activity` endpoints name it at method
 level) and are drawn only when `Activity_Feed.can_view()` answers true. A record's revision

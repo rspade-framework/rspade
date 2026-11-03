@@ -20,7 +20,7 @@ use Rsx\Models\Client_Model;
 /**
  * Who reads the action log, and who reads a record's change history.
  *
- * The action log is for administrators: the Action Log screens, every per-record Activity
+ * The action log is for administrators (Site Admin and up; a Manager is refused): the Action Log screens, every per-record Activity
  * feed (`*_activity`) and the dashboard's recent-activity feed answer only a holder of
  * can_view_user_activity. A record's revision history is wider - every staff member who may
  * read the record, a User or a Viewer included. And the dashboard page asks exactly what its
@@ -111,9 +111,9 @@ class Action_Log_Access_Test extends Rsx_Test_Abstract
         }
     }
 
-    public static function test_a_plain_user_is_refused_the_action_log_and_reads_change_history()
+    public static function test_below_site_admin_is_refused_the_action_log_and_reads_change_history()
     {
-        foreach ([User_Model::ROLE_USER, User_Model::ROLE_VIEWER] as $role_id) {
+        foreach ([User_Model::ROLE_MANAGER, User_Model::ROLE_USER, User_Model::ROLE_VIEWER] as $role_id) {
             static::__act_as(static::__member($role_id));
 
             foreach (self::ACTION_LOG_SURFACES as $target) {
@@ -128,7 +128,7 @@ class Action_Log_Access_Test extends Rsx_Test_Abstract
 
     public static function test_an_administrator_reads_the_action_log()
     {
-        foreach ([User_Model::ROLE_MANAGER, User_Model::ROLE_SITE_ADMIN, User_Model::ROLE_SITE_OWNER] as $role_id) {
+        foreach ([User_Model::ROLE_SITE_ADMIN, User_Model::ROLE_SITE_OWNER] as $role_id) {
             static::__act_as(static::__member($role_id));
 
             foreach (self::ACTION_LOG_SURFACES as $target) {
