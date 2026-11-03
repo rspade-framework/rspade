@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Fifty-six test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Fifty-seven test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -142,6 +142,12 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   refused not converted, and a typed value refuses to be a string so a lossy concatenation
   cannot reach storage. The framework suite pins the type contract against fixtures; this
   pins the half only a real column can show.
+- **Files embedded in rich text**: `Inline_File_Embed_Test` — saving text that embeds an
+  upload makes the record own it (`inline_embed`, a reference row); the unclaimed sweep skips a
+  referenced file; another user cannot claim a pending upload by typing its id; removing a token
+  keeps the file and its owner; a second record's copy adds a reference without moving
+  ownership; `resolve_files` leaves out what the viewer may not see; the claim runs under
+  `Revision::without()` and through a query-builder `update()`.
 - **Declared text types, the converted columns**: `Text_Type_Descriptions_Test` — the
   `description` columns that moved from plain text to `Rich_Text` and still exist (`tasks`,
   `demo_products`): a bare string reads back typed on each, the filter strips a script on

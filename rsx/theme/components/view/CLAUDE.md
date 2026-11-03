@@ -16,7 +16,11 @@ One subdirectory per component (template + SCSS, `.js` only where behaviour exis
   component that type declares, so it is mounted by interpolating the value rather than
   written by hand. Owns the one unescaped output in the application, which is correct only
   here because `Rich_Text` filtered the content on write. Draws a Quill 2 checklist
-  (`li[data-list="checked"|"unchecked"]`) as static ticked/empty boxes.
+  (`li[data-list="checked"|"unchecked"]`) as static ticked/empty boxes. Draws each
+  `{{#file:N}}` embed as an `Inline_File_Card` (one `resolve_files` call per document).
+- `inline_file_card/` — `Inline_File_Card`: one file embedded in rich text - a thumbnail for
+  an image, the type mark and name otherwise, "File not found" when it is gone or not
+  visible; a click opens `Attachment_Preview_Modal`.
 - `raw_text_display/` — `Raw_Text_Display`: renders a `Raw_Text` value, escaped with line
   breaks. A component rather than a plain string because a printer's string return is
   escaped at the call site and so could never carry a `<br>` of its own.

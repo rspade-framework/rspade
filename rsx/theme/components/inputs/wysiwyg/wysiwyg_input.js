@@ -17,6 +17,13 @@
  *
  * That is the point of the text-type system: the encoding is declared once on the model
  * and every sink asks the value, instead of every sink remembering.
+ *
+ * FILES. When the application accepts uploads (window.rsxapp.files.uploads_enabled - a
+ * file.upload.authorize handler is registered), a file dropped onto the editor, pasted into
+ * it, or picked with the toolbar's attach button is uploaded and embedded at that point as
+ * a non-editable card (wysiwyg_file_blot.js). The stored value carries it as the token
+ * {{#file:<attachment id>}}; saving the record makes the record own the file (Rich_Text).
+ * Without uploads the editor keeps Quill's own image handling and offers no attach button.
  */
 class Wysiwyg_Input extends Form_Input_Abstract {
     // A NAME, not a class reference - see Raw_Text_Input for why.
@@ -25,6 +32,8 @@ class Wysiwyg_Input extends Form_Input_Abstract {
     on_create() {
         super.on_create();
         this.quill = null;
+        this.state.file_cards = {};
+        this.state.upload_seq = 0;
     }
 
     /**
@@ -34,6 +43,8 @@ class Wysiwyg_Input extends Form_Input_Abstract {
         if (!this.quill) {
             return null;
         }
+
+        // Each embedded file's element back to its {{#file:N}} token (see the class docblock).
 
         // getSemanticHTML(), NOT `root.innerHTML`. The editor's live DOM is Quill's
         // RENDERING, not its document: it carries `<span class="ql-ui">` chrome nodes and
@@ -46,7 +57,7 @@ class Wysiwyg_Input extends Form_Input_Abstract {
         // HTML": plain `<ul><li>`, no chrome, nothing that depends on Quill to interpret.
         // That is what a text type should hold - the column outlives whichever editor
         // happens to be writing to it.
-        return Rich_Text.from_editor(this.quill.getSemanticHTML());
+        return Rich_Text.from_editor(Inline_File_Tokens.from_editor_html(this.quill.getSemanticHTML()));
     }
 
     /**
@@ -80,8 +91,16 @@ class Wysiwyg_Input extends Form_Input_Abstract {
         // Rich_Text on write and again by sanitize_rich_text_html() client-side, so what arrives here
         // has already been through the trust boundary twice.
         this.quill.setContents([]);
-        this.quill.clipboard.dangerouslyPasteHTML(raw);
+        this.quill.clipboard.dangerouslyPasteHTML(Inline_File_Tokens.to_editor_html(raw));
         this.$sid('hidden_input').val(raw);
+        this._draw_file_embeds();
+    }
+
+    /**
+     * Draw the card of every embedded file not drawn yet, in one request.
+     */
+    _draw_file_embeds() {
+        Inline_File_Renderer.fill(this.quill.root, { interactive: false, cache: this.state.file_cards });
     }
 
     on_ready() {
@@ -96,23 +115,48 @@ class Wysiwyg_Input extends Form_Input_Abstract {
 
     _initialize_quill() {
         const that = this;
+        const uploads_enabled = !!window.rsxapp.files.uploads_enabled;
+
+        Wysiwyg_File_Blot.register();
+
+        const insert_group = uploads_enabled ? ['link', 'image', 'inline_file'] : ['link', 'image'];
+        if (uploads_enabled) {
+            Quill.import('ui/icons')['inline_file'] = Wysiwyg_File_Blot.ATTACH_ICON;
+        }
 
         // Initialize Quill editor
         this.quill = new Quill(this.$sid('editor')[0], {
             theme: 'snow',
             placeholder: this.args.placeholder || 'Enter text...',
             modules: {
-                toolbar: [
-                    [{ 'header': [1, 2, 3, false] }],
-                    ['bold', 'italic', 'underline', 'strike'],
-                    ['blockquote', 'code-block'],
-                    [{ 'list': 'ordered'}, { 'list': 'bullet' }, { 'list': 'check' }],
-                    [{ 'indent': '-1'}, { 'indent': '+1' }],
-                    ['link', 'image'],
-                    ['clean']
-                ]
+                toolbar: {
+                    container: [
+                        [{ 'header': [1, 2, 3, false] }],
+                        ['bold', 'italic', 'underline', 'strike'],
+                        ['blockquote', 'code-block'],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }, { 'list': 'check' }],
+                        [{ 'indent': '-1'}, { 'indent': '+1' }],
+                        insert_group,
+                        ['clean']
+                    ],
+                    handlers: {
+                        inline_file: function () {
+                            that._choose_files();
+                        },
+                    },
+                },
             }
         });
+
+        if (uploads_enabled) {
+            // Quill's uploader module already turns a drop (at the drop point) and a paste of
+            // files (at the selection) into upload(range, files); it would embed images as
+            // base64. Every file is uploaded and embedded instead.
+            this.quill.getModule('uploader').upload = function (range, files) {
+                that._upload_files(range.index, Array.from(files));
+            };
+            this.$sid('editor').find('.ql-inline_file').attr('title', 'Attach a file');
+        }
 
         // Update hidden input on text change and trigger events.
         //
@@ -129,5 +173,75 @@ class Wysiwyg_Input extends Form_Input_Abstract {
                 that._notify_input(that.val());
             }
         });
+    }
+
+    /**
+     * The toolbar's attach button: pick files, embed them at the selection as it was BEFORE
+     * the file dialog took focus.
+     */
+    _choose_files() {
+        const range = this.quill.getSelection(true);
+        const index = range ? range.index : this.quill.getLength() - 1;
+        const $picker = $('<input type="file" multiple>');
+        $picker.on('change', () => {
+            this._upload_files(index, Array.from($picker[0].files));
+        });
+        $picker[0].click();
+    }
+
+    /**
+     * Upload files and embed each at `index`, in order. Each shows a loading card at once;
+     * a file that fails is removed and the reason shown.
+     *
+     * @param {number} index
+     * @param {File[]} files
+     */
+    _upload_files(index, files) {
+        for (const file of files) {
+            const pending = 'upload-' + Date.now() + '-' + (++this.state.upload_seq);
+            this.quill.insertEmbed(index, 'inline_file', { id: '', pending: pending }, 'user');
+            index++;
+            this.quill.setSelection(index, 0, 'silent');
+            this._upload_one(file, pending);
+        }
+    }
+
+    /**
+     * @param {File} file
+     * @param {string} pending The pending embed's token.
+     */
+    async _upload_one(file, pending) {
+        const $pending = () => $(this.quill.root).find('.Inline_File_Embed[data-pending="' + pending + '"]');
+        $pending().find('.Inline_File_Embed__slot').component('Inline_File_Card', { interactive: false });
+
+        try {
+            const form_data = new FormData();
+            form_data.append('file', file);
+            const result = await this.alive(Ajax.upload(form_data));
+            const card = await this.alive(Inline_File_Controller.resolve_attachment({ key: result.attachment.key }));
+            this.state.file_cards[card.file_attachment_id] = card;
+            this._replace_pending(pending, { id: card.file_attachment_id });
+        } catch (error) {
+            this._replace_pending(pending, null);
+            Modal.error(error, 'Could not attach ' + file.name);
+        }
+    }
+
+    /**
+     * Swap a pending embed for the finished one (or remove it when `value` is null).
+     */
+    _replace_pending(pending, value) {
+        const $node = $(this.quill.root).find('.Inline_File_Embed[data-pending="' + pending + '"]');
+        if (!$node.exists()) {
+            return;   // the user deleted the placeholder while it uploaded
+        }
+        const blot = Quill.find($node[0]);
+
+        const index = this.quill.getIndex(blot);
+        this.quill.deleteText(index, 1, 'user');
+        if (value) {
+            this.quill.insertEmbed(index, 'inline_file', value, 'user');
+            this._draw_file_embeds();
+        }
     }
 }

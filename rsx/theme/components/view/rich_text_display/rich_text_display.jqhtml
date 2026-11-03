@@ -21,6 +21,9 @@ straight back without ever assigning it, which reaches this component unfiltered
 cheap, it is the literal injection point, and a second check at the one place it
 matters costs nothing.
 
+A file embedded in the text is stored as a {{#file:N}} token; the component's JS draws each
+one as an Inline_File_Card (rsx/lib/inline_file/).
+
 Usage (only when a printer needs an argument it cannot get by interpolation):
     <Rich_Text_Display $value=this.data.project.description />
 --%>

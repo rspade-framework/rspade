@@ -1,0 +1,48 @@
+.Inline_File_Card {
+    display: inline-flex;
+    align-items: center;
+    gap: $spacing-xs;
+    max-width: 100%;
+    padding: 2px $spacing-sm;
+    margin: 0 2px;
+    vertical-align: middle;
+    border: 1px solid var(--bs-border-color);
+    border-radius: $border-radius-sm;
+    background: var(--bs-tertiary-bg);
+    user-select: none;
+
+    &--image {
+        display: inline-block;
+        padding: 0;
+        border: 0;
+        background: transparent;
+    }
+
+    &--interactive {
+        cursor: pointer;
+
+        &:hover {
+            border-color: var(--bs-primary);
+        }
+    }
+
+    &__thumbnail {
+        display: block;
+        max-width: 320px;
+    }
+
+    &__icon {
+        flex: none;
+    }
+
+    &__name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__status {
+        color: var(--bs-secondary-color);
+        font-style: italic;
+    }
+}

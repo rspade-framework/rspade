@@ -20,7 +20,9 @@ One subdirectory per input family; every input extends the framework's
 - `repeater/` — `Repeater_Simple_Input`, a repeating row of sub-values.
 - `photo/` — `Profile_Photo_Input`, an upload that stores a file-attachment id.
 - `wysiwyg/` — `Wysiwyg_Input`, async-initialised rich text. Edits a `Rich_Text` VALUE,
-  not a string (`static ACCEPTS = Rich_Text`).
+  not a string (`static ACCEPTS = Rich_Text`). When the app accepts uploads
+  (`rsxapp.files.uploads_enabled`), a dropped, pasted or attach-button file is uploaded and
+  embedded as a non-editable card (`Wysiwyg_File_Blot`), stored as `{{#file:N}}`.
 - `raw_text/` — `Raw_Text_Input`, a textarea editing a `Raw_Text` value.
 - `hidden/` — `Hidden_Input`.
 

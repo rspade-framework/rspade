@@ -1,0 +1,23 @@
+<%--
+Inline_File_Card - one file embedded in rich text, drawn where its token sits.
+
+$card        - the file's card (Inline_File_Controller: a Record_Attachment_List row plus
+               is_image and file_extension); undefined while it is being fetched, null when
+               the file does not exist or this user may not see it
+$interactive - true (default): a click opens the attachment preview dialog. The editor
+               passes false - inside the editor the card is content being edited.
+
+An image shows its thumbnail; any other file its type mark and name.
+--%>
+<Define:Inline_File_Card tag="span" contenteditable="false">
+    <% if (this.args.card === undefined) { %>
+        <span class="Inline_File_Card__status">Loading file&hellip;</span>
+    <% } else if (this.args.card === null) { %>
+        <span class="Inline_File_Card__status">File not found</span>
+    <% } else if (this.args.card.is_image) { %>
+        <Attachment_Thumbnail class="Inline_File_Card__thumbnail" $attachment_id=this.args.card.file_attachment_id $width=320 />
+    <% } else { %>
+        <File_Type_Icon class="Inline_File_Card__icon" $file_name=this.args.card.file_name />
+        <span class="Inline_File_Card__name"><%= this.args.card.file_name %></span>
+    <% } %>
+</Define:Inline_File_Card>

@@ -5,7 +5,7 @@
 | Path | What it is |
 |---|---|
 | `raw_text/` | `Raw_Text` (PHP: the encoding) + `raw_text.js` (which components print and edit it). A block of user-authored plain text. |
-| `rich_text/` | `Rich_Text` + `rich_text.js`. Sanitized HTML from a WYSIWYG, filtered by `sanitize_rich_text_html()` on write. |
+| `rich_text/` | `Rich_Text` + `rich_text.js`. Sanitized HTML from a WYSIWYG, filtered by `sanitize_rich_text_html()` on write. Carries file embeds as `{{#file:<attachment id>}}` tokens (`file_ids()`); its `after_model_saved()` makes the saved record own each embedded file (see `../inline_file/`). |
 
 Both extend the framework's `Rsx_Text_Abstract`. **The framework ships the abstract
 and no concrete types at all** — which ones exist, and what each permits, is this
