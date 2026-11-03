@@ -172,7 +172,6 @@
                         <div class="col-md-6">
                             <h6>Core Permissions</h6>
                             <ul class="list-unstyled mb-0">
-                                <li><code>PERM_MANAGE_SITES_ROOT (1)</code> - Root admin only</li>
                                 <li><code>PERM_MANAGE_SITE_BILLING (2)</code> - Site owner and above</li>
                                 <li><code>PERM_MANAGE_SITE_SETTINGS (3)</code> - Site admin and above</li>
                                 <li><code>PERM_MANAGE_SITE_USERS (4)</code> - Site admin and above</li>
