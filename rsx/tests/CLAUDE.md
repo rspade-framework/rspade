@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Sixty-four test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Sixty-five test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -164,7 +164,11 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 - **External API**: `Client_Attachments_Api_Test` — the app-owned half of file attachment
   (claim once, ownership re-verified on delete, retention and share revocation);
   `Contacts_Api_Client_Site_Test` — the contacts API accepts only a `client_id` of the
-  caller's own site.
+  caller's own site;
+  `Task_Api_Write_Test` — task create and update over the API: the staff save and the API
+  refuse the same bad values with the same messages, a parent or project of another site (or
+  a deleted parent) is refused, the derived project follows the parent and cascades, an
+  update writes only the fields sent, another site's task is not found.
 - **Document sharing**: `Portal_Share_Link_Test` — sharing a document mints the invitation and
   sends nothing until the send step, which emails the share and the invitation once; the
   share link answers by who follows it (documents page, sign-in with a notice, accept-invite,

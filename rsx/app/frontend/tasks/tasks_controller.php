@@ -14,11 +14,9 @@ use App\RSpade\Core\Forms\Form_Edit;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
-use App\RSpade\Core\Time\Rsx_Date;
 use Rsx\App\Frontend\Tasks\List\Tasks_DataGrid;
 use Rsx\Lib\ActionLog\Action_Log;
 use Rsx\Lib\Attachments\Record_Attachment_List;
-use Rsx\Lib\FieldChecks\Field_Checks;
 use Rsx\Models\Action_Log_Model;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Project_Model;
@@ -34,9 +32,6 @@ use Rsx\Models\Task_Model;
 #[Auth('is_logged_in', 'can_view_data')]
 class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
 {
-    /** Polymorphic parent types a task may be attached to. */
-    private const PARENT_TYPES = ['Task_Model', 'Project_Model', 'Client_Model', 'User_Model'];
-
     /**
      * Ajax endpoint: Fetch DataGrid data.
      */
@@ -132,7 +127,7 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
     #[Ajax_Endpoint]
     public static function resolve_parent_project(Request $request, array $params = [])
     {
-        [$type, $id] = static::__read_taskable($params['taskable'] ?? null);
+        [$type, $id] = Task_Model::read_taskable($params['taskable'] ?? null);
 
         // Build a throwaway (unsaved) task carrying only the candidate parent, then reuse the
         // model's chain resolver so the rule lives in exactly one place.
@@ -172,7 +167,7 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
     #[Ajax_Endpoint]
     public static function search_parents(Request $request, array $params = [])
     {
-        $type = static::__normalize_parent_type($params['type'] ?? null);
+        $type = Task_Model::normalize_parent_type($params['type'] ?? null);
         if (!$type) {
             return response_error(Ajax::ERROR_VALIDATION, 'A valid parent type is required');
         }
@@ -277,98 +272,16 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
             $task->site_id = Session::get_site_id() ?: 1;
         }
 
-        $errors = [];
-
-        if (!isset($params['title']) || !is_string($params['title']) || trim($params['title']) === '') {
-            $errors['title'] = 'Title is required';
-        }
-
-        $errors += Field_Checks::length_errors(Task_Model::class, $params, ['title' => 'Title']);
-
-        foreach (['status' => 'status', 'priority' => 'priority'] as $field => $noun) {
-            if (!empty($params[$field]) && !Field_Checks::is_enum_value(Task_Model::class, $field, $params[$field])) {
-                $errors[$field] = "Choose a {$noun} from the list";
-            }
-        }
-
-        foreach (['due_date' => 'Due date', 'completed_date' => 'Completed date'] as $field => $label) {
-            if (!empty($params[$field]) && !Rsx_Date::is_date($params[$field])) {
-                $errors[$field] = "{$label} must be a date (YYYY-MM-DD)";
-            }
-        }
-
-        // hour_estimate: optional, but numeric >= 0 when present.
-        $has_hours = isset($params['hour_estimate']) && $params['hour_estimate'] !== '' && $params['hour_estimate'] !== null;
-        if ($has_hours && (!is_numeric($params['hour_estimate']) || (float) $params['hour_estimate'] < 0)) {
-            $errors['hour_estimate'] = 'Estimated hours must be a number of zero or more';
-        }
-
-        // Parent: optional; when provided the type must be known and the entity must exist.
-        [$parent_type, $parent_id, $parent_error] = static::__read_taskable($params['taskable'] ?? null);
-        if ($parent_error !== null) {
-            $errors['taskable'] = $parent_error;
-        }
-
-        $parent_unchanged = $task->exists
-            && $task->taskable_type === $parent_type
-            && (int) $task->taskable_id === (int) $parent_id;
-
-        if ($parent_error === null && $parent_type && !$parent_unchanged
-            && !static::__parent_exists($parent_type, $parent_id)) {
-            $errors['taskable'] = 'The selected parent does not exist';
-        }
-
-        // Every other referenced id must name a record of this site - the site-scoped find
-        // is the tenant check, so an id from another site misses.
-        $user_id = !empty($params['assigned_to_user_id']) ? (int) $params['assigned_to_user_id'] : null;
-        if ($user_id && !static::__holds($task, 'assigned_to_user_id', $user_id) && !User_Model::find($user_id)) {
-            $errors['assigned_to_user_id'] = 'The selected user does not exist';
-        }
-        $project_id = !empty($params['project_id']) ? (int) $params['project_id'] : null;
-        if ($project_id && !static::__holds($task, 'project_id', $project_id) && !Project_Model::find($project_id)) {
-            $errors['project_id'] = 'The selected project does not exist';
-        }
-
-        // Cycle guard: a task cannot be parented (directly or transitively) to itself.
-        if (!$errors && $task_id && $parent_type === 'Task_Model' && $parent_id
-            && static::__would_create_cycle((int) $task_id, $parent_id)) {
-            $errors['taskable'] = 'That parent would create a circular task chain';
-        }
+        // The rules are Task_Model::value_errors() - the one definition the external API
+        // runs too. A staff submission always carries a title, so a missing key is blank.
+        $errors = Task_Model::value_errors($params + ['title' => null], $task);
 
         if (!empty($errors)) {
             return response_form_error('Please correct the errors below.', $errors);
         }
 
-        return Form_Edit::run($task, $params, function (Form_Edit $edit) use ($task, $task_id, $params, $parent_type, $parent_id, $has_hours, $user_id, $project_id) {
-            $edit->set('title', $params['title']);
-            $edit->set('description', $params['description'] ?? null);
-            $edit->set('status', !empty($params['status']) ? (int) $params['status'] : Task_Model::STATUS_PENDING);
-            $edit->set('priority', !empty($params['priority']) ? (int) $params['priority'] : Task_Model::PRIORITY_MEDIUM);
-            $edit->set('due_date', !empty($params['due_date']) ? $params['due_date'] : null);
-            $edit->set('completed_date', !empty($params['completed_date']) ? $params['completed_date'] : null);
-            $edit->set('assigned_to_user_id', $user_id);
-            $edit->set('notes', $params['notes'] ?? null);
-            $edit->set('hour_estimate', $has_hours ? (float) $params['hour_estimate'] : null);
-
-            // Polymorphic parent (nullable): one form field, two columns.
-            if ($edit->changed('taskable')) {
-                $task->taskable_type = $parent_type;
-                $task->taskable_id = $parent_type ? $parent_id : null;
-            }
-
-            // DERIVED project_id: chain wins; else the user value (nullable).
-            $chain_project_id = $task->resolve_chain_project_id();
-            if ($chain_project_id !== null) {
-                $task->project_id = $chain_project_id;
-            } else {
-                $edit->set('project_id', $project_id);
-            }
-
-            $task->save();
-
-            // Re-derive descendants whose chain runs through this task.
-            $task->recompute_descendant_project_ids();
-
+        return Form_Edit::run($task, $params, function (Form_Edit $edit) use ($task, $task_id, $params) {
+            $task->save_edit($edit, $params);
 
             Action_Log::record(
                 $task_id ? Action_Log_Model::TYPE_TASK_UPDATED : Action_Log_Model::TYPE_TASK_CREATED,
@@ -381,41 +294,6 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
                 'redirect' => Rsx::Route('Tasks_View_Action', $task->id),
             ];
         }, $task->exists ? Rsx::Route('Tasks_View_Action', $task->id) : null);
-    }
-
-    /**
-     * Read the `taskable` field - {type, id}, type null for no parent - into
-     * [type, id, error]. An absent or null field is no parent.
-     *
-     * @return array{0: ?string, 1: ?int, 2: ?string}
-     */
-    private static function __read_taskable($taskable): array
-    {
-        if ($taskable === null || $taskable === '') {
-            return [null, null, null];
-        }
-        if (!is_array($taskable)) {
-            return [null, null, 'Unknown parent'];
-        }
-
-        $raw_type = $taskable['type'] ?? null;
-        $type = static::__normalize_parent_type($raw_type);
-        $id = !empty($taskable['id']) ? (int) $taskable['id'] : null;
-
-        if (!empty($raw_type) && $raw_type !== 'None' && !$type) {
-            return [null, null, 'Unknown parent type'];
-        }
-        if ($type && !$id) {
-            return [$type, null, 'A parent must be selected for the chosen parent type'];
-        }
-
-        return [$type, $type ? $id : null, null];
-    }
-
-    /** Does the stored record already hold $id in $column? Such a reference is not re-validated. */
-    private static function __holds(Task_Model $task, string $column, int $id): bool
-    {
-        return $task->exists && (int) $task->{$column} === $id;
     }
 
     /**
@@ -484,32 +362,6 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
     }
 
     /**
-     * Normalize a caller-supplied parent type string to a known type, or null.
-     * Accepts empty/"None" as "no parent".
-     */
-    private static function __normalize_parent_type($type): ?string
-    {
-        if (empty($type) || $type === 'None') {
-            return null;
-        }
-        return in_array($type, self::PARENT_TYPES, true) ? $type : null;
-    }
-
-    /**
-     * Does the given parent entity exist?
-     */
-    private static function __parent_exists(string $type, int $id): bool
-    {
-        return match ($type) {
-            'Task_Model' => Task_Model::whereKey($id)->exists(),
-            'Project_Model' => Project_Model::whereKey($id)->exists(),
-            'Client_Model' => Client_Model::whereKey($id)->exists(),
-            'User_Model' => User_Model::whereKey($id)->exists(),
-            default => false,
-        };
-    }
-
-    /**
      * A task id + the ids of every task descending from it (children whose taskable IS this
      * task, recursively). Used to exclude a task and its subtree from Task-parent options so
      * the picker can never form a cycle. Visited-set + depth cap guard a corrupt chain.
@@ -543,41 +395,5 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
         }
 
         return array_keys($ids);
-    }
-
-    /**
-     * Would parenting $task_id to task $parent_id create a cycle? Walks the prospective
-     * parent's taskable chain; a cycle exists if it reaches $task_id (or the parent is the
-     * task itself). Visited-set + depth cap guard against an already-corrupt chain.
-     */
-    private static function __would_create_cycle(int $task_id, int $parent_id): bool
-    {
-        if ($parent_id === $task_id) {
-            return true;
-        }
-
-        $visited = [];
-        $current = Task_Model::find($parent_id);
-        $depth = 0;
-
-        while ($current) {
-            if (++$depth > Task_Model::CHAIN_DEPTH_CAP) {
-                return true; // treat a runaway chain as unsafe
-            }
-            if ($current->id === $task_id) {
-                return true;
-            }
-            if (isset($visited[$current->id])) {
-                return false; // pre-existing cycle upstream, but not through $task_id
-            }
-            $visited[$current->id] = true;
-
-            if ($current->taskable_type !== 'Task_Model' || empty($current->taskable_id)) {
-                return false;
-            }
-            $current = Task_Model::find($current->taskable_id);
-        }
-
-        return false;
     }
 }

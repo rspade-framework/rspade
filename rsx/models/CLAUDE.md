@@ -98,10 +98,13 @@ the grouping is for readers only):
   hand-added on purpose — it resolves a realm-gated profile URL for one viewer, which a
   list payload must not ask per row.
 - **A model written from more than one surface owns its value rules**:
-  `Client_Model::value_errors()` and `Contact_Model::value_errors()` answer `[field =>
-  message]` for every submitted value the record cannot hold (lengths from
-  `field_length()`, enum membership, formats; built on `rsx/lib/field_checks/`), and both the
-  staff save and the external API run them, so the two can never disagree.
+  `Client_Model::value_errors()`, `Contact_Model::value_errors()` and
+  `Task_Model::value_errors()` answer `[field => message]` for every submitted value the
+  record cannot hold (lengths from `field_length()`, enum membership, formats, and for a task
+  its site-scoped references and parent cycle; built on `rsx/lib/field_checks/`), and both the
+  staff save and the external API run them, so the two can never disagree. A task's write is
+  shared too: `Task_Model::save_edit()` (fields, parent pair, derived `project_id` and its
+  cascade), called inside `Form_Edit::run()` by both.
 - **Mark growth**: `public static $unbounded = true;` on any model whose row count
   grows with customer activity. `DB-UNBOUNDED-01` lints against it.
 - **Enums** are integer columns with a `$enums` map on the model. Run

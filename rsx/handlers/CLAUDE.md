@@ -72,13 +72,11 @@ upload endpoint — so `File_Upload_Handlers` is not optional scaffolding. Its p
 `tmp_path`, so a stricter policy can read the real bytes and reject before anything persists.
 
 **Gate semantics**: every handler must return `true`; the first non-`true` return denies. The
-three FILE gates and the TASK gates are the exception to "a gate with no handlers is open":
-the framework asks them fail-closed (`Rsx_File_Gates`, `Task_Gates`), so removing a handler
-here switches that kind of access off. No task gate handler ships: no screen of this
-application shows a user a task run, so nobody but a developer (in `/_sys`) sees one. A
-screen that shows users their own runs adds `task.view.authorize` / `task.view.scope` /
-`task.control.authorize` handlers granting only the tasks and actions it offers (`rsx:man tasks`,
-the policy.json posture).
+three FILE gates are the exception to "a gate with no handlers is open": the framework asks
+them fail-closed (`Rsx_File_Gates`), so removing a handler here switches that kind of access
+off. Who may see a background task run is not decided here at all: each `#[Task]` declares
+`#[Task_Access]` on itself (skill `rspade:task-access`), and no task of this application
+declares one, so nobody but a developer (in `/_sys`) sees a run.
 
 **Handlers run inline, in the request.** Anything slow belongs in `Task::dispatch()`.
 

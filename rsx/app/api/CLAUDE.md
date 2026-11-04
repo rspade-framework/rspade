@@ -8,7 +8,10 @@ docs live in framework core (`App\RSpade\Core\Api`).
 
 - `v1/contacts_api_controller.php` - contacts CRUD (`Contacts_Api_Controller`).
 - `v1/clients_api_controller.php` - clients CRUD + document attachments (`Clients_Api_Controller`).
-- `v1/tasks_api_controller.php` - task reads + attachments (`Tasks_Api_Controller`).
+- `v1/tasks_api_controller.php` - task list/get/create/update (no delete) + attachments
+  (`Tasks_Api_Controller`). Create and update run the staff save's own rules and write -
+  `Task_Model::value_errors()` and `Task_Model::save_edit()` inside `Form_Edit::run()` - and
+  take the parent as the pair `taskable_type` + `taskable_id` (errors named `taskable`).
 
 Each new API version gets its own `vN/` directory. Every endpoint pattern MUST start
 `/api/vN/` (N = one or more digits) - the manifest scan throws otherwise.
@@ -52,7 +55,7 @@ passes them as `$params`; an undeclared parameter is rejected 422.
 `required: true` means only that the key is PRESENT - `''` passes it - so an endpoint refuses
 a blank required string itself. Value rules beyond the declared type (column lengths, enum
 membership, URL schemes) are the same ones the staff form runs - `Client_Model::value_errors()`,
-`Contact_Model::value_errors()`, `Field_Checks` - answered as `Rsx_Api::validation_error()` 422
+`Contact_Model::value_errors()`, `Task_Model::value_errors()`, `Field_Checks` - answered as `Rsx_Api::validation_error()` 422
 naming the field, never left to a database exception.
 
 ```php

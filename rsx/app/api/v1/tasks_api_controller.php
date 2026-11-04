@@ -3,15 +3,20 @@
 namespace Rsx\App\Api\V1;
 
 use Illuminate\Http\Request;
+use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Api\Rsx_Api;
 use App\RSpade\Core\Api\Rsx_Api_Controller_Abstract;
 use App\RSpade\Core\Files\File_Attachment_Model;
+use App\RSpade\Core\Forms\Form_Edit;
+use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Time\Rsx_Time;
+use Rsx\Lib\ActionLog\Action_Log;
+use Rsx\Models\Action_Log_Model;
 use Rsx\Models\Task_Model;
 
 /**
- * Tasks API - external REST reads, plus the worked example of ATTACHING FILES to a record
- * over the API.
+ * Tasks API - external REST reads and writes for to-do task records, plus the worked example
+ * of ATTACHING FILES to a record over the API.
  *
  * WHY THIS CONTROLLER EXISTS. The framework ships the file endpoints that move bytes
  * (POST /api/v1/files and friends) but deliberately does NOT ship "attach this file to that
@@ -20,9 +25,10 @@ use Rsx\Models\Task_Model;
  * is the other, attaching into the same category its staff UI reads. Tasks is the simpler
  * shape: a category nothing else writes to.
  *
- * The reads (list/get) exist so the resource is usable from outside: an integration has no
- * other way to discover a task id. Writes to the task itself are not exposed - the staff app
- * owns task authoring, and adding CRUD here would be inventing a contract nothing asked for.
+ * Create and update run the staff save's own rules and write: Task_Model::value_errors()
+ * checks every value (the parent, project and assignee resolved through the site scope), and
+ * Task_Model::save_edit() writes it inside Form_Edit::run() - changed fields only, under a
+ * row lock, with the derived project_id and its cascade to descendant tasks.
  *
  * All endpoints operate within the authenticated key's site. The Bearer key establishes a
  * headless Session identity, so the global site scope filters every read automatically -
@@ -140,6 +146,187 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
         }
 
         return $task;
+    }
+
+    /**
+     * Create a task.
+     *
+     * Requires a non-blank title. Every other field is optional: a blank status is Pending
+     * and a blank priority Medium. The parent is the pair taskable_type (Task_Model,
+     * Project_Model, Client_Model or User_Model) + taskable_id; it, the project and the
+     * assignee must each name a live record of the key's site. When the parent chain reaches
+     * a project, project_id is that project and a submitted project_id is ignored. A value
+     * the task cannot hold is a 422 naming the field (a parent problem is named `taskable`).
+     *
+     * `description` is a declared rich-text column: a plain string is stored as plain text;
+     * to send markup, JSON-encode the value's envelope into the string.
+     *
+     * @api-response
+     * {
+     *   "id": 57,
+     *   "site_id": 1,
+     *   "title": "Draft the statement of work",
+     *   "description": { "__TEXT": "Rich_Text", "raw": "<p>Include the payment schedule.</p>", "empty": false },
+     *   "status": 1,
+     *   "status__label": "Pending",
+     *   "priority": 3,
+     *   "priority__label": "High",
+     *   "due_date": "2026-09-04",
+     *   "taskable_type": "Project_Model",
+     *   "taskable_id": 4,
+     *   "project_id": 4,
+     *   "assigned_to_user_id": 3,
+     *   "__MODEL": "Task_Model"
+     * }
+     */
+    #[Auth('can_edit_data')]
+    #[Api_Endpoint('/api/v1/tasks/create', methods: ['POST'])]
+    #[Api_Param('title', type: 'string', required: true, description: 'Title')]
+    #[Api_Param('description', type: 'string', description: 'Description (plain text, or the rich-text envelope JSON-encoded)')]
+    #[Api_Param('status', type: 'int', description: 'Status id (1 Pending, 2 In Progress, 3 Completed, 4 Cancelled); default Pending')]
+    #[Api_Param('priority', type: 'int', description: 'Priority id (1 Low, 2 Medium, 3 High, 4 Urgent); default Medium')]
+    #[Api_Param('due_date', type: 'string', description: 'Due date, YYYY-MM-DD')]
+    #[Api_Param('completed_date', type: 'string', description: 'Completed date, YYYY-MM-DD')]
+    #[Api_Param('hour_estimate', type: 'string', description: 'Estimated hours, a number of zero or more')]
+    #[Api_Param('assigned_to_user_id', type: 'int', description: 'Assigned user id')]
+    #[Api_Param('project_id', type: 'int', description: 'Project id (ignored when the parent chain reaches a project)')]
+    #[Api_Param('taskable_type', type: 'string', description: 'Parent type: Task_Model, Project_Model, Client_Model or User_Model')]
+    #[Api_Param('taskable_id', type: 'int', description: 'Parent id, required with taskable_type')]
+    #[Api_Param('notes', type: 'string', description: 'Internal notes')]
+    public static function create(Request $request, array $params = [])
+    {
+        $values = static::__values($params);
+
+        $errors = static::__api_errors(Task_Model::value_errors($values), $params);
+        if (!empty($errors)) {
+            return Rsx_Api::validation_error($errors);
+        }
+
+        // site_id is stamped by the site-scoped model on save.
+        $task = new Task_Model();
+
+        Form_Edit::run($task, $values, function (Form_Edit $edit) use ($task, $values) {
+            $task->save_edit($edit, $values);
+            Action_Log::record(Action_Log_Model::TYPE_TASK_CREATED, $task);
+        });
+
+        return Rsx_Api::created($task->refresh());
+    }
+
+    /**
+     * Update a task.
+     *
+     * Applies only the fields present in the request; omitted fields are left unchanged.
+     * The value rules of create apply to every field sent, and a title sent must be
+     * non-blank. Send a blank date or hour_estimate, or 0 for assigned_to_user_id or
+     * project_id, to clear it. The parent is changed by sending taskable_type with
+     * taskable_id, and removed by sending a blank taskable_type. A reference the task already
+     * holds is accepted as it stands, even when its record has since been deleted.
+     *
+     * @api-response
+     * {
+     *   "id": 57,
+     *   "site_id": 1,
+     *   "title": "Draft the statement of work",
+     *   "status": 2,
+     *   "status__label": "In Progress",
+     *   "priority": 3,
+     *   "priority__label": "High",
+     *   "due_date": "2026-09-11",
+     *   "taskable_type": "Project_Model",
+     *   "taskable_id": 4,
+     *   "project_id": 4,
+     *   "assigned_to_user_id": 3,
+     *   "__MODEL": "Task_Model"
+     * }
+     */
+    #[Auth('can_edit_data')]
+    #[Api_Endpoint('/api/v1/tasks/:id/update', methods: ['POST'])]
+    #[Api_Param('id', type: 'int', required: true, description: 'Task ID')]
+    #[Api_Param('title', type: 'string', description: 'Title')]
+    #[Api_Param('description', type: 'string', description: 'Description (plain text, or the rich-text envelope JSON-encoded)')]
+    #[Api_Param('status', type: 'int', description: 'Status id (1 Pending, 2 In Progress, 3 Completed, 4 Cancelled)')]
+    #[Api_Param('priority', type: 'int', description: 'Priority id (1 Low, 2 Medium, 3 High, 4 Urgent)')]
+    #[Api_Param('due_date', type: 'string', description: 'Due date, YYYY-MM-DD; blank clears')]
+    #[Api_Param('completed_date', type: 'string', description: 'Completed date, YYYY-MM-DD; blank clears')]
+    #[Api_Param('hour_estimate', type: 'string', description: 'Estimated hours, a number of zero or more; blank clears')]
+    #[Api_Param('assigned_to_user_id', type: 'int', description: 'Assigned user id; 0 clears')]
+    #[Api_Param('project_id', type: 'int', description: 'Project id; 0 clears (ignored when the parent chain reaches a project)')]
+    #[Api_Param('taskable_type', type: 'string', description: 'Parent type: Task_Model, Project_Model, Client_Model or User_Model; blank removes the parent')]
+    #[Api_Param('taskable_id', type: 'int', description: 'Parent id, sent with taskable_type')]
+    #[Api_Param('notes', type: 'string', description: 'Internal notes')]
+    public static function update(Request $request, array $params = [])
+    {
+        $task = Task_Model::find($params['id']);
+
+        if (!$task) {
+            return Rsx_Api::not_found('Task not found');
+        }
+
+        $values = static::__values($params);
+
+        $errors = static::__api_errors(Task_Model::value_errors($values, $task), $params);
+        if (!empty($errors)) {
+            return Rsx_Api::validation_error($errors);
+        }
+
+        // An API caller edits the task as it stands now: the fields it sent are the changed
+        // set, and the version it edits from is the one just read. Form_Edit writes only
+        // those fields, under the row lock.
+        $values['_changed'] = array_keys($values);
+        $values['_loaded_updated_at'] = $task->updated_at;
+
+        $result = Form_Edit::run($task, $values, function (Form_Edit $edit) use ($task, $values) {
+            $task->save_edit($edit, $values);
+            Action_Log::record(Action_Log_Model::TYPE_TASK_UPDATED, $task);
+
+            return [];
+        });
+
+        // A save that landed between the read above and the lock, on a field this request
+        // also sent, is answered as a conflict rather than overwritten.
+        if ($result instanceof Error_Response) {
+            if ($result->get_error_code() === Ajax::ERROR_NOT_FOUND) {
+                return Rsx_Api::not_found('Task not found');
+            }
+
+            return Rsx_Api::error('conflict', 'The task was changed by another save while this update was applied. Fetch it and retry.', 409);
+        }
+
+        return $task->refresh();
+    }
+
+    /**
+     * The request's task values, keyed as Task_Model::value_errors() and save_edit() read
+     * them: only the fields sent, with the taskable_type / taskable_id pair as the one
+     * `taskable` field {type, id}.
+     */
+    private static function __values(array $params): array
+    {
+        $values = $params;
+        unset($values['id'], $values['taskable_type'], $values['taskable_id']);
+
+        if (array_key_exists('taskable_type', $params) || array_key_exists('taskable_id', $params)) {
+            $type = $params['taskable_type'] ?? null;
+            $values['taskable'] = ($type === null || $type === '')
+                ? null
+                : ['type' => $type, 'id' => $params['taskable_id'] ?? null];
+        }
+
+        return $values;
+    }
+
+    /**
+     * The API's own pairing rule beside the model's: a taskable_id means nothing without the
+     * taskable_type it belongs to.
+     */
+    private static function __api_errors(array $errors, array $params): array
+    {
+        if (array_key_exists('taskable_id', $params) && !array_key_exists('taskable_type', $params)) {
+            $errors['taskable_type'] = 'Send taskable_type with taskable_id';
+        }
+
+        return $errors;
     }
 
     // =====================================================================
