@@ -16,7 +16,7 @@
                     <a class="navbar-brand" href="/">
                         <%-- <%= this.args.app_name || 'RSX' %> --%>
                     </a>
-                    <button class="navbar-toggler" data-bs-target="#sidebarNav" data-bs-toggle="collapse"
+                    <button class="navbar-toggler" data-bs-target=".Sidebar_Nav" data-bs-toggle="collapse"
                         type="button">
                         <span class="navbar-toggler-icon"></span>
                     </button>

@@ -1,6 +1,6 @@
 ---
 name: semantic-components
-description: "Building UI in this application from its own widget vocabulary - the semantic component registry, `php artisan rsx:jqhtml:glossary --missing`, and which existing theme component fits a given data shape (Section, Page_Scaffold, Entity_Header, View_Fields, Record_Table, Feed_Row, Status_Badge, Empty_State, Kpi_Cell, People_List). Use when building or refactoring any page, panel, card, table, list, badge, byline, empty region or KPI strip, when tempted to write `<div class=\"card card-body\">` or page-level SCSS by hand, when naming a new reusable component, or when a component renders unstyled because a BEM class was written in kebab-case."
+description: "Building UI from this application's widget vocabulary - the semantic component registry, rsx:jqhtml:glossary --missing, and which theme component fits a data shape (Section, Page_Scaffold, Entity_Header, View_Fields, Record_Table, Feed_Row, Status_Badge, Empty_State). Use when building any page, card, table, list or empty region, when tempted to hand-write card markup or page SCSS, or naming a reusable component."
 ---
 
 # Building UI from this app's widget vocabulary

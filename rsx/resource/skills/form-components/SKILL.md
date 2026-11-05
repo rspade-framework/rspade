@@ -1,6 +1,6 @@
 ---
 name: form-components
-description: "Composing a form in this application from its own field chrome and input roster - Form_Field / Form_Field_Abstract (label, $required asterisk, $help, the Slot:label rule), Rsx_Tabs / Rsx_Tab error badges, and the shipped inputs (Text_Input and its $max_length rule, Select_Input / Select_With_Description_Input / Select_Ajax_Input / Select_Country_Input / Select_State_Input, Checkbox_Input, Checkbox_Multiselect_Input, Tag_List_Input, Repeater_Simple, the framework's Code_Input, Wysiwyg_Input, Raw_Text_Input, Profile_Photo_Input, Hidden_Input, Currency_Input, Time_Entry_Input, Phone_Text_Input). Use when laying out a form's fields, adding a new input to the roster, wiring a date or time field, choosing between two existing inputs, or hitting \"Text_Input with $name=... requires $max_length\", \"edits Rich_Text values, but was given string\", \"Form_Field_Abstract has no Form_Input_Abstract child\", or \"Form_Field_Abstract child input has no data-name attribute\"."
+description: "Laying out a form from this application's field chrome and inputs - Form_Field ($required, $help, Slot:label), Rsx_Tabs error badges, Text_Input and its $max_length rule, the Select_*_Input family, Tag_List_Input, Wysiwyg_Input, Currency_Input, Time_Entry_Input, Phone_Text_Input and the rest. Use when choosing or adding an input, wiring a date or time field, or on 'requires $max_length' or 'Form_Field_Abstract has no Form_Input_Abstract child'."
 ---
 
 # Form chrome and the input roster
@@ -140,6 +140,18 @@ Every one extends `Form_Input_Abstract` and lives under `rsx/theme/components/in
 (`Currency_Input`, `Time_Entry_Input`, `Phone_Text_Input`) are exempt - the check fires only when
 `Text_Input` is used directly.
 
+**Every field with no token renders `autocomplete="off"`** (the framework turns on jqhtml's
+`autocomplete_off`), which is right for a business form. A field that SHOULD autofill passes
+its token, and a CREDENTIAL field (sign-in identifier, password, one-time code) a stable id
+too: `Text_Input` forwards `$autocomplete` and `$autofill_id` to its inner field, and takes
+`$readonly` for an identifier shown but not editable (a password manager skips a `$disabled`
+one). The tokens and the id convention: `rsx/app/login/CLAUDE.md`, CREDENTIAL FIELDS.
+
+```jqhtml
+<Text_Input $name="password" $type="password" $max_length=-1
+            $autofill_id="new_password" $autocomplete="new-password" />
+```
+
 **There is no date-picker component.** A date or time field is a `Text_Input` with a
 native `$type`, and the browser supplies the picker; the string it produces is already
 the `Rsx_Date`/`Rsx_Time` ISO format. `php artisan rsx:man datetime_inputs`.
@@ -183,6 +195,9 @@ never hand-injected (`rspade:external-resources`).
    `_notify_input(value)`. The full contract, including why you never override `val()`:
    `rspade:form-input-contract`.
 3. Render the element EMPTY - no `value` attribute; the form writes the value.
+   An input that can hold a credential, a name or an address forwards `$autofill_id` and
+   `$autocomplete` to its inner `$sid` field, as `Text_Input` does
+   (`rspade:form-input-contract`).
 4. Write no client-side validation. That rule is the server's.
 5. Style it in its own `.scss` under a single class matching the component name, with
    colours as `var(--bs-*)` tokens (app skill `theme`; `rspade:scss-rules`).

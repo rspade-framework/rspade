@@ -66,6 +66,9 @@ not be able to tell that two different systems answered.
   (`Rsx.get_default_spinner()`) is the other path. Do not hand-roll a third.
 - The bodies deliberately carry no page chrome: they render inside whatever layout is
   already on screen.
+- The auth-required and unauthorized bodies pick their links by realm: on a portal page
+  (`Rsx_Portal.is_portal()`) they link to the portal's own login and dashboard, because a
+  bundle carries only its own realm's routes. Keep that branch when rebranding them.
 
 ## RELATED
 

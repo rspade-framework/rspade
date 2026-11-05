@@ -28,6 +28,17 @@ One subdirectory per input family; every input extends the framework's
 - `raw_text/` — `Raw_Text_Input`, a textarea editing a `Raw_Text` value.
 - `hidden/` — `Hidden_Input`.
 
+## AUTOCOMPLETE AND CREDENTIAL FIELDS
+
+The framework turns on jqhtml's `autocomplete_off`, so every `<input>`/`<textarea>` a template
+here writes renders `autocomplete="off"` unless it carries a token - right for a business
+form. `Text_Input` forwards a caller's `$autocomplete` token (a conditional attribute, so an
+absent one stays absent and becomes `off`) and `$autofill_id` (jqhtml's stable id and name
+for a password manager) to its inner `$sid="input"` field, and takes `$readonly` for an
+identifier shown but not editable. A new input that can hold a credential, a name or an address
+forwards the same two. Which token and id a credential field gets is the page's choice:
+`rsx/app/login/CLAUDE.md`, CREDENTIAL FIELDS.
+
 ## NUMERIC INPUTS
 
 A field that holds a number invokes the framework's jQuery filter and configures it; it

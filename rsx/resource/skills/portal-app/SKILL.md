@@ -1,6 +1,6 @@
 ---
 name: portal-app
-description: "The client-portal screens this application ships - portal_main.php (the portal's init hook) and portal_permission.php (has_client_access / client_role / accessible_client_ids / is_read_only), the Blade auth ladder (login with its second-factor challenge, passkey sign-in and federated sign-in, register from an invite, password reset, impersonate stop, logout), Portal_Layout and Portal_Workspace_Layout, the dashboard, the workspace tabs (Overview / Requests / Documents) with the request-thread UI, invitations accept/decline, settings, and the #[Portal_Impersonation_Readable] marks that keep View-as-Client read-only. Use when adding or changing a portal screen or endpoint, wiring a new workspace tab, changing what an invite grants, branding the portal auth pages, or deciding which portal endpoints stay callable during impersonation (mark reads #[Portal_Impersonation_Readable])."
+description: "The client-portal screens this application ships - portal_main.php, portal_permission.php (has_client_access, client_role, accessible_client_ids), the Blade sign-in ladder, Portal_Layout / Portal_Workspace_Layout, workspace tabs and request threads, invitations, settings. Use when adding a portal screen, endpoint or workspace tab, changing what an invite grants, branding portal auth pages, or marking reads #[Portal_Impersonation_Readable]."
 ---
 
 # The portal application
@@ -75,6 +75,11 @@ switched on or off, and its custom domain set, on the staff Site Settings screen
 | `/login/verify` GET | `Portal_Login_Controller::verify` | the challenge: `<Two_Factor_Challenge>` posting to the Ajax `verify_2fa`, plus `send_code` (code AND sign-in link in `Portal_Sign_In_Code_Email`) when emailed codes are on; a signed-in visitor goes to their destination |
 | `/register` GET+POST | `Portal_Register_Controller` | invite-code registration (the account is created `is_verified`, the invitation having proved the address); a code that cannot be used goes to `/login` with the `invitation_expired` notice |
 | `/shared/:token` GET | `Portal_Share_Link_Controller::open` | the link a share hands out: the recipient's documents, or sign-in with a notice, or the accept-invite page, carrying itself as the redirect |
+
+**Credential fields**: every identifier, password and code field on these pages carries its
+`autocomplete` token and the shared id (`email`, `password`, `new_password`, `code`, ...), and a
+form that sets a password carries a hidden `username` field - `rsx/portal/auth/CLAUDE.md`,
+CREDENTIAL FIELDS.
 
 **One completion function**: every portal sign-in - password, challenge, passkey, registration,
 federated - finishes in `Portal_Login_Controller::complete_sign_in($portal_user, $sign_in,

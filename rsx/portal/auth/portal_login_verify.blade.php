@@ -16,7 +16,7 @@
          AND a sign-in link, which brings this browser back here for the component to submit.
          This page owns only the chrome.
          No Turnstile: the component posts {code} or {assertion} and nothing else. --}}
-    <Two_Factor_Challenge $controller="Portal_Login_Controller" $method="verify_2fa"
+    <Two_Factor_Challenge $controller="Portal_Login_Controller" $method="verify_2fa" $autofill_id="code"
                           $send_controller="Portal_Login_Controller" $send_method="send_code"
                           $cancel_url="{{ Rsx_Portal::Route('Portal_Login_Controller::index') }}" />
 

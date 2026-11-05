@@ -37,7 +37,7 @@ BEHAVIOR:
     - An item with `target` (e.g. target: "_blank") renders it on the link, with
       rel="noopener" - the link opens outside the SPA (top-level items without subitems)
 --%>
-<Define:Sidebar_Nav class="navbar-collapse d-desktop-block collapse" id="sidebarNav">
+<Define:Sidebar_Nav class="navbar-collapse d-desktop-block collapse">
     <% for (const section of this.data.sections) { %>
         <div class="Sidebar_Nav__section">
             <% if (section.title) { %>

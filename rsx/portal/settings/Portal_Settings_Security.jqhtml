@@ -71,7 +71,7 @@ call their endpoints themselves, so they are shown only after "Add a sign-in met
                          the add controls are shown. --%>
                     <div class="Portal_Settings_Security__totp">
                         <% if (this.state.show_totp) { %>
-                            <Totp_Enrollment $sid="totp" />
+                            <Totp_Enrollment $sid="totp" $autofill_id="code" />
                         <% } else { %>
                             <button class="btn btn-sm btn-outline-secondary" $sid="show_totp">Use an authenticator app instead</button>
                         <% } %>

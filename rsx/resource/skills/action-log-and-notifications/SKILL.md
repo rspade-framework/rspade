@@ -1,6 +1,6 @@
 ---
 name: action-log-and-notifications
-description: "Recording activity and notifying users in this application - Action_Log::record() with related entities and metadata, Action_Log_Renderer, the Feed_Row activity tabs via Activity_Feed.decorate(), Notification::send() / get_unread_count() / get_for_dropdown() with Notification_Renderer, and the separate realtime Portal_Notification_Model::emit() for portal users. Use when asked to \"log an action\", \"record who did what\", \"show activity history\", \"notify a user\", \"unread count\", when adding a TYPE_* to Action_Log_Model or Notification_Model, or when a notification vanishes from the dropdown or Notification_Model.fetch() answers not found."
+description: "Recording activity and notifying users in this application - Action_Log::record(), Action_Log_Renderer, Activity_Feed.decorate(), Notification::send() / get_unread_count() with Notification_Renderer, Portal_Notification_Model::emit() for portal users. Use to log an action, show activity history, notify a user or show an unread count, when adding a TYPE_* to Action_Log_Model or Notification_Model, or a notification vanishes from the dropdown."
 ---
 
 # Action log and notifications

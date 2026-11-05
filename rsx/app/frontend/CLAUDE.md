@@ -14,14 +14,17 @@ bundle. Everything else is a feature directory.
   chrome (sidebar, header, breadcrumbs, notification dropdown, and the
   `Impersonation_Banner` strip above the header while a developer is signed in as
   another user from the `/_sys` panel) and the two layout seams documented under
-  HOW TO CUSTOMIZE.
+  HOW TO CUSTOMIZE. It streams breadcrumbs through `Rsx_Breadcrumb_Resolver` and hands
+  the trail's meta to `Sidebar_Nav.follow_trail()`, so a page reached through a breadcrumb
+  origin lights the section its trail starts in (`rsx:man breadcrumb_origins`).
 - `frontend_bundle.php` — the module's one asset bundle.
 - `frontend_pagemodal_layout.blade.php` — the bare Blade shell used when a page is
   opened inside a modal frame.
 - Feature directories: `dashboard/`, `action_logs/`, `clients/`,
   `contacts/`, `projects/`, `tasks/`, `party/`, `notifications/`, `revisions/`,
   `reports/`, `settings/` (its own sublayout).
-  `clients/`, `settings/` and `action_logs/` carry their own `CLAUDE.md`;
+  `clients/`, `settings/`, `action_logs/` and `party/` (the detail-tables reference)
+  carry their own `CLAUDE.md`;
   `contacts/`, `projects/` and `tasks/` carry pointer files naming what differs from
   `clients/`.
 

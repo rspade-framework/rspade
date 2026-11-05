@@ -256,6 +256,11 @@ on failure, and prints `PASS:`/`FAIL:` lines.
   rather than sampling early, because a sleep would be flaky in exactly the direction that
   hides a regression.
 
+- `sidebar_trail_root.js` — `Sidebar_Nav.follow_trail()`: a contact opened through a
+  breadcrumb origin from its client (declared at run time on `Contacts_View_Action`; the
+  template ships no origin example) lights Clients, the section its trail starts in, and the
+  same contact without the origin lights Contacts (`rsx:man breadcrumb_origins`, SIDEBAR).
+
 A browser test belongs here rather than in the framework suite whenever its subject is
 `rsx/` code — the framework suite is guarded against naming application classes and routes.
 

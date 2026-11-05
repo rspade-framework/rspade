@@ -101,6 +101,18 @@ class Frontend_Settings_Password_Security_Controller extends Rsx_Controller_Abst
     }
 
     /**
+     * The signed-in identity's sign-in email. The Change Password form shows it in a hidden
+     * username field so a password manager saves the new password under that account.
+     *
+     * @return array {email}
+     */
+    #[Ajax_Endpoint]
+    public static function get_sign_in_email(Request $request, array $params = [])
+    {
+        return ['email' => Session::get_login_user()->email];
+    }
+
+    /**
      * Where the signed-in account is signed in: its own sessions (Session_Listing - active
      * within the last few months, signed-out ones too), across every site it belongs to,
      * this device marked. Impersonations of the account are somebody else acting as it and

@@ -1,6 +1,6 @@
 ---
 name: crud-patterns
-description: "The CRUD convention this application is built to - the list/ view/ edit/ directory split under rsx/app/frontend/<feature>/, a DataGrid_Abstract backend with query()/columns()/default_sort(), the three-state loading pattern on a view page, the dual-@route add/edit action, @spinner_until_ready('uncached') on a view page and ('always') on an edit page, and the gated fetch() on the model. Use when building a list, view or add/edit page, adding a DataGrid, laying out a new feature directory, or copying the canonical example in rsx/app/frontend/clients/."
+description: "The CRUD convention this application follows - list/ view/ edit/ under rsx/app/frontend/<feature>/, a DataGrid_Abstract backend (query(), columns()), the three-state loading view page, the dual-@route add/edit action, @spinner_until_ready, the model's gated fetch(). Use when building a list, view or add/edit page, adding a DataGrid, or laying out a feature from the canonical rsx/app/frontend/clients/."
 ---
 
 # CRUD patterns in this application

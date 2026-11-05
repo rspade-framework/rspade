@@ -1,6 +1,6 @@
 ---
 name: theme
-description: "Styling against this application's own theme - the var(--bs-*) runtime colour tokens and their two exceptions, variables.scss ($spacing-*, $font-size-*, $border-radius-*, $z-index-*, primary-hover-bg()), composition_tokens.scss (--block-gap, --page-pad, --rsx-form-veil), px-only units, the two-tier responsive system (mobile/desktop plus phone/tablet/desktop-sm/md/lg/xl) with its mixins, infixed utility classes and fifth-width columns, Responsive.is_mobile() and friends, badge-outline classification chips, and the vendored Bootstrap build. Use when writing any SCSS rule, picking a colour or a spacing value, making something responsive, adding a variable, theming for dark mode, or when a colour looks wrong on a dark page."
+description: "Styling against this application's theme - var(--bs-*) colour tokens, variables.scss ($spacing-*, $font-size-*, $z-index-*), composition_tokens.scss (--block-gap, --page-pad), px-only units, the two-tier responsive system (mobile/desktop, phone/tablet/desktop-md) with mixins and infixed classes, Responsive.is_mobile(). Use when writing any SCSS, picking a colour or spacing, making something responsive, or a colour looks wrong in dark mode."
 ---
 
 # This application's theme

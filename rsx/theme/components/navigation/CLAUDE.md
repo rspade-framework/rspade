@@ -5,7 +5,10 @@
 - `sidebar/sidebar_nav.{jqhtml,js,scss}` — `Sidebar_Nav`: the hierarchical primary
   navigation. It takes a `$sections` array of `{title, items[]}` where an item is
   `{label, icon, route, href, children?}`, detects the active item from the current URL,
-  and auto-expands the parent of an active child.
+  and auto-expands the parent of an active child. `follow_trail(meta)` takes the breadcrumb
+  resolver's meta: on a page reached through a breadcrumb origin (`meta.grafted`) it lights
+  the section the TRAIL starts in (`meta.root_url`), falling back to the current URL when no
+  item matches it (`rsx:man breadcrumb_origins`, SIDEBAR).
 - `search/search_input.{jqhtml,js}` — `Search_Input`: the bare search box (`$placeholder`)
   used as a DataGrid's filter field.
 - `search/search_bar.{jqhtml,scss}` + `Search_Bar.js` — `Search_Bar`: an input-group
@@ -41,7 +44,10 @@ chrome, not view vocabulary. The portal has its own nav in `rsx/portal/`.
   for a deliberately dark surface in both themes — if you fix a colour there, say so in a
   comment so the next reader does not "fix" it back to a token.
 - Active detection reads the current URL against each item's `route`/`href`; an item with
-  neither will never highlight.
+  neither will never highlight. The layout calls `on_action(url)` on every navigation and
+  `follow_trail(meta)` from its `on_breadcrumb_complete(chain, meta)` hook (and as soon as a
+  trail is known, `_on_breadcrumb_chain`); a layout of your own that mounts the nav does the
+  same to keep grafted pages highlighting their trail's section.
 - `Search_Bar` and `Search_Button` are unused shapes: adopt or delete them, but do not
   build a third search widget beside them.
 

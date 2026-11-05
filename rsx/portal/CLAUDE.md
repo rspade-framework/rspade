@@ -17,7 +17,8 @@ dispatcher, bundle, layout, routing attributes and permission facade.
   `portal_auth_layout.blade.php` and the seven blades of their outcome states (the second-
   factor challenge page `portal_login_verify.blade.php` among them), and
   `portal_auth_bundle.php` — `Portal_Auth_Bundle`, the bundle those pages and the error
-  pages render (see TWO BUNDLES below).
+  pages render (see TWO BUNDLES below). Own `CLAUDE.md`: the whole ladder, and the credential-field rules
+  its forms follow.
 - `dashboard/` — `Portal_Dashboard_Action`, the landing page.
 - `workspaces/` — the per-client area: a sublayout plus Overview / Requests / Documents and
   the request-thread screen. Own `CLAUDE.md`.
@@ -211,91 +212,10 @@ request. See `php artisan rsx:man portal`.
 
 ### Passkeys, second factors and federated sign-in
 
-The portal realm has the framework's whole second-factor subsystem (`Rsx_Portal_Two_Factor`,
-credentials in `_portal_two_factor_credentials`) and its own federated sign-in
-(`Rsx_Portal_Sso`, links in `_portal_sso_identities`). Neither shares anything with the staff
-realm but the provider registry, so a staff passkey or a staff Google link never signs anybody
-in here. How this app uses them:
-
-- **The password is checked by the framework**: `Portal_Login_Controller::index()` calls
-  `Portal_Auth::verify_credentials(Portal_Session::get_site_id(), $credentials, record: false)`
-  (throttle first, the lookup on this portal's site, the hash check), records a miss itself as
-  `Portal_Login_History::record_failure(..., STATUS_FAILED_PASSWORD)` and a password-only
-  sign-in as `record_success()`, and asks the account questions (`can_login()`: unverified,
-  inactive) between the check and the sign-in. Both thrown refusals are shown as the form's
-  error: `Auth_Throttled_Exception`, and `Auth_Password_Reset_Required_Exception` for a correct
-  password on a portal user flagged `password_reset_required` (pointing at "Forgot your
-  password?"; the framework clears the flag when the reset saves the new password).
-- **Password login is two-stage**: a portal user holding a second factor is parked with
-  `Rsx_Portal_Two_Factor::begin_challenge()` (the invited-client id rides the session under
-  `CLIENT_ID_KEY`, parked AFTER the challenge, whose sign-out clears portal session values) and
-  sent to `/login/verify`, where `<Two_Factor_Challenge>` posts to
-  `verify_2fa`.
-- **Every sign-in outcome lands in the portal login history** (`Portal_Login_History`,
-  readable per portal user with `get_history_for_user()` / `list_page()`): the challenge, the
-  passkey and the federated doors are recorded by the framework, the password form as above.
-  No screen of this app shows it.
-- **Emailed sign-in codes** (`rsx.portal.emailed_sign_in_codes`, OFF as shipped - a fresh
-  install usually sends no mail): when on, EVERY password sign-in owes a second step, accepting
-  a six-digit code emailed to the account or any factor the user holds - unless
-  `Rsx_Mail::deliverable_to()` says the code could not reach them (mail suppressed or frozen, or a
-  blocked address), when the step falls back to the factors they hold, or to none,
-  rather than locking the account.
-  `Portal_Login_Controller::challenge_accepts()` is that policy in one place (the password
-  form and `Portal_Sso_Handlers::two_factor_accepts()` both ask it); `send_code()` issues each
-  code, then its sign-in link (`Rsx_Portal_Two_Factor::issued_link(Rsx_Portal::Route(
-  'Portal_Login_Controller::verify'))`), and emails both in `Portal_Sign_In_Code_Email`
-  (`SECURITY`), capped at `MAX_CODES_PER_SIGN_IN`; the challenge screen sends the first code
-  itself and offers "Resend code". Opening the link in the browser that typed the password
-  brings it back to `/login/verify`, where the widget submits it - a link opened anywhere else
-  says to type the code there. A passed code or link marks the portal user verified. The framework keeps
-  ONE live code per portal user, so a resend before it expires re-sends the same digits and
-  link and restarts their clock - the email is word for word the original and states the
-  configured window. A passkey
-  sign-in owes nothing, so a client who registers a passkey never waits for the email.
-  `rsx:man two_factor_codes`.
-- **Passwordless**: the login page's `<Passkey_Sign_In>` posts to `passkey_login`, which calls
-  `Rsx_Portal_Two_Factor::verify_passkey_login()` - a complete sign-in, no second factor after.
-- **Federated sign-in** appears on the login page only when `rsx.sso.portal_enabled` is true
-  (off by default) and a provider is live. The policy is `rsx/handlers/Portal_Sso_Handlers.php`:
-  a verified provider email that matches a portal user of this site is connected and signed in;
-  anything else declines. Register the portal callback (`Rsx_Portal_Sso::callback_url('<key>')`)
-  in each provider's console.
-- **One completion function.** Every way in - the password form, the challenge, a passkey, a
-  registration from an invitation (`Portal_Register_Controller`) and a federated sign-in -
-  finishes in `Portal_Login_Controller::complete_sign_in($portal_user, $sign_in, $client_id)`:
-  `sign_in: true` (password, registration) signs in there with
-  `Portal_Session::set_portal_user_id()` and records the success; `sign_in: false` (challenge,
-  passkey, SSO) follows the framework's own sign-in. It raises the welcome flash and answers
-  `destination()` - the threaded redirect, the invited client, or the dashboard. Nothing else
-  in this application calls `set_portal_user_id()`.
-- **Registration verifies the address.** `Portal_Register_Controller` creates the portal user
-  with `is_verified = 1` (the invitation proved the mailbox) and signs them in through
-  `complete_sign_in()` - with no emailed code even when `emailed_sign_in_codes` is on, since
-  the invitation already proved the address.
-- **An existing account is sent to sign in, and the invitation stays PENDING.** A registration
-  link for an address that already has a portal account goes to the sign-in page with the
-  `account_exists` notice and consumes nothing (a GET, which a mail scanner's prefetch also
-  reaches); once signed in, the dashboard's Accept card (`Portal_Invitations_Controller::accept`)
-  creates the membership.
-- **A dead invitation offers no account.** Unknown, revoked, used and expired codes go to the
-  sign-in page with the `invitation_expired` notice (`rsx.login_notices`, `Login_Notice`). The
-  redirect survives every hop: register, account-exists, forgot password, and the second factor,
-  where it is parked beside the challenge (`REDIRECT_KEY`).
-- **A share link drives the invitation.** `Portal_Share_Link_Controller` sends a follower to
-  their documents, the sign-in page with a notice, or the accept-invite page, carrying the link
-  back as the redirect (`rsx:man portal`, A SHARE LINK LEADS THERE).
-- **Portal access is by invitation only, extended by the site's staff.** There is no portal
-  self-signup and no public "request access" page - registering from an invitation is the only
-  way a portal account comes into being: the
-  login page says access is by invitation and names who to contact (`config('rsx.name')`), and
-  staff invite and resend from the client screen (`Frontend_Clients_Controller`). An
-  application may add a request page of its own; it then owns the questions such a page raises
-  - it must not tell a stranger which addresses have accounts or invitations, and must not let
-  an anonymous visitor extend an invitation's expiry.
-- The framework components are realm-aware on their own - on a portal page they talk to the
-  portal controllers - so this app passes them no realm argument.
-- "View as Client" cannot enroll, remove, link or unlink anything: the framework refuses it.
+The sign-in ladder - the password check, the second factor and the emailed codes, passkeys,
+federated sign-in, registration, password reset, share links, View as Client's stop, and the
+credential-field rules every one of those forms follows - is documented in
+`auth/CLAUDE.md`.
 
 ## Portal Pages
 
@@ -305,6 +225,9 @@ Landing page for authenticated portal users.
 ### Settings (`/settings`)
 User self-service page (composed from the shared theme components — see
 `rsx/theme/components/view/CLAUDE.md`) with:
+- **Its credential fields** (Change Password, the authenticator code) carry their
+  `autocomplete` tokens and stable `$autofill_id` ids, with a hidden `username` field naming the
+  account: `auth/CLAUDE.md`, CREDENTIAL FIELDS.
 - **Change Password** — every field rule answered together (current password present, new one
   at least `rsx.portal.password_min_length`, confirmed); then the current password, checked
   throttle-first (`Login_Throttle::require_not_throttled($email)` - the same budget as every
@@ -331,19 +254,7 @@ User self-service page (composed from the shared theme components — see
 - **Account Info** — email, status, last login, member since
 
 ### Auth Pages (Server-Side Blade)
-- **Login** (`/login`) — email/password (no credential autofill: a portal account belongs to a
-  client), plus passkey sign-in and, when enabled, federated sign-in
-- **Two-factor challenge** (`/login/verify`) — `<Two_Factor_Challenge>` for a portal user
-  holding a second factor, or for everyone when emailed sign-in codes are on (with the
-  `send_code` endpoint); its Cancel (`$cancel_url`) returns to `/login`. A signed-in visitor is
-  sent to their destination (the challenge was answered in another tab), and
-  `portal_login_verify.js` hides the recovery-code hint when the widget fires `completed`
-- **Registration** (`/register?code=X`) — invitation-based account creation
-- **Password Reset** (`/password/reset`) — request + reset token flow. The link is single-use
-  even under concurrent submissions: the form calls `Portal_Password_Reset_Model::claim()` (one
-  conditional UPDATE that marks it used only while unused and unexpired) and writes the new
-  password only when its own claim succeeded
-- **Logout** (`/logout`) — clears portal session, redirects to login
+Login, the two-factor challenge, registration, password reset and logout: `auth/CLAUDE.md`.
 
 ## Testing
 
@@ -365,6 +276,6 @@ php artisan rsx:debug /_portal/settings --portal --portal-user=1 --screenshot-pa
 
 ## RELATED
 
-`workspaces/CLAUDE.md` · `rsx/portal_main.php`, `rsx/portal_permission.php` ·
+`auth/CLAUDE.md` · `workspaces/CLAUDE.md` · `rsx/portal_main.php`, `rsx/portal_permission.php` ·
 `rsx/theme/components/view/CLAUDE.md` · app skill `portal-app` ·
 skills `rspade:portal-core`, `rspade:auth-gates` · `rsx:man portal`

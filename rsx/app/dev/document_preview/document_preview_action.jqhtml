@@ -18,9 +18,9 @@
                 <%-- Full-text search over the extracted text. Empty = newest first; a query
                      ranks the picker by Search_Index_Model::search_ranked() relevance. --%>
                 <div class="mb-3">
-                    <label class="form-label small" for="dev-dp-search">Search Extracted Text</label>
+                    <label class="form-label small">Search Extracted Text</label>
                     <div class="d-flex gap-2">
-                        <input $sid="search" id="dev-dp-search" type="text" class="form-control" placeholder="e.g. +contract -draft">
+                        <input $sid="search" type="text" class="form-control" placeholder="e.g. +contract -draft">
                         <button $sid="search_clear" class="btn btn-outline-secondary">Clear</button>
                     </div>
                     <div $sid="search_note" class="form-text"></div>
@@ -49,8 +49,8 @@
 
                     <%-- $fit toggle. The host below is 800x70vh - a BOUNDED height - which is what
                          "contain" divides by; "width" is the default and overflows it vertically. --%>
-                    <label class="form-label small mb-0 ms-3" for="dev-dp-fit">Fit</label>
-                    <select $sid="fit" id="dev-dp-fit" class="form-select form-select-sm w-auto">
+                    <label class="form-label small mb-0 ms-3">Fit</label>
+                    <select $sid="fit" class="form-select form-select-sm w-auto">
                         <option value="width">width (default)</option>
                         <option value="contain">contain</option>
                     </select>

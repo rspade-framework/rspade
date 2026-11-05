@@ -68,7 +68,7 @@ class Password_Confirmation_Modal extends Modal_Abstract {
                 },
             ],
             on_show: () => {
-                form = $body.component('Password_Confirmation_Form').component();
+                form = $body.component('Password_Confirmation_Form', { autofill_id: 'password' }).component();
 
                 // A passkey confirms from the form's own button: close with success.
                 form.on('confirmed', function () {

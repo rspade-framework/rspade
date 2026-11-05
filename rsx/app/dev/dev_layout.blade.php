@@ -28,7 +28,7 @@
             <a class="navbar-brand" href="{{ Rsx::Route('Dev_Index_Controller') }}">
               Dev Tools
             </a>
-            <button class="navbar-toggler" data-bs-target="#sidebarNav" data-bs-toggle="collapse" type="button">
+            <button class="navbar-toggler" data-bs-target=".Sidebar_Nav" data-bs-toggle="collapse" type="button">
               <span class="navbar-toggler-icon"></span>
             </button>
           </div>

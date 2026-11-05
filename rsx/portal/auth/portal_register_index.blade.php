@@ -29,16 +29,21 @@
         {!! Login_Redirect::hidden_input() !!}
         <input type="hidden" name="code" value="{{ $invitation->invitation_code }}">
 
+        {{-- The account this password belongs to, for a password manager to save it under
+             (Credential fields, rsx/portal/auth/CLAUDE.md). It has no name, so it is never
+             posted: the account comes from the invitation, not from this field. --}}
+        <input autocomplete="username" hidden id="email" readonly type="email" value="{{ $invitation->email }}">
+
         <div class="mb-3">
-            <label class="form-label" for="password">Password</label>
-            <input autofocus class="form-control" id="password" name="password"
+            <label class="form-label" for="new_password">Password</label>
+            <input autocomplete="new-password" autofocus class="form-control" id="new_password" name="password"
                 placeholder="Create a password (min {{ $min_length }} characters)" required type="password"
                 minlength="{{ $min_length }}">
         </div>
 
         <div class="mb-3">
-            <label class="form-label" for="password_confirm">Confirm Password</label>
-            <input class="form-control" id="password_confirm" name="password_confirm" placeholder="Confirm your password"
+            <label class="form-label" for="new_password_confirmation">Confirm Password</label>
+            <input autocomplete="new-password" class="form-control" id="new_password_confirmation" name="password_confirm" placeholder="Confirm your password"
                 required type="password" minlength="{{ $min_length }}">
         </div>
 

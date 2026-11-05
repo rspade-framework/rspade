@@ -15,7 +15,7 @@
          No <Turnstile_Input /> here, and none is wanted: the component posts {code} or
          {assertion} and nothing else, and the challenge is already gated by the pending
          state on this session plus the framework's brute-force budget. --}}
-    <Two_Factor_Challenge $controller="Login_Controller" $method="verify_2fa"
+    <Two_Factor_Challenge $controller="Login_Controller" $method="verify_2fa" $autofill_id="code"
                           $cancel_url="{{ Rsx::Route('Login_Controller::index') }}" />
 
     @if ($has_recovery_codes)

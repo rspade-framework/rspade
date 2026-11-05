@@ -24,8 +24,8 @@ use Rsx\Models\Party_Person_Detail_Model;
 
 /**
  * Frontend_Party_Controller - Ajax endpoints for the Party CRUD demo (Class-Table
- * Inheritance reference; see man detail_tables). save() writes the base + the active detail
- * in one DB::transaction, filling the detail through the auto-vivifying accessor.
+ * Inheritance reference; see rsx:man detail_tables). save() writes the base + the active
+ * detail inside one Form_Edit::run(), filling the detail through the auto-vivifying accessor.
  */
 #[Auth('is_logged_in', 'can_view_data')]
 class Frontend_Party_Controller extends Rsx_Controller_Abstract

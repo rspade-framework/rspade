@@ -4,7 +4,9 @@
  * Password change, two-factor authentication, and session management.
  *
  * CHANGE PASSWORD is an <Rsx_Form> posting to this screen's change_password, which owns every
- * rule. On success the server has already signed the account out of every other browser
+ * rule. Its fields follow the credential-field rules (rsx/app/login/CLAUDE.md, Credential
+ * fields): a hidden, read-only username field carrying the account's sign-in email
+ * (get_sign_in_email), then current-password / new-password tokens on stable ids. On success the server has already signed the account out of every other browser
  * (the identity model does it on a password save), so the fields are cleared, the user is
  * told, and the page reloads to show the session list as it now stands.
  *
@@ -67,6 +69,9 @@ class Settings_Password_Security_Action extends Spa_Action {
 
         // null until the load answers, like the two-factor data.
         this.data.sessions = null;
+
+        // The account's sign-in email, for the Change Password form's username field.
+        this.data.sign_in_email = null;
     }
 
     async on_load() {
@@ -74,15 +79,17 @@ class Settings_Password_Security_Action extends Spa_Action {
         // them would only make the page slower. The connections are not asked for at all
         // when no provider is live: the section that would show them is not rendered, and an
         // endpoint whose answer nothing reads is a call not worth making.
-        const [two_factor, sso_identities, sessions] = await Promise.all([
+        const [two_factor, sso_identities, sessions, sign_in] = await Promise.all([
             Rsx_Two_Factor_Controller.credentials_list(),
             this.data.sso_enabled ? Rsx_Sso_Controller.identities_list() : Promise.resolve([]),
             Frontend_Settings_Password_Security_Controller.get_sessions(),
+            Frontend_Settings_Password_Security_Controller.get_sign_in_email(),
         ]);
 
         this.data.two_factor = two_factor;
         this.data.sso_identities = sso_identities;
         this.data.sessions = sessions.sessions;
+        this.data.sign_in_email = sign_in.email;
     }
 
     /**
@@ -141,7 +148,7 @@ class Settings_Password_Security_Action extends Spa_Action {
         const that = this;
 
         this.$.on('click.sps', '[data-action="enroll_totp"]', async function () {
-            await that._enroll('Totp_Enrollment', 'enrolled', 'Set Up Authenticator App');
+            await that._enroll('Totp_Enrollment', 'enrolled', 'Set Up Authenticator App', { autofill_id: 'code' });
         });
 
         this.$.on('click.sps', '[data-action="register_passkey"]', async function () {
@@ -297,13 +304,14 @@ class Settings_Password_Security_Action extends Spa_Action {
      * @param {string} name Component name.
      * @param {string} event The event that means "finished".
      * @param {string} title The dialog title.
+     * @param {Object} [args] The component's arguments.
      */
-    async _enroll(name, event, title) {
+    async _enroll(name, event, title, args = {}) {
         if (!await this.alive(Password_Confirmation_Modal.require())) return;
 
         const that = this;
         const $container = $('<div>');
-        const component = $container.component(name).component();
+        const component = $container.component(name, args).component();
 
         component.on(event, async function () {
             await that.alive(Modal.close());

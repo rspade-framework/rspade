@@ -6,6 +6,8 @@
  *
  * JavaScript Responsibilities:
  * - Processes sections data and detects active items based on current URL
+ * - follow_trail(meta): on a page reached through a breadcrumb origin, lights the section
+ *   the breadcrumb trail starts in instead of the one the URL is under
  * - Auto-expands parent items when child is active
  * - Handles click events for expandable items
  */
@@ -93,18 +95,53 @@ class Sidebar_Nav extends Component {
     async on_action(url, action_name, args) {
         await this.ready();
 
+        this._current_url = url;
+        this.highlight_url(url);
+    }
+
+    /**
+     * Follow the current page's breadcrumb trail (the meta of Rsx_Breadcrumb_Resolver /
+     * Spa_Layout.on_breadcrumb_complete()). A GRAFTED trail - a page reached through a
+     * breadcrumb origin, an invoice opened from an engagement - lights the section the
+     * TRAIL starts in (meta.root_url), falling back to the current URL when no item
+     * matches it. A plain trail changes nothing: the current URL decides, as on_action()
+     * already did. See rsx:man breadcrumb_origins, SIDEBAR.
+     *
+     * @param {{grafted: boolean, root_url: string|null}} meta
+     */
+    async follow_trail(meta) {
+        await this.ready();
+
+        const current_url = this._current_url || window.location.pathname;
+
+        if (!meta || !meta.grafted || !meta.root_url || !this.highlight_url(meta.root_url)) {
+            this.highlight_url(current_url);
+        }
+    }
+
+    /**
+     * Mark the items matching a URL active (and expand their parents). Path only - the
+     * query and fragment never decide a section.
+     *
+     * @param {string} url
+     * @returns {boolean} Whether any item matched
+     */
+    highlight_url(url) {
         let that = this;
+        const path = str(url).split(/[?#]/)[0];
+        let matched = false;
 
         // Remove active class from all nav items
         that.$.find('.Sidebar_Nav__link, .Sidebar_Nav__subitem').removeClass('active');
         that.$.find('.Sidebar_Nav__item-expandable').removeClass('expanded');
 
-        // Check each nav item to see if it matches the current URL
+        // Check each nav item to see if it matches the URL
         that.$.find('.Sidebar_Nav__link').each(function () {
             const $link = $(this);
             const href = $link.attr('href');
 
-            if (that.is_url_active(href, url)) {
+            if (that.is_url_active(href, path)) {
+                matched = true;
                 $link.addClass('active');
 
                 // If this is an expandable item, expand it
@@ -120,7 +157,8 @@ class Sidebar_Nav extends Component {
             const $subitem = $(this);
             const href = $subitem.attr('href');
 
-            if (that.is_url_active(href, url)) {
+            if (that.is_url_active(href, path)) {
+                matched = true;
                 $subitem.addClass('active');
 
                 // Expand parent
@@ -132,6 +170,8 @@ class Sidebar_Nav extends Component {
                 }
             }
         });
+
+        return matched;
     }
 
     process_sections(sections) {

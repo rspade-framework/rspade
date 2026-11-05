@@ -11,19 +11,24 @@
             <%-- Change Password (Bootstrap form controls - their own system) --%>
             <Section $title="Change Password">
                 <form $sid="password-form">
+                    <%-- The account the new password belongs to, for a password manager to save
+                         it under (Credential fields, rsx/portal/auth/CLAUDE.md). Never read:
+                         the endpoint changes the signed-in portal user's own password. --%>
+                    <input type="email" $sid="username" $autofill_id="email" autocomplete="username"
+                           value="<%= _profile.email %>" readonly hidden>
                     <div class="mb-3">
                         <label class="form-label">Current Password</label>
-                        <input type="password" class="form-control" $sid="current-password" autocomplete="current-password">
+                        <input type="password" class="form-control" $sid="current-password" $autofill_id="current_password" autocomplete="current-password">
                         <div class="text-danger small mt-1" $sid="current-password-error" style="display:none;"></div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">New Password</label>
-                        <input type="password" class="form-control" $sid="new-password" autocomplete="new-password">
+                        <input type="password" class="form-control" $sid="new-password" $autofill_id="new_password" autocomplete="new-password">
                         <div class="text-danger small mt-1" $sid="new-password-error" style="display:none;"></div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Confirm New Password</label>
-                        <input type="password" class="form-control" $sid="confirm-password" autocomplete="new-password">
+                        <input type="password" class="form-control" $sid="confirm-password" $autofill_id="new_password_confirmation" autocomplete="new-password">
                         <div class="text-danger small mt-1" $sid="confirm-password-error" style="display:none;"></div>
                     </div>
                     <button type="submit" class="btn btn-primary">Update Password</button>

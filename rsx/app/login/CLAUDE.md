@@ -11,6 +11,11 @@ empty database (`Rsx_Initial_User::create()` - the first-run screen, the `RSPADE
 post-migrate step, the test seed). Nothing on these pages lets a visitor create an account of
 their own, and a federated sign-in never creates one either.
 
+**There is no staff forgot-password / reset page, deliberately.** A staff password is reset by
+an operator (`rsx:users:password:set`, which also clears a forced-reset flag); the login page
+offers no "forgot password" link. The portal has a self-service reset
+(`rsx/portal/auth/CLAUDE.md`); a staff one would be a new rung built the same way.
+
 | Rung | Class / file | Route | What it does |
 |---|---|---|---|
 | Login | `Login_Controller` (`login_controller.php`) | `/login` GET+POST | Turnstile, then `RsxAuth::verify_credentials($credentials, record: false)` - the password is checked and NOBODY is signed in. A failure records `STATUS_FAILED_PASSWORD` itself. On success `__account_refusal()` is asked (the application's own account rules; it admits everybody as shipped), then a second factor issues the challenge, otherwise `complete_sign_in(sign_in: true)`. `complete_sign_in()` (which calls `RsxAuth::login()`) and a passed challenge are the only things that sign anybody in. |
@@ -240,6 +245,94 @@ Blade page's JS in this module needs that guard.
   form does not re-emit `{!! Login_Redirect::hidden_input() !!}` and the success branches
   hard-code their destinations, so only `/logout` honours it. The portal login blade shows
   the complete shape.
+
+## CREDENTIAL FIELDS
+
+Every field that asks for a sign-in identifier, a password or a one-time code - on these pages,
+on the Password & Security screen (`rsx/app/frontend/settings/`) and in the "confirm it's you"
+dialog (`rsx/lib/password_confirmation/`) - carries an `autocomplete` TOKEN and a STABLE id.
+Browser password managers read the token first; the id-matching extensions save a field's
+`id`/`name` and look it up again with an unescaped `querySelector('#' + id)`, so a jqhtml
+`<sid>:<cid>` id (it moves with mount order, and its colon is invalid in a selector) makes them
+fill nothing. A field with no token is worse still: the framework turns on jqhtml's
+`autocomplete_off`, so every template-written `<input>` without one renders
+`autocomplete="off"` (`rsx:man jqhtml`, AUTOCOMPLETE AND AUTOFILL).
+
+**The tokens:**
+
+| Field | `autocomplete` |
+|---|---|
+| The sign-in identifier (email), on sign-in, accept invite, create account, any form setting a password | `username` - even on `type="email"`; `email` alone reads as a contact address |
+| The password on a sign-in page or a "confirm it's you" prompt | `current-password` |
+| The current-password field of a change-password form | `current-password` |
+| A password being chosen, and its confirmation | `new-password` (both) |
+| A person's name on create account | `given-name` / `family-name` (`name` when one field) |
+| An emailed or authenticator one-time code | `one-time-code` (`Code_Input`'s first box carries it) |
+| A field nobody should be offered suggestions in (search, filter, picker typing box) | no token - it renders `off`. A credential field never does |
+
+**A form that sets or changes a password carries the account identifier** as a field with
+`autocomplete="username"` - read-only when the user may not change it, `hidden` when it is not
+shown - or a password manager saves the new password as a second, nameless entry. Such a field
+has no name the endpoint reads (or a name the endpoint already ignores): it is a hint, never
+input. Create account shows it read-only (`$readonly`, not `$disabled` - a manager skips a
+disabled field); Password & Security renders a hidden one from `get_sign_in_email`.
+
+**The id convention.** The SAME id for the same kind of field on every credential page of the
+origin, staff and portal alike, because a manager replays an id saved on one page on another:
+
+| Field | id |
+|---|---|
+| The sign-in identifier | `email` |
+| The password on a sign-in page or confirm prompt | `password` |
+| The current password of a change-password form | `current_password` |
+| A password being chosen / its confirmation | `new_password` / `new_password_confirmation` |
+| A one-time code | `code` |
+| First / last name | `given_name` / `family_name` |
+
+Each page shows at most one of each, so the ids are unique per document. A page that could
+show one form twice would suffix the second (`email_2`, ...) and say so beside it; none here
+does. The `confirm it's you` dialog uses `password` and opens only over pages whose own fields
+are `current_password` / `new_password`, so the two never meet.
+
+**How a field gets them.** A Blade page writes `id`, `name` and `autocomplete` on the
+`<input>` directly; `name` stays whatever the endpoint reads (`password_confirm` on the portal's
+register page carries the id `new_password_confirmation`). A jqhtml field takes `$autofill_id`
+on its `$sid` tag (jqhtml renders `id` and `name` from it, `this.$sid()` still finds it); an
+input component takes it from the page and forwards it:
+
+```html
+<Text_Input $name="password" $type="password" $max_length=-1
+            $autofill_id="new_password" $autocomplete="new-password" />
+<Two_Factor_Challenge $controller="Login_Controller" $method="verify_2fa" $autofill_id="code" ... />
+```
+
+`Text_Input` forwards `$autofill_id` / `$autocomplete` (and takes `$readonly`); the framework's
+`Password_Input`, `Code_Input`, `Two_Factor_Challenge`, `Totp_Enrollment` and
+`Password_Confirmation_Form` take `$autofill_id`. A new input that can hold a credential, a
+name or an address forwards both the same way (skill `rspade:form-input-contract`).
+
+| Page | Fields |
+|---|---|
+| `login_index.blade.php` | `email` (`username`), `password` (`current-password`) |
+| `login_verify.blade.php` | `<Two_Factor_Challenge $autofill_id="code">` (`one-time-code`; the recovery box is `off`) |
+| `accept_invite/create_account.blade.php` | `given_name`, `family_name`, `email` (read-only, `username`), `new_password`, `new_password_confirmation` |
+| `accept_invite/accept_invite.blade.php`, the site picker, site unauthorized | no fields |
+| Password & Security (`frontend/settings/password_security/`) | hidden `email` (`username`), `current_password`, `new_password`, `new_password_confirmation`; TOTP enrollment's code `code` |
+| `Password_Confirmation_Modal` (`rsx/lib/password_confirmation/`) | `password` (`current-password`) |
+| Add / edit user (`frontend/settings/user_management/`) | no credential: the email is SOMEBODY ELSE's address and stays `off`; no password is set there |
+
+## WHO SIGNS ANYBODY IN
+
+The template has NO self-signup, staff or portal (owner ruling, 2026-11-03; always-on
+knowledge carries the ruling). Every staff entrance finishes in
+`Login_Controller::complete_sign_in()`, every portal one in
+`Portal_Login_Controller::complete_sign_in()`. The only other callers that sign anybody in
+are the framework acting for those controllers (the 2FA engine for their verify endpoints,
+the SSO ceremony under their `sso.*` hooks), `rsx:debug` dev-auth (development tooling) and
+impersonation / View as Client (not a sign-in); `Sample_Data_Service::seed` sets an acting
+identity for attribution only (a task, not a web path). Checked by grepping every
+`RsxAuth::login(`, `set_login_user_id(` and `set_portal_user_id(` caller under `rsx/` - a
+new hit is a new door and needs the owner's approval.
 
 ## RELATED
 

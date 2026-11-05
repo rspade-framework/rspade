@@ -9,6 +9,9 @@
  * - Uses Rsx_Breadcrumb_Resolver for progressive breadcrumb loading with caching
  * - Updates document.title to "RSX - {page_title}"
  * - Actions can override: page_title(), breadcrumb_label(), breadcrumb_label_active(), breadcrumb_parent()
+ *   (and declare breadcrumb origins: static breadcrumb_via + breadcrumb_parent_via())
+ * - The sidebar follows the breadcrumb trail's root on a page reached through a breadcrumb
+ *   origin (Sidebar_Nav.follow_trail(), from on_chain and on_breadcrumb_complete())
  *
  * Page Actions:
  * - An action's optional page_actions() names a COMPONENT for the header's button cluster:
@@ -198,7 +201,7 @@ class Frontend_Spa_Layout extends Spa_Layout {
             this.action,
             url,
             {
-                on_chain: (chain) => this._on_breadcrumb_chain(chain),
+                on_chain: (chain, meta) => this._on_breadcrumb_chain(chain, meta),
                 on_label_update: (index, label) => this._on_breadcrumb_label_update(index, label),
                 on_complete: (chain) => this._on_breadcrumb_complete(chain)
             }
@@ -244,10 +247,21 @@ class Frontend_Spa_Layout extends Spa_Layout {
 
     /**
      * Called when breadcrumb chain structure is available
+     *
+     * The sidebar follows the trail as soon as its root is known, so a page reached through
+     * a breadcrumb origin lights the section its trail starts in without waiting for labels.
      */
-    _on_breadcrumb_chain(chain) {
+    _on_breadcrumb_chain(chain, meta) {
         this._current_chain = chain;
         this._render_breadcrumbs();
+        this.sid('sidebar_nav').follow_trail(meta);
+    }
+
+    /**
+     * The current action's trail has fully resolved (framework hook, every layout).
+     */
+    on_breadcrumb_complete(chain, meta) {
+        this.sid('sidebar_nav').follow_trail(meta);
     }
 
     /**

@@ -1,6 +1,6 @@
 ---
 name: modals
-description: "Creating modal dialogs in RSX - the positional-argument basic dialogs, Modal.form() as chrome around an <Rsx_Form>, Modal.show({buttons}) for a dialog with no endpoint, and modal classes extending Modal_Abstract. Use when implementing Modal.alert / confirm / prompt / select / form / show, writing an add or edit modal body component, deciding between Modal.form and Modal.show, or hitting \"found no <Rsx_Form> inside that component\", a dialog that closes and discards the user's input, or a modal that will not close after submit."
+description: "Creating dialogs - positional basic dialogs (Modal.alert / confirm / prompt / select), Modal.form() as chrome around an <Rsx_Form>, Modal.show({buttons}) for a dialog with no endpoint, Modal_Abstract classes. Load before writing any dialog or modal body, choosing Modal.form vs Modal.show, or on 'found no <Rsx_Form> inside that component', a dialog that discards the user's input, or one that will not close."
 ---
 
 # Modal dialogs in this application

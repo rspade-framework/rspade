@@ -15,9 +15,9 @@ seams:
 
 | Group | What it holds |
 |---|---|
-| [`page/`](page/CLAUDE.md) | `Page_Scaffold` (the page shell), the breadcrumb chain, the older `Page_*` header wrappers |
+| [`page/`](page/CLAUDE.md) | `Page_Scaffold` (the page shell), the breadcrumb chain, the header-button clusters `List_Page_Actions` / `Record_Page_Actions` (mounted by the layout from an action's `page_actions()`), the older `Page_*` header wrappers |
 | [`section/`](section/CLAUDE.md) | Card chrome: `View_Section_Abstract`, `Section`, `Card_Widget`, `Detail_Sidebar` |
-| [`view/`](view/CLAUDE.md) | The content vocabulary: `Entity_Header`, `View_Fields`, `Record_Table`, `Feed_Row`, `Kpi_Cell`, `Empty_State`, `Callout`, `Entity_Link`, `Revision_History` and friends |
+| [`view/`](view/CLAUDE.md) | The content vocabulary: `Entity_Header`, `View_Fields`, `Record_Table`, `Feed_Row`, `Kpi_Cell`, `Empty_State`, `Callout`, `Entity_Link`, `Revision_History`, `Rich_Text_Display`, `Inline_File_Card` (a rich-text file embed) and friends |
 | [`ui/`](ui/CLAUDE.md) | Small primitives: `Status_Badge`, `Action_Menu`, `Count_Pill`, `External_Link`, `Breadcrumb` |
 | [`card/`](card/CLAUDE.md) | The original thin Bootstrap card wrappers, largely superseded by `section/` |
 | [`tabs/`](tabs/CLAUDE.md) | The neutral display tab strip: `Tab_Bar`, `Tab_Panels`, `Tab_Panel` |

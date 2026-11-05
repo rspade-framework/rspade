@@ -30,26 +30,26 @@
         <div class="row">
             <div class="col-md-6">
                 <Form_Field $label="First Name" $required=true>
-                    <Text_Input $name="first_name" $max_length="{{ (int) \User_Model::field_length('first_name') }}" />
+                    <Text_Input $name="first_name" $autofill_id="given_name" $autocomplete="given-name" $max_length="{{ (int) \User_Model::field_length('first_name') }}" />
                 </Form_Field>
             </div>
             <div class="col-md-6">
                 <Form_Field $label="Last Name" $required=true>
-                    <Text_Input $name="last_name" $max_length="{{ (int) \User_Model::field_length('last_name') }}" />
+                    <Text_Input $name="last_name" $autofill_id="family_name" $autocomplete="family-name" $max_length="{{ (int) \User_Model::field_length('last_name') }}" />
                 </Form_Field>
             </div>
         </div>
 
         <Form_Field $label="Email Address" $required=true $help="This email address is set by your invitation and cannot be changed">
-            <Text_Input $name="email" $type="email" $disabled=true $max_length="{{ (int) \Login_User_Model::field_length('email') }}" />
+            <Text_Input $name="email" $type="email" $readonly=true $autofill_id="email" $autocomplete="username" $max_length="{{ (int) \Login_User_Model::field_length('email') }}" />
         </Form_Field>
 
         <Form_Field $label="Password" $required=true>
-            <Text_Input $name="password" $type="password" $max_length=-1 />
+            <Text_Input $name="password" $type="password" $autofill_id="new_password" $autocomplete="new-password" $max_length=-1 />
         </Form_Field>
 
         <Form_Field $label="Confirm Password" $required=true>
-            <Text_Input $name="password_confirm" $type="password" $max_length=-1 />
+            <Text_Input $name="password_confirm" $type="password" $autofill_id="new_password_confirmation" $autocomplete="new-password" $max_length=-1 />
         </Form_Field>
 
         <div class="d-grid mt-4">

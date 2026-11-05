@@ -8,6 +8,8 @@
 - `composition_tokens.scss` — the CSS custom properties that hold the spatial
   RELATIONSHIPS between the semantic primitives (`--block-gap`, `--card-pad-y`,
   `--card-pad-x`, `--col-gutter`, `--page-pad`). One edit here re-spaces every page.
+  It also declares `--rsx-form-veil`, the translucent veil `Rsx_Form` draws over itself
+  while loading, in a light and a dark value.
 - `responsive.scss` — the two-tier breakpoint system and its mixins: `mobile` / `desktop`,
   then `phone`, `phone-sm`, `phone-lg`, `tablet`, `desktop-sm/-md/-lg/-xl`, plus the
   `*-up` and `*-down` forms and the infixed utility classes.
@@ -101,56 +103,10 @@ with hardcoded colors, re-pointed rule by rule onto these same tokens.
 
 Full treatment: `php artisan rsx:man scss` (COLOURS section) and `php artisan rsx:man dark_mode`.
 
-## Variables First - For Everything That Is Not A Color
+## Variables, units and mixins
 
-Always check `variables.scss` before writing new SCSS rules. It holds the values that do **not**
-change with the theme:
-
-- **Spacing**: `$spacing-xs` (4px), `$spacing-sm` (8px), `$spacing-md` (16px), `$spacing-lg` (24px), `$spacing-xl` (32px), plus `$spacing-2xl`/`$spacing-3xl` and the numeric `$spacing-1`..`$spacing-6` scale
-- **Font sizes**: `$font-size-xs` (12px), `$font-size-sm` (14px), `$font-size-base` (16px), `$font-size-lg` (18px), `$font-size-xl` (20px), plus `$font-size-2xl`/`$font-size-3xl`
-- **Font weights**: `$font-weight-normal`, `$font-weight-medium`, `$font-weight-semibold`, `$font-weight-bold`
-- **Border radius**: `$border-radius-sm` (4px), `$border-radius-md` (6px), `$border-radius-lg` (8px)
-- **Z-index**: `$z-index-dropdown` (1000) through `$z-index-tooltip` (1070), plus `$z-index-modal-content` (1100) for dropdowns inside modals
-- **Transitions**: `$transition-duration-fast` (150ms), `$transition-duration-base` (200ms)
-
-If a variable doesn't exist for a value you need, add it to `variables.scss` with a descriptive
-name - unless the value is a color, which belongs in the table above instead.
-
-## Units: px Only
-
-**Never use rem**. Always use px for all measurements:
-- Spacing and padding
-- Font sizes
-- Border radius
-- Widths and heights
-- Margins
-
-This ensures consistent, predictable sizing across all components.
-
-## Mixins
-
-Use `@include primary-hover-bg($alpha)` for primary color hover backgrounds:
-```scss
-&:hover {
-    @include primary-hover-bg(0.1);
-    color: $primary-color;
-}
-```
-
-Use the responsive mixins from `responsive.scss`. Tier 1 is `@include mobile` (below the
-desktop breakpoint) and `@include desktop`; tier 2 names a device - `phone`, `phone-sm`,
-`phone-lg`, `tablet`, `desktop-sm`, `desktop-md`, `desktop-lg`, `desktop-xl` - each also
-available in a `*-up` and `*-down` form. Bootstrap's `-md-`/`-lg-` infixes do NOT exist
-here; the app's infixed utility classes (`.col-tablet-6`, `.d-desktop-block`) and the
-visibility helpers (`.mobile-only`, `.hide-phone`) follow the same names. The full roster
-is the app skill `theme`.
-
-## Self-Documenting Code
-
-The theme SCSS should be self-documenting through consistent variable usage. When someone reads the SCSS, variable names should immediately convey meaning:
-- `$spacing-lg` is clearly larger spacing
-- `$border-radius-md` is clearly medium rounding
-- `var(--bs-secondary-color)` is clearly de-emphasized text
-
-Avoid magic numbers. If you see a hardcoded value, replace it with a variable - or, if it is a
-color, with the runtime token for the role it plays.
+Everything that is not a colour comes from `variables.scss` (spacing, font sizes and
+weights, radii, z-index, transitions; check it before writing a value, add a named variable
+when one is missing). Units are **px only, never rem**. Breakpoints come from the
+`responsive.scss` mixins. The full roster with values, the mixins and the responsive tiers:
+app skill `theme`.

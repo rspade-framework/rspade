@@ -85,13 +85,13 @@
 
         <div class="mb-3">
             <label class="form-label" for="email">Email Address</label>
-            <input autofocus class="form-control" id="email" name="email" placeholder="admin@test.com" required
+            <input autocomplete="username" autofocus class="form-control" id="email" name="email" placeholder="admin@test.com" required
                 type="email" value="{{ $email_value }}">
         </div>
 
         <div class="mb-3">
             <label class="form-label" for="password">Password</label>
-            <input class="form-control" id="password" name="password" placeholder="Enter your password" required
+            <input autocomplete="current-password" class="form-control" id="password" name="password" placeholder="Enter your password" required
                 type="password" value="{{ $default_password }}">
         </div>
 

@@ -36,7 +36,7 @@
 
             <div class="mb-3">
                 <label class="form-label" for="email">Email Address</label>
-                <input autofocus class="form-control" id="email" name="email" placeholder="your@email.com" required
+                <input autocomplete="username" autofocus class="form-control" id="email" name="email" placeholder="your@email.com" required
                     type="email" value="{{ $email_value }}">
             </div>
 
