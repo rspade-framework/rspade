@@ -256,7 +256,8 @@ Browser password managers read the token first; the id-matching extensions save 
 `<sid>:<cid>` id (it moves with mount order, and its colon is invalid in a selector) makes them
 fill nothing. A field with no token is worse still: the framework turns on jqhtml's
 `autocomplete_off`, so every template-written `<input>` without one renders
-`autocomplete="off"` (`rsx:man jqhtml`, AUTOCOMPLETE AND AUTOFILL).
+`autocomplete="off"`, and `Rsx_Blade_Autocomplete` gives every Blade-written `<input>` and
+`<textarea>` without one the same `off` at boot (`rsx:man jqhtml`, AUTOCOMPLETE AND AUTOFILL).
 
 **The tokens:**
 
