@@ -97,8 +97,8 @@ async function run() {
             };
 
             const grafted = await visit('/contacts/view/1?_via=client.' + contact.client_id);
-            // {via: false}: from the grafted page the origin would otherwise be carried.
-            const plain = await visit('/contacts/view/1', { via: false });
+            // {via: 'drop'}: from the grafted page the origin would otherwise be carried.
+            const plain = await visit('/contacts/view/1', { via: 'drop' });
 
             return { client_id: contact.client_id, grafted: grafted, plain: plain };
         });
