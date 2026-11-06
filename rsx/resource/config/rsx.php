@@ -514,14 +514,25 @@ return [
     | Notifications
     |--------------------------------------------------------------------------
     |
-    | Configuration for the notification system.
+    | Configuration for the notification system. Two settings, two jobs:
+    | expiry decides what is SHOWN, the purge setting decides what is DELETED.
+    |
+    | default_expiry_days - DISPLAY only. A notification's expires_at is set
+    | this many days after it is sent; once it passes, the badge and the
+    | dropdown stop showing it. Expiry never deletes the row.
+    |
+    | purge_seen_after_days - the nightly maintenance task
+    | Notification_Service::purge deletes a notification the recipient has
+    | SEEN (read_at set) once it is older than this many days, measured from
+    | created_at. An UNSEEN notification is never deleted - expired, orphaned
+    | (its subject record gone) or old. Set 0 to DISABLE the purge and keep
+    | every notification forever (a "never discard data" policy).
     |
     */
 
     'notifications' => [
-        // Default notification expiry in days
-        // Notifications older than this are automatically deleted
         'default_expiry_days' => 21,
+        'purge_seen_after_days' => 90,
     ],
 
     /*

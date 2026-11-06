@@ -67,7 +67,9 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   a reader keyed on the wrong id cannot pass by coincidence), `Notification_Purge_Test`
   (`get_count` and `get_dropdown`, called through `Ajax::internal()` with an expired and an
   orphaned row present, leave both out and delete neither; `Notification_Service::purge`
-  then deletes every site's expired rows and the orphaned one and keeps the valid one).
+  deletes every site's SEEN rows older than `purge_seen_after_days` and keeps seen rows
+  inside the window and every unseen row - old, expired or orphaned - reporting the count in
+  its state and summary; `0` deletes nothing and reports the purge disabled).
 - **Credentials never serialize**: `Portal_Credential_Never_Export_Test` (a portal user's
   password, an invitation's code and a reset's token are absent from `toArray()` and its JSON).
 - **Portal**: `Portal_Workspaces_Test`, `Portal_Documents_Test`,

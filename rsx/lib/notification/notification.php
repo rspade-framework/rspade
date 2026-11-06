@@ -95,7 +95,7 @@ class Notification
      *
      * Counts what the dropdown would show as unread: unexpired, unread, and still valid (a
      * notification whose entity has been deleted is skipped, exactly as get_for_dropdown()
-     * skips it), so the badge and the list agree until the nightly purge removes the row.
+     * skips it), so the badge and the list agree.
      *
      * @return int
      */
@@ -126,7 +126,8 @@ class Notification
      * Get notifications for dropdown display
      *
      * Skips invalid notifications (their entity has been deleted) and deletes nothing: this
-     * runs in a reader request, and Notification_Service::purge removes those rows nightly.
+     * runs in a reader request; only Notification_Service::purge deletes (seen rows past
+     * rsx.notifications.purge_seen_after_days).
      * Returns structured array with notifications, total count, and unread count.
      *
      * @param int $limit Maximum notifications to return for display
@@ -148,7 +149,7 @@ class Notification
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Skip invalid notifications (entity deleted); the nightly purge removes them
+        // Skip invalid notifications (entity deleted); the row itself is kept
         $valid_notifications = [];
         foreach ($all_notifications as $notification) {
             if ($notification->is_valid()) {

@@ -15,38 +15,63 @@ use App\RSpade\Core\Task\Task_Instance;
 use Rsx\Models\Notification_Model;
 
 /**
- * Notification_Service - nightly housekeeping for staff notifications.
+ * Notification_Service - nightly retention for staff notifications.
  *
- * Notifications are READ by request handlers that hold only their site's read lock (the
- * header badge's get_count, the dropdown's get_dropdown), so nothing there deletes. The
- * rows those reads skip - expired ones, and ones whose referenced entity has been deleted -
- * are removed here instead, in the maintenance window, under each site's write lock.
+ * Two settings, two jobs. rsx.notifications.default_expiry_days decides what is SHOWN: the
+ * badge and the dropdown leave out an expired notification, and one whose referenced entity
+ * has been deleted. rsx.notifications.purge_seen_after_days decides what is DELETED, and only
+ * this task deletes: a notification the recipient has SEEN (read_at set) once it is older
+ * than that many days, measured from created_at. An unseen notification is never deleted -
+ * expired, orphaned or old - and 0 switches the purge off, keeping every notification.
+ *
+ * The notification reads run in request handlers that hold only their site's read lock, so
+ * nothing there deletes; this pass runs in the maintenance window, under each site's write
+ * lock.
  */
 class Notification_Service extends Rsx_Service_Abstract
 {
     /**
-     * Expired notifications are deleted in batches of this many rows, one write section per
-     * batch: an expired row is never read again, so the batch needs no per-row decision, and
+     * Seen notifications are deleted in batches of this many rows, one write section per
+     * batch: the delete re-states the whole rule, so the batch needs no per-row decision, and
      * a section of this size commits in a fraction of a second, so a web writer queued behind
      * it is barely held back.
      */
-    const EXPIRE_BATCH_SIZE = 500;
+    const PURGE_BATCH_SIZE = 500;
 
     /**
-     * Delete every site's expired notifications and those whose entity no longer exists.
+     * Delete every site's SEEN notifications older than rsx.notifications.purge_seen_after_days
+     * days (from created_at). Unseen notifications are never deleted. 0 disables the purge.
+     *
+     * Reports the cutoff per site, progress over the sites, a stdout line, and as its state
+     * {deleted, purge_seen_after_days, disabled} plus a one-line summary.
      */
-    #[Task('Delete expired notifications and those whose subject record is gone')]
+    #[Task('Delete seen notifications older than the retention window')]
     #[Exclusive('maintenance')]
     #[Schedule('maintenance')]
     public static function purge(Task_Instance $task, array $params = [])
     {
-        $cutoff = now();
-        $expired = 0;
-        $orphaned = 0;
+        $days = config('rsx.notifications.purge_seen_after_days');
+        if (!is_int($days) || $days < 0) {
+            throw new \RuntimeException(
+                'rsx.notifications.purge_seen_after_days must be a whole number of days, 0 or more (0 disables the purge); got '
+                . json_encode($days)
+            );
+        }
+
+        if ($days === 0) {
+            $task->stdout('Notification purge is disabled (rsx.notifications.purge_seen_after_days = 0); nothing deleted.');
+            $task->state(['deleted' => 0, 'purge_seen_after_days' => 0, 'disabled' => true]);
+            $task->summary('Disabled (purge_seen_after_days = 0); nothing deleted.');
+
+            return null;
+        }
+
+        $cutoff = now()->subDays($days);
+        $deleted = 0;
 
         // Every site: retention is install policy, and the worker running this pass serves no
-        // tenant. Each site is declared in turn, so the reads below - the notifications and
-        // the entities they reference - are that site's, and changes only between sections.
+        // tenant. Each site is declared in turn, so the reads below are that site's, and
+        // changes only between sections.
         $site_ids = [];
         foreach (Site_Model::query()->orderBy('id')->result_set() as $site) {
             $site_ids[] = (int) $site->id;
@@ -60,15 +85,8 @@ class Notification_Service extends Rsx_Service_Abstract
 
             Session::set_temporary_site_id($site_id);
             try {
-                $task->status("Site {$site_id}: deleting expired notifications");
-                $expired += static::__purge_expired($task, $site_id, $cutoff);
-
-                if ($task->is_stop_requested()) {
-                    break;
-                }
-
-                $task->status("Site {$site_id}: deleting notifications whose entity is gone");
-                $orphaned += static::__purge_orphaned($task, $site_id, $cutoff);
+                $task->status("Site {$site_id}: deleting notifications seen and created before {$cutoff->toDateTimeString()}");
+                $deleted += static::__purge_seen($task, $site_id, $cutoff);
             } finally {
                 Session::clear_temporary_site_id();
             }
@@ -76,22 +94,23 @@ class Notification_Service extends Rsx_Service_Abstract
             $task->progress_count($index + 1, $site_count);
         }
 
-        $task->stdout(($expired + $orphaned) > 0
-            ? "Deleted {$expired} expired notification(s) and {$orphaned} whose entity no longer exists."
-            : 'No notification is expired or orphaned; nothing deleted.');
+        $task->stdout($deleted > 0
+            ? "Deleted {$deleted} seen notification(s) older than {$days} day(s)."
+            : "No seen notification is older than {$days} day(s); nothing deleted.");
 
-        $task->state(['expired' => $expired, 'orphaned' => $orphaned]);
-        $task->summary("Deleted {$expired} expired and {$orphaned} orphaned notification(s).");
+        $task->state(['deleted' => $deleted, 'purge_seen_after_days' => $days, 'disabled' => false]);
+        $task->summary("Deleted {$deleted} seen notification(s) older than {$days} day(s).");
 
         return null;
     }
 
     /**
-     * Delete the declared site's notifications that expired before $cutoff, a batch per
-     * write section. The batch's delete re-states the expiry test, so the section acts on
-     * what is true under the lock rather than on the list read before it.
+     * Delete the declared site's seen notifications created before $cutoff, a batch per
+     * write section. The batch's delete re-states the rule (seen, created before the cutoff),
+     * so the section acts on what is true under the lock rather than on the list read before
+     * it.
      */
-    private static function __purge_expired(Task_Instance $task, int $site_id, $cutoff): int
+    private static function __purge_seen(Task_Instance $task, int $site_id, $cutoff): int
     {
         $deleted = 0;
         $batch = [];
@@ -106,40 +125,14 @@ class Notification_Service extends Rsx_Service_Abstract
 
             $deleted += (int) Site_Lock::write($site_id, function () use ($ids, $cutoff) {
                 return Notification_Model::whereIn('id', $ids)
-                    ->where('expires_at', '<', $cutoff)
+                    ->whereNotNull('read_at')
+                    ->where('created_at', '<', $cutoff)
                     ->delete();
-            }, 'Delete expired notifications');
+            }, 'Delete seen notifications past retention');
         };
 
-        foreach (Notification_Model::where('expires_at', '<', $cutoff)->result_set() as $notification) {
-            $task->heartbeat();
-            if ($task->is_stop_requested()) {
-                break;
-            }
-
-            $batch[] = (int) $notification->id;
-            if (count($batch) >= self::EXPIRE_BATCH_SIZE) {
-                $flush();
-            }
-        }
-
-        $flush();
-
-        return $deleted;
-    }
-
-    /**
-     * Delete the declared site's unexpired notifications whose referenced entity has been
-     * deleted. One write section per notification, re-reading it and re-checking the entity
-     * inside: the entity's absence is a decision, and it is made under the lock.
-     */
-    private static function __purge_orphaned(Task_Instance $task, int $site_id, $cutoff): int
-    {
-        $deleted = 0;
-
-        $candidates = Notification_Model::where('expires_at', '>=', $cutoff)
-            ->whereNotNull('entity_type')
-            ->whereNotNull('entity_id')
+        $candidates = Notification_Model::whereNotNull('read_at')
+            ->where('created_at', '<', $cutoff)
             ->result_set();
 
         foreach ($candidates as $notification) {
@@ -148,25 +141,13 @@ class Notification_Service extends Rsx_Service_Abstract
                 break;
             }
 
-            if ($notification->is_valid()) {
-                continue;
-            }
-
-            $removed = Site_Lock::write($site_id, function () use ($notification) {
-                $current = Notification_Model::find($notification->id);
-                if ($current === null || $current->is_valid()) {
-                    return false;
-                }
-
-                $current->delete();
-
-                return true;
-            }, "Delete notification #{$notification->id} (entity gone)");
-
-            if ($removed) {
-                $deleted++;
+            $batch[] = (int) $notification->id;
+            if (count($batch) >= self::PURGE_BATCH_SIZE) {
+                $flush();
             }
         }
+
+        $flush();
 
         return $deleted;
     }

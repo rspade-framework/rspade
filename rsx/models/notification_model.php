@@ -13,7 +13,8 @@ use App\RSpade\Core\Session\Session;
  * data (text, URL, optional image) for flexible display.
  *
  * Invalid notifications (entity deleted) are left out of every read - get_for_dropdown(),
- * get_unread_count(), fetch() - and deleted only by the nightly Notification_Service::purge.
+ * get_unread_count(), fetch() - and kept. Only the nightly Notification_Service::purge deletes,
+ * and only a SEEN notification older than rsx.notifications.purge_seen_after_days days.
  */
 
 
@@ -249,7 +250,7 @@ class Notification_Model extends Rsx_Site_Model_Abstract
      * A notification belongs to one recipient (user_id holds a login_users id): anybody
      * else is answered exactly as a missing row. An invalid notification (its entity is
      * gone) is reported absent too, but never deleted here - a read has no side effects;
-     * the nightly Notification_Service::purge task deletes the row.
+     * the nightly Notification_Service::purge deletes the row once it is seen and past retention.
      */
     #[Ajax_Endpoint_Model_Fetch]
     public static function fetch($id)

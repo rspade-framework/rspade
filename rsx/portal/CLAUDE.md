@@ -43,10 +43,11 @@ dispatcher, bundle, layout, routing attributes and permission facade.
   would otherwise churn every open staff client view. Follow that shape for any other
   per-request stamp; use an ordinary `save()` for anything a screen should react to. The
   hooks run with NO site lock, inside an enforcement window, so the stamp writes under a
-  reasoned `Site_Lock::bypass()` (a last-activity time tolerates a concurrent writer; the
+  `Site_Lock::write_exception()` (a last-activity time is telemetry nothing decides from; the
   site's write lock on every portal click would serialize the portal behind every staff
   save). Any other site-scoped write in `init()` / `pre_dispatch()` is a
-  `Site_Lock::write()` section or a bypass with its reason.
+  `Site_Lock::write()` section, or a write exception when it only records a view, audit
+  entry or telemetry.
 - **The human-verification widget sits below the auth card**, centred, 22px under it
   (`$auth-below-card-gap`): each auth page puts `<Turnstile_Input $form="<its form id>" />` in
   the layout's `below_card` section, so it stays out of the card and still posts with the native

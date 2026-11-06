@@ -20,7 +20,8 @@ never `$user->id`), every read in `Notification` matches `Session::get_login_use
 
 `send()` writes one **`Notification_Model`** row per recipient, carrying site, user, type,
 an optional polymorphic entity and an expiry (`rsx.notifications.default_expiry_days`,
-21 by default). Nothing here touches the portal's notifications — those are a separate
+21 by default) - a DISPLAY expiry: an expired row stops being shown, and is not deleted.
+Nothing here touches the portal's notifications — those are a separate
 framework model, published on `Portal_Notification_Topic` and read by the portal dashboard.
 
 **Reads skip invalid notifications and delete nothing**: `get_for_dropdown()` loads the
@@ -28,8 +29,10 @@ unexpired rows, leaves out any whose entity no longer exists, counts the unread 
 rest, and only then slices to the limit and renders; `get_unread_count()` applies the same
 validity test, so the badge and the list agree. A notification pointing at a deleted record
 disappears rather than rendering a dead link. Both run in reader requests (the site's read
-lock), so the rows themselves - those and the expired ones - are deleted by the nightly
-maintenance task `Notification_Service::purge` (`rsx/services/`).
+lock), so nothing here deletes. Rows are deleted only by the nightly maintenance task
+`Notification_Service::purge` (`rsx/services/`): a SEEN notification older than
+`rsx.notifications.purge_seen_after_days` days (90) from `created_at`; an unseen one never,
+and `0` disables the purge.
 
 **Rendered by `Notification_Dropdown`** (`rsx/theme/components/notification/`), mounted
 exactly once, in `Frontend_Spa_Layout.jqhtml`. It seeds its badge from `get_count`, loads

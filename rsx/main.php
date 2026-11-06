@@ -86,8 +86,9 @@ class Main extends Main_Abstract
     public static function pre_dispatch(Request $request, array $params)
     {
         // This hook runs with NO site lock, in an enforcement window: a write to a
-        // site-scoped model here takes its own Site_Lock::write() section (or a reasoned
-        // Site_Lock::bypass() for bookkeeping). It writes nothing today. rsx:man locks.
+        // site-scoped model here takes its own Site_Lock::write() section (or, for a view,
+        // audit or telemetry record, a Site_Lock::write_exception()). It writes nothing
+        // today. rsx:man site_locks.
 
         // NOTE: the rsx:debug / Playwright dev-auth backdoor used to live here. It is
         // now Dispatcher::__handle_dev_auth() (framework-side, mirroring the portal's),

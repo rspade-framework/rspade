@@ -19,14 +19,17 @@ return value is the run's return code, never data.
   have been accepted since). Any sweep added here that is install policy rather than one
   tenant's business follows the same shape.
 - **`Notification_Service::purge`** — `#[Task]` + `#[Schedule('maintenance')]` +
-  `#[Exclusive('maintenance')]`. Deletes staff notifications that have expired, and unexpired
-  ones whose referenced entity has been deleted. The notification endpoints are readers and
-  delete nothing - they only leave those rows out of what they return - so this nightly pass
-  is the one place the rows go. It walks every site, declaring each in turn
-  (`Session::set_temporary_site_id()`): expired rows go in batches of 500, one
-  `Site_Lock::write()` section per batch whose delete re-states the expiry test; an orphaned
-  row is re-read and re-checked inside its own section. Reports each phase per site, progress
-  over the sites, `{expired, orphaned}` as its state, a stdout line and a summary.
+  `#[Exclusive('maintenance')]`. Deletes staff notifications the recipient has SEEN
+  (`read_at` set) once they are older than `rsx.notifications.purge_seen_after_days` days
+  (default 90, from `created_at`). An unseen notification is never deleted - expired,
+  orphaned or old - and `0` disables the purge (the run deletes nothing and reports itself
+  disabled). Expiry (`default_expiry_days`) only decides what the badge and dropdown show.
+  The notification endpoints are readers and delete nothing, so this nightly pass is the one
+  place rows go. It walks every site, declaring each in turn
+  (`Session::set_temporary_site_id()`), and deletes in batches of 500, one
+  `Site_Lock::write()` section per batch whose delete re-states the rule. Reports the cutoff
+  per site, progress over the sites, `{deleted, purge_seen_after_days, disabled}` as its
+  state, a stdout line and a summary.
 - **`sample_data/` - `Sample_Data_Service::seed`** — `#[Task]` + `#[Command('rsx_app:seed')]`.
   Fills an EMPTY site with the sample dataset: fictional clients, contacts, projects (with a
   subproject), tasks (with subtasks, client-level and unattached ones), documents of every

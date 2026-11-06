@@ -39,9 +39,11 @@ DESCRIPTION
         - Site-scoped (multi-tenant)
         - Optional polymorphic entity reference
         - Read/unread tracking
-        - Automatic expiry (default 21 days)
+        - Display expiry (default 21 days): an expired notification is no
+          longer shown, but is not deleted
         - Invalid notifications (entity deleted) are left out of every read
-        - Nightly maintenance task deletes expired and invalid rows
+        - Nightly maintenance task deletes SEEN notifications older than
+          90 days; unseen ones are never deleted; 0 keeps everything
 
     Components
         - Notification_Model: Main model with type enums
@@ -174,7 +176,10 @@ RENDERER PATTERN
     - Handle missing entities gracefully
     - Use metadata when entity not available
 
-INVALID NOTIFICATIONS AND EXPIRY
+INVALID NOTIFICATIONS, EXPIRY AND RETENTION
+    Two settings, two jobs: EXPIRY decides what is SHOWN, the PURGE setting
+    decides what is DELETED.
+
     A notification with an entity reference is INVALID once that entity no
     longer exists. Every read leaves invalid notifications out and deletes
     nothing:
@@ -183,18 +188,29 @@ INVALID NOTIFICATIONS AND EXPIRY
 
     Notifications without entity references are always valid.
 
+    Expiry is DISPLAY only. It is set at send time
+    (rsx.notifications.default_expiry_days, default 21): once expires_at has
+    passed, the badge and the dropdown leave the notification out. Expiry
+    never deletes the row.
+
     The read endpoints hold only the site's read lock, so they never write.
-    Rows are deleted by the maintenance task Notification_Service::purge
-    (rsx/services/notification_service.php), scheduled in the maintenance
-    window (#[Schedule('maintenance')], rsx.tasks.maintenance_hour). For every
-    site it deletes the notifications whose expires_at has passed, then the
-    unexpired ones that are invalid, each under the site's write lock
-    (Site_Lock::write()). Run it by hand with:
+    Rows are deleted only by the maintenance task Notification_Service::purge
+    (rsx/services/notification_service.php), scheduled in the daily
+    maintenance window (#[Schedule('maintenance')], rsx.tasks.maintenance_hour).
+    It has ONE rule: a notification the recipient has SEEN (read_at set) is
+    deleted once it is older than rsx.notifications.purge_seen_after_days
+    days (default 90), measured from created_at. An UNSEEN notification is
+    never deleted - expired, orphaned or old. A seen orphan gets no special
+    treatment: it waits for the age rule. The task walks every site,
+    deleting in batches of 500, each batch under the site's write lock
+    (Site_Lock::write()), and reports {deleted, purge_seen_after_days,
+    disabled} as its state plus a one-line summary. Run it by hand with:
 
         php artisan rsx:task:run Notification_Service purge
 
-    Expiry is set at send time: rsx.notifications.default_expiry_days
-    (default 21).
+    SETTING purge_seen_after_days TO 0 DISABLES THE PURGE: nothing is ever
+    deleted, and each run reports that it is disabled. An application with a
+    "never discard data" policy sets 0.
 
 FRONTEND COMPONENT
     The Notification_Dropdown component displays a bell icon with badge
@@ -232,7 +248,8 @@ CONFIGURATION
     In /rsx/resource/config/rsx.php:
 
         'notifications' => [
-            'default_expiry_days' => 21,
+            'default_expiry_days' => 21,     // display only
+            'purge_seen_after_days' => 90,   // 0 = never delete
         ],
 
 BEST PRACTICES

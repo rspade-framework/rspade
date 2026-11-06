@@ -23,7 +23,7 @@ class Frontend_Notifications_Controller extends Rsx_Controller_Abstract
      * Ajax endpoint: Get unread notification count
      *
      * A reader: it is polled on every SPA navigation and writes nothing. Expired and
-     * orphaned notifications are removed by the nightly Notification_Service::purge task.
+     * orphaned notifications are left out of the count, never deleted here.
      *
      * @param Request $request
      * @param array $params
@@ -42,7 +42,7 @@ class Frontend_Notifications_Controller extends Rsx_Controller_Abstract
      *
      * Returns notifications with rendered text, URL, and image URL.
      * A reader: notifications whose entity has been deleted are left out of the response,
-     * never deleted here (Notification_Service::purge removes them nightly).
+     * never deleted here (only Notification_Service::purge deletes, seen rows past retention).
      *
      * @param Request $request
      * @param array $params ['limit' => int] Optional limit (default 5)
