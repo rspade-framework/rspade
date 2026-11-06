@@ -64,6 +64,7 @@ class Endpoint_Data_Gates_Test extends Rsx_Test_Abstract
         'Frontend_Notifications_Controller::mark_read' => 'the caller\'s own notifications',
         'Frontend_Settings_Password_Security_Controller::change_password' => 'the caller\'s own password',
         'Frontend_Settings_Password_Security_Controller::get_sessions' => 'the caller\'s own sessions',
+        'Frontend_Settings_Password_Security_Controller::get_sign_in_email' => 'the caller\'s own sign-in email',
         'Frontend_Settings_Password_Security_Controller::sign_out_other_sessions' => 'the caller\'s own sessions',
         'Frontend_Settings_Password_Security_Controller::sign_out_session' => 'the caller\'s own sessions',
         'Frontend_Settings_Profile_Display_Controller::get_profile' => 'the caller\'s own profile',

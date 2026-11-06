@@ -76,6 +76,7 @@ class Frontend_Party_Controller extends Rsx_Controller_Abstract
      * the FK cascade on a hard delete.
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function delete(Request $request, array $params = [])
     {
@@ -99,6 +100,7 @@ class Frontend_Party_Controller extends Rsx_Controller_Abstract
      * against the STORED type, whatever type_id the submission carries.
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function save(Request $request, array $params = [])
     {

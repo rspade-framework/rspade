@@ -5,9 +5,9 @@ namespace Rsx\Services\SampleData;
 use libphonenumber\PhoneNumberFormat;
 use libphonenumber\PhoneNumberUtil;
 use App\RSpade\Core\Files\File_Attachment_Model;
+use App\RSpade\Core\Locks\Site_Lock;
 use App\RSpade\Core\Models\Site_Model;
 use App\RSpade\Core\Models\User_Model;
-use App\RSpade\Core\Revisions\Revision;
 use App\RSpade\Core\Service\Rsx_Service_Abstract;
 use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Task\Task_Instance;
@@ -106,23 +106,24 @@ class Sample_Data_Service extends Rsx_Service_Abstract
             }
             $task->heartbeat();
 
-            // One revision entry per client: its contacts, projects and tasks with it.
-            Revision::unit_of_work("Seeded sample client {$client_data['name']}", function () use ($client_data, $site_id, $owner, &$counts) {
+            // One write section per client - the site's write lock, one transaction and one
+            // revision entry: its contacts, projects and tasks with it.
+            Site_Lock::write($site_id, function () use ($client_data, $site_id, $owner, &$counts) {
                 static::__seed_client($client_data, $site_id, $owner, $counts);
-            });
+            }, "Seeded sample client {$client_data['name']}");
 
             $task->stdout("Seeded {$client_data['name']}");
             $task->progress_count(++$done, $steps);
         }
 
         $task->status('Seeding the rest');
-        Revision::unit_of_work('Seeded sample reference documents, announcements, parties and products', function () use ($data, $site_id, $owner, &$counts) {
+        Site_Lock::write($site_id, function () use ($data, $site_id, $owner, &$counts) {
             static::__seed_reference_documents($data['reference_documents'], $site_id, $counts);
             static::__seed_announcements($data['announcements'], $site_id);
             static::__seed_parties($data['parties'], $site_id);
             static::__seed_general_tasks($data['general_tasks'], $site_id, $owner, $counts);
             static::__seed_products($data['products']);
-        });
+        }, 'Seeded sample reference documents, announcements, parties and products');
         $task->progress_count(++$done, $steps);
 
         $task->state($counts);

@@ -55,6 +55,7 @@ class Portal_Settings_Controller extends Rsx_Controller_Abstract
      * is no oracle for guessing the password of a browser left signed in. A refusal changes
      * nothing.
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function change_password(Request $request, array $params = [])
     {
@@ -127,6 +128,7 @@ class Portal_Settings_Controller extends Rsx_Controller_Abstract
      * Sign out offered - signed in, not this device - else not found. That device's staff
      * sign-in, if it has one, is untouched.
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function terminate_session(Request $request, array $params = [])
     {

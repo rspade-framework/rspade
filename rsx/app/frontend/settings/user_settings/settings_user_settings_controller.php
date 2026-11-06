@@ -95,6 +95,7 @@ class Frontend_Settings_User_Settings_Controller extends Rsx_Controller_Abstract
      * @param array $params
      * @return mixed
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function update(Request $request, array $params = [])
     {

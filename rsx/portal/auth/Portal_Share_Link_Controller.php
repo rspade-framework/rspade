@@ -9,6 +9,7 @@ namespace Rsx\Portal\Auth;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Locks\Site_Lock;
 use App\RSpade\Core\Login\Login_Notice;
 use App\RSpade\Core\Login\Login_Redirect;
 use App\RSpade\Core\Portal\Portal_Session;
@@ -56,8 +57,10 @@ class Portal_Share_Link_Controller extends Rsx_Controller_Abstract
             }
 
             // View as Client is read-only, and a staff member looking is not the client opening it.
+            // A site-scoped write from a page route, which takes no automatic lock: a write
+            // section on the portal's site.
             if (!Portal_Session::is_impersonating()) {
-                $share->mark_accessed();
+                Site_Lock::write(Portal_Session::get_site_id(), fn () => $share->mark_accessed(), 'Shared link opened');
             }
 
             return redirect(Rsx_Portal::Route('Portal_Workspace_Documents_Action', ['id' => $contact->client_id]));

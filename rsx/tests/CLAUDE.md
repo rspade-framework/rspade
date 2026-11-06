@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Sixty-five test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Sixty-six test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -121,7 +121,11 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   `Account_Creation_Policy_Test` (there is no self-signup: no route is a signup and no
   switch exists; a password sign-in of an unverified address owes no emailed step; an
   invitation's account is verified and refuses another address; SSO declines an open
-  invitation, an unverified and an unknown address and creates no account), `Require_Two_Factor_Test` (`rsx.auth.require_two_factor`: off holds nothing; on,
+  invitation, an unverified and an unknown address and creates no account),
+  `Sign_In_Site_Lock_Test` (both accept-invite endpoints called through `Ajax::internal()`, the
+  real dispatch path with its request window: the invited membership is written in a write
+  section, the session enters the invited site through `RsxAuth::enter_site()`, and each answers
+  its redirect rather than a lock or site-change refusal), `Require_Two_Factor_Test` (`rsx.auth.require_two_factor`: off holds nothing; on,
   the password still signs in, page requests are held on Password & Security while the
   enrollment screen and sign-out go through, an Ajax call outside the enrollment allow-list is
   refused as a coded unauthorized, the browser is told the step is owed, and enrolling

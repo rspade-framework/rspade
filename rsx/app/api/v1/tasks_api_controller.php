@@ -180,6 +180,7 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
      * }
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Api_Endpoint('/api/v1/tasks/create', methods: ['POST'])]
     #[Api_Param('title', type: 'string', required: true, description: 'Title')]
     #[Api_Param('description', type: 'string', description: 'Description (plain text, or the rich-text envelope JSON-encoded)')]
@@ -241,6 +242,7 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
      * }
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Api_Endpoint('/api/v1/tasks/:id/update', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Task ID')]
     #[Api_Param('title', type: 'string', description: 'Title')]
@@ -401,6 +403,7 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
      * }
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Api_Endpoint('/api/v1/tasks/:id/attachments/attach', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Task ID')]
     #[Api_Param('key', type: 'string', required: true, description: 'File key returned by POST /api/v1/files')]
@@ -436,12 +439,13 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
      * Remove an attachment from a task.
      *
      * Soft-deletes it into the framework's retention window - the bytes are not destroyed
-     * and the attachment remains recoverable. Returns 204 No Content.
+     * and the attachment remains recoverable. Answers {"result": "success"}.
      *
      * @api-response
-     * (empty body, HTTP 204)
+     * {"result": "success"}
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Api_Endpoint('/api/v1/tasks/:id/attachments/:attachment_id/delete', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Task ID')]
     #[Api_Param('attachment_id', type: 'int', required: true, description: 'Attachment ID to remove')]
@@ -464,7 +468,7 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
 
         $attachment->delete();
 
-        return Rsx_Api::no_content();
+        return ['result' => 'success'];
     }
 
     /**

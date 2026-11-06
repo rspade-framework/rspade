@@ -148,6 +148,7 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
      * }
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Api_Endpoint('/api/v1/clients/create', methods: ['POST'])]
     #[Api_Param('name', type: 'string', required: true, description: 'Company name')]
     #[Api_Param('email', type: 'string', description: 'Primary email address')]
@@ -253,6 +254,7 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
      * }
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Api_Endpoint('/api/v1/clients/:id/update', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Client ID')]
     #[Api_Param('name', type: 'string', description: 'Company name')]
@@ -399,12 +401,13 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
      * Delete a client.
      *
      * Soft delete (mirrors the staff feature); the record is retained but excluded
-     * from every API read. Returns 204 No Content.
+     * from every API read. Answers {"result": "success"}.
      *
      * @api-response
-     * (empty body, HTTP 204)
+     * {"result": "success"}
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Api_Endpoint('/api/v1/clients/:id/delete', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Client ID')]
     public static function delete(Request $request, array $params = [])
@@ -417,7 +420,7 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
 
         $client->delete();
 
-        return Rsx_Api::no_content();
+        return ['result' => 'success'];
     }
 
     // =====================================================================
@@ -505,6 +508,7 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
      * }
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Api_Endpoint('/api/v1/clients/:id/attachments/attach', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Client ID')]
     #[Api_Param('key', type: 'string', required: true, description: 'File key returned by POST /api/v1/files')]
@@ -542,12 +546,13 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
      *
      * Revokes every share of the document and soft-deletes it into the framework's
      * retention window - the bytes are not destroyed and the attachment stays
-     * recoverable from the staff UI. Returns 204 No Content.
+     * recoverable from the staff UI. Answers {"result": "success"}.
      *
      * @api-response
-     * (empty body, HTTP 204)
+     * {"result": "success"}
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Api_Endpoint('/api/v1/clients/:id/attachments/:attachment_id/delete', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Client ID')]
     #[Api_Param('attachment_id', type: 'int', required: true, description: 'Attachment ID to remove')]
@@ -570,7 +575,7 @@ class Clients_Api_Controller extends Rsx_Api_Controller_Abstract
 
         $client->remove_document($attachment);
 
-        return Rsx_Api::no_content();
+        return ['result' => 'success'];
     }
 
     /**

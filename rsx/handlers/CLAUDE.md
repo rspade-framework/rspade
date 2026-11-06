@@ -23,7 +23,12 @@ manifest from its `#[OnEvent]` attributes. There is no registration step.
   a second-factor challenge is destroyed by wrong answers, with `{identity, email, failures}`;
   each queues one `Two_Factor_Challenge_Spent_Email` to the account's address. Reaching a
   challenge means the password was right, so this is the notice that somebody who knows it
-  is guessing the second factor.
+  is guessing the second factor. The queued row is site-scoped (site 0 on the staff
+  challenge, which runs before any site is entered; the portal's site on the portal's), so
+  each handler queues inside `Site_Lock::write(<that site>, ...)` - the staff endpoint is
+  `#[Manual_Lock]` and holds no lock; under the portal's `#[Writer]` the section is
+  reentrant. A handler that writes a site-scoped row from a context holding no write lock
+  does the same.
 - **`Sso_Handlers`** — the federated-sign-in hooks. `sso.identity.unlinked`
   (`match_verified_email_of_existing_account()`) is the policy decision, and the policy is
   that SSO signs in an account that ALREADY EXISTS and does nothing else: a **verified**

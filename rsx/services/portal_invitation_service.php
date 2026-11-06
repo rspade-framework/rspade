@@ -7,6 +7,7 @@
 
 namespace Rsx\Services;
 
+use App\RSpade\Core\Locks\Site_Lock;
 use App\RSpade\Core\Service\Rsx_Service_Abstract;
 use App\RSpade\Core\Task\Task_Instance;
 use Rsx\Models\Portal_Invitation_Model;
@@ -30,12 +31,34 @@ class Portal_Invitation_Service extends Rsx_Service_Abstract
     public static function expire_stale(Task_Instance $task, array $params = [])
     {
         // Every site's invitations: expiry is a property of the invitation, and the worker
-        // running this sweep serves no particular tenant.
-        $expired = Portal_Invitation_Model::without_site_scope(
-            fn () => Portal_Invitation_Model::where('status_id', Portal_Invitation_Model::STATUS_PENDING)
+        // running this sweep serves no particular tenant. The list is read unlocked; each
+        // invitation is then expired in a write section on its own site, re-read inside it -
+        // it may have been accepted or revoked since the list was read.
+        $expired = 0;
+
+        Portal_Invitation_Model::without_site_scope(function () use (&$expired) {
+            $due = Portal_Invitation_Model::where('status_id', Portal_Invitation_Model::STATUS_PENDING)
                 ->where('expires_at', '<', now())
-                ->update(['status_id' => Portal_Invitation_Model::STATUS_EXPIRED])
-        );
+                ->result_set();
+
+            foreach ($due as $invitation) {
+                $changed = Site_Lock::write((int) $invitation->site_id, function () use ($invitation) {
+                    $current = Portal_Invitation_Model::find($invitation->id);
+                    if ($current === null || (int) $current->status_id !== Portal_Invitation_Model::STATUS_PENDING) {
+                        return false;
+                    }
+
+                    $current->status_id = Portal_Invitation_Model::STATUS_EXPIRED;
+                    $current->save();
+
+                    return true;
+                }, "Expired portal invitation #{$invitation->id}");
+
+                if ($changed) {
+                    $expired++;
+                }
+            }
+        });
 
         $task->stdout($expired > 0
             ? "Expired {$expired} portal invitation(s) whose acceptance window had passed."

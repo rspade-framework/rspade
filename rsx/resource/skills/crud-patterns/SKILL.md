@@ -58,6 +58,8 @@ The controller provides Ajax endpoints for all operations:
 
 **This application's data checks are part of the convention**: the class carries `is_logged_in` + `can_view_data` (reads), every write adds `can_edit_data`, and the model's `fetch()` adds `can_view_data`. `rsx/tests/Endpoint_Data_Gates_Test.php` fails the suite when a write-shaped endpoint under `rsx/app/` lacks `can_edit_data` (or an administrative check) or a read carries nothing beyond `is_logged_in`. Every id a save stores (a `client_id`, a pivot id) is looked up through its site-scoped model first, so another tenant's id is a field error.
 
+**Every endpoint that writes declares `#[Writer]`** - the call runs under the site's write lock in one transaction (rolled back on a throw); an unmarked endpoint is a reader, and a site-scoped `save()` / `delete()` inside it fatals. A `response_form_error()` (or any coded answer) COMMITS what was already written, so validate before the first write. `php artisan rsx:site_lock:endpoints --app` lists each surface's mode.
+
 ```php
 #[Auth('is_logged_in', 'can_view_data')]         // class-level: covers every endpoint below
 class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
@@ -68,6 +70,7 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
         return Contacts_DataGrid::fetch($params);
     }
 
+    #[Writer]                                    // it writes: the site's write lock + one transaction
     #[Ajax_Endpoint]
     #[Auth('can_edit_data')]                     // additive - narrows this endpoint further
     public static function save(Request $request, array $params = [])
@@ -92,6 +95,7 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
         }, $contact->exists ? Rsx::Route('Contacts_View_Action', $contact->id) : null);  // the conflict dialog's "View current"
     }
 
+    #[Writer]
     #[Ajax_Endpoint]
     #[Auth('can_edit_data')]
     public static function delete(Request $request, array $params = [])

@@ -119,6 +119,14 @@ in here. How this app uses them:
   passkey, SSO) follows the framework's own sign-in. It raises the welcome flash and answers
   `destination()` - the threaded redirect, the invited client, or the dashboard. Nothing else
   in this application calls `set_portal_user_id()`.
+- **Writes under the site locks.** The portal's site comes from its URL, so nothing here
+  switches site. The sign-in Ajax endpoints (`verify_2fa`, `send_code`, `passkey_login`)
+  declare `#[Writer]` - the sign-in stamps the site-scoped portal user. The page routes take
+  no automatic lock, so each write they make is a `Site_Lock::write(Portal_Session::get_site_id(), ...)`
+  section: the password sign-in in `complete_sign_in(sign_in: true)`, registration (account,
+  membership, used invitation and sign-in in ONE section - `complete_sign_in()` reuses it),
+  the reset request (token and email) and the reset itself (claim and new password), and a
+  share link's `mark_accessed()`.
 - **Registration verifies the address.** `Portal_Register_Controller` creates the portal user
   with `is_verified = 1` (the invitation proved the mailbox) and signs them in through
   `complete_sign_in()` - with no emailed code even when `emailed_sign_in_codes` is on, since

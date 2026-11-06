@@ -24,10 +24,18 @@ application's `can_use_api` permission (`PERM_API_ACCESS`), which no role holds 
 grant it per user. `Rsx\Main::pre_dispatch()` asks it of EVERY bearer-key request (the file
 routes too), answered 403 `account_refused`.
 
+**Locks.** Every POST endpoint that writes (`create`, `update`, `delete`,
+`attachments_attach`, `attachments_delete`) declares `#[Writer]`: the request runs under the
+site's write lock in one transaction, rolled back if it throws. A GET endpoint is a reader
+and cannot be a writer (`API-GET-PURE-01`); a site-scoped write inside a reader fatals. An
+error answer (`Rsx_Api::validation_error()` and the rest) COMMITS anything already written,
+so every endpoint here validates before its first write.
+
 ## HOW TO CUSTOMIZE
 
 - **Add an endpoint**: a static method on an existing `vN/` controller with
-  `#[Api_Endpoint]` and one `#[Api_Param]` per accepted parameter. Add the `@api-response`
+  `#[Api_Endpoint]` and one `#[Api_Param]` per accepted parameter (plus `#[Writer]` when it
+  writes). Add the `@api-response`
   docblock tag — the `/apidocs` console renders it, and an endpoint nobody can read is an
   endpoint nobody integrates with.
 - **Add a version**: a new `vN/` directory. Never change the shape of an existing `vN`
@@ -125,17 +133,21 @@ is served `Cache-Control: no-store`.
 ## Response contract
 
 Bare JSON with real HTTP status codes - never `response()->json()` directly, never a
-`{success,...}` envelope. Return:
+`{success,...}` envelope. **Every body is a JSON object**; the dispatcher refuses anything
+else (null, a bare list, a scalar, a collection) as a 500 naming the endpoint. Return:
 
-- a model or Eloquent collection -> 200, serialized via the redacting `toArray()`
-  (enum `__label`/`__badge` and `__MODEL` included);
-- a plain array -> 200 (nested models auto-serialize);
-- `null` -> 204;
-- an `Rsx_Api` helper: `created($data)` 201, `no_content()` 204, `not_found()` 404,
+- a model -> 200, serialized via the redacting `toArray()` (enum `__label`/`__badge` and
+  `__MODEL` included);
+- an associative array -> 200 (nested models and collections auto-serialize) - a list goes
+  inside one, as the `{items, meta}` paging envelope here does;
+- `['result' => 'success']` from an endpoint with nothing else to say - every delete here;
+- an `Rsx_Api` helper: `created($data)` 201 (an object too), `not_found()` 404,
   `unauthorized()`/`forbidden()`, `validation_error(array $fields, ?string $msg)` 422,
   `error($code, $msg, $status, $fields)`.
 
-Errors are `{"error":{"code","message","fields"?}}`.
+Errors are `{"error":{"code","message","fields"?}}`. The dispatcher adds `_duration_ms` and
+`_completed_at` (and an echoed `_request_ref`) to the top level of every answer - never set
+them yourself, and never declare an `#[Api_Param]` whose name starts with `_`.
 
 ## Site scoping
 

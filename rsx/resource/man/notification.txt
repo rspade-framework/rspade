@@ -240,7 +240,7 @@ AJAX ENDPOINTS
             Returns: { marked: int }
 
         mark_read({ id: int })
-            Returns: { success: bool }
+            Returns: { read: true }
 
 CONFIGURATION
     In /rsx/resource/config/rsx.php:

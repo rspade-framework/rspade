@@ -143,6 +143,7 @@ class Contacts_Api_Controller extends Rsx_Api_Controller_Abstract
      * }
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Api_Endpoint('/api/v1/contacts/create', methods: ['POST'])]
     #[Api_Param('first_name', type: 'string', required: true, description: 'First name')]
     #[Api_Param('last_name', type: 'string', required: true, description: 'Last name')]
@@ -236,6 +237,7 @@ class Contacts_Api_Controller extends Rsx_Api_Controller_Abstract
      * }
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Api_Endpoint('/api/v1/contacts/:id/update', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Contact ID')]
     #[Api_Param('first_name', type: 'string', description: 'First name')]
@@ -347,12 +349,13 @@ class Contacts_Api_Controller extends Rsx_Api_Controller_Abstract
      * Delete a contact.
      *
      * Soft delete (mirrors the staff feature); the record is retained but excluded
-     * from every API read. Returns 204 No Content.
+     * from every API read. Answers {"result": "success"}.
      *
      * @api-response
-     * (empty body, HTTP 204)
+     * {"result": "success"}
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Api_Endpoint('/api/v1/contacts/:id/delete', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Contact ID')]
     public static function delete(Request $request, array $params = [])
@@ -365,6 +368,6 @@ class Contacts_Api_Controller extends Rsx_Api_Controller_Abstract
 
         $contact->delete();
 
-        return Rsx_Api::no_content();
+        return ['result' => 'success'];
     }
 }

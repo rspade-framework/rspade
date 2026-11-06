@@ -9,6 +9,7 @@ namespace Rsx\Portal\Auth;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Locks\Site_Lock;
 use App\RSpade\Core\Login\Login_Redirect;
 use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
@@ -63,13 +64,15 @@ class Portal_Password_Reset_Controller extends Rsx_Controller_Abstract
                 $portal_user = Portal_User_Model::find_by_email($site_id, $posted_email);
 
                 if ($portal_user && $portal_user->can_login()) {
-                    // Create password reset token
-                    $reset = Portal_Password_Reset_Model::create_for_user($portal_user);
+                    // The reset token and the queued email are site-scoped rows: one write
+                    // section on the portal's site (this page route takes no automatic lock).
+                    Site_Lock::write($site_id, function () use ($portal_user) {
+                        $reset = Portal_Password_Reset_Model::create_for_user($portal_user);
 
-                    // Send password reset email
-                    (new Portal_Password_Reset_Email($portal_user, $reset->get_reset_url(Login_Redirect::params())))
-                        ->to($portal_user)
-                        ->send();
+                        (new Portal_Password_Reset_Email($portal_user, $reset->get_reset_url(Login_Redirect::params())))
+                            ->to($portal_user)
+                            ->send();
+                    }, 'Portal password reset requested');
 
                     $success = true;
                 } else {
@@ -158,17 +161,26 @@ class Portal_Password_Reset_Controller extends Rsx_Controller_Abstract
                 $error = 'Passwords do not match';
             } else {
                 // Use the link up FIRST: of two submissions racing on one link, only the one
-                // that claims it writes a password.
-                if (!$reset->claim()) {
+                // that claims it writes a password. The claim and the new password are one
+                // write section on the portal's site (this page route takes no automatic lock).
+                $claimed = Site_Lock::write(Portal_Session::get_site_id(), function () use ($reset, $portal_user, $password) {
+                    if (!$reset->claim()) {
+                        return false;
+                    }
+
+                    $portal_user->set_password($password);
+                    $portal_user->save();
+
+                    return true;
+                }, 'Portal password reset');
+
+                if (!$claimed) {
                     return rsx_view('Portal_Password_Reset_Invalid', [
                         'error' => 'This password reset link has already been used. Please login or request a new link.',
                         'show_login_link' => true,
                         'show_request_link' => true,
                     ]);
                 }
-
-                $portal_user->set_password($password);
-                $portal_user->save();
 
                 Flash_Alert::success('Your password has been reset. Please login with your new password.');
 

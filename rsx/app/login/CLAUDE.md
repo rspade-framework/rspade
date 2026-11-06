@@ -23,7 +23,7 @@ offers no "forgot password" link. The portal has a self-service reset
 | Passkey sign-in | `Login_Controller::passkey_login` | an `#[Ajax_Endpoint]` | The endpoint `<Passkey_Sign_In>` on the login page posts to: `Rsx_Two_Factor::verify_passkey_login()`, then `complete_sign_in(sign_in: false)`. Passwordless - no password stage, no second factor after it. |
 | Logout | `Login_Controller::logout` | `/logout` | `RsxAuth::logout()` then `Login_Redirect::consume($default)`. |
 | Accept invite | `Accept_Invite_Controller` (`accept_invite/`) | `/accept-invite`, `/accept-invite/create-account`, `/accept-invite/success` | Six states (invalid, expired, email mismatch, already accepted, not logged in, logged in) plus the create-account form for an invitee with no login account. `create_account_submit` validates Turnstile first, refuses any address but the invited one, creates the account with the invitation's address and `is_verified = 1` (the invitation proved the mailbox), and signs it in through `Login_Controller::complete_sign_in(sign_in: true)`; when that refuses (the invited membership or its site disabled since) the account still exists and the visitor is sent to `/login` with a flash. `accept` (a signed-in user) marks that identity verified too. |
-| Site selection | `Site_Selection_Controller` | `/login/select-site`, `/login/site/:id` | The picker: one button per site from `usable_sites()` (the identity's `->active()` memberships across every site, by name), rendered by the `Login_Site_Picker` partial (`login_site_picker.blade.php`). Not signed in -> `/login`; no usable site -> logout; exactly one -> selected. `select` accepts only an active membership (`->active()`, unscoped by the session's current site; error card otherwise), sets the site and lands on the dashboard. |
+| Site selection | `Site_Selection_Controller` | `/login/select-site`, `/login/site/:id` | The picker: one button per site from `usable_sites()` (the identity's `->active()` memberships across every site, by name), rendered by the `Login_Site_Picker` partial (`login_site_picker.blade.php`). Not signed in -> `/login`; no usable site -> logout; exactly one -> selected. `select` accepts only an active membership (`->active()`, unscoped by the session's current site; error card otherwise), enters the site with `RsxAuth::enter_site()` and lands on the dashboard. |
 | Site unauthorized | `Site_Unauthorized_Controller` | `/login/site-unauthorized` | The signed-in identity's session names a site it is not a member of; offers the sites it does have (`usable_sites()` through the same `Login_Site_Picker` partial). Nothing in this mono-site template routes to it - the framework ends such a session itself (see SITE MEMBERSHIP below), so it is kept as the pattern for an app that declares the requested site from the host. |
 
 The login page also carries the OTHER WAYS IN: below the Sign In button,
@@ -149,6 +149,24 @@ no query string and no extra fields, so `index()` parks the code under
 `Login_Controller::INVITE_CODE_KEY` with the challenge's own expiry - AFTER
 `begin_challenge()`, because the challenge's sign-out clears the staff realm's session values -
 and `verify_2fa` consumes it once.
+
+**Signing in under the site locks.** A sign-in runs before the request has a site, and
+entering one writes that site's sign-in records, so the session's site is set ONLY through
+`RsxAuth::enter_site($site_id)` - it takes that site's write lock, sets the site, records the
+site sign-in, commits and releases. The bare `Session::set_site_id()` is refused inside any
+handler. `enter_site()` is refused while a site lock is held, so every caller holds none:
+
+- the page routes (`/login` POST, `/login/site/:id`) declare no lock - a page route takes none;
+- the Ajax sign-in endpoints declare `#[Manual_Lock]`: `verify_2fa`, `passkey_login`,
+  `Accept_Invite_Controller::create_account_submit` and `accept`;
+- the federated sign-in reaches `complete_sign_in()` through the framework's SSO callback,
+  a page route that takes no lock.
+
+`complete_sign_in()` calls `enter_site()` when the identity holds exactly one site; the site
+picker calls it for the chosen one. The accept-invite endpoints write the invited membership
+first, in a `Site_Lock::write($invitation->site_id, ...)` section (the site-scoped write needs
+that site's write lock, and `#[Manual_Lock]` took none), and enter the site only AFTER that
+section has committed - `enter_site()` inside it, or inside a `DB::transaction()`, is refused.
 
 **One completion function.** Every staff entrance finishes in
 `Login_Controller::complete_sign_in($login_user, $sign_in, $invite_code, $welcome)`: the

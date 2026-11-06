@@ -13,6 +13,7 @@ use App\RSpade\Core\Auth\Auth_Password_Reset_Required_Exception;
 use App\RSpade\Core\Auth\Auth_Throttled_Exception;
 use App\RSpade\Core\Auth\Portal_Auth;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Locks\Site_Lock;
 use App\RSpade\Core\Login\Login_Redirect;
 use App\RSpade\Core\Mail\Rsx_Mail;
 use App\RSpade\Core\Models\Portal_User_Model;
@@ -232,6 +233,7 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
      *
      * @return array {redirect}
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function verify_2fa(Request $request, array $params = [])
     {
@@ -274,6 +276,7 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
      *
      * @return null
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function send_code(Request $request, array $params = [])
     {
@@ -344,6 +347,7 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
      *
      * @return array {redirect}
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function passkey_login(Request $request, array $params = [])
     {
@@ -379,6 +383,10 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
      * signed them in already and recorded it (a passed challenge, a passkey, a federated
      * sign-in).
      *
+     * The sign-in writes the portal user's site-scoped rows, so TRUE runs it as a
+     * Site_Lock::write() section on the portal's site: the page routes calling it take no
+     * automatic lock, and a caller already inside one (registration) reuses its section.
+     *
      * @param Portal_User_Model $portal_user The portal user who proved themselves.
      * @param bool $sign_in True when this function performs the sign-in (see above).
      * @param int $client_id The invited client carried in, or 0.
@@ -388,8 +396,14 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
     public static function complete_sign_in(Portal_User_Model $portal_user, bool $sign_in, int $client_id = 0, ?string $redirect = null): string
     {
         if ($sign_in) {
-            Portal_Session::set_portal_user_id($portal_user->id);
-            Portal_Login_History::record_success((int) $portal_user->id, (string) $portal_user->email);
+            // The sign-in writes the portal user's site-scoped rows (last_login among them), so it
+            // runs as a write section on the portal's site. The password form and registration
+            // are page routes that take no automatic lock; a caller already holding the site's
+            // write lock (registration's own section) just runs it.
+            Site_Lock::write(Portal_Session::get_site_id(), function () use ($portal_user) {
+                Portal_Session::set_portal_user_id($portal_user->id);
+                Portal_Login_History::record_success((int) $portal_user->id, (string) $portal_user->email);
+            }, 'Portal sign-in');
         } elseif ((int) Portal_Session::get_portal_user_id() !== (int) $portal_user->id) {
             shouldnt_happen('Portal_Login_Controller::complete_sign_in(sign_in: false) for a portal user this session is not signed in as');
         }

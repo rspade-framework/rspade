@@ -8,21 +8,23 @@ Two services extending `Rsx_Service_Abstract`, one of them in a directory of its
 return value is the run's return code, never data.
 
 - **`Portal_Invitation_Service::expire_stale`** — `#[Task]` + `#[Schedule('0 * * * *')]`.
-  Bulk-marks pending portal invitations past their window as expired, so a followed link
+  Marks pending portal invitations past their window as expired, so a followed link
   lands on the "expired, you can still create an account" page instead of a dead error and
   admin screens show accurate status. Writes a stdout line only when it expired
   something, and always records `{expired: N}` as its state and a one-line summary.
   It sweeps EVERY site (`without_site_scope`): the worker running it serves no tenant, and
   a site-scoped sweep would only ever expire the invitations of whichever site the CLI
-  process happened to declare. Any sweep added here that is install policy rather than
-  one tenant's business follows the same shape.
+  process happened to declare. It reads the due list unlocked, then expires each invitation
+  in a `Site_Lock::write()` section on that invitation's site, re-reading it inside (it may
+  have been accepted since). Any sweep added here that is install policy rather than one
+  tenant's business follows the same shape.
 - **`sample_data/` - `Sample_Data_Service::seed`** — `#[Task]` + `#[Command('rsx_app:seed')]`.
   Fills an EMPTY site with the sample dataset: fictional clients, contacts, projects (with a
   subproject), tasks (with subtasks, client-level and unattached ones), documents of every
   preview type, request threads, announcements, parties and products. **It refuses a site
   that already holds application data**, in every mode - it is a starting point, never a
   merge. Runs as the site's first user, so records, revisions and the activity log are
-  attributed; one revision unit per client. Every email is a test address and every phone a
+  attributed; one `Site_Lock::write()` section (write lock, transaction, revision unit) per client. Every email is a test address and every phone a
   555 number, so it can never reach anyone, and it creates no account. `--site=<id>` names
   the site (required when there is more than one). The first-run setup screen offers it while
   `rsx.first_run.sample_data_task` names it (`rsx/resource/config/rsx.php`). Its own
@@ -41,9 +43,12 @@ a friendlier name, with the same parameters, output and exit codes: the task's `
 is the command's stdout, its `stderr()` and every `status()` change the command's stderr
 (`-q` silences it), and its return code the exit code.
 
-**Tasks run concurrently and unguarded.** No application lock is taken for you: a task
-shares its tables with web requests and with other tasks, so a service that writes must say
-how it tolerates a second writer. `#[Exclusive]` and `#[Debounce]` guard one identity
+**Tasks run concurrently, with no automatic lock.** A task shares its tables with web
+requests and with other tasks. **A task body is an enforcement window**: a write to a
+site-scoped model fatals unless it runs inside `Site_Lock::write($site_id, fn () => ...)` -
+one section per item, re-reading the record inside - or a `Site_Lock::bypass()` with a
+reason for a pass that tolerates concurrent writers. Change the declared site only between
+sections, never inside one. `#[Exclusive]` and `#[Debounce]` guard one identity
 against itself, never a shared table — that needs a lock. Never add a timeout to your own
 work here.
 

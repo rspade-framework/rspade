@@ -155,6 +155,7 @@ class Dev_Document_Preview_Controller extends Rsx_Controller_Abstract
      * @param array $params Requires attachment_id.
      * @return array
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function reset_extraction(Request $request, array $params = [])
     {

@@ -2,6 +2,9 @@
 
 namespace Rsx\Handlers;
 
+use App\RSpade\Core\Locks\Site_Lock;
+use App\RSpade\Core\Portal\Portal_Session;
+use App\RSpade\Core\Session\Session;
 use Rsx\Emails\Two_Factor_Challenge_Spent_Email;
 
 /**
@@ -17,7 +20,12 @@ use Rsx\Emails\Two_Factor_Challenge_Spent_Email;
  * a month for somebody who never stops - and only being noticed makes it hopeless.
  *
  * The handler only QUEUES the message (email is never sent inline), so it costs the failed
- * request nothing. Each event is one notice; a caller who exhausts challenge after challenge
+ * request nothing. The queued row is site-scoped - it lands in the session's site, which for
+ * a staff challenge is site 0 (nobody has entered a site yet) - and a site-scoped write needs
+ * that site's write lock, so each handler queues inside a Site_Lock::write() section on the
+ * site the row lands in. The staff challenge endpoint takes no automatic lock
+ * (#[Manual_Lock]), so the section takes it; under a #[Writer] (the portal's challenge
+ * endpoint) the section is reentrant and the row joins the endpoint's transaction. Each event is one notice; a caller who exhausts challenge after challenge
  * is stopped by the identity lock after rsx.two_factor.identity_max_failures, which bounds
  * how many of these one account can receive in a window.
  *
@@ -31,7 +39,11 @@ class Two_Factor_Notice_Handlers
     #[OnEvent('two_factor.challenge.spent', priority: 10)]
     public static function notify_staff_identity($data): void
     {
-        (new Two_Factor_Challenge_Spent_Email($data['email']))->to($data['email'])->send();
+        Site_Lock::write(
+            (int) Session::get_site_id(),
+            fn () => (new Two_Factor_Challenge_Spent_Email($data['email']))->to($data['email'])->send(),
+            'Second-factor challenge spent notice'
+        );
     }
 
     /**
@@ -40,6 +52,10 @@ class Two_Factor_Notice_Handlers
     #[OnEvent('portal.two_factor.challenge.spent', priority: 10)]
     public static function notify_portal_identity($data): void
     {
-        (new Two_Factor_Challenge_Spent_Email($data['email'], true))->to($data['email'])->send();
+        Site_Lock::write(
+            Portal_Session::get_site_id(),
+            fn () => (new Two_Factor_Challenge_Spent_Email($data['email'], true))->to($data['email'])->send(),
+            'Second-factor challenge spent notice'
+        );
     }
 }

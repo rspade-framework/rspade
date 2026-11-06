@@ -266,8 +266,12 @@ class Login_Controller extends Rsx_Controller_Abstract
      * Both catches carry a message that is user-safe by contract, and the throttle refusal
      * matters most of all: it must reach the screen as itself and never as a wrong code.
      *
+     * #[Manual_Lock]: the session has no site until complete_sign_in() enters one, and entering
+     * a site takes that site's write lock (RsxAuth::enter_site()), so no automatic lock is held.
+     *
      * @return array {redirect}
      */
+    #[Manual_Lock]
     #[Ajax_Endpoint]
     public static function verify_2fa(Request $request, array $params = [])
     {
@@ -309,8 +313,11 @@ class Login_Controller extends Rsx_Controller_Abstract
      * {assertion} and renders no widget, and the endpoint spends the brute-force budget as its
      * first statement.
      *
+     * #[Manual_Lock], for the reason verify_2fa() carries it.
+     *
      * @return array {redirect}
      */
+    #[Manual_Lock]
     #[Ajax_Endpoint]
     public static function passkey_login(Request $request, array $params = [])
     {
@@ -448,8 +455,12 @@ class Login_Controller extends Rsx_Controller_Abstract
         );
 
         // Exactly one: the session serves it from here on, whatever the destination.
+        // RsxAuth::enter_site() is the one way a sign-in moves the session onto a site: it takes
+        // that site's write lock and records the site sign-in under it. So no caller may hold a
+        // site lock here - the page routes declare none, and the Ajax callers declare
+        // #[Manual_Lock].
         if ($user_sites->count() === 1) {
-            Session::set_site_id($user_sites->first()->site_id);
+            RsxAuth::enter_site((int) $user_sites->first()->site_id);
         }
 
         // An invite in flight wins: the account setup is what the user came to finish.

@@ -72,6 +72,7 @@ class Dev_Acl_Controller extends Rsx_Controller_Abstract
      * Populate test users with @rspade.test emails
      * Creates one user for each role below the top one, which user 1 already holds.
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function populate_test_users(Request $request, array $params = [])
     {
@@ -135,6 +136,7 @@ class Dev_Acl_Controller extends Rsx_Controller_Abstract
     /**
      * Delete all test users (@rspade.test domain)
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function delete_test_users(Request $request, array $params = [])
     {

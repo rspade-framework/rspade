@@ -9,6 +9,7 @@ namespace Rsx\Portal\Auth;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Locks\Site_Lock;
 use App\RSpade\Core\Login\Login_Notice;
 use App\RSpade\Core\Login\Login_Redirect;
 use App\RSpade\Core\Models\Portal_User_Model;
@@ -96,53 +97,60 @@ class Portal_Register_Controller extends Rsx_Controller_Abstract
             } elseif ($password !== $password_confirm) {
                 $error = 'Passwords do not match';
             } else {
-                $portal_user = new Portal_User_Model();
-                $portal_user->site_id = $invitation->site_id;
-                $portal_user->email = $invitation->email;
-                $portal_user->set_password($password);
-                // VERIFIED: the invitation reached this address, and its code came back.
-                $portal_user->is_verified = true;
-                $portal_user->status_id = Portal_User_Model::STATUS_ACTIVE;
-                $portal_user->metadata = $invitation->metadata;
+                // The account, its membership, the used invitation and the sign-in are ONE
+                // write section on the portal's site: all of them or none. This page route takes
+                // no automatic lock; complete_sign_in() runs inside the section and reuses it.
+                $destination = Site_Lock::write((int) $invitation->site_id, function () use ($invitation, $password, $client_id) {
+                    $portal_user = new Portal_User_Model();
+                    $portal_user->site_id = $invitation->site_id;
+                    $portal_user->email = $invitation->email;
+                    $portal_user->set_password($password);
+                    // VERIFIED: the invitation reached this address, and its code came back.
+                    $portal_user->is_verified = true;
+                    $portal_user->status_id = Portal_User_Model::STATUS_ACTIVE;
+                    $portal_user->metadata = $invitation->metadata;
 
-                // Link the portal user to its CRM contact (the invitation carries it).
-                $contact_id = (int) $invitation->get_metadata('contact_id');
-                if ($contact_id) {
-                    $portal_user->contact_id = $contact_id;
-                }
-
-                $portal_user->save();
-
-                if ($client_id) {
-                    $role_id = (int) ($invitation->get_metadata('role_id')
-                        ?: Portal_Membership_Model::ROLE_VIEWER);
-
-                    if (!Portal_Membership_Model::has_membership_row($portal_user->id, $client_id)) {
-                        $membership = new Portal_Membership_Model();
-                        $membership->site_id = $invitation->site_id;
-                        $membership->portal_user_id = $portal_user->id;
-                        $membership->client_id = $client_id;
-                        $membership->role_id = $role_id;
-                        $membership->save();
+                    // Link the portal user to its CRM contact (the invitation carries it).
+                    $contact_id = (int) $invitation->get_metadata('contact_id');
+                    if ($contact_id) {
+                        $portal_user->contact_id = $contact_id;
                     }
-                }
 
-                $invitation->mark_used();
+                    $portal_user->save();
 
-                // Signed in through the one completion function every portal entrance
-                // finishes in: the session is created for the site already declared for this
-                // request (which the invitation matches - checked above), last_login is
-                // stamped and the success recorded. It lands on a threaded redirect (the shared
-                // document this invitation came from), else the invited client. No emailed sign-in code is asked for
-                // here even when rsx.portal.emailed_sign_in_codes is on: the invitation that
-                // brought them here already proved the address.
-                Flash_Alert::success('Your account has been created.');
+                    if ($client_id) {
+                        $role_id = (int) ($invitation->get_metadata('role_id')
+                            ?: Portal_Membership_Model::ROLE_VIEWER);
 
-                return redirect(Portal_Login_Controller::complete_sign_in(
-                    $portal_user,
-                    sign_in: true,
-                    client_id: $client_id
-                ));
+                        if (!Portal_Membership_Model::has_membership_row($portal_user->id, $client_id)) {
+                            $membership = new Portal_Membership_Model();
+                            $membership->site_id = $invitation->site_id;
+                            $membership->portal_user_id = $portal_user->id;
+                            $membership->client_id = $client_id;
+                            $membership->role_id = $role_id;
+                            $membership->save();
+                        }
+                    }
+
+                    $invitation->mark_used();
+
+                    // Signed in through the one completion function every portal entrance
+                    // finishes in: the session is created for the site already declared for this
+                    // request (which the invitation matches - checked above), last_login is
+                    // stamped and the success recorded. It lands on a threaded redirect (the shared
+                    // document this invitation came from), else the invited client. No emailed sign-in code is asked for
+                    // here even when rsx.portal.emailed_sign_in_codes is on: the invitation that
+                    // brought them here already proved the address.
+                    Flash_Alert::success('Your account has been created.');
+
+                    return Portal_Login_Controller::complete_sign_in(
+                        $portal_user,
+                        sign_in: true,
+                        client_id: $client_id
+                    );
+                }, 'Registered a portal account from an invitation');
+
+                return redirect($destination);
             }
         }
 

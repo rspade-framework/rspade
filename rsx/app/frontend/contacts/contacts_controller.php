@@ -189,6 +189,7 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
      * @param array $params
      * @return mixed
      */
+    #[Writer]
     #[Ajax_Endpoint]
     #[Auth('can_impersonate')]
     public static function begin_portal_impersonation(Request $request, array $params = [])
@@ -235,6 +236,7 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
      * @return mixed
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function save(Request $request, array $params = [])
     {
@@ -466,6 +468,7 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
      * @return mixed
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function bulk_delete(Request $request, array $params = [])
     {

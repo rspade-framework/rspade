@@ -71,6 +71,7 @@ class Frontend_Settings_Profile_Edit_Controller extends Rsx_Controller_Abstract
      * @param array $params
      * @return array
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function save_profile(Request $request, array $params = [])
     {

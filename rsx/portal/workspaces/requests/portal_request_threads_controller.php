@@ -196,6 +196,7 @@ class Portal_Request_Threads_Controller extends Rsx_Controller_Abstract
      * with requires_review=1, review_status PENDING). The body may be empty only when at
      * least one file is attached. No notifications yet (Stage 4).
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function reply(Request $request, array $params = [])
     {

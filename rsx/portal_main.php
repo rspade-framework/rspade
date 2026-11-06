@@ -8,6 +8,7 @@
 namespace Rsx;
 
 use Illuminate\Http\Request;
+use App\RSpade\Core\Locks\Site_Lock;
 use App\RSpade\Core\Portal\Portal_Main_Abstract;
 use App\RSpade\Core\Portal\Portal_Session;
 use Rsx\Models\Client_Model;
@@ -24,6 +25,11 @@ use Rsx\Portal_Permission;
  * 2. Portal_Main::pre_dispatch() - Called before every portal route
  * 3. Controller::pre_dispatch() - Called if controller has pre_dispatch
  * 4. Controller::action() - The actual route handler
+ *
+ * init() and both pre_dispatch hooks run with NO site lock, in an enforcement window: a
+ * write to a site-scoped model there takes its own Site_Lock::write() section, or a
+ * Site_Lock::bypass() for bookkeeping that tolerates concurrent writers (the activity
+ * stamp below). rsx:man locks.
  */
 class Portal_Main extends Portal_Main_Abstract
 {
@@ -77,6 +83,11 @@ class Portal_Main extends Portal_Main_Abstract
      * query at all when the user has no memberships (a base-account user just
      * viewing shared items). Site scoping is handled by the model's global scope.
      *
+     * It runs on every portal request from pre_dispatch, which holds no site lock, so it
+     * writes under a Site_Lock::bypass(): a last-activity timestamp tolerates a concurrent
+     * writer (the last stamp wins either way), and taking the site's WRITE lock on every
+     * portal click would serialize the whole portal behind every staff save.
+     *
      * @return void
      */
     private static function __stamp_portal_activity(): void
@@ -91,9 +102,11 @@ class Portal_Main extends Portal_Main_Abstract
         // no per-record side effects. Emitting a Client_Model change (or running per-record
         // hooks) for a low-value timestamp bump would churn every open staff client view on
         // every portal click. Deliberate suppression.
-        Client_Model::whereIn('id', $client_ids)
-            ->raw_bulk()
-            ->update(['portal_last_activity_at' => now()]);
+        Site_Lock::bypass(Portal_Session::get_site_id(), 'portal activity stamp (clients.portal_last_activity_at)', function () use ($client_ids) {
+            Client_Model::whereIn('id', $client_ids)
+                ->raw_bulk()
+                ->update(['portal_last_activity_at' => now()]);
+        });
     }
 
     /**

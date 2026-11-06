@@ -42,6 +42,7 @@ class Frontend_Settings_Password_Security_Controller extends Rsx_Controller_Abst
      * @param array $params {current_password, new_password, confirm_password}
      * @return array {changed: true}
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function change_password(Request $request, array $params = [])
     {
@@ -131,6 +132,7 @@ class Frontend_Settings_Password_Security_Controller extends Rsx_Controller_Abst
      * must be one get_sessions() lists with Sign out offered - signed in, not this device,
      * not an API key's use - else not found.
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function sign_out_session(Request $request, array $params = [])
     {
@@ -150,6 +152,7 @@ class Frontend_Settings_Password_Security_Controller extends Rsx_Controller_Abst
      *
      * @return array {signed_out} - how many sessions were ended
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function sign_out_other_sessions(Request $request, array $params = [])
     {

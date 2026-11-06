@@ -257,6 +257,7 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
      * submission CHANGES must name a live record of this site.
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function save(Request $request, array $params = [])
     {
@@ -300,6 +301,7 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
      * Ajax endpoint: Delete a task (soft delete).
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function delete(Request $request, array $params = [])
     {
@@ -339,6 +341,7 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
      * every open view of the task picks the new files up.
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function attachments_add(Request $request, array $params = [])
     {

@@ -147,12 +147,18 @@ Marked in this app: `Portal_Workspaces_Controller` (`get`, `list`),
 `needs_response_for_user`), `Portal_Notifications_Controller` (`feed`, `unread_count`),
 `Portal_Invitations_Controller::pending` and `Portal_Settings_Controller` (`get_profile`,
 `get_sessions`). The writes (`reply`, `mark_read`, `mark_all_read`, invitation `accept` /
-`decline`, `change_password`, `terminate_session`) carry no mark and no guard of their own.
+`decline`, `change_password`, `terminate_session`) carry no mark and no guard of their own;
+each declares `#[Writer]` instead (the portal's site write lock and one transaction - an
+unmarked endpoint is a reader, and a site-scoped write inside it fatals), as do the sign-in
+endpoints on `Portal_Login_Controller` (`verify_2fa`, `send_code`, `passkey_login`).
 The passkey, authenticator-app and connected-account controls on Settings need nothing of
 this app's either: the framework marks only their list endpoints. The banner and the
 disabled controls (`Portal_Permission::is_read_only()`) are affordance only; the server
 refusal is the boundary. A `#[Portal_Route]` page that handles a POST is not an Ajax
-endpoint and guards itself on `Portal_Session::is_impersonating()`.
+endpoint and guards itself on `Portal_Session::is_impersonating()`; it takes no automatic
+lock either, so its writes run in a `Site_Lock::write(Portal_Session::get_site_id(), fn ...)`
+section (`Portal_Register_Controller`, `Portal_Password_Reset_Controller`,
+`Portal_Share_Link_Controller`, the password sign-in in `complete_sign_in()`).
 
 ## Accounts, invites and memberships (this app's model)
 

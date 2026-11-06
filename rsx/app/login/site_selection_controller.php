@@ -3,6 +3,7 @@
 namespace Rsx\App\Login;
 
 use Illuminate\Http\Request;
+use App\RSpade\Core\Auth\RsxAuth;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Models\Site_Model;
 use App\RSpade\Core\Models\User_Model;
@@ -138,8 +139,10 @@ class Site_Selection_Controller extends Rsx_Controller_Abstract
             ]);
         }
 
-        // User has access - set session site and redirect to dashboard
-        Session::set_site_id($site_id);
+        // User has access - enter the site and land on the dashboard. RsxAuth::enter_site()
+        // takes the chosen site's write lock, binds the session to it and records the site
+        // sign-in; this route declares no lock, so none is held when it is called.
+        RsxAuth::enter_site((int) $site_id);
 
         return redirect(Rsx::Route('Dashboard_Index_Action'));
     }

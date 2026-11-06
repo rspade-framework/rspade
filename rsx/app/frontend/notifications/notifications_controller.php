@@ -71,6 +71,7 @@ class Frontend_Notifications_Controller extends Rsx_Controller_Abstract
      * @param array $params
      * @return array
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function mark_all_read(Request $request, array $params = [])
     {
@@ -88,6 +89,7 @@ class Frontend_Notifications_Controller extends Rsx_Controller_Abstract
      * @param array $params ['id' => int] Notification ID
      * @return array
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function mark_read(Request $request, array $params = [])
     {
@@ -104,7 +106,7 @@ class Frontend_Notifications_Controller extends Rsx_Controller_Abstract
         }
 
         return [
-            'success' => true,
+            'read' => true,
         ];
     }
 }

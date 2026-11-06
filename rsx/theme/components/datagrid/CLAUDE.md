@@ -196,6 +196,7 @@ receives. `selection_size(selection)` gives the record count for confirmation co
 constrain it by the id set, iterate it:
 
 ```php
+#[Writer]
 #[Ajax_Endpoint]
 public static function bulk_delete(Request $request, array $params = [])
 {

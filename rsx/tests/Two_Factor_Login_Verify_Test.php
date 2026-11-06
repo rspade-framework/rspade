@@ -10,6 +10,8 @@ namespace Rsx\Tests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\RSpade\Core\Ajax\Ajax;
+use App\RSpade\Core\Locks\RsxLocks;
+use App\RSpade\Core\Models\Email_Queue_Model;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Response\Error_Response;
@@ -289,5 +291,45 @@ class Two_Factor_Login_Verify_Test extends Rsx_Test_Abstract
         static::__assert_equals(Ajax::ERROR_VALIDATION, $response->get_error_code());
         static::__assert_not_empty($response->get_reason());
         static::__assert_false(Session::is_logged_in());
+    }
+
+    /**
+     * tfa-app-08: the challenge spent through the REAL dispatch path. verify_2fa is
+     * #[Manual_Lock] and runs signed out, on site 0; the spent challenge fires
+     * two_factor.challenge.spent, whose handler (rsx/handlers/Two_Factor_Notice_Handlers.php)
+     * queues the owner's notice - a row of site 0, a site-scoped write inside the endpoint's
+     * enforcement window. It is queued inside a Site_Lock::write() section on site 0, so the
+     * call answers the user-safe refusal (not a lock refusal) and the notice is committed.
+     */
+    public static function test_a_spent_challenge_queues_its_notice_on_site_zero_through_dispatch()
+    {
+        $fixture = static::__pending_challenge('spent');
+        Session::set_site_id(0);
+
+        $configured = config('rsx.two_factor.challenge_max_failures');
+        config(['rsx.two_factor.challenge_max_failures' => 1]);
+
+        try {
+            $envelope = Ajax::call_envelope(
+                'Login_Controller',
+                'verify_2fa',
+                ['code' => '000000'],
+                Ajax::call_request(static::__ajax_request(), ['code' => '000000'])
+            );
+        } finally {
+            config(['rsx.two_factor.challenge_max_failures' => $configured]);
+        }
+
+        static::__assert_false($envelope['_success'], 'the spent challenge is refused');
+        static::__assert_equals(Ajax::ERROR_VALIDATION, $envelope['error_code'] ?? null, 'as the user-safe validation error, not a fault: ' . json_encode($envelope));
+        static::__assert_null(Rsx_Two_Factor::challenge_pending(), 'the challenge is gone');
+
+        $notice = Email_Queue_Model::without_site_scope(
+            fn () => Email_Queue_Model::where('to_address', $fixture['email'])->first()
+        );
+
+        static::__assert_not_null($notice, 'the owner\'s notice was queued');
+        static::__assert_equals(0, (int) $notice->site_id, 'as a row of site 0');
+        static::__assert_equals([], RsxLocks::site_lock_hold_counts(), 'and the section released site 0\'s write lock');
     }
 }

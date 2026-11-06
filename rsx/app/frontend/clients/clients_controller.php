@@ -170,6 +170,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * @return mixed
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function save(Request $request, array $params = [])
     {
@@ -283,6 +284,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * @return mixed
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function delete(Request $request, array $params = [])
     {
@@ -326,6 +328,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * @return mixed
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function bulk_delete(Request $request, array $params = [])
     {
@@ -505,6 +508,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * @return mixed
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function restore(Request $request, array $params = [])
     {
@@ -564,6 +568,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * Ajax endpoint: Toggle portal enabled/disabled for a client
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function toggle_portal(Request $request, array $params = [])
     {
@@ -674,6 +679,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * Ajax endpoint: Add a portal member to a client
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function portal_add_member(Request $request, array $params = [])
     {
@@ -735,6 +741,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * on the Portal Users admin screen).
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function portal_remove_member(Request $request, array $params = [])
     {
@@ -758,6 +765,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * Ajax endpoint: Update a portal member's role
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function portal_update_role(Request $request, array $params = [])
     {
@@ -854,6 +862,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * skipped. Returns per-bucket counts.
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function portal_bulk_invite(Request $request, array $params = [])
     {
@@ -942,6 +951,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * existing-account "you've been invited") and refreshes the invitation expiry.
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function portal_resend_invite(Request $request, array $params = [])
     {
@@ -993,6 +1003,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * is site-scoped, so an admin can only revoke invitations within their site.
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function portal_revoke_invite(Request $request, array $params = [])
     {
@@ -1136,6 +1147,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * cannot invert what the user asked for. The project must be this client's.
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function portal_set_project_visible(Request $request, array $params = [])
     {
@@ -1205,6 +1217,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * announcement in each recipient's activity feed (T5).
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function portal_post_announcement(Request $request, array $params = [])
     {
@@ -1360,6 +1373,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * portal sessions so the suspension takes effect immediately.
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function portal_user_suspend(Request $request, array $params = [])
     {
@@ -1389,6 +1403,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * Sets status_id back to STATUS_ACTIVE, restoring login ability.
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function portal_user_reactivate(Request $request, array $params = [])
     {
@@ -1492,6 +1507,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * is this endpoint's decision, and here that is its can_edit_data gate.
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function documents_add(Request $request, array $params = [])
     {
@@ -1537,6 +1553,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * share email.
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function documents_share(Request $request, array $params = [])
     {
@@ -1673,6 +1690,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * elsewhere is not sent again.
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function documents_share_send(Request $request, array $params = [])
     {
@@ -1741,6 +1759,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * Ajax endpoint: remove a single share (Shared_Item) of a document.
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function documents_unshare(Request $request, array $params = [])
     {
@@ -1770,6 +1789,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * comes back UNshared (re-share as needed) and no portal user can reach it meanwhile.
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function document_delete(Request $request, array $params = [])
     {
@@ -1834,6 +1854,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * destroyed or its bytes are gone. The restored document returns UNshared.
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function document_restore(Request $request, array $params = [])
     {
@@ -2045,6 +2066,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * view.
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function request_thread_create(Request $request, array $params = [])
     {
@@ -2201,6 +2223,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * submission changes its status away from Closed (a reopen).
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function request_thread_reply(Request $request, array $params = [])
     {
@@ -2299,6 +2322,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * a document that is not reviewable (a staff attachment) or already accepted.
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function request_document_review(Request $request, array $params = [])
     {

@@ -67,6 +67,7 @@ class Portal_Invitations_Controller extends Rsx_Controller_Abstract
     /**
      * Ajax endpoint: accept a pending invitation -> create the client membership.
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function accept(Request $request, array $params = [])
     {
@@ -119,6 +120,7 @@ class Portal_Invitations_Controller extends Rsx_Controller_Abstract
     /**
      * Ajax endpoint: decline a pending invitation (mark it used; no membership).
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function decline(Request $request, array $params = [])
     {

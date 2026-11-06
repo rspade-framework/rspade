@@ -54,6 +54,13 @@ new feature, and copy its structure rather than inventing one.
   (notifications, profile, password, preferences, API keys) stay on `is_logged_in`.
   `rsx/tests/Endpoint_Data_Gates_Test.php` fails on a write-shaped endpoint without
   `can_edit_data` and on a read with no check beyond `is_logged_in`.
+- **Every endpoint that writes declares `#[Writer]`** (save, delete, restore, invite, mark
+  read, sign out a session, mint or revoke a key): the call then runs under the site's write
+  lock in one transaction. Every other endpoint is a reader - it holds the site's read lock
+  and a site-scoped `save()` / `delete()` inside it fatals, naming the remedy. A coded
+  failure (`response_form_error()` etc.) COMMITS what the call already wrote; only a throw
+  rolls back, so validate before the first write. `rsx:site_lock:endpoints --app` lists every
+  surface with its mode.
 - **Every edit endpoint saves through `Form_Edit::run($record, $params, fn (Form_Edit $edit) => ...)`**
   - only the changed fields are written, under a row lock, and a save that overlaps another
   editor's change asks first (`rsx:man form_conventions`, EDITING A RECORD). The model

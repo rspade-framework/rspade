@@ -137,6 +137,7 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
      * @return mixed
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function save(Request $request, array $params = [])
     {
@@ -489,6 +490,7 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
      * @return mixed
      */
     #[Auth('can_edit_data')]
+    #[Writer]
     #[Ajax_Endpoint]
     public static function bulk_delete(Request $request, array $params = [])
     {

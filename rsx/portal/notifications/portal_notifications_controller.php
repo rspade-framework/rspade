@@ -83,6 +83,7 @@ class Portal_Notifications_Controller extends Rsx_Controller_Abstract
     /**
      * Mark one of the caller's notifications read.
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function mark_read(Request $request, array $params = [])
     {
@@ -103,6 +104,7 @@ class Portal_Notifications_Controller extends Rsx_Controller_Abstract
     /**
      * Mark all of the caller's notifications read.
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function mark_all_read(Request $request, array $params = [])
     {

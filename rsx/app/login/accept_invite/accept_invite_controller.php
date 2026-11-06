@@ -3,10 +3,11 @@
 namespace Rsx\App\Login\AcceptInvite;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\RSpade\Core\Ajax\Ajax;
+use App\RSpade\Core\Auth\RsxAuth;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Locks\Site_Lock;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Rsx;
@@ -166,7 +167,12 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
 
     /**
      * Process create account form submission
+     *
+     * #[Manual_Lock]: the visitor has no site yet. The account and the invited membership are
+     * written in a Site_Lock::write() section on the invitation's site, and the sign-in then
+     * enters that site (Login_Controller::complete_sign_in() -> RsxAuth::enter_site()).
      */
+    #[Manual_Lock]
     #[Ajax_Endpoint]
     public static function create_account_submit(Request $request, array $params = [])
     {
@@ -276,9 +282,13 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
 
         // THE ACCOUNT AND ITS MEMBERSHIP ARE CREATED TOGETHER OR NOT AT ALL: an account
         // whose invitation was left unaccepted would hold the invited address with no site.
+        // One write section on the invitation's site - that site's write lock and one
+        // transaction - because the membership is a site-scoped row and this endpoint takes no
+        // automatic lock (#[Manual_Lock]: the sign-in below enters the site, which takes the
+        // same lock, so it runs AFTER this section has committed and released).
         $login_user = null;
 
-        DB::transaction(function () use (
+        Site_Lock::write((int) $invitation->site_id, function () use (
             &$login_user,
             $user,
             $email,
@@ -311,7 +321,7 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
             $invitation->login_user_id = $login_user->id;
             $invitation->invite_accepted_at = now();
             User_Model::without_site_scope(fn () => $invitation->save());
-        });
+        }, 'Accepted an invitation and created the account');
 
         // Sign the new account in through the one completion function every staff entrance
         // finishes in. It refuses an identity with no active membership - the invited
@@ -354,7 +364,11 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
     /**
      * Accept invitation
      * Links the current logged-in user to the site and marks invitation as accepted
+     *
+     * #[Manual_Lock]: the invitation belongs to a site the session may not be on. The
+     * acceptance is a Site_Lock::write() section on that site, then RsxAuth::enter_site().
      */
+    #[Manual_Lock]
     #[Ajax_Endpoint]
     public static function accept(Request $request, array $params = [])
     {
@@ -388,22 +402,25 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
             ]);
         }
 
-        // Link login_user_id to the invitation record and mark as accepted. Outside the site
-        // scope: the invitation belongs to the site being joined, which is not yet the
-        // session's site.
-        $invitation->login_user_id = $login_user->id;
-        $invitation->invite_accepted_at = now();
-        User_Model::without_site_scope(fn () => $invitation->save());
+        // Link login_user_id to the invitation record and mark as accepted, in one write
+        // section on the invitation's site (#[Manual_Lock]: the site being joined is not yet
+        // the session's site). Outside the site scope for the same reason.
+        Site_Lock::write((int) $invitation->site_id, function () use ($invitation, $login_user) {
+            $invitation->login_user_id = $login_user->id;
+            $invitation->invite_accepted_at = now();
+            User_Model::without_site_scope(fn () => $invitation->save());
 
-        // The invitation reached this address and its code came back from it: the address is
-        // verified, exactly as it is for an account created from an invitation.
-        if (!$login_user->is_verified) {
-            $login_user->is_verified = 1;
-            $login_user->save();
-        }
+            // The invitation reached this address and its code came back from it: the address
+            // is verified, exactly as it is for an account created from an invitation.
+            if (!$login_user->is_verified) {
+                $login_user->is_verified = 1;
+                $login_user->save();
+            }
+        }, 'Accepted an invitation');
 
-        // Set session site to the invitation's site
-        Session::set_site_id($invitation->site_id);
+        // Enter the invitation's site: its write lock, the session bound to it, the site
+        // sign-in recorded. After the section above, so no lock is held.
+        RsxAuth::enter_site((int) $invitation->site_id);
 
         return [
             'redirect_url' => Rsx::Route('Site_Selection_Controller::select', $invitation->site_id),

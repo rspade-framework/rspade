@@ -60,6 +60,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
      * @param array $params
      * @return array
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function add_user(Request $request, array $params = [])
     {
@@ -202,6 +203,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
      * The key is re-checked against the user AND the site, so a key id from elsewhere cannot
      * be revoked by passing it here.
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function revoke_user_api_key(Request $request, array $params = [])
     {
@@ -307,6 +309,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
      * @param array $params
      * @return array
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function save_user(Request $request, array $params = [])
     {
@@ -423,6 +426,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
      * @param array $params
      * @return array
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function send_invite(Request $request, array $params = [])
     {
@@ -473,6 +477,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
      * The caller may not switch themselves off (that would lock them out of the screen that
      * switches them back on), and may only switch users whose role they administer.
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function set_user_enabled(Request $request, array $params = [])
     {
@@ -674,6 +679,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
      * Session::terminate_session_for_user(); a refusal is ERROR_UNAUTHORIZED and ends
      * nothing. The other browser is pushed to reload signed out.
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function terminate_user_session(Request $request, array $params = [])
     {
@@ -707,6 +713,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
      *
      * @return array {signed_out} - how many were ended (0 when nothing was signed in)
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function terminate_all_user_sessions(Request $request, array $params = [])
     {

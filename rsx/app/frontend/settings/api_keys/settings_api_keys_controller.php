@@ -54,6 +54,7 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
      * @param array $params
      * @return array
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function create_key(Request $request, array $params = [])
     {
@@ -292,6 +293,7 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
      * @param array $params
      * @return array
      */
+    #[Writer]
     #[Ajax_Endpoint]
     public static function revoke_key(Request $request, array $params = [])
     {
