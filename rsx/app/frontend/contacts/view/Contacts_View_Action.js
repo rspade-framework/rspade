@@ -96,26 +96,6 @@ class Contacts_View_Action extends Spa_Action {
         });
     }
 
-    // Open the client portal as this contact (impersonation, read-only) in a new tab.
-    // The tab is opened synchronously, inside the click, so no popup blocker refuses it;
-    // it is pointed at the URL once the server has answered.
-    async view_as_client() {
-        const $btn = this.$sid('view_as_client');
-        $btn.prop('disabled', true);
-        const tab = window.open('', '_blank');
-        try {
-            const res = await Frontend_Contacts_Controller.begin_portal_impersonation({ id: this.args.id });
-            tab.location.href = res.url;
-        } catch (e) {
-            tab.close();
-            // The blank tab is closed either way; only the alert belongs to this page.
-            if (this.is_stopped()) return;
-            Modal.alert('Unable to View as Client', e.message || 'Could not start the portal session.');
-        } finally {
-            $btn.prop('disabled', false);
-        }
-    }
-
     // Action buttons for page header
     page_actions() {
         const id = this.args.id;

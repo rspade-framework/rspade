@@ -12,8 +12,8 @@ use App\RSpade\Core\Session\Session;
  * Each notification type has a renderer method that returns structured
  * data (text, URL, optional image) for flexible display.
  *
- * Self-policing: Notification::get_for_dropdown() validates each notification's entity
- * and deletes the invalid ones; fetch() only reports them absent.
+ * Invalid notifications (entity deleted) are left out of every read - get_for_dropdown(),
+ * get_unread_count(), fetch() - and deleted only by the nightly Notification_Service::purge.
  */
 
 
@@ -249,7 +249,7 @@ class Notification_Model extends Rsx_Site_Model_Abstract
      * A notification belongs to one recipient (user_id holds a login_users id): anybody
      * else is answered exactly as a missing row. An invalid notification (its entity is
      * gone) is reported absent too, but never deleted here - a read has no side effects;
-     * the cleanup is Notification::get_for_dropdown()'s self-policing.
+     * the nightly Notification_Service::purge task deletes the row.
      */
     #[Ajax_Endpoint_Model_Fetch]
     public static function fetch($id)

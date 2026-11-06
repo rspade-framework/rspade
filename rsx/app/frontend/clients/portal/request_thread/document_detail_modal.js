@@ -25,7 +25,7 @@ class Document_Detail_Modal extends Modal_Abstract {
         const buttons = [
             { label: 'Close', value: false, class: 'btn-secondary' },
             { label: 'Download', class: 'btn-outline-primary', callback: () => {
-                window.location.href = document.download_url;
+                Rsx.navigate(document.download_url);
                 return false; // keep open
             } },
         ];

@@ -87,7 +87,7 @@ async function run() {
                         resolve(meta);
                     };
                 });
-                await Spa.dispatch(url, options);
+                await Rsx.navigate(url, options);
                 const meta = await done;
                 await layout.sid('sidebar_nav').follow_trail(meta);
                 return {

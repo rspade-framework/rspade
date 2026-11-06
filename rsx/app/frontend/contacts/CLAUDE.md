@@ -26,10 +26,5 @@ Follows `rsx/app/frontend/clients/CLAUDE.md` and the app skill `crud-patterns`: 
   it. While it is on the BROWSER asks - its unload dialog for a link (the header's Back
   link included), refresh or close, its confirm box for Back/Forward - and the page owns
   no dialog. Skill `rspade:navigation-guard`; contract in `rsx:man spa`.
-- **Portal-adjacent without owning the portal**: the view sidebar links to the client's portal tab and, for a contact with a portal user, offers `View as Client (read-only)` through `begin_portal_impersonation` (`#[Auth('can_impersonate')]`). The button is hidden while the site has no client portal (`window.rsxapp.portal.base` null), and the endpoint answers "This site has no client portal." when `Portal_Session::begin_impersonation_from_staff()` returns false.
+- **Portal-adjacent without owning the portal**: the view sidebar links to the client's portal tab and, for a contact with a portal user, offers `View as Client (read-only)`: an `<a target="_blank">` to the `view_as_client` route (`/contacts/view/:id/view-as-client`, `#[Auth('can_impersonate')]`), which starts the impersonation (`Portal_Session::begin_impersonation_from_staff()`) and 302s the new tab to the URL it returns - the user's own click opens the tab, so no popup blocker refuses it. A GET that acts, so it refuses a navigation another site started (`$request->is_same_origin_navigation()`); it declares no site lock (it writes only the browser's session rows). The link is hidden while the site has no client portal (`window.rsxapp.portal.base` null); a refusal renders as an error page in the new tab (no such contact 404, no portal account or "This site has no client portal." 400, a failed `can_impersonate` re-check 403).
 - The Projects tab does not live-update: `Project_Model` touches the client, not the contact.
-- **The `View as Client` button is the app's worked example of definer-scoped slot content.**
-  It is rendered inside content handed to `Detail_Sidebar`, wired with a plain
-  `@click=this.view_as_client` — content handed to a child resolves against the template
-  that wrote it (expressions, `$sid` ids and handler expressions alike), so the action's
-  method runs with the action's `this.args.id`.

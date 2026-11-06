@@ -93,6 +93,10 @@ class Notification
     /**
      * Get unread notification count for current user
      *
+     * Counts what the dropdown would show as unread: unexpired, unread, and still valid (a
+     * notification whose entity has been deleted is skipped, exactly as get_for_dropdown()
+     * skips it), so the badge and the list agree until the nightly purge removes the row.
+     *
      * @return int
      */
     public static function get_unread_count(): int
@@ -102,17 +106,27 @@ class Notification
             return 0;
         }
 
-        return Notification_Model::where('site_id', Session::get_site_id())
+        $unread = Notification_Model::where('site_id', Session::get_site_id())
             ->where('user_id', $user_id)
             ->whereNull('read_at')
             ->where('expires_at', '>', now())
-            ->count();
+            ->result_set();
+
+        $count = 0;
+        foreach ($unread as $notification) {
+            if ($notification->is_valid()) {
+                $count++;
+            }
+        }
+
+        return $count;
     }
 
     /**
      * Get notifications for dropdown display
      *
-     * Self-polices: validates entities and deletes invalid notifications.
+     * Skips invalid notifications (their entity has been deleted) and deletes nothing: this
+     * runs in a reader request, and Notification_Service::purge removes those rows nightly.
      * Returns structured array with notifications, total count, and unread count.
      *
      * @param int $limit Maximum notifications to return for display
@@ -127,20 +141,18 @@ class Notification
 
         $site_id = Session::get_site_id();
 
-        // Get all unexpired notifications for this user (for self-policing)
+        // Every unexpired notification for this user, so the counts cover the valid set
         $all_notifications = Notification_Model::where('site_id', $site_id)
             ->where('user_id', $user_id)
             ->where('expires_at', '>', now())
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Self-police: validate and delete invalid notifications
+        // Skip invalid notifications (entity deleted); the nightly purge removes them
         $valid_notifications = [];
         foreach ($all_notifications as $notification) {
             if ($notification->is_valid()) {
                 $valid_notifications[] = $notification;
-            } else {
-                $notification->delete();
             }
         }
 
@@ -219,19 +231,5 @@ class Notification
 
         $notification->mark_read();
         return true;
-    }
-
-    /**
-     * Expire (delete) old notifications
-     *
-     * Call this periodically (e.g., via Rsx_Throttle) to clean up expired notifications.
-     *
-     * @return int Number of notifications deleted
-     */
-    public static function expire_old(): int
-    {
-        return Notification_Model::where('site_id', Session::get_site_id())
-            ->where('expires_at', '<', now())
-            ->delete();
     }
 }

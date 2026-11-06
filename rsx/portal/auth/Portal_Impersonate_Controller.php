@@ -15,10 +15,11 @@ use App\RSpade\Core\Portal\Portal_Session;
  * Portal Impersonate Controller
  *
  * The portal end of the staff "View as Client" feature. Staff begin an impersonation from
- * the main app (Frontend_Contacts_Controller::begin_portal_impersonation), which calls
- * Portal_Session::begin_impersonation_from_staff() and opens the URL it returns: the
- * portal itself on the same host, or the framework's linked-session handshake
- * (/_session_link/*) when the portal is on its own host. Neither passes through here.
+ * the main app (the Frontend_Contacts_Controller::view_as_client GET route, opened in a new
+ * tab by a link the user clicks), which calls Portal_Session::begin_impersonation_from_staff()
+ * and redirects to the URL it returns: the portal itself on the same host, or the
+ * framework's linked-session handshake (/_session_link/*) when the portal is on its own
+ * host. Neither passes through here.
  *
  *   - stop: end the impersonation (clears the portal properties, leaving the staff
  *     login on the same browser session alone) and show a "you may close this tab" page.

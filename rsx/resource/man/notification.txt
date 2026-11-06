@@ -40,8 +40,8 @@ DESCRIPTION
         - Optional polymorphic entity reference
         - Read/unread tracking
         - Automatic expiry (default 21 days)
-        - Self-policing: invalid notifications auto-delete on fetch
-        - Throttled maintenance via Rsx_Throttle
+        - Invalid notifications (entity deleted) are left out of every read
+        - Nightly maintenance task deletes expired and invalid rows
 
     Components
         - Notification_Model: Main model with type enums
@@ -49,10 +49,10 @@ DESCRIPTION
         - Notification_Renderer: Render functions per type
         - Notification_Dropdown: Frontend component
         - Frontend_Notifications_Controller: Ajax endpoints
+        - Notification_Service::purge: nightly maintenance task
 
     Database Tables
         notifications    Per-user notification records
-        _throttle        Rate limiting for periodic actions
 
 API REFERENCE
 
@@ -73,7 +73,9 @@ API REFERENCE
         a primary entity reference.
 
     Notification::get_unread_count()
-        Get unread notification count for current user.
+        Get unread notification count for current user: unexpired, unread
+        notifications whose entity still exists - the same set
+        get_for_dropdown() counts as unread.
 
         Returns:
             int
@@ -90,7 +92,7 @@ API REFERENCE
                 total           Total notification count
                 unread          Unread count
 
-        Self-polices invalid notifications during retrieval.
+        Leaves out invalid notifications (entity deleted); deletes nothing.
 
     Notification::mark_all_read()
         Mark all notifications as read for current user.
@@ -103,12 +105,6 @@ API REFERENCE
 
         Returns:
             bool (true if found and marked)
-
-    Notification::expire_old()
-        Delete expired notifications. Called automatically via throttle.
-
-        Returns:
-            int (number deleted)
 
 NOTIFICATION TYPES
     Types are defined as enums in Notification_Model with a renderer
@@ -178,36 +174,27 @@ RENDERER PATTERN
     - Handle missing entities gracefully
     - Use metadata when entity not available
 
-SELF-POLICING
-    Notifications with entity references automatically validate on fetch.
-    If the entity no longer exists, the notification is deleted.
-
-    This happens in:
-    - Notification::get_for_dropdown() - validates all fetched notifications
-    - Notification_Model::fetch() - validates single notification
+INVALID NOTIFICATIONS AND EXPIRY
+    A notification with an entity reference is INVALID once that entity no
+    longer exists. Every read leaves invalid notifications out and deletes
+    nothing:
+    - Notification::get_for_dropdown() and get_unread_count() skip them
+    - Notification_Model::fetch() reports one as absent
 
     Notifications without entity references are always valid.
 
-RSX_THROTTLE
-    The Rsx_Throttle utility rate-limits periodic per-user actions.
+    The read endpoints hold only the site's read lock, so they never write.
+    Rows are deleted by the maintenance task Notification_Service::purge
+    (rsx/services/notification_service.php), scheduled in the maintenance
+    window (#[Schedule('maintenance')], rsx.tasks.maintenance_hour). For every
+    site it deletes the notifications whose expires_at has passed, then the
+    unexpired ones that are invalid, each under the site's write lock
+    (Site_Lock::write()). Run it by hand with:
 
-    Usage:
-        use App\RSpade\Core\Throttle\Rsx_Throttle;
+        php artisan rsx:task:run Notification_Service purge
 
-        if (Rsx_Throttle::check('NOTIFICATION_EXPIRE_CHECK', $user_id, minutes: 30)) {
-            Notification::expire_old();
-        }
-
-    API:
-        Rsx_Throttle::check($action_key, $user_id, $minutes = 30)
-            Returns true if action should run, atomically marks as executed.
-            First-time calls always return true.
-
-        Rsx_Throttle::reset($action_key, $user_id)
-            Force reset for testing.
-
-    The notification controller uses throttle to run expire_old() every
-    30 minutes per user during get_count() calls.
+    Expiry is set at send time: rsx.notifications.default_expiry_days
+    (default 21).
 
 FRONTEND COMPONENT
     The Notification_Dropdown component displays a bell icon with badge
@@ -231,7 +218,6 @@ AJAX ENDPOINTS
 
         get_count()
             Returns: { count: int }
-            Runs throttled expiry check.
 
         get_dropdown({ limit: int })
             Returns: { notifications: [...], total: int, unread: int }

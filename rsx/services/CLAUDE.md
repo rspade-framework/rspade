@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Two services extending `Rsx_Service_Abstract`, one of them in a directory of its own. Every method is
+Three services extending `Rsx_Service_Abstract`, one of them in a directory of its own. Every method is
 `public static function name(Task_Instance $task, array $params = [])`, reports through
 `$task` (status, progress, stdout, state, summary) and returns `null` on success - the
 return value is the run's return code, never data.
@@ -18,6 +18,15 @@ return value is the run's return code, never data.
   in a `Site_Lock::write()` section on that invitation's site, re-reading it inside (it may
   have been accepted since). Any sweep added here that is install policy rather than one
   tenant's business follows the same shape.
+- **`Notification_Service::purge`** — `#[Task]` + `#[Schedule('maintenance')]` +
+  `#[Exclusive('maintenance')]`. Deletes staff notifications that have expired, and unexpired
+  ones whose referenced entity has been deleted. The notification endpoints are readers and
+  delete nothing - they only leave those rows out of what they return - so this nightly pass
+  is the one place the rows go. It walks every site, declaring each in turn
+  (`Session::set_temporary_site_id()`): expired rows go in batches of 500, one
+  `Site_Lock::write()` section per batch whose delete re-states the expiry test; an orphaned
+  row is re-read and re-checked inside its own section. Reports each phase per site, progress
+  over the sites, `{expired, orphaned}` as its state, a stdout line and a summary.
 - **`sample_data/` - `Sample_Data_Service::seed`** — `#[Task]` + `#[Command('rsx_app:seed')]`.
   Fills an EMPTY site with the sample dataset: fictional clients, contacts, projects (with a
   subproject), tasks (with subtasks, client-level and unattached ones), documents of every

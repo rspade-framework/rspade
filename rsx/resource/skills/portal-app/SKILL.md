@@ -90,7 +90,7 @@ invitations only, extended by the site's staff (the client screen's invite and r
 the template's recommended position; an application that wants a public request page adds its
 own, and then owns the enumeration and invitation-refresh questions such a page raises.
 | `/password/reset` and `/password/reset/:token` | `Portal_Password_Reset_Controller` | request + reset, with an `invalid` page |
-| `/impersonate/stop` GET | `Portal_Impersonate_Controller` | ends a staff "View as Client" (signs the view out; the browser's own portal sign-in, if any, is current again); `stopped` page. Starting one is the staff endpoint `Frontend_Contacts_Controller::begin_portal_impersonation` -> `Portal_Session::begin_impersonation_from_staff()` |
+| `/impersonate/stop` GET | `Portal_Impersonate_Controller` | ends a staff "View as Client" (signs the view out; the browser's own portal sign-in, if any, is current again); `stopped` page. Starting one is the staff GET route `Frontend_Contacts_Controller::view_as_client` (`/contacts/view/:id/view-as-client`, opened in a new tab by a link the user clicks) -> `Portal_Session::begin_impersonation_from_staff()`, then a 302 |
 | `/logout` GET | `Portal_Logout_Controller` | signs the portal account out of this browser (portal session values cleared); any staff sign-in stays |
 
 **SPA screens** (`@portal_spa('Portal_Spa_Controller::index')`, `@auth('is_logged_in')`):

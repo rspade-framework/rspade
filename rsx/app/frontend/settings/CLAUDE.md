@@ -46,7 +46,7 @@ dropped when nothing survives.
 `window.rsxapp.sso` is omitted entirely in that case, so `Rsx_Sso.is_enabled()` is read once
 in `on_create()` (the roster cannot change while the page is open) and the whole `<Section>`
 is skipped. With providers live it renders one row per provider — Connect
-(`Rsx_Sso_Controller.link_begin()`, then `window.location = result.url`, because the callback
+(`Rsx_Sso_Controller.link_begin()`, then `Rsx.navigate(result.url)`, because the callback
 must be a top-level navigation) or Disconnect (`Modal.confirm` →
 `Rsx_Sso_Controller.identity_unlink()` → `reload()`) — plus a disconnect-only row for a
 connection whose provider has since been switched off, since switching one off deletes

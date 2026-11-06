@@ -236,7 +236,7 @@ class Clients_Portal_Panel extends Component {
         if (this.$sid('new-request-btn').exists()) {
             this.$sid('new-request-btn').off('click.cpp').on('click.cpp', async () => {
                 const thread_url = await this.alive(New_Request_Thread_Modal.show(this.args.client_id));
-                if (thread_url) Spa.dispatch(thread_url);
+                if (thread_url) Rsx.navigate(thread_url);
             });
         }
     }

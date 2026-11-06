@@ -7,6 +7,7 @@
 
 namespace Rsx\App\Frontend\Contacts;
 
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use libphonenumber\NumberParseException;
 use libphonenumber\PhoneNumberFormat;
@@ -175,25 +176,41 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
     }
 
     /**
-     * Ajax endpoint: Begin a client-portal impersonation ("View as Client").
+     * Page route: "View as Client" - begin a read-only client-portal impersonation of the
+     * contact's portal user, then send the browser there.
      *
-     * Hands the contact's linked portal user to Portal_Session::begin_impersonation_from_staff(),
-     * which returns the URL for the caller to open in a new tab: the portal itself when it
-     * is served under a prefix on this host, or the first leg of the linked-session
-     * handshake when it is on its own host - or false when the contact's site has no client
-     * portal, answered here as a validation error. Read-only is enforced by the framework: while
-     * impersonating, a portal Ajax endpoint runs only if it is marked
-     * #[Portal_Impersonation_Readable].
+     * The contact page's View as Client control is an ordinary <a target="_blank"> to this
+     * URL, so the new tab is opened by the user's own click (no popup blocker, no blank tab
+     * opened ahead of an Ajax answer) and this route moves it on with a 302: to the portal
+     * itself when it is served under a prefix on this host, or to the first leg of the
+     * linked-session handshake when it has its own host
+     * (Portal_Session::begin_impersonation_from_staff()). A refusal renders in that tab:
+     * no such contact (404), no portal account or no client portal on the contact's site
+     * (400, naming which), a caller the framework's own can_impersonate re-check refuses
+     * (403 - it throws AjaxUnauthorizedException, which a page route renders as the
+     * unauthorized page). Read-only is enforced by the framework: while impersonating, a
+     * portal Ajax endpoint runs only if it is marked #[Portal_Impersonation_Readable].
+     *
+     * A GET that DOES something, so it answers only a navigation started on this site
+     * ($request->is_same_origin_navigation()): another site linking a signed-in staff member
+     * here must not start an impersonation behind their back.
+     *
+     * Declares no site lock: it writes only the browser's own session rows (framework
+     * tables, not site-scoped data), and the site-scoped reads are of the contact and its
+     * portal user.
      *
      * @param Request $request
      * @param array $params
      * @return mixed
      */
-    #[Writer]
-    #[Ajax_Endpoint]
+    #[Route('/contacts/view/:id/view-as-client', methods: ['GET'])]
     #[Auth('can_impersonate')]
-    public static function begin_portal_impersonation(Request $request, array $params = [])
+    public static function view_as_client(Request $request, array $params = [])
     {
+        if (!$request->is_same_origin_navigation()) {
+            return response_unauthorized('Open View as Client from the contact page.');
+        }
+
         $contact = !empty($params['id']) ? Contact_Model::find($params['id']) : null;
         if (!$contact) {
             return response_error(Ajax::ERROR_NOT_FOUND, 'Contact not found');
@@ -204,9 +221,8 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
             return response_error(Ajax::ERROR_VALIDATION, 'This contact has no client portal account.');
         }
 
-        // get_user() is guaranteed non-null here (the can_impersonate gate implies
-        // a logged-in user); use its id rather than get_user_id(), which is null
-        // when there is no resolved site context (e.g. CLI/rsx:ajax).
+        // get_user() is guaranteed non-null here (the can_impersonate gate implies a
+        // signed-in user).
         $url = Portal_Session::begin_impersonation_from_staff(
             $portal_user->id,
             Session::get_user()->id,
@@ -217,9 +233,9 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
             return response_error(Ajax::ERROR_VALIDATION, 'This site has no client portal.');
         }
 
-        return [
-            'url' => $url,
-        ];
+        // Exactly the URL the framework built: redirect() would normalize it (trim the
+        // portal root's trailing slash).
+        return new RedirectResponse($url);
     }
 
     /**
@@ -367,14 +383,14 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
             //     // Get user IDs to notify (e.g., admins, team members)
             //     $notify_user_ids = [/* array of login_user IDs */];
             //
-            //     // With entity reference (self-polices if contact deleted later)
+            //     // With entity reference (hidden, then purged, if the contact is deleted later)
             //     Notification::send(
             //         Notification_Model::TYPE_CONTACT_CREATED,
             //         $notify_user_ids,
             //         $contact
             //     );
             //
-            //     // Or without entity (metadata only, won't self-police)
+            //     // Or without entity (metadata only, outlives the contact)
             //     // Notification::send(
             //     //     Notification_Model::TYPE_CONTACT_CREATED,
             //     //     $notify_user_ids,

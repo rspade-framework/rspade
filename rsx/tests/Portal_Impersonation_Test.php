@@ -5,6 +5,8 @@
 
 namespace Rsx\Tests;
 
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Ajax\Exceptions\AjaxUnauthorizedException;
@@ -13,7 +15,9 @@ use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Portal\Rsx_Portal;
+use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
+use Rsx\App\Frontend\Contacts\Frontend_Contacts_Controller;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Contact_Model;
 use Rsx\Portal_Permission;
@@ -25,10 +29,11 @@ use Rsx\Portal_Permission;
  *     still works (all Ajax endpoints are POST, so read-only cannot be a POST block).
  *   - the refusal fires ONLY under impersonation.
  *   - the staff-side contact -> portal-user resolution that powers the button.
- *   - the begin endpoint (Frontend_Contacts_Controller::begin_portal_impersonation):
- *     gated by this app's can_impersonate rule, answering the portal's landing URL on
- *     the same host and the first leg of the framework's linked-session handshake when
- *     PORTAL_URL puts the portal on its own host.
+ *   - the View as Client route (Frontend_Contacts_Controller::view_as_client, the GET
+ *     a user-clicked new-tab link opens): refused unless the navigation started on this
+ *     site, gated by this app's can_impersonate rule, redirecting to the portal's landing
+ *     URL on the same host and to the first leg of the framework's linked-session
+ *     handshake when PORTAL_URL puts the portal on its own host.
  *
  * The portal identity/impersonation context is seeded with Portal_Session CLI
  * setters. The handshake legs themselves are framework tests (Portal_Session_Link_Test
@@ -248,7 +253,25 @@ class Portal_Impersonation_Test extends Rsx_Test_Abstract
         return $user;
     }
 
-    public static function test_begin_on_the_same_host_opens_the_portal_as_the_contact()
+    /**
+     * The View as Client route as the contact page's link reaches it: a GET whose
+     * Sec-Fetch-Site says where the navigation started.
+     */
+    private static function __view_as_client(int $contact_id, string $fetch_site = 'same-origin')
+    {
+        $request = Request::create(
+            '/contacts/view/' . $contact_id . '/view-as-client',
+            'GET',
+            [],
+            [],
+            [],
+            ['HTTP_SEC_FETCH_SITE' => $fetch_site]
+        );
+
+        return Frontend_Contacts_Controller::view_as_client($request, ['id' => $contact_id]);
+    }
+
+    public static function test_view_as_client_on_the_same_host_opens_the_portal_as_the_contact()
     {
         config(['rsx.portal.url' => '']);
         $staff = static::__sign_in_staff(User_Model::ROLE_MANAGER);
@@ -256,15 +279,16 @@ class Portal_Impersonation_Test extends Rsx_Test_Abstract
         $portal_user = static::__make_portal_user($contact->id);
         Rsx_Portal::set_portal_request(false);
 
-        $res = Ajax::internal('Frontend_Contacts_Controller', 'begin_portal_impersonation', ['id' => $contact->id]);
+        $response = static::__view_as_client($contact->id);
 
-        static::__assert_equals('/_portal/', $res['url'] ?? null, 'the portal itself, on this host');
+        static::__assert_instance_of(RedirectResponse::class, $response, 'the tab is redirected');
+        static::__assert_equals('/_portal/', parse_url($response->getTargetUrl(), PHP_URL_PATH), 'the portal itself, on this host');
 
         static::__assert_equals($portal_user->id, (int) Portal_Session::get_portal_user_id(), 'viewing as the contact\'s portal user');
         static::__assert_equals($staff->id, (int) Portal_Session::get_impersonator_user_id(), 'impersonated by the caller');
     }
 
-    public static function test_begin_with_the_portal_on_its_own_host_opens_the_handshake()
+    public static function test_view_as_client_with_the_portal_on_its_own_host_opens_the_handshake()
     {
         config(['rsx.portal.url' => 'https://portal.example.test']);
         static::__sign_in_staff(User_Model::ROLE_MANAGER);
@@ -272,15 +296,16 @@ class Portal_Impersonation_Test extends Rsx_Test_Abstract
         static::__make_portal_user($contact->id);
         Rsx_Portal::set_portal_request(false);
 
-        $res = Ajax::internal('Frontend_Contacts_Controller', 'begin_portal_impersonation', ['id' => $contact->id]);
+        $response = static::__view_as_client($contact->id);
 
+        static::__assert_instance_of(RedirectResponse::class, $response, 'the tab is redirected');
         static::__assert_true(
-            str_starts_with((string) ($res['url'] ?? ''), 'https://portal.example.test/_session_link/open?'),
-            'the first handshake leg, on the portal host; got ' . ($res['url'] ?? 'nothing')
+            str_starts_with($response->getTargetUrl(), 'https://portal.example.test/_session_link/open?'),
+            'the first handshake leg, on the portal host; got ' . $response->getTargetUrl()
         );
     }
 
-    public static function test_begin_is_refused_below_the_manager_floor()
+    public static function test_view_as_client_is_refused_below_the_manager_floor()
     {
         config(['rsx.portal.url' => '']);
         static::__sign_in_staff(User_Model::ROLE_USER);
@@ -289,9 +314,28 @@ class Portal_Impersonation_Test extends Rsx_Test_Abstract
         Rsx_Portal::set_portal_request(false);
 
         static::__assert_throws(AjaxUnauthorizedException::class, function () use ($contact) {
-            Ajax::internal('Frontend_Contacts_Controller', 'begin_portal_impersonation', ['id' => $contact->id]);
+            static::__view_as_client($contact->id);
         });
 
+        static::__assert_false(Portal_Session::is_impersonating(), 'nothing was started');
+    }
+
+    /**
+     * A GET that starts an impersonation answers only a navigation begun on this site:
+     * another site linking a signed-in manager to the route starts nothing.
+     */
+    public static function test_view_as_client_is_refused_for_a_cross_site_navigation()
+    {
+        config(['rsx.portal.url' => '']);
+        static::__sign_in_staff(User_Model::ROLE_MANAGER);
+        $contact = static::__make_contact('begin_xsite_' . uniqid() . '@example.com');
+        static::__make_portal_user($contact->id);
+        Rsx_Portal::set_portal_request(false);
+
+        $response = static::__view_as_client($contact->id, 'cross-site');
+
+        static::__assert_instance_of(Error_Response::class, $response, 'refused');
+        static::__assert_equals(Ajax::ERROR_UNAUTHORIZED, $response->get_error_code(), 'as unauthorized');
         static::__assert_false(Portal_Session::is_impersonating(), 'nothing was started');
     }
 }

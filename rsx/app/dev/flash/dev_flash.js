@@ -56,7 +56,7 @@ class Dev_Flash {
         $('#test-ajax-redirect').click(async () => {
             const response = await Dev_Flash_Controller.test_ajax_redirect();
             if (response.redirect) {
-                window.location.href = response.redirect;
+                Rsx.navigate(response.redirect);
             }
         });
     }

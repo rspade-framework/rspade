@@ -129,7 +129,7 @@ full authentication; if `Rsx_Two_Factor::is_enabled($login_user)` it calls `begi
 (which signs the browser's staff sign-in out FIRST and then parks the pending identity) and redirects to
 `/login/verify`. `verify_2fa` calls `Rsx_Two_Factor::verify_challenge($params)` - which signs
 the identity in, stamps `last_login` and writes the success row - and answers
-`{redirect: <url>}`, which the component follows with `window.location`.
+`{redirect: <url>}`, which the component follows with `Rsx.navigate(url, {load: 'full'})` (a fresh signed-in document).
 
 **Passwordless passkey sign-in.** `passkey_login` receives `{assertion}` from
 `<Passkey_Sign_In>` and calls `Rsx_Two_Factor::verify_passkey_login()`, which does the whole

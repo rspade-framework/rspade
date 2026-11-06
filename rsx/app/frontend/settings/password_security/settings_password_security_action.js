@@ -266,7 +266,7 @@ class Settings_Password_Security_Action extends Spa_Action {
 
         const result = await this.alive(Rsx_Sso_Controller.link_begin({ provider: provider_key }));
 
-        window.location = result.url;
+        Rsx.navigate(result.url);
     }
 
     /**

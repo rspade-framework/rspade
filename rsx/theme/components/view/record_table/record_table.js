@@ -15,7 +15,7 @@ class Record_Table extends Component {
             }
             const href = $(e.currentTarget).attr('data-href');
             if (href) {
-                Spa.dispatch(href);
+                Rsx.navigate(href);
             }
         });
     }

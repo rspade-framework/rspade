@@ -107,7 +107,7 @@ class Portal_Dashboard_Action extends Spa_Action {
                 if (is_unread) {
                     await this.alive(Portal_Notifications_Controller.mark_read({ id }));
                 }
-                Spa.dispatch(url);
+                Rsx.navigate(url);
                 return;
             }
 

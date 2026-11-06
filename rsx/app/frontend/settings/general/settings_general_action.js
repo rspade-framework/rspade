@@ -1,7 +1,8 @@
 /**
  * Settings General Action
  *
- * Redirect action - immediately navigates to profile display page.
+ * Redirect action - immediately redirects to the profile display page (the entry is
+ * replaced, so Back skips this one).
  */
 @route('/frontend/settings')
 @route('/frontend/settings/general')
@@ -11,6 +12,6 @@
 @auth('is_logged_in')
 class Settings_General_Action extends Spa_Action {
     on_ready() {
-        Spa.dispatch(Rsx.Route('Settings_Profile_Display_Action'));
+        Rsx.redirect(Rsx.Route('Settings_Profile_Display_Action'));
     }
 }

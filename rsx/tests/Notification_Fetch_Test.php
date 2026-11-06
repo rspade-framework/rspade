@@ -17,7 +17,7 @@ use Rsx\Models\Notification_Model;
  *   - it serves the RECIPIENT only: a notification whose user_id (a login_users id) is not
  *     the caller's is answered exactly as a missing row;
  *   - an invalid notification (its entity is gone) is reported absent and NOT deleted - a
- *     read has no side effects; deleting is get_for_dropdown()'s self-policing.
+ *     read has no side effects; deleting is the nightly Notification_Service::purge task's.
  *
  * Runs in the default per-test transaction (rolled back afterward).
  */

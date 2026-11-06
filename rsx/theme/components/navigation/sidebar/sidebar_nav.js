@@ -71,14 +71,14 @@ class Sidebar_Nav extends Component {
                     // After animation completes, navigate to first subitem
                     const first_subitem_href = $submenu.find('.Sidebar_Nav__subitem').first().attr('href');
                     if (first_subitem_href) {
-                        window.location.href = first_subitem_href;
+                        Rsx.navigate(first_subitem_href);
                     }
                 });
             } else {
                 // Already expanded, navigate immediately to first subitem
                 const first_subitem_href = $submenu.find('.Sidebar_Nav__subitem').first().attr('href');
                 if (first_subitem_href) {
-                    window.location.href = first_subitem_href;
+                    Rsx.navigate(first_subitem_href);
                 }
             }
         });

@@ -116,12 +116,13 @@ Notification::send(
 - **You choose the recipients.** There is no subscription model - the calling code
   decides who cares (typically site users minus the actor).
 - `Notification::get_unread_count()`, `get_for_dropdown($limit)`, `mark_read($id)`,
-  `mark_all_read()`, `expire_old()`. Expiry defaults to 21 days
-  (`rsx.notifications.default_expiry_days`) and is run opportunistically behind
-  `Rsx_Throttle` on `get_count()`.
-- **Self-policing:** a notification whose referenced entity no longer exists is
-  DELETED by `get_for_dropdown()` (the list read); `Notification_Model::fetch()` only
-  reports it absent and deletes nothing. That is the answer to "my notification
+  `mark_all_read()`. Expiry defaults to 21 days
+  (`rsx.notifications.default_expiry_days`); the rows are deleted by the nightly
+  maintenance task `Notification_Service::purge` (`rsx/services/`), never by a request.
+- **Invalid notifications vanish:** one whose referenced entity no longer exists is left
+  out by `get_for_dropdown()` and `get_unread_count()` and reported absent by
+  `Notification_Model::fetch()`; the reads delete nothing (they hold only the site's read
+  lock) and the nightly purge deletes the row. That is the answer to "my notification
   disappeared" - not a bug. Use metadata instead of an entity when the notification must
   outlive its subject.
 - **`Notification_Model::fetch()` serves the recipient only** - a notification whose

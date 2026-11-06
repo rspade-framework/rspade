@@ -27,7 +27,8 @@ class Accept_Invite {
                 const response = await Accept_Invite_Controller.accept({code: code});
 
                 // The call resolves with the endpoint's return value; a failure rejects
-                window.location.href = response.redirect_url;
+                // A fresh document: accepting signed the browser in.
+                Rsx.navigate(response.redirect_url, { load: 'full' });
             } catch (error) {
                 await Modal.alert('Error', error.message || 'An error occurred while accepting the invitation');
             }

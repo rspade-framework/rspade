@@ -5,15 +5,13 @@ namespace Rsx\App\Frontend\Notifications;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
-use App\RSpade\Core\Session\Session;
-use App\RSpade\Core\Throttle\Rsx_Throttle;
 use Rsx\Lib\Notification\Notification;
 
 /**
  * Frontend_Notifications_Controller - Ajax endpoints for notification management
  *
  * Provides endpoints for the notification dropdown UI:
- * - get_count: Get unread count (with throttled expiry check)
+ * - get_count: Get unread count
  * - get_dropdown: Get notifications for display
  * - mark_all_read: Mark all as read
  * - mark_read: Mark single notification as read
@@ -24,7 +22,8 @@ class Frontend_Notifications_Controller extends Rsx_Controller_Abstract
     /**
      * Ajax endpoint: Get unread notification count
      *
-     * Also performs throttled expiry check (every 30 minutes) to clean up old notifications.
+     * A reader: it is polled on every SPA navigation and writes nothing. Expired and
+     * orphaned notifications are removed by the nightly Notification_Service::purge task.
      *
      * @param Request $request
      * @param array $params
@@ -33,13 +32,6 @@ class Frontend_Notifications_Controller extends Rsx_Controller_Abstract
     #[Ajax_Endpoint]
     public static function get_count(Request $request, array $params = [])
     {
-        $user_id = Session::get_user_id();
-
-        // Throttled expiry check - run every 30 minutes per user
-        if (Rsx_Throttle::check('NOTIFICATION_EXPIRE_CHECK', $user_id, minutes: 30)) {
-            Notification::expire_old();
-        }
-
         return [
             'count' => Notification::get_unread_count(),
         ];
@@ -49,7 +41,8 @@ class Frontend_Notifications_Controller extends Rsx_Controller_Abstract
      * Ajax endpoint: Get notifications for dropdown display
      *
      * Returns notifications with rendered text, URL, and image URL.
-     * Self-polices invalid notifications (deleted entities).
+     * A reader: notifications whose entity has been deleted are left out of the response,
+     * never deleted here (Notification_Service::purge removes them nightly).
      *
      * @param Request $request
      * @param array $params ['limit' => int] Optional limit (default 5)

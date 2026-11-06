@@ -110,7 +110,7 @@ class Projects_View_Action extends Spa_Action {
         this.$.find('.People_List').each((i, el) => {
             $(el).component().on('person_click', (c, d) => {
                 if (d.person && d.person.type === 'contact' && d.person.id) {
-                    Spa.dispatch(Rsx.Route('Contacts_View_Action', d.person.id));
+                    Rsx.navigate(Rsx.Route('Contacts_View_Action', d.person.id));
                 }
             });
         });

@@ -265,7 +265,8 @@ class Portal_Tenancy_App_Test extends Rsx_Test_Abstract
         $portal_user->contact_id = $contact->id;
         $portal_user->save();
 
-        $result = Frontend_Contacts_Controller::begin_portal_impersonation(new Request(), ['id' => $contact->id]);
+        $request = Request::create('/contacts/view/' . $contact->id . '/view-as-client', 'GET', [], [], [], ['HTTP_SEC_FETCH_SITE' => 'same-origin']);
+        $result = Frontend_Contacts_Controller::view_as_client($request, ['id' => $contact->id]);
 
         static::__assert_no_portal($result, 'View as Client');
         static::__assert_false(Portal_Session::is_impersonating(), 'nothing was started');
