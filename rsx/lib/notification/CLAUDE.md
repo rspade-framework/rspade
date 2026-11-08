@@ -38,7 +38,12 @@ and `0` disables the purge.
 exactly once, in `Frontend_Spa_Layout.jqhtml`. It seeds its badge from `get_count`, loads
 the list lazily on first open, and refreshes the count on every SPA navigation. The
 endpoints are `Frontend_Notifications_Controller`: `get_count` and `get_dropdown` are readers
-that write nothing, `mark_read` and `mark_all_read` are `#[Writer]`.
+that write nothing, `mark_read` is `#[Writer]`, and `mark_all_read` is `#[Manual_Lock]`:
+`Notification::mark_all_read()` is a MASS EDIT in set-based statements - one
+`Site_Lock::write()` section per `MARK_ALL_READ_CHUNK` (500) rows, each re-reading which rows
+are still unread, marking them in one raw UPDATE and calling `Realtime::bulk_changed()` (a raw
+statement re-runs no `#[Emitter]`), so no write lock is ever held across the user's whole
+unread set (`rsx:man site_locks`, HOLDING A LOCK WELL, rule 8).
 
 ## HOW TO CUSTOMIZE
 

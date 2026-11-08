@@ -116,7 +116,8 @@ Notification::send(
 - **You choose the recipients.** There is no subscription model - the calling code
   decides who cares (typically site users minus the actor).
 - `Notification::get_unread_count()`, `get_for_dropdown($limit)`, `mark_read($id)`,
-  `mark_all_read()`.
+  `mark_all_read()` - a mass edit: one `Site_Lock::write()` section per 500-row chunk, each
+  followed by `Realtime::bulk_changed()`, called from a `#[Manual_Lock]` endpoint.
 - **Expiry decides what is SHOWN, the purge decides what is DELETED.** Expiry
   (`rsx.notifications.default_expiry_days`, 21) only hides a notification from the badge
   and the dropdown. Rows are deleted only by the nightly maintenance task

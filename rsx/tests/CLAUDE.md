@@ -45,7 +45,10 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   detail block. The framework suite pins the funnel; this pins the declarations. Named
   `App_` because the framework suite already has an `Error_Pages_Test`, and a same-named
   class in `rsx/` would override it out of the run.
-- **UI seams**: `Datagrid_Mass_Actions_Test` (selection modes and CSV export, a cell beginning
+- **UI seams**: `Datagrid_Mass_Actions_Test` (selection modes - the endpoint refuses a
+  malformed payload, and the mass delete it dispatches, `Mass_Edit_Service::delete_clients` run
+  in-process as user 1, deletes exactly the selection, one record per write section, each with
+  its activity-log entry - and CSV export, a cell beginning
   `=` `+` `-` `@` tab or CR exported behind a single quote; the xlsx export writes every cell by
   type so no text becomes a formula; the sort whitelist is strict, a non-string order falls back
   and a grid with no whitelist refuses a sort request; the search reaches `address_street`),
@@ -64,7 +67,9 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 - **Staff notifications**: `Notification_Fetch_Test` (the ORM read serves the recipient
   only) and `Notification_Recipient_Test` (`Notification::send()` and every reader agree
   that `user_id` is a LOGIN identity id; the subject's site-user id is forced to differ so
-  a reader keyed on the wrong id cannot pass by coincidence), `Notification_Purge_Test`
+  a reader keyed on the wrong id cannot pass by coincidence; `mark_all_read()` marks every
+  unread row across more than one chunked write section and leaves another identity's row
+  unread), `Notification_Purge_Test`
   (`get_count` and `get_dropdown`, called through `Ajax::internal()` with an expired and an
   orphaned row present, leave both out and delete neither; `Notification_Service::purge`
   deletes every site's SEEN rows older than `purge_seen_after_days` and keeps seen rows

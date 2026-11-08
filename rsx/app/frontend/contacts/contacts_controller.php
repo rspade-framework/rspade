@@ -20,6 +20,7 @@ use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
+use App\RSpade\Core\Task\Task;
 use App\RSpade\Core\Time\Rsx_Date;
 use App\RSpade\Lib\Flash\Flash_Alert;
 use Rsx\App\Frontend\Contacts\List\Contacts_DataGrid;
@@ -474,8 +475,13 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
      * The selection payload names a SET, not a page: additive ids, subtractive exclusions, or
      * the whole filtered result. The filters ride along in filter_params so the server rebuilds
      * the exact query the user was looking at rather than trusting a client-side id list to be
-     * complete. Every row goes through the model layer one at a time - a raw bulk DELETE would
-     * skip the soft delete, the audit stamp, the realtime frame and the action log.
+     * complete.
+     *
+     * A MASS EDIT: this validates the selection, dispatches Mass_Edit_Service::delete_contacts and
+     * returns the run's id; the grid shows the run's progress and its summary. The task takes
+     * one write section per contact, re-checking it is still selected, and deletes it through the
+     * model layer with its action-log entry - a raw bulk DELETE would skip the soft delete, the
+     * audit stamp, the realtime frame and the action log.
      *
      * Gate: can_edit_data, as on save() - the controller's other mutating endpoint.
      *
@@ -496,16 +502,16 @@ class Frontend_Contacts_Controller extends Rsx_Controller_Abstract
             return $query;
         }
 
-        $deleted = 0;
-
-        foreach (Contacts_DataGrid::iterate_selection($query, 'contacts.id') as $contact) {
-            Action_Log::record(Action_Log_Model::TYPE_CONTACT_DELETED, $contact);
-            $contact->delete();
-            $deleted++;
-        }
+        // A mass edit never holds the write lock across its selection: the task deletes one
+        // record per write section, as the person who clicked (rsx/services/mass_edit_service.php).
+        $task_id = Task::dispatch('Mass_Edit_Service', 'delete_contacts', [
+            'mode' => $params['mode'],
+            'ids' => $params['ids'] ?? [],
+            'filter_params' => $params['filter_params'] ?? [],
+        ]);
 
         return [
-            'deleted' => $deleted,
+            'task_id' => $task_id,
         ];
     }
 

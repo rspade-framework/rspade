@@ -60,11 +60,14 @@ class Frontend_Notifications_Controller extends Rsx_Controller_Abstract
     /**
      * Ajax endpoint: Mark all notifications as read
      *
+     * #[Manual_Lock]: a mass edit takes the write lock per chunk, never across the whole
+     * unread set - Notification::mark_all_read() opens one Site_Lock::write() section per chunk.
+     *
      * @param Request $request
      * @param array $params
      * @return array
      */
-    #[Writer]
+    #[Manual_Lock]
     #[Ajax_Endpoint]
     public static function mark_all_read(Request $request, array $params = [])
     {

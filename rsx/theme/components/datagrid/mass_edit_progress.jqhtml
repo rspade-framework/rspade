@@ -1,0 +1,12 @@
+<%--
+Mass_Edit_Progress - the live progress of one mass-edit run (a datagrid footer action the
+server runs as a task, one record per write section). Shows the run's status line and its
+progress bar through the framework task widgets, and triggers 'finished' with the run's
+status once the run is no longer live. Hosted by Mass_Edit_Progress_Modal.
+
+$task_id - the run's id, as the mass-edit endpoint returned it
+--%>
+<Define:Mass_Edit_Progress tag="div">
+    <Task_Report $task_id=this.args.task_id $kind="status_text" class="Mass_Edit_Progress__status" />
+    <Task_Report $task_id=this.args.task_id $kind="progress_text" $bar=true class="Mass_Edit_Progress__bar" />
+</Define:Mass_Edit_Progress>

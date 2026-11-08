@@ -97,7 +97,12 @@ API REFERENCE
         Leaves out invalid notifications (entity deleted); deletes nothing.
 
     Notification::mark_all_read()
-        Mark all notifications as read for current user.
+        Mark all notifications as read for current user. A mass edit in
+        set-based statements: one Site_Lock::write() section per chunk of
+        Notification::MARK_ALL_READ_CHUNK (500) rows, each followed by
+        Realtime::bulk_changed(), so the caller holds no site lock
+        (the endpoint is #[Manual_Lock]; rsx:man site_locks, HOLDING A LOCK
+        WELL, rule 8).
 
         Returns:
             int (number marked)

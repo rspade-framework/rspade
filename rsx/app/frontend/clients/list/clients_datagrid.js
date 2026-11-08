@@ -63,7 +63,8 @@ class Clients_DataGrid extends DataGrid_Abstract {
     }
 
     /**
-     * Confirm, then soft-delete everything the selection covers.
+     * Confirm, then soft-delete everything the selection covers - a mass edit, run as a task
+     * (Mass_Edit_Service) and followed in Mass_Edit_Progress_Modal.
      *
      * @param {Object} selection - payload from on_footer_action()
      */
@@ -81,17 +82,28 @@ class Clients_DataGrid extends DataGrid_Abstract {
             return;
         }
 
+        // A mass edit runs as a task, one record at a time: the endpoint answers with the
+        // run's id, and the dialog follows the run until it ends.
         const result = await that.alive(Frontend_Clients_Controller.bulk_delete({
             mode: selection.mode,
             ids: selection.ids,
             filter_params: selection.filter_params,
         }));
 
-        Flash_Alert.success(
-            'Deleted ' + result.deleted + ' client' + (result.deleted === 1 ? '' : 's')
-        );
-
         that._clear_selection();
+
+        const status = await Mass_Edit_Progress_Modal.show(result.task_id, 'Deleting clients');
+
+        if (that.is_stopped()) return;
+
+        if (!status) {
+            Flash_Alert.info('The clients are still being deleted in the background.');
+        } else if (Mass_Edit_Progress_Modal.failed(status)) {
+            Flash_Alert.error(await Mass_Edit_Progress_Modal.summary(status));
+        } else {
+            Flash_Alert.success(await Mass_Edit_Progress_Modal.summary(status));
+        }
+
         that.reload();
     }
 

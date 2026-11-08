@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Three services extending `Rsx_Service_Abstract`, one of them in a directory of its own. Every method is
+Four services extending `Rsx_Service_Abstract`, one of them in a directory of its own. Every method is
 `public static function name(Task_Instance $task, array $params = [])`, reports through
 `$task` (status, progress, stdout, state, summary) and returns `null` on success - the
 return value is the run's return code, never data.
@@ -30,6 +30,22 @@ return value is the run's return code, never data.
   `Site_Lock::write()` section per batch whose delete re-states the rule. Reports the cutoff
   per site, progress over the sites, `{deleted, purge_seen_after_days, disabled}` as its
   state, a stdout line and a summary.
+- **`Mass_Edit_Service`** — `delete_clients`, `delete_contacts`, `delete_projects`: the
+  datagrid footer "Delete" mass actions, each `#[Task]` + `#[Run_As_Dispatcher]` (it acts as
+  the person who clicked, so the action log, revisions and authorship name them) +
+  `#[Task_Access('dispatcher')]` (that person may watch and stop it). The worked example of a
+  MASS EDIT (`rsx:man site_locks`, HOLDING A LOCK WELL, rule 8): the controller's `bulk_delete`
+  only validates the selection payload and dispatches; the task reads the selection once with
+  no lock (the grid's own query rebuilt from the on-screen filters, `apply_selection()`), then
+  takes ONE `Site_Lock::write()` section per record that re-decides - the person may still
+  edit data (`Permission::can_edit_data()`; if not, the rest is refused and the run stops),
+  the record is still in the selection (else skipped) - and deletes through the model with its
+  action-log entry, exactly as the single-record delete does. Not all-or-nothing: a stopped or
+  refused run keeps what it already deleted. Reports status, `progress_count()` and a
+  heartbeat per item, a stdout line per item not deleted, `{selected, deleted, skipped,
+  refused}` as its state and a summary, which the grid shows through
+  `Mass_Edit_Progress_Modal` (`rsx/theme/components/datagrid/`). Add a mass action by adding a
+  task here that calls the same per-item shape, and an endpoint that validates and dispatches.
 - **`sample_data/` - `Sample_Data_Service::seed`** — `#[Task]` + `#[Command('rsx_app:seed')]`.
   Fills an EMPTY site with the sample dataset: fictional clients, contacts, projects (with a
   subproject), tasks (with subtasks, client-level and unattached ones), documents of every

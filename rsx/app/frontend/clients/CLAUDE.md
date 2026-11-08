@@ -149,7 +149,9 @@ user's open tab and scroll position.
 
 The list screen is `list/clients_datagrid.{php,js,jqhtml}` fed by
 `Frontend_Clients_Controller::datagrid_fetch`, with `bulk_delete`, `export_csv` and `export_xlsx`
-serving the footer mass actions. `export_xlsx` writes every cell explicitly by type (the id a
+serving the footer mass actions. `bulk_delete` is a MASS EDIT: it validates the selection and
+dispatches `Mass_Edit_Service::delete_clients` (`rsx/services/`), which deletes one client per
+write section, and the grid follows the run in `Mass_Edit_Progress_Modal`. `export_xlsx` writes every cell explicitly by type (the id a
 number, everything else a string), so no stored text becomes a live formula.
 
 What this module's grid declares:

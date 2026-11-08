@@ -146,11 +146,13 @@ Marked in this app: `Portal_Workspaces_Controller` (`get`, `list`),
 `Portal_Documents_Controller::list`, `Portal_Request_Threads_Controller` (`get`, `list`,
 `needs_response_for_user`), `Portal_Notifications_Controller` (`feed`, `unread_count`),
 `Portal_Invitations_Controller::pending` and `Portal_Settings_Controller` (`get_profile`,
-`get_sessions`). The writes (`reply`, `mark_read`, `mark_all_read`, invitation `accept` /
+`get_sessions`). The writes (`reply`, `mark_read`, invitation `accept` /
 `decline`, `change_password`, `terminate_session`) carry no mark and no guard of their own;
 each declares `#[Writer]` instead (the portal's site write lock and one transaction - an
 unmarked endpoint is a reader, and a site-scoped write inside it fatals), as do the sign-in
 endpoints on `Portal_Login_Controller` (`verify_2fa`, `send_code`, `passkey_login`).
+`mark_all_read` is a write too, declared `#[Manual_Lock]`: a mass edit, one
+`Site_Lock::write()` section per chunk inside `Portal_Notification_Model::mark_all_read()`.
 The passkey, authenticator-app and connected-account controls on Settings need nothing of
 this app's either: the framework marks only their list endpoints. The banner and the
 disabled controls (`Portal_Permission::is_read_only()`) are affordance only; the server

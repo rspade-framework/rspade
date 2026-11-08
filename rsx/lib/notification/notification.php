@@ -2,6 +2,8 @@
 
 namespace Rsx\Lib\Notification;
 
+use App\RSpade\Core\Locks\Site_Lock;
+use App\RSpade\Core\Realtime\Realtime;
 use App\RSpade\Core\Session\Session;
 use Rsx\Models\Notification_Model;
 
@@ -191,7 +193,20 @@ class Notification
     }
 
     /**
-     * Mark all notifications as read for current user
+     * Rows marked read per write section by mark_all_read().
+     */
+    const MARK_ALL_READ_CHUNK = 500;
+
+    /**
+     * Mark all of the current user's notifications on this site as read.
+     *
+     * A MASS EDIT in set-based statements: one Site_Lock::write() section per chunk of
+     * MARK_ALL_READ_CHUNK rows, never one write lock across the user's whole unread set
+     * (rsx:man site_locks, HOLDING A LOCK WELL, rule 8). Each section re-reads which rows are
+     * still unread, marks exactly those in one raw UPDATE, and calls Realtime::bulk_changed():
+     * a raw statement re-runs no #[Emitter] by itself, so an emitter counting unread
+     * notifications would otherwise stay stale. The caller holds no site lock
+     * (#[Manual_Lock]); each chunk commits on its own.
      *
      * @return int Number of notifications marked as read
      */
@@ -202,10 +217,38 @@ class Notification
             return 0;
         }
 
-        return Notification_Model::where('site_id', Session::get_site_id())
-            ->where('user_id', $user_id)
-            ->whereNull('read_at')
-            ->update(['read_at' => now()]);
+        $site_id = (int) Session::get_site_id();
+        $marked = 0;
+
+        do {
+            $chunk = Site_Lock::write($site_id, function () use ($user_id) {
+                // LIMIT is the chunking mechanism: the loop repeats until a section finds
+                // fewer than a whole chunk still unread.
+                $ids = Notification_Model::where('user_id', $user_id)
+                    ->whereNull('read_at')
+                    ->orderBy('id')
+                    ->limit(self::MARK_ALL_READ_CHUNK)
+                    ->pluck('id')
+                    ->all();
+
+                if (empty($ids)) {
+                    return ['found' => 0, 'updated' => 0];
+                }
+
+                $updated = Notification_Model::whereIn('id', $ids)
+                    ->whereNull('read_at')
+                    ->raw_bulk()
+                    ->update(['read_at' => now()]);
+
+                Realtime::bulk_changed();
+
+                return ['found' => count($ids), 'updated' => (int) $updated];
+            }, 'Mark notifications read');
+
+            $marked += $chunk['updated'];
+        } while ($chunk['found'] === self::MARK_ALL_READ_CHUNK);
+
+        return $marked;
     }
 
     /**

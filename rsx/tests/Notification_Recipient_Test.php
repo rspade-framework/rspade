@@ -67,6 +67,37 @@ class Notification_Recipient_Test extends Rsx_Test_Abstract
         static::__assert_null(Notification_Model::find($decoy->id)->read_at, 'the decoy was left unread');
     }
 
+    public static function test_mark_all_read_marks_every_unread_row_across_chunks()
+    {
+        $user = static::__member_with_diverging_ids();
+        static::__acting_as_user($user->id);
+
+        // One more than a chunk, so the second write section has to pick up the remainder.
+        $count = Notification::MARK_ALL_READ_CHUNK + 1;
+        for ($i = 0; $i < $count; $i++) {
+            static::__notification((int) $user->login_user_id);
+        }
+
+        $decoy = static::__notification((int) $user->id);
+
+        static::__assert_equals($count, Notification::mark_all_read(), 'every unread row is marked, across chunks');
+        static::__assert_equals(0, Notification::get_unread_count(), 'nothing is left unread');
+        static::__assert_null(Notification_Model::find($decoy->id)->read_at, 'another identity\'s row is left unread');
+        static::__assert_equals(0, Notification::mark_all_read(), 'a second pass finds nothing to mark');
+    }
+
+    private static function __notification(int $recipient_id): Notification_Model
+    {
+        $notification = new Notification_Model();
+        $notification->site_id = self::SITE_ID;
+        $notification->user_id = $recipient_id;
+        $notification->type_id = Notification_Model::TYPE_TASK_ASSIGNED;
+        $notification->expires_at = now()->addDays(1);
+        $notification->save();
+
+        return $notification;
+    }
+
     /**
      * A site member whose users.id is explicitly placed above its login_users.id, so a reader
      * keyed on the wrong identity cannot pass by coincidence.

@@ -11,6 +11,13 @@
 - `datagrid_body.{jqhtml,js}` — the `<tbody>`, and the ONLY component that talks to the
   server.
 - `pagination_controls.jqhtml`, `pagination_info.jqhtml` — the footer widgets.
+- `mass_edit_progress.{jqhtml,js,scss}` — `Mass_Edit_Progress`, the live progress of one
+  mass-edit run (the framework `Task_Report` status line and progress bar) that triggers
+  `finished` with the run's status once `Rsx_Task.get()` says it is no longer live.
+- `mass_edit_progress_modal.js` — `Mass_Edit_Progress_Modal.show(task_id, title)`: the dialog
+  hosting it, resolving with the finished run's status (or `false` when the user picked
+  "Continue in background"), plus `failed(status)` and `summary(status)` (the run's own
+  summary report) for the flash message.
 
 ## HOW TO CUSTOMIZE
 
@@ -34,7 +41,8 @@ Paginated, sortable, filterable tables with cross-page selection and mass action
 
 **Worked example (read this first):** `rsx/app/frontend/clients/list/clients_datagrid.{php,js,jqhtml}`
 plus the `datagrid_fetch` / `bulk_delete` / `export_csv` endpoints in
-`rsx/app/frontend/clients/clients_controller.php`.
+`rsx/app/frontend/clients/clients_controller.php` and the mass-edit task
+`rsx/services/mass_edit_service.php`.
 
 ## Architecture
 
@@ -193,7 +201,10 @@ selection = { mode: 'additive'|'subtractive'|'all', ids: number[], total: 0, fil
 receives. `selection_size(selection)` gives the record count for confirmation copy.
 
 **Server resolution** is always the same three steps - rebuild the query from `filter_params`,
-constrain it by the id set, iterate it:
+constrain it by the id set, iterate it. **A footer action that CHANGES records is a MASS EDIT**
+(`rsx:man site_locks`, HOLDING A LOCK WELL, rule 8): it never loops over the selection inside one
+`#[Writer]`. The endpoint validates the payload and dispatches a task; the task iterates and takes
+one write section per record:
 
 ```php
 #[Writer]
@@ -204,25 +215,41 @@ public static function bulk_delete(Request $request, array $params = [])
     $query = Clients_DataGrid::apply_selection($query, 'clients.id', $params);
 
     if ($query instanceof Error_Response) {
-        return $query;   // malformed payload; returned verbatim
+        return $query;   // malformed payload; returned verbatim, nothing dispatched
     }
 
-    $deleted = 0;
+    $task_id = Task::dispatch('Mass_Edit_Service', 'delete_clients', [
+        'mode' => $params['mode'],
+        'ids' => $params['ids'] ?? [],
+        'filter_params' => $params['filter_params'] ?? [],
+    ]);
 
-    foreach (Clients_DataGrid::iterate_selection($query, 'clients.id') as $client) {
-        Action_Log::record(Action_Log_Model::TYPE_CLIENT_DELETED, $client);
-        $client->delete();
-        $deleted++;
-    }
-
-    return ['deleted' => $deleted];
+    return ['task_id' => $task_id];
 }
+```
+
+`Mass_Edit_Service` (`rsx/services/mass_edit_service.php`) is the task side: a
+`#[Run_As_Dispatcher]` + `#[Task_Access('dispatcher')]` task that reads the selection once with
+`iterate_selection()`, then per record opens a `Site_Lock::write()` section that re-checks the
+person may still edit and the record is still in the selection, and deletes it through the model
+with its action-log entry - reporting progress, a line per skipped record and a summary. The grid
+follows the run:
+
+```javascript
+const result = await that.alive(Frontend_Clients_Controller.bulk_delete({mode, ids, filter_params}));
+that._clear_selection();
+const status = await Mass_Edit_Progress_Modal.show(result.task_id, 'Deleting clients');
+if (that.is_stopped()) return;
+// false: still running in the background; failed(status): the run threw or was killed;
+// otherwise flash Mass_Edit_Progress_Modal.summary(status).
+that.reload();
 ```
 
 Never trust the client id list to be complete - `filter_params` is what makes "delete everything
 matching what I'm looking at" mean the same thing on both sides. Every record goes through the
-model layer one at a time; a raw bulk DELETE would skip the soft delete, the audit stamp, the
-realtime frame and the action log.
+model layer one at a time, each in its own write section; a raw bulk DELETE would skip the soft
+delete, the audit stamp, the realtime frame and the action log. A mass edit is not all-or-nothing:
+each record commits on its own, and the run says what it skipped.
 
 **The id column is ALWAYS table-qualified** (`'clients.id'`, `'projects.id'`) in both
 `apply_selection()` and `iterate_selection()`. A joined grid pulls in another table's `id`, and an

@@ -1,0 +1,14 @@
+// Mass_Edit_Progress - a status line over a progress bar, inside the mass-edit dialog.
+.Mass_Edit_Progress {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-2;
+
+    &__status {
+        min-height: 24px;
+    }
+
+    &__bar {
+        min-height: 24px;
+    }
+}

@@ -15,6 +15,7 @@ use App\RSpade\Core\Forms\Form_Edit;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Rsx;
+use App\RSpade\Core\Task\Task;
 use App\RSpade\Core\Time\Rsx_Date;
 use Rsx\App\Frontend\Projects\List\Projects_DataGrid;
 use Rsx\Lib\ActionLog\Action_Log;
@@ -480,8 +481,12 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
      * the exact query the user was looking at rather than trusting a client-side id list to be
      * complete - and because the projects grid opens on Active, a mass action launched from the
      * default view covers active projects ONLY, which is exactly what the user is looking at.
-     * Every row goes through the model layer one at a time - a raw bulk DELETE would skip the
-     * soft delete, the audit stamp, the realtime frame and the action log.
+     *
+     * A MASS EDIT: this validates the selection, dispatches Mass_Edit_Service::delete_projects and
+     * returns the run's id; the grid shows the run's progress and its summary. The task takes
+     * one write section per project, re-checking it is still selected, and deletes it through the
+     * model layer with its action-log entry - a raw bulk DELETE would skip the soft delete, the
+     * audit stamp, the realtime frame and the action log.
      *
      * Gate: can_edit_data, as on save() - the controller's other mutating endpoint.
      *
@@ -502,16 +507,16 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
             return $query;
         }
 
-        $deleted = 0;
-
-        foreach (Projects_DataGrid::iterate_selection($query, 'projects.id') as $project) {
-            Action_Log::record(Action_Log_Model::TYPE_PROJECT_DELETED, $project);
-            $project->delete();
-            $deleted++;
-        }
+        // A mass edit never holds the write lock across its selection: the task deletes one
+        // record per write section, as the person who clicked (rsx/services/mass_edit_service.php).
+        $task_id = Task::dispatch('Mass_Edit_Service', 'delete_projects', [
+            'mode' => $params['mode'],
+            'ids' => $params['ids'] ?? [],
+            'filter_params' => $params['filter_params'] ?? [],
+        ]);
 
         return [
-            'deleted' => $deleted,
+            'task_id' => $task_id,
         ];
     }
 

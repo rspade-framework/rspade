@@ -11,7 +11,9 @@ use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
 use Rsx\App\Frontend\Clients\Frontend_Clients_Controller;
 use Rsx\App\Frontend\Clients\List\Clients_DataGrid;
+use Rsx\Models\Action_Log_Model;
 use Rsx\Models\Client_Model;
+use Rsx\Services\Mass_Edit_Service;
 
 /**
  * Datagrid mass actions - selection resolution.
@@ -19,7 +21,8 @@ use Rsx\Models\Client_Model;
  * The whole risk in a mass action is that the SET the server resolves is not the set the
  * user selected: the client sends a mode plus a short id list plus the filters that were
  * on screen, and the server rebuilds the query from those three things. These tests pin
- * all three shapes against the clients grid endpoints:
+ * all three shapes against the clients grid - bulk_delete's validation at the endpoint, and
+ * the deletion itself in the task it dispatches (Mass_Edit_Service::delete_clients):
  *
  *   additive    - exactly the named ids, nothing else
  *   subtractive - everything the filters matched EXCEPT the named ids
@@ -103,8 +106,25 @@ class Datagrid_Mass_Actions_Test extends Rsx_Test_Abstract
     }
 
     // =====================================================================
-    // bulk_delete
+    // bulk_delete - a mass edit: the endpoint validates and dispatches,
+    // Mass_Edit_Service::delete_clients resolves the selection and deletes
+    // one record per write section.
     // =====================================================================
+
+    /**
+     * Run the mass delete the endpoint dispatches, in this process, as user 1 (the task is
+     * #[Run_As_Dispatcher]; a dispatched run needs a browser sign-in a test does not have).
+     * Answers the run's state report: {selected, deleted, skipped, refused}.
+     *
+     * @param array $payload The selection payload: mode, ids, filter_params
+     * @return array
+     */
+    private static function __mass_delete(array $payload): array
+    {
+        static::__acting_as_user(1);
+
+        return static::__run_task_method(Mass_Edit_Service::class, 'delete_clients', $payload);
+    }
 
     public static function test_additive_deletes_exactly_the_named_ids()
     {
@@ -112,13 +132,14 @@ class Datagrid_Mass_Actions_Test extends Rsx_Test_Abstract
 
         $doomed = [(int) $clients[0]->id, (int) $clients[3]->id];
 
-        $result = Frontend_Clients_Controller::bulk_delete(request(), [
+        $state = static::__mass_delete([
             'mode' => 'additive',
             'ids' => $doomed,
             'filter_params' => static::__filter_params(),
         ]);
 
-        static::__assert_equals(2, $result['deleted'], 'additive deletes exactly the two named rows');
+        static::__assert_equals(2, $state['deleted'], 'additive deletes exactly the two named rows');
+        static::__assert_equals(0, $state['skipped'], 'nothing changed under the run, so nothing is skipped');
 
         $survivors = static::__surviving_ids();
 
@@ -133,13 +154,13 @@ class Datagrid_Mass_Actions_Test extends Rsx_Test_Abstract
     {
         static::__seed(3);
 
-        $result = Frontend_Clients_Controller::bulk_delete(request(), [
+        $state = static::__mass_delete([
             'mode' => 'additive',
             'ids' => [],
             'filter_params' => static::__filter_params(),
         ]);
 
-        static::__assert_equals(0, $result['deleted'], 'an empty additive selection selects NOTHING, not everything');
+        static::__assert_equals(0, $state['selected'], 'an empty additive selection selects NOTHING, not everything');
         static::__assert_count(3, static::__surviving_ids());
     }
 
@@ -149,13 +170,13 @@ class Datagrid_Mass_Actions_Test extends Rsx_Test_Abstract
 
         $spared = [(int) $clients[1]->id, (int) $clients[2]->id];
 
-        $result = Frontend_Clients_Controller::bulk_delete(request(), [
+        $state = static::__mass_delete([
             'mode' => 'subtractive',
             'ids' => $spared,
             'filter_params' => static::__filter_params(),
         ]);
 
-        static::__assert_equals(3, $result['deleted'], 'subtractive deletes the filtered set minus the exclusions');
+        static::__assert_equals(3, $state['deleted'], 'subtractive deletes the filtered set minus the exclusions');
 
         $survivors = static::__surviving_ids();
 
@@ -171,18 +192,36 @@ class Datagrid_Mass_Actions_Test extends Rsx_Test_Abstract
         $clients[0]->priority = Client_Model::PRIORITY_LOW;
         $clients[0]->save();
 
-        $result = Frontend_Clients_Controller::bulk_delete(request(), [
+        $state = static::__mass_delete([
             'mode' => 'all',
             'ids' => [],
             'filter_params' => static::__filter_params(['priority' => Client_Model::PRIORITY_URGENT]),
         ]);
 
-        static::__assert_equals(3, $result['deleted'], 'only the rows the quick filter matched are deleted');
+        static::__assert_equals(3, $state['deleted'], 'only the rows the quick filter matched are deleted');
 
         $survivors = static::__surviving_ids();
 
         static::__assert_count(1, $survivors);
         static::__assert_equals((int) $clients[0]->id, $survivors[0], 'the row outside the filter survives');
+    }
+
+    public static function test_each_deleted_record_is_logged_like_a_single_delete()
+    {
+        $clients = static::__seed(2);
+
+        static::__mass_delete([
+            'mode' => 'additive',
+            'ids' => [(int) $clients[0]->id, (int) $clients[1]->id],
+            'filter_params' => static::__filter_params(),
+        ]);
+
+        foreach ($clients as $client) {
+            $logged = Action_Log_Model::where('type_id', Action_Log_Model::TYPE_CLIENT_DELETED)
+                ->where('subject_id', $client->id)
+                ->exists();
+            static::__assert_true($logged, "client {$client->id} has its own deletion entry in the activity log");
+        }
     }
 
     public static function test_unknown_mode_is_rejected()
@@ -198,7 +237,7 @@ class Datagrid_Mass_Actions_Test extends Rsx_Test_Abstract
         static::__assert_instance_of(
             \App\RSpade\Core\Response\Error_Response::class,
             $result,
-            'an unrecognized mode is a validation error, never a delete'
+            'an unrecognized mode is a validation error, never a dispatch'
         );
 
         static::__assert_count(2, static::__surviving_ids(), 'nothing was deleted');
