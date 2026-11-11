@@ -296,6 +296,28 @@ Add a kind by adding a branch. The worked endpoint is
 `rsx/app/frontend/contacts/contacts_controller.php::save()`. Protocol and the recommended
 question shapes: `rsx:man form_conventions`, QUESTIONS.
 
+## Resubmission: the replay notice and the resubmit dialog
+
+Every `<Rsx_Form>` submission carries a request reference (framework; `rsx:man form_conventions`,
+RESUBMITTING), so a save whose answer was lost, or a create form submitted again after Back,
+is answered from the server's request history instead of writing twice. The form engine
+defines no wording; `Modal.on_app_modules_define()` registers this application's two pieces
+beside the question handler:
+
+- `Rsx_Form.set_replay_notice(Modal._on_form_replayed)` - the resubmission had already been
+  saved, so nothing was saved twice: the form has gone where the original answer said, and an
+  info flash says "This was already saved on <time>."
+- `Rsx_Form.set_resubmit_handler(Modal._on_form_resubmitted)` - the form already succeeded on
+  this page and the values changed (or it was too long ago to show again): an "Already
+  submitted" dialog, "You already submitted this form on <time>.", with **Cancel** (left,
+  link), **Submit again as new**, and **View it** (primary, the Enter button) when the earlier
+  answer carried a `redirect`. View it navigates there; Submit again as new answers
+  `Rsx_Form.RESUBMIT_AS_NEW`; Cancel, X, Escape and the backdrop answer `Rsx_Form.CANCELLED`.
+
+A form inside a dialog is bound to the dialog, not the page (`Rsx_Modal`'s `role="dialog"`):
+reopening a dialog is a new act, so a `Modal.form()` never meets the resubmit dialog after a
+close.
+
 ## The "you have been signed out" dialog
 
 The framework ends a sign-in at its session limits (`rsx.sessions.staff` / `.portal`) and

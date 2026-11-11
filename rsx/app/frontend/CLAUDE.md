@@ -16,7 +16,11 @@ bundle. Everything else is a feature directory.
   another user from the `/_sys` panel) and the two layout seams documented under
   HOW TO CUSTOMIZE. It streams breadcrumbs through `Rsx_Breadcrumb_Resolver` and hands
   the trail's meta to `Sidebar_Nav.follow_trail()`, so a page reached through a breadcrumb
-  origin lights the section its trail starts in (`rsx:man breadcrumb_origins`).
+  origin lights the section its trail starts in (`rsx:man breadcrumb_origins`). Crumbs link
+  to the chain item's `href`, so a crumb back to a list returns to it as the user left it
+  (sort, filters, page, scroll); the edit pages' Cancel links and the view pages' delete
+  exits use the same answer, `Spa.return_url(Rsx.Route('..._Index_Action'))`
+  (`rsx:man breadcrumb_origins`, RETURNING TO THE STATE YOU LEFT).
 - `frontend_bundle.php` — the module's one asset bundle.
 - `frontend_pagemodal_layout.blade.php` — the bare Blade shell used when a page is
   opened inside a modal frame.

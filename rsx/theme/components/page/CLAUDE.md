@@ -28,7 +28,12 @@ the scaffold owns them — see the layout-reconciliation notes in
 `rsx/resource/conventions/semantic_component_registry.md` (Layer 1).
 
 `Breadcrumb_Nav` is mounted from JS, not from a template:
-`rsx/app/frontend/Frontend_Spa_Layout.js` feeds it the resolved crumb chain.
+`rsx/app/frontend/Frontend_Spa_Layout.js` feeds it the resolved crumb chain. It links each crumb
+to the chain item's `href` - the page in the state the user left it in when they came through
+it (`Spa.return_url()`), else the bare route - never to its `url`, which is the page's identity.
+`Record_Page_Actions` passes its `$back_href` through `Spa.return_url()` the same way, so Back
+returns to a list with its sort, filters, page and scroll (`rsx:man breadcrumb_origins`,
+RETURNING TO THE STATE YOU LEFT).
 
 The `Page_*` header family predates the scaffold and survives only in
 `rsx/app/dev/` and `rsx/app/ssr_test/` (e.g. `rsx/app/ssr_test/components/SSR_Test_Page.jqhtml`).

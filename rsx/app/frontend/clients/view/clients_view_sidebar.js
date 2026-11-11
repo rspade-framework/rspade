@@ -34,7 +34,7 @@ class Clients_View_Sidebar extends Component {
             const confirmed = await Modal.confirm('Delete Client', 'Are you sure you want to delete this client?\n\nThis can be undone by restoring the client afterward.', 'Delete', 'Cancel');
             if (!confirmed) return;
             await this.alive(Frontend_Clients_Controller.delete({id: client_id}));
-            Rsx.navigate(Rsx.Route('Clients_Index_Action'));
+            Rsx.navigate(Spa.return_url(Rsx.Route('Clients_Index_Action')));
         });
 
         this.$sid('restore-client').off('click.cvs').on('click.cvs', async () => {

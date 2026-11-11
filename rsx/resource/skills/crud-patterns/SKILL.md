@@ -138,6 +138,15 @@ class Contacts_Index_Action extends Spa_Action {
 </Define:Contacts_Index_Action>
 ```
 
+**Returning to the list as it was left.** The grid keeps its sort, filters and page in the URL
+fragment under its component name (`Contacts_DataGrid_sort=...`; `$hash_ns` when one page holds
+two grids of the same class). Every link back to the list from a page the user reached through
+it returns there with that state and the scroll position: the breadcrumb (the layout renders the
+chain item's `href`), `Record_Page_Actions`' Back, an edit page's Cancel and a delete's exit -
+the last two written `Spa.return_url(Rsx.Route('Contacts_Index_Action'))`. Reached any other way
+(a dashboard, a new tab) they are the bare route (`rsx:man breadcrumb_origins`, RETURNING TO THE
+STATE YOU LEFT).
+
 ---
 
 ## DataGrid Backend
@@ -286,10 +295,24 @@ an edited form is left: the form's `'input'` calls `Rsx.set_navigation_guard()`,
             <button type="submit" class="btn btn-primary">
                 <%= this.data.is_edit ? 'Save Changes' : 'Create Contact' %>
             </button>
+            <%-- Back to the list as the user left it, when they came through it --%>
+            <a href="<%= Spa.return_url(Rsx.Route('Contacts_Index_Action')) %>" class="btn btn-secondary">Cancel</a>
         </Rsx_Form>
     <% } %>
 </Define:Contacts_Edit_Action>
 ```
+
+### What a user sees on a resubmit
+
+Nothing per form. Every submission carries a request reference bound to the page's history
+entry (`rsx:man form_conventions`, RESUBMITTING): a save whose answer was lost and is pressed
+again, or a create page reached by **Back** after it saved and submitted again with the same
+values, is answered from the server's history - no second record, the user lands on the record
+it made, and a flash says "This was already saved on <time>." Submitted again with CHANGED
+values, it asks first (app skill `modals`: Cancel / Submit again as new / View it). This needs
+two things from the feature, both already the convention here: the save endpoint is a
+`#[Writer]`, and a create answers `['redirect' => Rsx::Route('X_View_Action', $id)]` - that
+answer is what a replay follows and what View it opens.
 
 ---
 

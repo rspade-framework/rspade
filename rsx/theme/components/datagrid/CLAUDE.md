@@ -169,12 +169,23 @@ authoritative by the first `on_render()`. Never express a default as a `selected
 The free-text search is a `<Search_Input $sid="filter_input">` in the same slot; the abstract finds
 it by that `$sid` and debounces it at 200ms.
 
-**Hash persistence** - keys are `{cid}_page`, `_sort`, `_order`, `_filter` and `_f_{key}` per custom
+**Hash persistence** - keys are `{hash_ns}_page`, `_sort`, `_order`, `_filter` and `_f_{key}` per custom
 filter, and only values DIFFERING from the defaults are written. A filter carrying a
 `default_filters` value cannot say "cleared" by absence (absence means "reapply the default"), so a
 cleared defaulted filter persists as the sentinel **`~`**, which the `on_create()` restore reads as
 "delete this key". Comparison against defaults is deliberately loose (`==`): hash values come back
 as strings, defaults are often ints.
+
+**`hash_ns` is STABLE**: the component name (`Clients_DataGrid_page=3`), or the `$hash_ns` arg.
+Never a component id - that depends on mount order, so a URL holding the state (a bookmark, a
+reload, a breadcrumb returning to the list as it was left) would not be read back by the grid of
+the next visit. Two live grids on one page sharing a namespace throw at `on_create()`, naming the
+fix (`$hash_ns` on one of them); a detached grid (a preload) claims nothing.
+
+**The first load never moves the page.** `on_ready()` loads with `load_page(page, {scroll: false})`:
+the page sits where the SPA put it - the top, or a position being restored by Back or by a
+breadcrumb's `_scroll` key. Every later `load_page()` (a pager click, a sort) still brings the grid
+into view when its top is above the viewport.
 
 ## Selection and mass actions
 

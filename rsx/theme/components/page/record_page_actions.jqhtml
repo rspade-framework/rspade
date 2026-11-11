@@ -15,12 +15,14 @@ page_actions():
         };
     }
 
-$back_href  - where Back goes (required)
+$back_href  - where Back goes (required). The link returns there in the state the user left it
+              in when they came through it on this trail - a list's sort, filters, page and
+              scroll (Spa.return_url()) - else to $back_href as given.
 $back_label - the Back link's text (default "Back")
 $edit_href  - where Edit goes; no Edit link when absent
 --%>
 <Define:Record_Page_Actions class="d-flex gap-2" $back_label="Back">
-    <a href="<%= this.args.back_href %>" class="btn btn-secondary btn-sm">
+    <a href="<%= Spa.return_url(this.args.back_href) %>" class="btn btn-secondary btn-sm">
         <i class="bi bi-arrow-left"></i> <%= this.args.back_label %>
     </a>
     <% if (this.args.edit_href) { %>

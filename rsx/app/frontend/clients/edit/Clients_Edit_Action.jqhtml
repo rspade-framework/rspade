@@ -185,7 +185,7 @@
                     </Section>
 
                     <div class="d-flex justify-content-end gap-2">
-                        <a href="<%= Rsx.Route('Clients_Index_Action') %>" class="btn btn-secondary">
+                        <a href="<%= Spa.return_url(Rsx.Route('Clients_Index_Action')) %>" class="btn btn-secondary">
                             <i class="bi bi-x-circle"></i> Cancel
                         </a>
                         <button type="submit" class="btn btn-primary">

@@ -42,6 +42,8 @@
  * - `per_page` - Default rows per page (default: 15)
  * - `sort` - Default sort column (default: null)
  * - `order` - Default sort order (default: 'asc')
+ * - `hash_ns` - The URL-hash namespace of this grid's state (default: the component name).
+ *   Give each of two grids of the same class on one page its own.
  */
 class DataGrid_Abstract extends Component {
     /**
@@ -65,6 +67,12 @@ class DataGrid_Abstract extends Component {
      * @type {string}
      */
     static record_noun_plural = 'records';
+
+    /**
+     * The live grid holding each hash namespace (see _claim_hash_ns()).
+     * @type {Map<string, DataGrid_Abstract>}
+     */
+    static _hash_ns_holders = new Map();
 
     // Initialize state before first render
     on_create() {
@@ -112,28 +120,71 @@ class DataGrid_Abstract extends Component {
         // Snapshot the defaults - the URL hash only carries values that differ from these
         that.default_state = clone(that.state);
 
+        // The hash namespace: STABLE across visits, so a URL holding this grid's state - a
+        // bookmark, a reload, a breadcrumb returning to the list as it was left - is read back
+        // by the same grid. Never the component id, which depends on mount order.
+        that._claim_hash_ns();
+
         // Initialize state from URL hash if present (overrides defaults)
-        const hash_page = Rsx.url_hash_get(that._cid + '_page');
-        const hash_sort = Rsx.url_hash_get(that._cid + '_sort');
-        const hash_order = Rsx.url_hash_get(that._cid + '_order');
-        const hash_filter = Rsx.url_hash_get(that._cid + '_filter');
+        const hash_page = Rsx.url_hash_get(that.hash_ns + '_page');
+        const hash_sort = Rsx.url_hash_get(that.hash_ns + '_sort');
+        const hash_order = Rsx.url_hash_get(that.hash_ns + '_order');
+        const hash_filter = Rsx.url_hash_get(that.hash_ns + '_filter');
 
         if (hash_page) that.state.page = int(hash_page);
         if (hash_sort) that.state.sort = hash_sort;
         if (hash_order) that.state.order = hash_order;
         if (hash_filter) that.state.filter = hash_filter;
 
-        // Custom filters from the hash - whitelisted keys only, as {cid}_f_{key}.
+        // Custom filters from the hash - whitelisted keys only, as {hash_ns}_f_{key}.
         // The '~' sentinel means "explicitly cleared": a key with a default_filters value
         // has no way to say "no filter" by absence (absence means "use the default"), so
         // clearing one persists as '~' and restores by deleting the defaulted value.
         for (const key of that.constructor.allowed_filters) {
-            const hash_value = Rsx.url_hash_get(that._cid + '_f_' + key);
+            const hash_value = Rsx.url_hash_get(that.hash_ns + '_f_' + key);
             if (hash_value === '~') {
                 delete that.state.custom_filters[key];
             } else if (hash_value !== null && hash_value !== undefined) {
                 that.state.custom_filters[key] = hash_value;
             }
+        }
+    }
+
+    /**
+     * Take this grid's hash namespace ($hash_ns, else the component name). Two live grids on
+     * the page sharing one would read and overwrite each other's state, so the second throws,
+     * naming the fix. A grid not in the document (a detached preload) claims nothing.
+     */
+    _claim_hash_ns() {
+        let that = this;
+
+        that.hash_ns = str(that.args.hash_ns ?? that.component_name());
+
+        if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(that.hash_ns)) {
+            throw new Error(that.component_name() + ': $hash_ns must be an identifier ([A-Za-z][A-Za-z0-9_]*), got "' + that.hash_ns + '".');
+        }
+
+        if (!document.body.contains(that.$[0])) {
+            return;
+        }
+
+        const holder = DataGrid_Abstract._hash_ns_holders.get(that.hash_ns);
+        if (holder && holder !== that && !holder.is_stopped() && document.body.contains(holder.$[0])) {
+            throw new Error(
+                'Two grids on this page keep their state under the URL-hash namespace "' + that.hash_ns + '" '
+                + '(' + holder.component_name() + ' and ' + that.component_name() + '). '
+                + 'Give each its own: <' + that.component_name() + ' $hash_ns="..." />.'
+            );
+        }
+
+        DataGrid_Abstract._hash_ns_holders.set(that.hash_ns, that);
+    }
+
+    on_stop() {
+        let that = this;
+
+        if (that.hash_ns && DataGrid_Abstract._hash_ns_holders.get(that.hash_ns) === that) {
+            DataGrid_Abstract._hash_ns_holders.delete(that.hash_ns);
         }
     }
 
@@ -158,8 +209,10 @@ class DataGrid_Abstract extends Component {
         // Measure row height and set fixed tbody height (all in one frame)
         await that.alive(that.measure_and_set_fixed_height());
 
-        // Fetch the initial page (respects hash state)
-        that.load_page(that.state.page);
+        // Fetch the initial page (respects hash state). The page is where the SPA put it - the
+        // top, or a position being restored (Back, a breadcrumb returning to this list) - so
+        // this first load never moves it.
+        that.load_page(that.state.page, { scroll: false });
     }
 
     // === INTERACTIVE FUNCTIONS ===
@@ -369,8 +422,9 @@ class DataGrid_Abstract extends Component {
         }
     }
 
-    // Load data for specified page via child component
-    async load_page(page) {
+    // Load data for specified page via child component. options.scroll (default true): false
+    // leaves the page's scroll position alone once the rows are in.
+    async load_page(page, options = {}) {
         let that = this;
 
         // A selection is scoped to the filters it was made under - if those moved, it is stale
@@ -402,7 +456,9 @@ class DataGrid_Abstract extends Component {
         await that.alive(body_component.reload());
 
         // Scroll to top of datagrid if it's not currently visible
-        that.scroll_to_top_if_needed();
+        if (options.scroll !== false) {
+            that.scroll_to_top_if_needed();
+        }
     }
 
     // Register render callbacks for interactive elements
@@ -545,10 +601,10 @@ class DataGrid_Abstract extends Component {
         let that = this;
 
         const hash_state = {};
-        hash_state[that._cid + '_page'] = that.state.page !== that.default_state.page ? that.state.page : null;
-        hash_state[that._cid + '_sort'] = that.state.sort !== that.default_state.sort ? that.state.sort : null;
-        hash_state[that._cid + '_order'] = that.state.order !== that.default_state.order ? that.state.order : null;
-        hash_state[that._cid + '_filter'] = that.state.filter !== that.default_state.filter ? that.state.filter : null;
+        hash_state[that.hash_ns + '_page'] = that.state.page !== that.default_state.page ? that.state.page : null;
+        hash_state[that.hash_ns + '_sort'] = that.state.sort !== that.default_state.sort ? that.state.sort : null;
+        hash_state[that.hash_ns + '_order'] = that.state.order !== that.default_state.order ? that.state.order : null;
+        hash_state[that.hash_ns + '_filter'] = that.state.filter !== that.default_state.filter ? that.state.filter : null;
 
         const defaults = that.constructor.default_filters;
         for (const key of that.constructor.allowed_filters) {
@@ -557,11 +613,11 @@ class DataGrid_Abstract extends Component {
                 // Absent value: for a key with a default this is an EXPLICIT CLEAR (the
                 // default would otherwise reapply on reload) - persist the '~' sentinel.
                 // For a key with no default, absence IS the default - remove the hash key.
-                hash_state[that._cid + '_f_' + key] = (defaults[key] !== undefined) ? '~' : null;
+                hash_state[that.hash_ns + '_f_' + key] = (defaults[key] !== undefined) ? '~' : null;
             } else {
                 // Loose equality on purpose: hash-restored values are strings, defaults may
                 // be ints - "2" and 2 are the same filter value here.
-                hash_state[that._cid + '_f_' + key] = (value == defaults[key]) ? null : value;
+                hash_state[that.hash_ns + '_f_' + key] = (value == defaults[key]) ? null : value;
             }
         }
 

@@ -12,11 +12,16 @@ docs live in framework core (`App\RSpade\Core\Api`).
   (`Tasks_Api_Controller`). Create and update run the staff save's own rules and write -
   `Task_Model::value_errors()` and `Task_Model::save_edit()` inside `Form_Edit::run()` - and
   take the parent as the pair `taskable_type` + `taskable_id` (errors named `taskable`).
+- `v1/openapi_api_controller.php` - `GET /api/v1/openapi.json`, this API's own OpenAPI 3.1
+  description for a key holder (`Openapi_Api_Controller`, gated `is_logged_in` +
+  `can_use_api`): `Rsx_Api::document(Rsx_Api_Docs::openapi_document(null, 1))`, sent
+  exactly as built - no timing fields, which an OpenAPI root does not admit. A new version
+  adds its own copy naming its version.
 
 Each new API version gets its own `vN/` directory. Every endpoint pattern MUST start
 `/api/vN/` (N = one or more digits) - the manifest scan throws otherwise.
 
-**Gates.** Every controller is `#[Auth('is_logged_in', 'can_use_api', 'can_view_data')]` and
+**Gates.** Every data controller is `#[Auth('is_logged_in', 'can_use_api', 'can_view_data')]` and
 every write adds `#[Auth('can_edit_data')]` - the same data checks the staff screens apply,
 so a key can never do what its holder could not do in the browser. API use takes TWO
 switches: the framework's `users.is_api_access_enabled`, checked by the bearer layer, and this
@@ -144,6 +149,8 @@ else (null, a bare list, a scalar, a collection) as a 500 naming the endpoint. R
 - an `Rsx_Api` helper: `created($data)` 201 (an object too), `not_found()` 404,
   `unauthorized()`/`forbidden()`, `validation_error(array $fields, ?string $msg)` 422,
   `error($code, $msg, $status, $fields)`.
+- `Rsx_Api::document($array)` - ONLY for a standard-shaped document (the OpenAPI
+  description above): the object exactly as given, never stamped.
 
 Errors are `{"error":{"code","message","fields"?}}`. The dispatcher adds `_duration_ms` and
 `_completed_at` (and an echoed `_request_ref`) to the top level of every answer - never set

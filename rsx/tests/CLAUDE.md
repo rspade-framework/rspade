@@ -275,6 +275,13 @@ on failure, and prints `PASS:`/`FAIL:` lines.
   template ships no origin example) lights Clients, the section its trail starts in, and the
   same contact without the origin lights Contacts (`rsx:man breadcrumb_origins`, SIDEBAR).
 
+- `breadcrumb_return_state.js` — a crumb returns to the list as it was left: the clients
+  grid sorted, filtered, on page 2 and scrolled; a client, its Edit page, Save; the Clients
+  crumb, Back and Cancel all link to the list's fragment (`Clients_DataGrid_*`, the grid's
+  stable namespace) plus `_scroll`; following the crumb restores the grid's state and the
+  position with the key gone from the address; the same client in a fresh tab crumbs to the
+  bare `/clients`. The framework's own rows are `tests/spa/playwright/breadcrumb_return_state.js`.
+
 A browser test belongs here rather than in the framework suite whenever its subject is
 `rsx/` code — the framework suite is guarded against naming application classes and routes.
 

@@ -106,7 +106,7 @@ class Tasks_View_Action extends Spa_Action {
             );
             if (!confirmed) return;
             await this.alive(Frontend_Tasks_Controller.delete({ id: this.args.id }));
-            Rsx.navigate(Rsx.Route('Tasks_Index_Action'));
+            Rsx.navigate(Spa.return_url(Rsx.Route('Tasks_Index_Action')));
         });
     }
 

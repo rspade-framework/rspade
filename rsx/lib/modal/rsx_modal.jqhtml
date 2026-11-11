@@ -10,9 +10,13 @@ Args:
 - $max_width: Maximum width in pixels (default: 800)
 
 The modal body and footer are populated dynamically via the Modal.js API.
+
+role="dialog" is what marks the content as a dialog - to assistive technology, and to
+Rsx_Form, which binds a form inside a dialog to its instance rather than to the browser
+history entry (reopening a dialog is a new act; rsx:man form_conventions, RESUBMITTING).
 --%>
 <Define:Rsx_Modal>
-    <div class="modal fade rsx-modal" tabindex="-1" $sid="modal">
+    <div class="modal fade rsx-modal" tabindex="-1" role="dialog" aria-modal="true" $sid="modal">
         <div class="modal-dialog" $sid="dialog">
             <div class="modal-content">
                 <div class="modal-header" $sid="header">

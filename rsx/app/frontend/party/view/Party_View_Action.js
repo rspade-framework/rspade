@@ -89,7 +89,7 @@ class Party_View_Action extends Spa_Action {
             const confirmed = await Modal.confirm('Delete Party', 'Are you sure you want to delete this party?\n\nThis can be undone by restoring it afterward.', 'Delete', 'Cancel');
             if (!confirmed) return;
             await this.alive(Frontend_Party_Controller.delete({id: this.args.id}));
-            Rsx.navigate(Rsx.Route('Party_Index_Action'));
+            Rsx.navigate(Spa.return_url(Rsx.Route('Party_Index_Action')));
         });
     }
 

@@ -48,12 +48,80 @@ class Modal {
     static _QUESTION_NO = Object.freeze({ modal_question_no: true });
 
     /**
-     * Register this application's two framework handlers: the form question dialog and
-     * the "you have been signed out" dialog.
+     * Register this application's framework handlers: the form question dialog, the
+     * resubmission notice and dialog, and the "you have been signed out" dialog.
      */
     static on_app_modules_define() {
         Modal._register_question_handler();
+        Rsx_Form.set_replay_notice(Modal._on_form_replayed);
+        Rsx_Form.set_resubmit_handler(Modal._on_form_resubmitted);
         Rsx.set_session_expired_handler(Modal._on_session_expired);
+    }
+
+    /**
+     * A form submission was answered from the request history: what the user submitted had
+     * already been saved (its answer was lost on the way back, or they came Back to a form
+     * that had saved), so nothing was saved twice. The form has already gone where the
+     * original answer said; this only tells the user why. Not awaited by the form.
+     *
+     * See: php artisan rsx:man form_conventions (RESUBMITTING)
+     * @private
+     */
+    static _on_form_replayed(result, context) {
+        const when = context.completed_at ? ' on ' + Rsx_Time.format_timestamp(context.completed_at) : '';
+
+        Flash_Alert.info(`This was already saved${when}.`);
+    }
+
+    /**
+     * A form that already succeeded on this page is being submitted again with different
+     * values (or so long ago that the earlier answer is no longer kept). Ask what the user
+     * wants: go to what the earlier submission made, submit again as a new submission, or
+     * go back to the form.
+     *
+     * Button order: dismiss on the left, then the alternative, the primary on the right.
+     * "View it" is the primary when the earlier answer names somewhere to go - the safe
+     * default, since submitting again may create a second record.
+     *
+     * See: php artisan rsx:man form_conventions (RESUBMITTING)
+     * @private
+     */
+    static async _on_form_resubmitted(context) {
+        const when = context.completed_at ? ' on ' + Rsx_Time.format_timestamp(context.completed_at) : '';
+        const view_url = context.original && typeof context.original.redirect === 'string' ? context.original.redirect : null;
+
+        let body = `You already submitted this form${when}.`;
+        if (context.expired) {
+            body += '\n\nThat submission is too old to show again.';
+        }
+        body += '\n\nSubmitting again saves it as a new submission.';
+
+        const buttons = [{ label: 'Cancel', value: null, class: 'btn-link' }];
+        if (view_url) {
+            buttons.push(
+                { label: 'Submit again as new', value: 'new', class: 'btn-secondary' },
+                { label: 'View it', value: 'view', class: 'btn-primary', default: true }
+            );
+        } else {
+            buttons.push({ label: 'Submit again as new', value: 'new', class: 'btn-primary', default: true });
+        }
+
+        const answer = await Modal.show({
+            title: 'Already submitted',
+            body: body,
+            max_width: 560,
+            buttons: buttons,
+        });
+
+        if (answer === 'new') {
+            return Rsx_Form.RESUBMIT_AS_NEW;
+        }
+
+        if (answer === 'view') {
+            Rsx.navigate(view_url);
+        }
+
+        return Rsx_Form.CANCELLED;   // View it, Cancel, X, Escape, backdrop
     }
 
     /**
