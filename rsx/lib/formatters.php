@@ -336,7 +336,8 @@ class Formatters
         try {
             $datetime = new \DateTime($date);
             return $datetime->format($format);
-        } catch (\Exception $e) {
+        } catch (\DateMalformedStringException $e) {
+            // Expected for arbitrary display input that is not a date.
             return '';
         }
     }

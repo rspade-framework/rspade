@@ -194,7 +194,7 @@ class Portal_Request_Threads_Controller extends Rsx_Controller_Abstract
      * auto-transitions a non-closed thread to RESPONSE_SUBMITTED (model contract). Any
      * attached files become reviewable client submissions (Portal_Request_Document_Model
      * with requires_review=1, review_status PENDING). The body may be empty only when at
-     * least one file is attached. No notifications yet (Stage 4).
+     * least one file is attached. The thread's staff creator is emailed of the reply.
      */
     #[Writer]
     #[Ajax_Endpoint]
@@ -255,13 +255,10 @@ class Portal_Request_Threads_Controller extends Rsx_Controller_Abstract
         }
 
         // Email the staff thread creator that the client responded. No in-app staff
-        // notification system exists, so email is the channel. Best-effort, non-fatal:
-        // an email failure must never break the client's reply.
-        try {
-            static::_email_staff_of_reply($thread, $portal_user, $body);
-        } catch (\Throwable $e) {
-            // swallow - the reply itself succeeded
-        }
+        // notification system exists, so email is the channel. Queuing the email is part
+        // of the reply's write: a failure rolls the reply back and the client sees the
+        // error and sends again, rather than a reply the firm is never told about.
+        static::_email_staff_of_reply($thread, $portal_user, $body);
 
         return [
             'thread_id' => $thread->id,

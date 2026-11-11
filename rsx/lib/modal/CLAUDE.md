@@ -335,6 +335,17 @@ It cannot be dismissed on purpose - the page behind it is a signed-in page nobod
 to - but what is on screen stays readable behind it, so unsaved text can still be copied out.
 `rsx:man session`, HOW SESSIONS TIME OUT.
 
+## The uncaught Ajax error dialog
+
+`Modal.on_app_modules_define()` passes `Modal._on_ajax_error` to `Rsx.set_ajax_error_handler()`:
+an Ajax call that failed and that nothing caught - a bug, the lock daemon down, anything
+unexpected - is shown here, once per failure. `Modal.fatal_error()` (red, monospace, the PHP
+file and line) when the error is `Ajax.ERROR_PHP_EXCEPTION`, which the server sends only to a
+caller it admits as a developer; `Modal.error()` with the server's sentence and its error id for
+everybody else. So no code here or in a page catches an error only to show it: catch only one
+you have a purpose for. With this registration removed, the framework shows its own unthemed
+`Rsx_Error_Dialog` instead. `rsx:man ajax_error_handling`, Automatic Error Handling.
+
 ## Error Handling in Modals
 
 There is nothing to write. The form owns it:

@@ -1,6 +1,6 @@
 ---
 name: modals
-description: "Creating dialogs - positional basic dialogs (Modal.alert / confirm / prompt / select), Modal.form() as chrome around an <Rsx_Form>, Modal.show({buttons}) for a dialog with no endpoint, Modal_Abstract classes, the registered question handler and the 'Already submitted' resubmit dialog. Load before writing any dialog or modal body, choosing Modal.form vs Modal.show, or on 'found no <Rsx_Form> inside that component', a dialog that discards the user's input, or one that will not close."
+description: "Creating dialogs - positional basic dialogs (Modal.alert / confirm / prompt / select), Modal.form() as chrome around an <Rsx_Form>, Modal.show({buttons}) for a dialog with no endpoint, Modal_Abstract classes, the registered question handler, the 'Already submitted' resubmit dialog and the uncaught Ajax error dialog (Rsx.set_ajax_error_handler). Load before writing any dialog or modal body, choosing Modal.form vs Modal.show, or on 'found no <Rsx_Form> inside that component', a dialog that discards the user's input, or one that will not close."
 ---
 
 # Modal dialogs in this application
@@ -330,6 +330,17 @@ beside the question handler:
 A form inside a dialog is bound to the dialog, not the page (`Rsx_Modal`'s `role="dialog"`):
 reopening a dialog is a new act, so a `Modal.form()` never meets the resubmit dialog after a
 close.
+
+## The uncaught Ajax error dialog
+
+`Modal.on_app_modules_define()` passes `Modal._on_ajax_error` to `Rsx.set_ajax_error_handler()`:
+an Ajax call that failed and that nothing caught - a bug, the lock daemon down, anything
+unexpected - is shown here, once per failure. `Modal.fatal_error()` (red, monospace, the PHP
+file and line) when the error is `Ajax.ERROR_PHP_EXCEPTION`, which the server sends only to a
+caller it admits as a developer; `Modal.error()` with the server's sentence and its error id for
+everybody else. So no code here or in a page catches an error only to show it: catch only one
+you have a purpose for. With this registration removed, the framework shows its own unthemed
+`Rsx_Error_Dialog` instead. `rsx:man ajax_error_handling`, Automatic Error Handling.
 
 ## Modal Classes (Reusable Modals)
 

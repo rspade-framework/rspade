@@ -245,8 +245,12 @@ class Api_Key_Scope_Ui_Test extends Rsx_Test_Abstract
         static::__assert_false($result['unrestricted'], 'A scope set is not unrestricted');
         static::__assert_not_empty($result['groups'], 'The contacts endpoints are reachable');
 
+        // Beside the named subtree, every key reaches the framework's OpenAPI document.
         foreach ($result['groups'] as $group) {
             foreach ($group['endpoints'] as $endpoint) {
+                if ($endpoint['pattern'] === '/api/v1/openapi.json') {
+                    continue;
+                }
                 static::__assert_contains('/api/v1/contacts', $endpoint['pattern'], 'Only the named subtree survives');
             }
         }
@@ -265,7 +269,17 @@ class Api_Key_Scope_Ui_Test extends Rsx_Test_Abstract
 
         static::__assert_not_null($result['error'], 'The validator message is returned');
         static::__assert_contains('/api/<version>/', $result['error'], 'And it says what is wrong with the scope');
-        static::__assert_empty($result['groups'], 'Nothing is claimed reachable while the scope is unreadable');
+        $patterns = [];
+        foreach ($result['groups'] as $group) {
+            foreach ($group['endpoints'] as $endpoint) {
+                $patterns[] = $endpoint['pattern'];
+            }
+        }
+        static::__assert_equals(
+            ['/api/v1/openapi.json'],
+            $patterns,
+            'Nothing the scope would grant is claimed reachable while it is unreadable - only the document every key reaches'
+        );
     }
 
     public static function test_blank_scopes_preview_as_unrestricted()

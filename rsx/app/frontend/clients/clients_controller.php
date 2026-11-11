@@ -2305,14 +2305,12 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             $thread->set_status($status_change, $staff);
         }
 
-        // Notify the client's portal members of the staff reply (best-effort, non-fatal:
-        // a notification failure must never break the reply). A REPLY notification always
-        // goes out; a status change additionally emits a STATUS notification.
-        try {
-            static::_notify_thread_reply($thread, $body, $status_change !== null);
-        } catch (\Throwable $e) {
-            // swallow - the reply itself succeeded
-        }
+        // Notify the client's portal members of the staff reply. The notification rows are
+        // part of the reply's write: a reply the client is never told about is a failed
+        // reply, so a failure here rolls the whole reply back and the staff member sees the
+        // error and sends again. A REPLY notification always goes out; a status change
+        // additionally emits a STATUS notification.
+        static::_notify_thread_reply($thread, $body, $status_change !== null);
 
         return [
             'thread_id' => $thread->id,
@@ -2362,15 +2360,11 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             $document->reject($staff, $reason !== '' ? $reason : null);
         }
 
-        // Notify the client's portal members that their document was reviewed
-        // (best-effort, non-fatal).
-        try {
-            $thread = Portal_Request_Thread_Model::find($document->thread_id);
-            if ($thread) {
-                static::_notify_document_decision($thread, $document);
-            }
-        } catch (\Throwable $e) {
-            // swallow - the review itself succeeded
+        // Notify the client's portal members that their document was reviewed, as part of
+        // the review's write (a failure rolls the decision back and is shown to the reviewer).
+        $thread = Portal_Request_Thread_Model::find($document->thread_id);
+        if ($thread) {
+            static::_notify_document_decision($thread, $document);
         }
 
         return [
@@ -2444,7 +2438,7 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
 
     /**
      * Emit a firm -> client portal notification that a thread document was accepted or
-     * rejected. Recipients are the thread's client members. Best-effort caller wraps this.
+     * rejected. Recipients are the thread's client members.
      *
      * @param Portal_Request_Thread_Model $thread
      * @param Portal_Request_Document_Model $document

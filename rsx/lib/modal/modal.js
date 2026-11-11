@@ -49,13 +49,31 @@ class Modal {
 
     /**
      * Register this application's framework handlers: the form question dialog, the
-     * resubmission notice and dialog, and the "you have been signed out" dialog.
+     * resubmission notice and dialog, the "you have been signed out" dialog, and the
+     * dialog for an Ajax failure nobody caught.
      */
     static on_app_modules_define() {
         Modal._register_question_handler();
         Rsx_Form.set_replay_notice(Modal._on_form_replayed);
         Rsx_Form.set_resubmit_handler(Modal._on_form_resubmitted);
         Rsx.set_session_expired_handler(Modal._on_session_expired);
+        Rsx.set_ajax_error_handler(Modal._on_ajax_error);
+    }
+
+    /**
+     * An Ajax call failed and nothing caught it - the lock daemon down, a bug, anything
+     * unexpected. The framework calls this once per failure (Rsx.set_ajax_error_handler()),
+     * so no code anywhere catches an error only to show it. The PHP origin (file, line) is
+     * on the error only for a caller the server admits as a developer; everybody else sees
+     * the server's sentence and its error id.
+     * @private
+     */
+    static async _on_ajax_error(error) {
+        if (error.code === Ajax.ERROR_PHP_EXCEPTION) {
+            await Modal.fatal_error(error, 'Uncaught Ajax Error');
+        } else {
+            await Modal.error(error, 'Error');
+        }
     }
 
     /**

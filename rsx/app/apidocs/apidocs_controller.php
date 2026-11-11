@@ -39,9 +39,9 @@ use Rsx\Permission;
  * is the framework's own full-page denial renderer, which is what a #[Route] needs - an
  * Ajax envelope like response_unauthorized() would reach a browser as JSON.
  *
- * The page and the document are separate methods so they CAN be gated differently - a public
- * openapi.json beside a staff-only console is a normal arrangement. Here they share the one
- * gate, because a document describing an API you may not call is not useful to you.
+ * The console links to <mount>/openapi.json, so openapi() below serves the same document to
+ * a person signed in to this browser, under the console's gate. A program never uses it: it
+ * reads the framework's GET /api/vN/openapi.json with its API key.
  */
 #[Auth('public')]
 class Apidocs_Controller extends Rsx_Controller_Abstract
@@ -128,7 +128,9 @@ class Apidocs_Controller extends Rsx_Controller_Abstract
     }
 
     /**
-     * The OpenAPI 3.1 description, for client generators, Postman and agent toolchains.
+     * The OpenAPI 3.1 description (every version), downloaded from the console's
+     * openapi.json link by a person with API access. A program reads the framework's
+     * GET /api/vN/openapi.json with its key instead.
      *
      * The framework hands back the document as an array and this route builds the response,
      * because headers are the controller's business. Content-Disposition: attachment because
