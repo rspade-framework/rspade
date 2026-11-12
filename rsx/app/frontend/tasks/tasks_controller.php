@@ -245,7 +245,9 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
      *
      * The parent arrives as ONE field, `taskable` = {type, id} (type null = no parent) - the
      * value of the form's Parent_Selector_Input - and is written to the taskable_type /
-     * taskable_id pair only when the submission changed it.
+     * taskable_id pair only when the submission changed it. Task_Model::EDIT_FIELDS tells
+     * Form_Edit the pair is that field, and Task_Model declares the pair a fact group, so a
+     * re-parent saved while this form was open is asked about rather than overwritten.
      *
      * project_id is DERIVED: after the parent is set, the taskable chain is resolved; if it
      * reaches a project, project_id is that project (any user-supplied value ignored). If it
@@ -294,7 +296,7 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
                 'message' => $task_id ? 'Task updated successfully' : 'Task created successfully',
                 'redirect' => Rsx::Route('Tasks_View_Action', $task->id),
             ];
-        }, $task->exists ? Rsx::Route('Tasks_View_Action', $task->id) : null);
+        }, $task->exists ? Rsx::Route('Tasks_View_Action', $task->id) : null, fields: Task_Model::EDIT_FIELDS);
     }
 
     /**

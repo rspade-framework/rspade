@@ -114,7 +114,12 @@ the grouping is for readers only):
   its site-scoped references and parent cycle; built on `rsx/lib/field_checks/`), and both the
   staff save and the external API run them, so the two can never disagree. A task's write is
   shared too: `Task_Model::save_edit()` (fields, parent pair, derived `project_id` and its
-  cascade), called inside `Form_Edit::run()` by both.
+  cascade), called inside `Form_Edit::run()` by both, each passing `fields: Task_Model::EDIT_FIELDS`.
+- **Fact groups**: columns that hold ONE edited fact are declared in `$fact_groups`, so a
+  save of any of them is a conflict for a stale edit of any field stored in them
+  (`rsx:man model`, FACT GROUPS). `Task_Model`'s `parent` group (`taskable_type` +
+  `taskable_id`) is the one here; no other template model stores one fact in several
+  columns.
 - **Mark growth**: `public static $unbounded = true;` on any model whose row count
   grows with customer activity. `DB-UNBOUNDED-01` lints against it.
 - **Enums** are integer columns with a `$enums` map on the model. Run

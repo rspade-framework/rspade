@@ -281,7 +281,7 @@ class Modal {
         for (const row of question.fields) {
             const $row = $('<tr>').append(
                 $('<th>').text(form ? form.label_for(row.field) : row.field),
-                $('<td>').text(Modal._field_value(row, row.current)),
+                $('<td>').text(Modal._overwritten_value(row)),
                 $('<td>').text(Modal._field_value(row, row.yours))
             );
 
@@ -300,6 +300,18 @@ class Modal {
         }
 
         return $body;
+    }
+
+    /**
+     * What saving overwrites, for a row. A field changed through a fact group (rsx:man model,
+     * FACT GROUPS) has no one value; the row names the group by its label.
+     */
+    static _overwritten_value(row) {
+        if (row.kind === 'structured' && row.groups.length > 0) {
+            return `(${row.groups.join(', ')} changed)`;
+        }
+
+        return Modal._field_value(row, row.current);
     }
 
     /** A value as a row shows it, by the field's kind. */

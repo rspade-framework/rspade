@@ -11,7 +11,8 @@ docs live in framework core (`App\RSpade\Core\Api`).
 - `v1/tasks_api_controller.php` - task list/get/create/update (no delete) + attachments
   (`Tasks_Api_Controller`). Create and update run the staff save's own rules and write -
   `Task_Model::value_errors()` and `Task_Model::save_edit()` inside `Form_Edit::run()` - and
-  take the parent as the pair `taskable_type` + `taskable_id` (errors named `taskable`).
+  take the parent as the pair `taskable_type` + `taskable_id` (errors named `taskable`), passing
+  `fields: Task_Model::EDIT_FIELDS` so a re-parent saved meanwhile is a 409, not overwritten.
 
 The framework serves `GET /api/vN/me`, the file endpoints and `GET /api/vN/openapi.json`
 (this API's OpenAPI 3.1 description, readable by any key with API access) at every version

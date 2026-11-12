@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Seventy-one test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Seventy-two test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -28,7 +28,10 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   block the save, and is offered marked `(deleted)`), while a new reference to a deleted row is
   refused; a new project is Active and its status and priority are written; a new contact is
   active and `is_active` is written as sent; a project's portal visibility is SET, only for
-  that client's project. `Settings_Saves_Test` — adding a user sends one invitation whose
+  that client's project. `Task_Parent_Conflict_Test` — the task's parent pair is one fact
+  (`Task_Model`'s `parent` fact group, `Task_Model::EDIT_FIELDS` on the save): another editor's
+  re-parent, in either column, is a `field_conflict` naming "Parent" for a stale submission of
+  `taskable`, and a stale save of another field keeps their parent. `Settings_Saves_Test` — adding a user sends one invitation whose
   returned link is the live one; `save_profile` leaves absent fields as stored, refuses a
   blank name and reports a photo it cannot attach as a field error; an over-long profile or
   user value (the bio against `BIO_MAX_LENGTH`) is a field error.

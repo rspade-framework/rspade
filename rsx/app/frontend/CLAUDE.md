@@ -68,7 +68,10 @@ new feature, and copy its structure rather than inventing one.
 - **Every edit endpoint saves through `Form_Edit::run($record, $params, fn (Form_Edit $edit) => ...)`**
   - only the changed fields are written, under a row lock, and a save that overlaps another
   editor's change asks first (`rsx:man form_conventions`, EDITING A RECORD). The model
-  declares `$revisions = true` and the edit form's `$data` carries `updated_at`.
+  declares `$revisions = true` and the edit form's `$data` carries `updated_at`. A form field
+  stored under another column name, or across several columns, is mapped with `fields:`, and a
+  model's columns that hold one fact are a `$fact_groups` declaration - the task save
+  (`Task_Model::EDIT_FIELDS`, the `parent` group) is the worked example.
 - **Every id a save stores is looked up through its site-scoped model first** (another
   tenant's id is then a field error), and a list grid joins related tables on the base
   row's own `site_id`.

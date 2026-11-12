@@ -209,7 +209,7 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
         Form_Edit::run($task, $values, function (Form_Edit $edit) use ($task, $values) {
             $task->save_edit($edit, $values);
             Action_Log::record(Action_Log_Model::TYPE_TASK_CREATED, $task);
-        });
+        }, fields: Task_Model::EDIT_FIELDS);
 
         return Rsx_Api::created($task->refresh());
     }
@@ -283,7 +283,7 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
             Action_Log::record(Action_Log_Model::TYPE_TASK_UPDATED, $task);
 
             return [];
-        });
+        }, fields: Task_Model::EDIT_FIELDS);
 
         // A save that landed between the read above and the lock, on a field this request
         // also sent, is answered as a conflict rather than overwritten.

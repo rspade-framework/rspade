@@ -280,7 +280,7 @@ handler switches on `question.kind`.
 | kind | Presented as | Answer |
 |---|---|---|
 | `confirm` | `Modal.show()` with THREE buttons: `back_label` (default "Back"), `cancel_label` (default "No"), `confirm_label` (default "Yes", the Enter button). The duplicate-upload question (`Rsx_Duplicate_Upload`) is one: Cancel Upload / Skip This File / Upload Again | `true` / `false` (Back -> `Rsx_Form.CANCELLED`) |
-| `field_conflict` | `Modal.show()`: a notice naming the one editor (or counting several, who are then named per row), a table of each value saving overwrites beside yours, a "View current" link to `view_url` in a new window; Back and Overwrite. Editors are `{type, id}` references, resolved through the model's own `fetch_or_null()` and printed by name (`_editor_name()`); each row's `kind` decides how a value shows (`_field_value()`). Replace any of it | `true` / `Rsx_Form.CANCELLED` |
+| `field_conflict` | `Modal.show()`: a notice naming the one editor (or counting several, who are then named per row), a table of each value saving overwrites beside yours, a "View current" link to `view_url` in a new window; Back and Overwrite. Editors are `{type, id}` references, resolved through the model's own `fetch_or_null()` and printed by name (`_editor_name()`); each row's `kind` decides how a value shows (`_field_value()`), and a structured row changed through a fact group names the group by label in the overwritten cell (`_overwritten_value()`). Replace any of it | `true` / `Rsx_Form.CANCELLED` |
 | `select` | `Modal.select(title, body, options, default)` | the chosen value |
 | `prompt` | `Modal.prompt(title, body, default, multiline)` | the string |
 | anything else | throws, naming the kind | - |

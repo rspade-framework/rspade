@@ -146,6 +146,22 @@ class Task_Model extends Rsx_Site_Model_Abstract
         'description' => Rich_Text::class,
     ];
 
+    /**
+     * FACT GROUPS - the parent is one fact stored in two columns: a change saved to either
+     * is a change to the parent, so Form_Edit asks before a stale save puts an old parent
+     * back (rsx:man model, FACT GROUPS).
+     */
+    public static $fact_groups = [
+        'parent' => ['label' => 'Parent', 'columns' => ['taskable_type', 'taskable_id']],
+    ];
+
+    /**
+     * The columns a task edit names differently: both halves of the parent pair are the one
+     * field `taskable` = {type, id}. Passed to Form_Edit::run() as fields: by every endpoint
+     * that edits a task, so another editor's re-parent is matched to the submitted field.
+     */
+    public const EDIT_FIELDS = ['taskable_type' => 'taskable', 'taskable_id' => 'taskable'];
+
     public static $enums = [
         'status' => [
             1 => ['constant' => 'STATUS_PENDING', 'label' => 'Pending', 'badge' => 'bg-secondary'],
