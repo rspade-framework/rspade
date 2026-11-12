@@ -110,6 +110,8 @@ ACTION TYPES
         TYPE_PARTY_DELETED      42
         TYPE_PASSWORD_CHANGED           50   metadata.cause
         TYPE_PASSWORD_RESET_REQUESTED   51
+        TYPE_API_KEY_CREATED            52   metadata: the key's facts
+        TYPE_API_KEY_REVOKED            53   metadata: the key's facts + how
 
     Account Security Types
         Written by ONE place, Password_Audit_Service::record_password_event,
@@ -133,6 +135,23 @@ ACTION TYPES
           vocabulary, phrased by the renderer.
         - The renderer prints the address: "Ada Lovelace reset their password
           from an emailed link from 203.0.113.7".
+
+        The API key types are written by ONE place too,
+        Api_Key_Audit_Service::record_api_key_event, dispatched by
+        rsx/handlers/Api_Key_Event_Handlers from the framework's
+        api_key.created / api_key.revoked (rsx:man external_api, KEY
+        EVENTS) for every key that is not temporary:
+
+        - One row on the holder's site (a key belongs to one membership).
+        - Subject: the holder's membership (User_Model). Actor: whoever
+          minted or ended the key - the holder, an administrator - or null
+          from the command line.
+        - metadata: api_key_id, name, key_prefix, read_only, scopes,
+          expires_at - the key as it was, since its row may be deleted - and
+          on TYPE_API_KEY_REVOKED how: revoked | deleted.
+        - The renderer names the key and prints the address: "admin@example.com
+          revoked API key "Nightly export" (rsx_live_AbCd...) of Ada Lovelace
+          from 203.0.113.7".
 
     Adding Custom Types
         In your model extension, add to the $enums array:

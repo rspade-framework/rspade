@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Eight classes, each a plain `public static` class in `Rsx\Handlers` discovered by the
+Nine classes, each a plain `public static` class in `Rsx\Handlers` discovered by the
 manifest from its `#[OnEvent]` attributes. There is no registration step.
 
 - **`File_Upload_Handlers`** — `#[OnEvent('file.upload.authorize', priority: 10)]`. Returns
@@ -41,6 +41,15 @@ manifest from its `#[OnEvent]` attributes. There is no registration step.
   the action-log rows land on EVERY site of the identity and the handler may run under one
   site's lock or none, and a process holds one site's lock at a time - so the writes are a
   task's, not the handler's.
+- **`Api_Key_Event_Handlers`** — THE ONE PLACE this application reacts to an API key's life.
+  `#[OnEvent('api_key.created')]` / `('api_key.revoked')` - the framework's, fired after a key
+  is minted or a LIVE key is revoked or deleted, whatever wrote it (Settings > API Keys, User
+  Management, the `/apidocs` tester, the commands), with `{api_key, user, actor,
+  audit_session_id, ip_address}` (+ `how`). A key with `is_temporary` (minted by
+  `rsx:api:key:temp` for a script run) is skipped. Every other event dispatches one
+  `Api_Key_Audit_Service::record_api_key_event` run carrying the key's facts (a deleted key's
+  row is gone by then): the handler may run under another site's lock or none, so the write
+  is a task's.
 - **`Sso_Handlers`** — the federated-sign-in hooks. `sso.identity.unlinked`
   (`match_verified_email_of_existing_account()`) is the policy decision, and the policy is
   that SSO signs in an account that ALREADY EXISTS and does nothing else: a **verified**

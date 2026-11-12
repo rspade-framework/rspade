@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Seventy-two test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Seventy-three test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -151,7 +151,16 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   and the administrator's and the command line's do not; a source scan pins that every
   change path states a cause; the notice carries "If this wasn't you, contact an
   administrator." and no unsubscribe or notification wording. It COMMITS - the event fires
-  after a commit - so it opts out of the per-test transaction), `Portal_Change_Password_Test` (portal Change Password: every field rule answered at once, a
+  after a commit - so it opts out of the per-test transaction), `Api_Key_Audit_Test` (every
+  path that mints or ends an API key - Settings create and revoke, an administrator's revoke in
+  User Management, `rsx:api:key:create` / `:delete` / `--purge` - is one action-log row naming
+  who did it, with the address, and one `Api_Key_Notice_Email` to the holder, followed through
+  the framework event, `Api_Key_Event_Handlers` and the queued `Api_Key_Audit_Service` run; an
+  administrator's revoke is on both histories; purging an already revoked key records nothing;
+  `rsx:api:key:temp` records and mails nothing; a rolled-back mint queues nothing; the notice
+  reaches an address that opted out and one on the site block list (SECURITY), and carries
+  "If this wasn't you, contact an administrator." with no unsubscribe or notification
+  wording. It COMMITS, like `Password_Audit_Test`), `Portal_Change_Password_Test` (portal Change Password: every field rule answered at once, a
   wrong current password counted as a failed attempt and changing nothing, a correct change
   saved; the throttle refusal is verified over HTTP, since a CLI test has no client address),
   `Api_Access_Permission_Test` (the API and

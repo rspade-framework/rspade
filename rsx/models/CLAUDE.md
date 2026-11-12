@@ -32,8 +32,9 @@ the grouping is for readers only):
   for every password change by `rsx/handlers/Password_Event_Handlers`, never by a controller),
   and `query_spent()` - the used-or-expired rule `Password_Reset_Link_Service::sweep` deletes
   by, nightly (`rsx/services/CLAUDE.md`).
-- **Activity** rows for account security (`Action_Log_Model::TYPE_PASSWORD_*`, 50-59) are
-  written only by `Password_Audit_Service`; every row carries `audit_session_id`.
+- **Activity** rows for account security (50-59) are written only by tasks:
+  `Action_Log_Model::TYPE_PASSWORD_*` by `Password_Audit_Service`, `TYPE_API_KEY_*` by
+  `Api_Key_Audit_Service`; every row carries `audit_session_id`.
 - **Activity** — `Action_Log_Model`, `Action_Log_Related_Model`, `Notification_Model`,
   `Announcement_Model`.
 - **Misc** — `Demo_Product_Model` (a fixture; delete it with the demo data).

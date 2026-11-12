@@ -2,15 +2,16 @@
 
 ## WHAT IS HERE
 
-Ten `X_Email extends Rsx_Email_Abstract` classes, each beside its own blade, plus one
+Eleven `X_Email extends Rsx_Email_Abstract` classes, each beside its own blade, plus one
 stylesheet. Six are `const CATEGORY = self::TRANSACTIONAL`; `Password_Reset_Email`,
-`Password_Changed_Email`, `Portal_Sign_In_Code_Email` and `Two_Factor_Challenge_Spent_Email`
-are `SECURITY`.
+`Password_Changed_Email`, `Api_Key_Notice_Email`, `Portal_Sign_In_Code_Email` and
+`Two_Factor_Challenge_Spent_Email` are `SECURITY`.
 
 | Class | Sent from |
 |---|---|
 | `Portal_Invitation_Email` | `Frontend_Clients_Controller` (new-account and existing-account invites, and staff's resend). Its subject branches on whether the recipient already has an account, and its `tag()` (`new_account` / `existing_account`) records which on the queue row. |
 | `Password_Changed_Email` | `Password_Audit_Service::record_password_event` (dispatched by `rsx/handlers/Password_Event_Handlers` from the framework's `login_user.password.changed` / `portal_user.password.changed`) — "your password was changed", to the identity's own address, staff or portal: what happened (by the change's cause), when (formatted in `data()`, in the account's own zone when it chose one), from which address (read from the event's audit session), and **"If this wasn't you, contact an administrator."** Sent when the OWNER chose the password (`self`, `reset_link`, `forced_change`) or the cause is `unknown`; never for `admin` or `cli` - that person hands the password over, and the owner's forced replacement of it at sign-in sends the notice. `SECURITY`: a required notice about the recipient's own account. |
+| `Api_Key_Notice_Email` | `Api_Key_Audit_Service::record_api_key_event` (dispatched by `rsx/handlers/Api_Key_Event_Handlers` from the framework's `api_key.created` / `api_key.revoked`) — "an API key was created on your account" / "...was revoked", to the holder's sign-in address, for every key that is not temporary, whoever acted: the key (name and prefix, never the key), when, by whom (you / an administrator, named / an operator from the command line), from which address with its location resolved as the message is composed (and the DB-IP credit at the foot when one is printed, `rsx:man geo_ip`), for a creation its access, scopes and expiry, and **"If this wasn't you, contact an administrator."** `tag()` is `created`, `revoked` or `deleted`. `SECURITY`: a warning about the recipient's own account, so it also reaches an address on the site block list. |
 | `Password_Reset_Email` | `Password_Reset_Controller::request()` (`rsx/app/login/password_reset/`) — a staff identity's single-use "choose a new password" link, sent only for a live identity that may sign in while the page answers the same for every address. `SECURITY`: the recipient's own address asked for it and a locked-out owner must receive it whatever the opt-outs or the site block list say. |
 | `Portal_Password_Reset_Email` | `Portal_Password_Reset_Controller` — only when the user can log in, while the page reports success either way (no enumeration). |
 | `Portal_Request_Reply_Email` | `Portal_Request_Threads_Controller` — tells the staff owner a client replied; the body is a truncated snippet, never the whole message. |
@@ -70,7 +71,7 @@ silently in somebody else's inbox with the queue row still saying SENT).
   want to stop is `NOTIFICATION`; `SECURITY` is only for a notice about the recipient's own
   account that must reach them whatever they opted out of - something they set in motion and
   cannot get in without (a sign-in code), or a warning that somebody acted on the account (a
-  changed password, a spent second-factor challenge).
+  changed password, an API key created or revoked, a spent second-factor challenge).
 - **One class, several kinds of message** (the invitation's two shapes): override `tag()` to
   return the kind - a short string, at most 64 characters - so `rsx:mail:queue --tag=` and an
   email-history screen can tell the kinds apart. An email that is one kind of message

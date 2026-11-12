@@ -11,7 +11,7 @@
  * identically (cross-page consistency is the acceptance test).
  *
  * Type ranges: client 1-9, contact 10-19, project 20-29, task 30-39, party 40-49,
- * account security (passwords) 50-59.
+ * account security (passwords, API keys) 50-59.
  *
  * Usage (in on_load, after fetching the activity array):
  *   this.data.activity = result.activity.map(a => ({ ...a, ...Activity_Feed.decorate(a.type_id) }));

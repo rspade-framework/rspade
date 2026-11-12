@@ -3,6 +3,7 @@
 
 namespace Rsx\Lib\ActionLog;
 
+use App\RSpade\Core\Api\Api_Key_Event;
 use App\RSpade\Core\Auth\Password_Change;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Rsx;
@@ -305,6 +306,57 @@ class Action_Log_Renderer
     public static function password_reset_requested(Action_Log_Model $log): string
     {
         return static::account_name($log) . ' requested a password reset link' . static::from_address($log);
+    }
+
+    /**
+     * An API key minted on a user's account (written by Api_Key_Event_Handlers). The subject is
+     * the holder's membership; metadata names the key, since the key may be deleted later. A
+     * null actor is the command line.
+     */
+    public static function api_key_created(Action_Log_Model $log): string
+    {
+        $subject = static::account_name($log);
+        $key = static::api_key_name($log);
+        $actor = $log->actor;
+
+        $line = match (true) {
+            $actor === null => "API key {$key} was created for {$subject} from the command line",
+            static::is_subject_identity($log, $actor) => "{$subject} created API key {$key}",
+            default => static::actor_name($log) . " created API key {$key} for {$subject}",
+        };
+
+        return $line . static::from_address($log);
+    }
+
+    /**
+     * A live API key ended (written by Api_Key_Event_Handlers): metadata.how is revoked, or
+     * deleted for a key whose row was removed.
+     */
+    public static function api_key_revoked(Action_Log_Model $log): string
+    {
+        $subject = static::account_name($log);
+        $key = static::api_key_name($log);
+        $actor = $log->actor;
+        $verb = ($log->get_metadata()['how'] ?? null) === Api_Key_Event::HOW_DELETED ? 'deleted' : 'revoked';
+
+        $line = match (true) {
+            $actor === null => "API key {$key} of {$subject} was {$verb} from the command line",
+            static::is_subject_identity($log, $actor) => "{$subject} {$verb} their API key {$key}",
+            default => static::actor_name($log) . " {$verb} API key {$key} of {$subject}",
+        };
+
+        return $line . static::from_address($log);
+    }
+
+    /**
+     * "Nightly export" (rsx_live_AbCd...) from an API key row's metadata.
+     */
+    protected static function api_key_name(Action_Log_Model $log): string
+    {
+        $metadata = $log->get_metadata();
+
+        return '"' . htmlspecialchars((string) ($metadata['name'] ?? '')) . '" ('
+            . htmlspecialchars((string) ($metadata['key_prefix'] ?? '')) . ')';
     }
 
     /**

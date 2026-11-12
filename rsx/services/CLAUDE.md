@@ -52,6 +52,15 @@ return value is the run's return code, never data.
   change the owner made (`NOTIFIED_CAUSES`: self, reset_link, forced_change, unknown), queues
   `Password_Changed_Email` on site 0 (staff) or the portal's site. Reports `{recorded,
   notified}` and a summary.
+- **`Api_Key_Audit_Service::record_api_key_event`** — `#[Task]`, dispatched ONLY by
+  `rsx/handlers/Api_Key_Event_Handlers` (a key minted, or a live key revoked or deleted; never
+  a temporary key). Runs as nobody: the actor, the audit session and the key's facts (`name`,
+  `key_prefix`, `read_only`, `scopes`, `expires_at`, `how`) travel in its params. In ONE
+  `Site_Lock::write()` section on the holder's site it writes the action-log row
+  (`TYPE_API_KEY_CREATED` / `TYPE_API_KEY_REVOKED`, subject the holder's membership, the key's
+  facts as metadata) and queues `Api_Key_Notice_Email` to the holder's sign-in address -
+  for every event, whoever acted (the holder, an administrator, the command line). Reports
+  `{site_id, notified}` and a summary.
 - **`Mass_Edit_Service`** — `delete_clients`, `delete_contacts`, `delete_projects`: the
   datagrid footer "Delete" mass actions, each `#[Task]` + `#[Run_As_Dispatcher]` (it acts as
   the person who clicked, so the action log, revisions and authorship name them) +

@@ -14,7 +14,10 @@ Four SPA actions under `Settings_Layout` and one controller
   (`/frontend/settings/user_management/:id/sessions/:user_session_id`), one of those
   sessions, with its page-private `User_Session_Activity` region.
 - `api_keys/` — `Settings_User_Management_Api_Keys_Action`, an administrator's view of
-  another user's API keys, with revoke.
+  another user's API keys, with revoke (it mints none). A revocation here (`revoke_user_api_key`)
+  is recorded and announced by the framework's `api_key.revoked` through
+  `rsx/handlers/Api_Key_Event_Handlers`: a row on the holder's History naming the
+  administrator, and an `Api_Key_Notice_Email` to the holder.
 - `add_user/`, `edit_user/`, `send_invite/`, `reset_password/` — the modal bodies those screens open.
 
 Two endpoints carry an additional method-level gate: `export_csv`

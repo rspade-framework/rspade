@@ -70,6 +70,8 @@ class Action_Log_Model extends Rsx_Site_Model_Abstract
     const TYPE_PARTY_DELETED = 42;
     const TYPE_PASSWORD_CHANGED = 50;
     const TYPE_PASSWORD_RESET_REQUESTED = 51;
+    const TYPE_API_KEY_CREATED = 52;
+    const TYPE_API_KEY_REVOKED = 53;
     /**
      * UNBOUNDED: this table's row count grows with customer activity, not with the
      * codebase, so no reader may assume the set is small.
@@ -176,9 +178,13 @@ class Action_Log_Model extends Rsx_Site_Model_Abstract
                 'label' => 'Party Deleted',
                 'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::party_deleted',
             ],
-            // Account security (50-59) - written ONLY by Password_Event_Handlers, from the
-            // framework's password-change events, on every site the identity belongs to.
-            // metadata.cause is the framework's Password_Change::CAUSE_* vocabulary.
+            // Account security (50-59) - written ONLY by tasks the account-security handlers
+            // dispatch. Passwords (50-51): Password_Event_Handlers, from the framework's
+            // password-change events, on every site the identity belongs to; metadata.cause is
+            // the framework's Password_Change::CAUSE_* vocabulary. API keys (52-53):
+            // Api_Key_Event_Handlers, from api_key.created / api_key.revoked, on the holder's
+            // site; metadata carries the key's facts (api_key_id, name, key_prefix, read_only,
+            // scopes, expires_at) and, on a revocation, how (revoked | deleted).
             50 => [
                 'constant' => 'TYPE_PASSWORD_CHANGED',
                 'label' => 'Password Changed',
@@ -188,6 +194,16 @@ class Action_Log_Model extends Rsx_Site_Model_Abstract
                 'constant' => 'TYPE_PASSWORD_RESET_REQUESTED',
                 'label' => 'Password Reset Requested',
                 'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::password_reset_requested',
+            ],
+            52 => [
+                'constant' => 'TYPE_API_KEY_CREATED',
+                'label' => 'API Key Created',
+                'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::api_key_created',
+            ],
+            53 => [
+                'constant' => 'TYPE_API_KEY_REVOKED',
+                'label' => 'API Key Revoked',
+                'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::api_key_revoked',
             ],
         ],
     ];

@@ -6,7 +6,7 @@
   `record(int $type, object $subject, array $related = [], array $metadata = [], ?object $actor = null, ?int $audit_session_id = null)`
   and `get_for_entity(object $entity, ?int $limit = null)`.
 - `action_log_renderer.php` — `Action_Log_Renderer`, one `public static` method per entry
-  type (`client_created`, `contact_updated`, `task_deleted`, `password_changed`, … seventeen
+  type (`client_created`, `contact_updated`, `task_deleted`, `password_changed`, `api_key_created`, … nineteen
   in all), each taking the log row and returning a one-line HTML summary with `Rsx::Route()`
   links. The enum's
   `renderer` property names the method; `Action_Log_Model::render()` calls it.
@@ -43,7 +43,14 @@ password can be missed. One row per site the identity belongs to; the subject is
 person's membership of that site (`User_Model`) or the portal user; the actor whoever did it
 (the user themself - also for a reset link or the forced change, where nobody is signed in - or
 the administrator; null from the command line). Both renderers PRINT the address
-(`... reset their password from an emailed link from 203.0.113.7`). Do not confuse this with the framework's REVISION history, which records
+(`... reset their password from an emailed link from 203.0.113.7`). `TYPE_API_KEY_CREATED` and
+`TYPE_API_KEY_REVOKED` are written by ONE place too, `Api_Key_Audit_Service::record_api_key_event`
+(dispatched by `rsx/handlers/Api_Key_Event_Handlers` from the framework's `api_key.created` /
+`api_key.revoked`, never for a temporary key): one row on the holder's site, the subject the
+holder's membership, the actor whoever minted or ended the key (null from the command line),
+the metadata the key's facts (`api_key_id`, `name`, `key_prefix`, `read_only`, `scopes`,
+`expires_at`, and `how` - `revoked` | `deleted` - on a revocation), since the key may be deleted
+later; both renderers name the key and print the address. Do not confuse this with the framework's REVISION history, which records
 field-level diffs on its own — the action log is the human-readable narrative an application
 chooses to keep.
 
