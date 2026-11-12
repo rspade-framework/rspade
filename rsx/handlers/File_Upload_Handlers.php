@@ -2,8 +2,8 @@
 
 namespace Rsx\Handlers;
 
-use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Session\Session;
+use App\RSpade\Lib\Portal\Portal_Session;
 
 /**
  * File_Upload_Handlers

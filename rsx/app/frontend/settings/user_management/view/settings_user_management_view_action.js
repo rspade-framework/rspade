@@ -24,21 +24,34 @@ class Settings_User_Management_View_Action extends Spa_Action {
             role_id__label: '',
             can_administer: false,
             is_self: false,
+            can_reset_password: false,
             invitation_status: null,
             created_at: null,
             profile_photo_attachment_id: null,
             user_profile: null,
             sessions: [],
         };
+        this.data.activity = [];
+        this.data.can_view_history = false;
         this.data.error_data = null;
         this.data.loading = true;
     }
 
     async on_load() {
+        // The History is the action log, which is for administrators: fetched (and drawn) only
+        // for a viewer who may read it - the endpoint carries the same can_view_user_activity.
+        const can_view_history = Activity_Feed.can_view();
+
         try {
-            this.data.user = await Frontend_Settings_User_Management_Controller.get_user({
-                id: this.args.id,
-            });
+            const [user, activity_result] = await Promise.all([
+                Frontend_Settings_User_Management_Controller.get_user({id: this.args.id}),
+                can_view_history
+                    ? Frontend_Settings_User_Management_Controller.get_user_activity({id: this.args.id})
+                    : {activity: []},
+            ]);
+            this.data.user = user;
+            this.data.activity = activity_result.activity.map(a => ({...a, ...Activity_Feed.decorate(a.type_id)}));
+            this.data.can_view_history = can_view_history;
         } catch (e) {
             this.data.error_data = e;
         }
@@ -59,6 +72,11 @@ class Settings_User_Management_View_Action extends Spa_Action {
         // Handle Resend Invite button click
         that.$sid('btn_resend_invite').off('click.user_view').on('click.user_view', async function () {
             await that.handle_resend_invite();
+        });
+
+        // Handle Reset Password button click
+        that.$sid('btn_reset_password').off('click.user_view').on('click.user_view', async function () {
+            await that.handle_reset_password();
         });
 
         // Handle Enable / Disable button click
@@ -162,6 +180,18 @@ class Settings_User_Management_View_Action extends Spa_Action {
         if (result) {
             // Reload action to show updated user information
             that.reload();
+        }
+    }
+
+    /**
+     * Reset password workflow: the administrator sets a temporary password (the modal asks
+     * them to confirm it is them first); the user's sessions end, so reload the list.
+     */
+    async handle_reset_password() {
+        const result = await this.alive(Reset_User_Password_Modal.show(this.data.user.id));
+
+        if (result) {
+            this.reload();
         }
     }
 

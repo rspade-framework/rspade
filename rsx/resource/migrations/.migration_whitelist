@@ -191,6 +191,21 @@
             "created_at": "2026-10-21T15:14:07+00:00",
             "created_by": "root",
             "command": "php artisan make:migration:safe drop_user_groups_tables"
+        },
+        "2026_11_12_050112_create_login_user_password_resets_table.php": {
+            "created_at": "2026-11-12T05:01:12+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_login_user_password_resets_table"
+        },
+        "2026_11_12_050113_hash_portal_password_reset_tokens.php": {
+            "created_at": "2026-11-12T05:01:13+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe hash_portal_password_reset_tokens"
+        },
+        "2026_11_12_060540_add_audit_session_id_to_action_logs.php": {
+            "created_at": "2026-11-12T06:05:40+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_audit_session_id_to_action_logs"
         }
     }
 }

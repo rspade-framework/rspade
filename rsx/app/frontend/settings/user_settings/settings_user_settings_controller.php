@@ -5,8 +5,8 @@ namespace Rsx\App\Frontend\Settings\UserSettings;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
-use App\RSpade\Core\Mail\Rsx_Mail;
 use App\RSpade\Core\Session\Session;
+use App\RSpade\Lib\Messaging\Mail\Rsx_Mail;
 
 /**
  * The signed-in user's notification and privacy preferences.

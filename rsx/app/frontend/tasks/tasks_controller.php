@@ -337,8 +337,9 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
      * Ajax endpoint: attach uploaded files to a task.
      *
      * The browser sends each file through Ajax.upload() first and posts the returned keys
-     * here as `keys`. The claim is all-or-nothing. The task's realtime frame is emitted so
-     * every open view of the task picks the new files up.
+     * here as `keys`. The claim is all-or-nothing, and a file the task already holds is asked
+     * about first (Record_Attachment_List::claim(), the duplicate-upload question). The task's
+     * realtime frame is emitted so every open view of the task picks the new files up.
      */
     #[Auth('can_edit_data')]
     #[Writer]
@@ -355,8 +356,9 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
             return response_error(Ajax::ERROR_VALIDATION, 'No files were named');
         }
 
-        if (!Record_Attachment_List::claim($task, $keys)) {
-            return response_error(Ajax::ERROR_VALIDATION, 'A file could not be attached. Please upload it again.');
+        $response = Record_Attachment_List::claim($params, $task, $keys);
+        if ($response !== null) {
+            return $response;   // a refused key, or the duplicate-upload question
         }
 
         $task->realtime_emit();

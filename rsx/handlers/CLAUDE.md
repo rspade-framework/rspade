@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Seven classes, each a plain `public static` class in `Rsx\Handlers` discovered by the
+Eight classes, each a plain `public static` class in `Rsx\Handlers` discovered by the
 manifest from its `#[OnEvent]` attributes. There is no registration step.
 
 - **`File_Upload_Handlers`** — `#[OnEvent('file.upload.authorize', priority: 10)]`. Returns
@@ -29,6 +29,18 @@ manifest from its `#[OnEvent]` attributes. There is no registration step.
   `#[Manual_Lock]` and holds no lock; under the portal's `#[Writer]` the section is
   reentrant. A handler that writes a site-scoped row from a context holding no write lock
   does the same.
+- **`Password_Event_Handlers`** — THE ONE PLACE this application reacts to a password event.
+  `#[OnEvent('login_user.password.changed')]` / `('portal_user.password.changed')` - the
+  framework's, fired after ANY change of an existing identity's password commits, with
+  `{identity, cause, actor, audit_session_id, ip_address}` - end every open "Forgot your
+  password?" link of the identity at once (`invalidate_open_for()`, a raw write, safe in any
+  lock context), whatever made the change. `#[OnEvent('login_user.password.reset_requested')]`
+  / `('portal_user.password.reset_requested')` are APPLICATION events with the same payload
+  shape (cause null), fired by the two reset controllers where they mint a link. All four then
+  dispatch one `Password_Audit_Service::record_password_event` run (`rsx/services/CLAUDE.md`):
+  the action-log rows land on EVERY site of the identity and the handler may run under one
+  site's lock or none, and a process holds one site's lock at a time - so the writes are a
+  task's, not the handler's.
 - **`Sso_Handlers`** — the federated-sign-in hooks. `sso.identity.unlinked`
   (`match_verified_email_of_existing_account()`) is the policy decision, and the policy is
   that SSO signs in an account that ALREADY EXISTS and does nothing else: a **verified**

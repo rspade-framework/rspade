@@ -2,8 +2,8 @@
 
 namespace Rsx\Lib\Topics;
 
-use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Realtime\Realtime_Topic_Abstract;
+use App\RSpade\Lib\Portal\Portal_Session;
 
 /**
  * Portal_Notification_Topic - realtime topic for the portal activity/notification

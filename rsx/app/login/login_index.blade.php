@@ -93,6 +93,9 @@
             <label class="form-label" for="password">Password</label>
             <input autocomplete="current-password" class="form-control" id="password" name="password" placeholder="Enter your password" required
                 type="password" value="{{ $default_password }}">
+            <div class="mt-1 text-end">
+                <small><a href="{{ Rsx::Route('Password_Reset_Controller::request') }}">Forgot your password?</a></small>
+            </div>
         </div>
 
         <div class="d-grid">

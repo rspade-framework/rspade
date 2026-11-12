@@ -8,11 +8,11 @@
 namespace Rsx\Tests;
 
 use Illuminate\Http\Request;
-use App\RSpade\Core\Models\Email_Queue_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Models\User_Profile_Model;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
+use App\RSpade\Lib\Messaging\Mail\Email_Queue_Model;
 use Rsx\App\Frontend\Settings\ProfileEdit\Frontend_Settings_Profile_Edit_Controller;
 use Rsx\App\Frontend\Settings\UserManagement\Frontend_Settings_User_Management_Controller;
 

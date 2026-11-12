@@ -4,9 +4,9 @@ namespace Rsx\Handlers;
 
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Rsx;
-use App\RSpade\Core\Sso\Rsx_Sso;
-use App\RSpade\Core\Sso\Sso_Failed_Exception;
-use App\RSpade\Lib\Flash\Flash_Alert;
+use App\RSpade\Lib\SignIn\Sso\Rsx_Sso;
+use App\RSpade\Lib\SignIn\Sso\Sso_Failed_Exception;
+use App\RSpade\Lib\Ui\Flash\Flash_Alert;
 use Rsx\App\Login\Login_Controller;
 
 /**

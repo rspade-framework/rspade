@@ -9,11 +9,11 @@ namespace Rsx\Tests;
 
 use App\RSpade\Core\Files\File_Attachment_Model;
 use App\RSpade\Core\Files\File_Storage_Model;
-use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Models\User_Model;
-use App\RSpade\Core\Portal\Portal_Session;
-use App\RSpade\Core\Portal\Rsx_Portal;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
+use App\RSpade\Lib\Portal\Portal_Session;
+use App\RSpade\Lib\Portal\Portal_User_Model;
+use App\RSpade\Lib\Portal\Rsx_Portal;
 use Rsx\Handlers\Portal_File_Access_Handlers;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Contact_Model;

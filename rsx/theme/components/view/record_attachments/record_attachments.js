@@ -48,7 +48,12 @@ class Record_Attachments extends Component {
     /**
      * Send the files up, then attach all of them to the record in one call.
      *
-     * A file that fails to upload is reported by name and the rest still attach.
+     * A file that fails to upload is reported by name and the rest still attach. A file the
+     * record already holds is asked about by the endpoint, one question per such file
+     * (Rsx_Form.call_answering() presents each through the registered question handler):
+     * Upload Again attaches it, Skip This File leaves it out, and Cancel Upload stops the
+     * call, so nothing in the batch is attached. A file left out is never claimed; the
+     * framework sweeps unclaimed uploads.
      */
     async _upload(files) {
         if (!this.args.can_upload || files.length === 0) return;
@@ -76,9 +81,12 @@ class Record_Attachments extends Component {
             }
         }));
 
+        let attached = false;
+
         if (keys.length > 0) {
             try {
-                await controller[this.args.method]({ id: this.args.record_id, keys });
+                const result = await Rsx_Form.call_answering(controller[this.args.method], { id: this.args.record_id, keys });
+                attached = !Rsx_Form.is_cancelled(result);
             } catch (e) {
                 failures.push(e.message || 'The files could not be attached.');
             }
@@ -99,12 +107,13 @@ class Record_Attachments extends Component {
             await this.alive(Modal.alert('Upload Failed', failures.join('\n')));
         }
 
-        // The host refetches and re-renders this section with the new rows; when nothing
-        // attached, the pending rows are simply cleared.
-        if (keys.length > 0) {
+        // The pending rows are cleared here: when the claim attached nothing new (every file
+        // skipped, every upload failed, or the user cancelled) the host's refetch returns the
+        // rows it already had and would not re-render this section. After a claim the host
+        // refetches and re-renders with the new rows.
+        this.render();
+        if (attached) {
             this.trigger('changed');
-        } else {
-            this.render();
         }
     }
 }

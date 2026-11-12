@@ -6,7 +6,7 @@ namespace Rsx\App\Frontend\Settings\ProfileDisplay;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Session\Session;
-use App\RSpade\Core\TwoFactor\Rsx_Two_Factor;
+use App\RSpade\Lib\SignIn\TwoFactor\Rsx_Two_Factor;
 
 /**
  */

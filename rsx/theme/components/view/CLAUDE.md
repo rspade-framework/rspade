@@ -34,6 +34,9 @@ One subdirectory per component (template + SCSS, `.js` only where behaviour exis
 - `widget_grid/` — `Widget_Grid`: the two-up overview grid of independent widget cards.
 - `empty_state/` — `Empty_State`: an empty LIST region (icon + title + reason + CTA).
 - `empty_value/` — `Empty_Value`: the one muted em-dash for a single empty cell.
+- `ip_address_display/` — `Ip_Address_Display`: an IP address with its approximate location (the endpoint's
+  `ip_address__location`, `Rsx_Geo_Ip::label()`) as a muted second line; the region shows
+  `<Geo_Ip_Credit />` once.
 - `callout/` — `Callout`: the inline alert banner; `$variant` is validated loudly.
 - `entity_link/` — `Entity_Link`: a fetched entity reference (type icon + name + link).
 - `revision_history/` — `Revision_History`: one record's change timeline, grouped by the
@@ -43,7 +46,10 @@ One subdirectory per component (template + SCSS, `.js` only where behaviour exis
   by button or by dropping files on it; each file is a name with its type icon; a click
   opens the preview dialog. It draws the rows it is given and fires `changed` after an
   upload; the host page loads the rows and names the claim endpoint (`$controller`,
-  `$method`). Server half: `Record_Attachment_List` in `rsx/lib/attachments/`.
+  `$method`), which it calls through `Rsx_Form.call_answering()` so the duplicate-upload
+  question (a file the record already holds: Cancel Upload / Skip This File / Upload
+  Again) is asked through the app's question handler. Server half:
+  `Record_Attachment_List` in `rsx/lib/attachments/`.
 - `attachment_preview/` — `Attachment_Preview_Modal.show(row)` and its body: the file
   through `<Document_Preview>` on the left; name, type, size, uploader, upload time and a
   Download button on the right.

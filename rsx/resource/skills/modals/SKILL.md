@@ -293,7 +293,7 @@ handler switches on `question.kind`.
 
 | kind | Presented as | Answer |
 |---|---|---|
-| `confirm` | `Modal.show()` with THREE buttons: Back, `cancel_label` (default "No"), `confirm_label` (default "Yes", the Enter button) | `true` / `false` |
+| `confirm` | `Modal.show()` with THREE buttons: `back_label` (default "Back"), `cancel_label` (default "No"), `confirm_label` (default "Yes", the Enter button). The duplicate-upload question (`Rsx_Duplicate_Upload`) is one: Cancel Upload / Skip This File / Upload Again | `true` / `false` (Back -> `Rsx_Form.CANCELLED`) |
 | `select` | `Modal.select(title, body, options, default)` | the chosen value |
 | `prompt` | `Modal.prompt(title, body, default, multiline)` | the string |
 | anything else | throws, naming the kind | - |

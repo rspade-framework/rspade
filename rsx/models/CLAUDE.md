@@ -24,6 +24,16 @@ the grouping is for readers only):
   its client is portal-enabled and not deleted; `has_membership_row` / `get_all_for_user` /
   `get_for_client` read every row, for staff screens and for code that creates one.
   `Shared_Item_Model` is per contact and expires: `find_valid_share()` is the one share check.
+- **Sign-in** — `Login_User_Password_Reset_Model` (staff "Forgot your password?" links,
+  `login_user_password_resets`, NOT site-scoped: a login identity spans every site). It and
+  `Portal_Password_Reset_Model` share one token implementation, the
+  `Rsx\Lib\PasswordReset\Password_Reset_Token` trait: only the SHA-256 of a link's secret
+  is stored, one live link per identity, single-use `claim()`, `invalidate_open_for()` (called
+  for every password change by `rsx/handlers/Password_Event_Handlers`, never by a controller),
+  and `query_spent()` - the used-or-expired rule `Password_Reset_Link_Service::sweep` deletes
+  by, nightly (`rsx/services/CLAUDE.md`).
+- **Activity** rows for account security (`Action_Log_Model::TYPE_PASSWORD_*`, 50-59) are
+  written only by `Password_Audit_Service`; every row carries `audit_session_id`.
 - **Activity** — `Action_Log_Model`, `Action_Log_Related_Model`, `Notification_Model`,
   `Announcement_Model`.
 - **Misc** — `Demo_Product_Model` (a fixture; delete it with the demo data).
@@ -76,7 +86,7 @@ the grouping is for readers only):
 - **`portal_fetch()` needs `portal_can_read()`**, fail-closed. Enforced by
   `PORTAL-MODEL-FETCH-01`.
 - **A credential column is in `public static $neverExport`** — `Shared_Item_Model`'s,
-  `Portal_Invitation_Model`'s and `Portal_Password_Reset_Model`'s bearer tokens are. It is
+  `Portal_Invitation_Model`'s bearer token and both reset models' `token_hash` are. It is
   stripped from every payload after Laravel builds it (`$hidden` is not a security
   control: `makeVisible()` undoes it), and the list unions up the inheritance chain.
   `rsx:check` flags a `password` / `token` / `secret` column left off it

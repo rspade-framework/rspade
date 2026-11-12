@@ -38,6 +38,7 @@ return [
             'level' => 'notice',
             'text' => 'You already have an account for this email. Please sign in below to accept the invitation from your dashboard, or use "Forgot your password?" if you do not remember it.',
         ],
+        'password_reset' => ['level' => 'notice', 'text' => 'Your password has been changed. Sign in with your new password.'],
         'sign_in_to_view' => ['level' => 'notice', 'text' => 'You are signed out. Please sign in to view the shared document.'],
         'invitation_expired' => [
             'level' => 'error',
@@ -715,6 +716,18 @@ return [
         // unchanged - a user without a factor still signs in on the password, and only then
         // owes the enrollment. See rsx:man two_factor, REQUIRING A SECOND FACTOR.
         'require_two_factor' => false,
+
+        // STAFF PASSWORDS. The shortest password this application accepts, everywhere a staff
+        // password is chosen: accepting an invitation, Settings > Password & Security, the
+        // "Forgot your password?" link, the forced change at sign-in and an administrator's
+        // Reset Password in User Management. (rsx:users:password:set, the operator's tool,
+        // enforces only "not empty".)
+        'password_min_length' => 8,
+
+        // How long a staff "Forgot your password?" link stays usable, in hours - a validity
+        // window on a credential, not a timeout. Asking again ends the previous link.
+        // rsx/app/login/CLAUDE.md, PASSWORD RESET.
+        'password_reset_expiry_hours' => 1,
 
         // Invitation expiration (days)
         //

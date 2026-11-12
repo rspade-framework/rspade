@@ -13,11 +13,11 @@ use App\RSpade\Core\Bundle\Rsx_Bundle_Abstract;
 use App\RSpade\Core\Dispatch\Dispatcher;
 use App\RSpade\Core\Env\Rsx_Tenancy;
 use App\RSpade\Core\Errors\Error_Screens;
-use App\RSpade\Core\Portal\Portal_Session;
-use App\RSpade\Core\Portal\Rsx_Portal;
-use App\RSpade\Core\Portal\Rsx_Portal_Url;
 use App\RSpade\Core\Session\Rsx_Csrf;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
+use App\RSpade\Lib\Portal\Portal_Session;
+use App\RSpade\Lib\Portal\Rsx_Portal;
+use App\RSpade\Lib\Portal\Rsx_Portal_Url;
 
 /**
  * App_Error_Pages_Test - this application's own error pages actually answer.

@@ -1,5 +1,5 @@
 @rsx_id('Welcome_Email')
-{!! \App\RSpade\Core\Mail\Rsx_Mail_Layout::header($subject ?? 'Welcome') !!}
+{!! \App\RSpade\Lib\Messaging\Mail\Rsx_Mail_Layout::header($subject ?? 'Welcome') !!}
 
 <p>Hello{{ !empty($name) ? ' ' . e($name) : '' }},</p>
 
@@ -15,4 +15,4 @@
     If you have any questions, please contact your administrator.
 </p>
 
-{!! \App\RSpade\Core\Mail\Rsx_Mail_Layout::footer($unsubscribe_url ?? null) !!}
+{!! \App\RSpade\Lib\Messaging\Mail\Rsx_Mail_Layout::footer($unsubscribe_url ?? null) !!}

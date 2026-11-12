@@ -1,5 +1,5 @@
 @rsx_id('Portal_Password_Reset_Email')
-{!! \App\RSpade\Core\Mail\Rsx_Mail_Layout::header($subject ?? 'Password Reset') !!}
+{!! \App\RSpade\Lib\Messaging\Mail\Rsx_Mail_Layout::header($subject ?? 'Password Reset') !!}
 
 <p>Hello,</p>
 
@@ -17,4 +17,4 @@
     If you did not request a password reset, you can safely ignore this email. Your password will not be changed.
 </p>
 
-{!! \App\RSpade\Core\Mail\Rsx_Mail_Layout::footer($unsubscribe_url ?? null) !!}
+{!! \App\RSpade\Lib\Messaging\Mail\Rsx_Mail_Layout::footer($unsubscribe_url ?? null) !!}

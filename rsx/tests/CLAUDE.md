@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Sixty-seven test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Seventy-one test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -54,6 +54,11 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   and a grid with no whitelist refuses a sort request; the search reaches `address_street`),
   `Revision_History_Test` (the history endpoint's allowlist and its no-enumeration rule),
   `Task_Record_Attachments_Test` (a task's file list: claim, all-or-nothing, single claim, row shape),
+  `Duplicate_Upload_Endpoints_Test` (the claim endpoints ask the framework's duplicate-upload
+  question: a task batch asks per duplicate and attaches nothing until answered, Skip leaves
+  the upload unclaimed and Upload Again files it; a skipped client document files nothing; a
+  thread reply left with only a skipped file posts nothing; the API answers 409
+  `duplicate_upload` unless its `duplicate_upload` parameter answers it),
   `Timezone_Settings_Test`, `Api_Key_Scope_Ui_Test` (presets re-derived by name, so a
   tampering browser cannot widen a key), `Api_Key_Read_Only_Ui_Test` (only the literal
   '1' mints a read-only key, so a garbled form can never mint the wider one). Both reach
@@ -122,7 +127,28 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   the same day included - the comparison goes through `Rsx_Time::is_past()`, never a string
   against `now()`), `Portal_Password_Reset_Claim_Test` (a reset link is single-use under a race: `claim()` is
   one conditional UPDATE, a second claim and an expired link are refused, and a submission
-  that lost the claim writes no password), `Portal_Change_Password_Test` (portal Change Password: every field rule answered at once, a
+  that lost the claim writes no password; the table holds only the secret's hash and a new
+  link ends the old), `Password_Reset_Link_Sweep_Test` (the nightly
+  `Password_Reset_Link_Service::sweep` deletes superseded, claimed and expired links, staff
+  and portal, keeps every live one, and reports `{deleted_staff, deleted_portal}` and a
+  summary; with nothing spent it deletes nothing), `Staff_Password_Reset_Test` (the staff resets end to end: a flagged
+  sign-in chooses a new password and lands through `complete_sign_in()`, or faces its second
+  factor first with nobody signed in, the current password refused; "Forgot your password?"
+  queues one SECURITY email for a live account and nothing for an unknown address while
+  answering both the same, a link sets the password once, signs nobody in, and dies when a
+  newer one is minted; an administrator's Reset Password sets a temporary password flagged in
+  the same save - an already-flagged user stays flagged - and is refused on
+  your own account, on a superior, on an identity of another site too, and without a password
+  confirmation), `Password_Audit_Test` (every password path - Settings, a reset request and
+  its link, an administrator, the forced change, the command line, a save stating no cause -
+  produces exactly one action-log row with its cause, actor and address, followed through
+  the framework event, `Password_Event_Handlers` and the queued `Password_Audit_Service` run;
+  an administrator's reset is on both users' histories and ends the open link; an identity
+  on two sites is recorded on both; the owner's own changes queue `Password_Changed_Email`
+  and the administrator's and the command line's do not; a source scan pins that every
+  change path states a cause; the notice carries "If this wasn't you, contact an
+  administrator." and no unsubscribe or notification wording. It COMMITS - the event fires
+  after a commit - so it opts out of the per-test transaction), `Portal_Change_Password_Test` (portal Change Password: every field rule answered at once, a
   wrong current password counted as a failed attempt and changing nothing, a correct change
   saved; the throttle refusal is verified over HTTP, since a CLI test has no client address),
   `Api_Access_Permission_Test` (the API and
@@ -163,9 +189,11 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   `passkey_login` turn a wrong answer into an `ERROR_VALIDATION`.
 - **Password reset required**: `Password_Reset_Required_Login_Test` — both password forms
   (`Login_Controller::index()`, `Portal_Login_Controller::index()`) against an account
-  flagged `password_reset_required`: the form shows the refusal naming the way through (an
-  administrator for staff, "Forgot your password?" on the portal) and nobody is signed in or
-  parked behind a challenge; and an ordinary portal password sign-in, through
+  flagged `password_reset_required`: both forms park the identity for "Choose a new password"
+  and redirect there with nobody signed in; the portal step refuses the current password and
+  a mismatched confirmation, then saves the new one (flag cleared) and lands through
+  `complete_sign_in()` - or, for a portal user holding a second factor, sends it to the
+  challenge with nobody signed in; and an ordinary portal password sign-in, through
   `Portal_Auth::verify_credentials()`, writes one success row to the portal login history.
 - **Sample data**: `Sample_Data_Seed_Test` — `Sample_Data_Service::seed` (`rsx_app:seed`) fills
   the empty test site with every kind of record its JSON declares (counts derived from the

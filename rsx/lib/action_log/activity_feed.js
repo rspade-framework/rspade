@@ -10,7 +10,8 @@
  * so every entity view (Contacts / Projects / Party / Clients) decorates the feed
  * identically (cross-page consistency is the acceptance test).
  *
- * Type ranges: client 1-9, contact 10-19, project 20-29, task 30-39, party 40-49.
+ * Type ranges: client 1-9, contact 10-19, project 20-29, task 30-39, party 40-49,
+ * account security (passwords) 50-59.
  *
  * Usage (in on_load, after fetching the activity array):
  *   this.data.activity = result.activity.map(a => ({ ...a, ...Activity_Feed.decorate(a.type_id) }));
@@ -45,6 +46,7 @@ class Activity_Feed {
             case 2: return { icon: 'bi bi-folder', variant: 'success' };
             case 3: return { icon: 'bi bi-check2-square', variant: 'warning' };
             case 4: return { icon: 'bi bi-diagram-3', variant: 'secondary' };
+            case 5: return { icon: 'bi bi-shield-lock', variant: 'danger' };
             default: return { icon: 'bi bi-activity', variant: 'secondary' };
         }
     }

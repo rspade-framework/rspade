@@ -2,9 +2,9 @@
 
 namespace Rsx\Emails;
 
-use App\RSpade\Core\Mail\Rsx_Email_Abstract;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Rsx;
+use App\RSpade\Lib\Messaging\Mail\Rsx_Email_Abstract;
 
 /**
  * User_Invitation_Email - the staff-side invitation carrying a single-use invite link.

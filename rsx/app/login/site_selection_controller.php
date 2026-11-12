@@ -9,7 +9,7 @@ use App\RSpade\Core\Models\Site_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
-use App\RSpade\Lib\Flash\Flash_Alert;
+use App\RSpade\Lib\Ui\Flash\Flash_Alert;
 
 /**
  * Site_Selection_Controller

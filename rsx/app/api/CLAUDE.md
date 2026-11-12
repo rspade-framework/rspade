@@ -106,7 +106,7 @@ The pattern, three endpoints per record type - see `Clients_Api_Controller` and
 | Endpoint | Does |
 |---|---|
 | `GET /api/v1/{thing}/:id/attachments` | `foreach ($record->get_attachments(CATEGORY))` |
-| `POST /api/v1/{thing}/:id/attachments/attach` | `find_by_key()` + `can_user_assign_this_file()` + `add_to()` |
+| `POST /api/v1/{thing}/:id/attachments/attach` | `find_by_key()` + `can_user_assign_this_file()` + `duplicates_on()` + `add_to()` |
 | `POST /api/v1/{thing}/:id/attachments/:attachment_id/delete` | `find_attachment()` then `delete()` |
 
 Three things that are easy to get wrong:
@@ -121,6 +121,11 @@ Three things that are easy to get wrong:
   any record's URL.
 - **`add_to()` for many files, `attach_to()` for one.** `attach_to()` REPLACES whatever is
   already in the category.
+- **A file the record already holds is refused with 409 `duplicate_upload`** unless the
+  optional `duplicate_upload` param answers the question the browser asks in a dialog: `true`
+  attaches it again, `false` attaches nothing and answers `{"skipped": true, "existing": ...}`.
+  A retried upload carries a new key, so content (`duplicates_on()`) is what catches it
+  (`rsx:man file_upload`, DUPLICATE UPLOADS).
 
 `get_attachments()` returns an `Rsx_Result_Set`, not a Collection - iterate it, don't
 `->map()` it. Clients attach into `Client_Model::DOCUMENTS_CATEGORY`, the same category the

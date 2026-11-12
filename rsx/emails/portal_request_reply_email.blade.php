@@ -1,5 +1,5 @@
 @rsx_id('Portal_Request_Reply_Email')
-{!! \App\RSpade\Core\Mail\Rsx_Mail_Layout::header($subject ?? 'Client reply on a request') !!}
+{!! \App\RSpade\Lib\Messaging\Mail\Rsx_Mail_Layout::header($subject ?? 'Client reply on a request') !!}
 
 <p>Hello {{ $staff_name }},</p>
 
@@ -15,4 +15,4 @@
     <a href="{{ $view_url }}" class="email-button">View Request</a>
 </p>
 
-{!! \App\RSpade\Core\Mail\Rsx_Mail_Layout::footer() !!}
+{!! \App\RSpade\Lib\Messaging\Mail\Rsx_Mail_Layout::footer() !!}

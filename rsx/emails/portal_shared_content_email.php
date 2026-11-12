@@ -2,7 +2,7 @@
 
 namespace Rsx\Emails;
 
-use App\RSpade\Core\Mail\Rsx_Email_Abstract;
+use App\RSpade\Lib\Messaging\Mail\Rsx_Email_Abstract;
 
 /**
  * Portal_Shared_Content_Email - tells a portal contact that a document is waiting.

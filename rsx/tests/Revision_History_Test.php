@@ -10,8 +10,8 @@ namespace Rsx\Tests;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Models\Site_Model;
 use App\RSpade\Core\Response\Error_Response;
-use App\RSpade\Core\Revisions\Revision_Model;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
+use App\RSpade\Lib\Revisions\Revision_Model;
 use Rsx\App\Frontend\Revisions\Frontend_Revisions_Controller;
 use Rsx\Models\Client_Model;
 

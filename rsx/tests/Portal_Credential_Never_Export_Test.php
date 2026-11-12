@@ -7,8 +7,8 @@
 
 namespace Rsx\Tests;
 
-use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
+use App\RSpade\Lib\Portal\Portal_User_Model;
 use Rsx\Models\Portal_Invitation_Model;
 use Rsx\Models\Portal_Password_Reset_Model;
 
@@ -42,9 +42,9 @@ class Portal_Credential_Never_Export_Test extends Rsx_Test_Abstract
     public static function test_a_password_reset_payload_has_no_token()
     {
         $reset = new Portal_Password_Reset_Model();
-        $reset->token = 'probe-reset-token';
+        $reset->token_hash = 'probe-reset-token';
 
-        static::__assert_false(array_key_exists('token', $reset->toArray()), 'no token key');
+        static::__assert_false(array_key_exists('token_hash', $reset->toArray()), 'no token_hash key');
         static::__assert_false(str_contains(json_encode($reset), 'probe-reset-token'), 'no token in the JSON');
     }
 }

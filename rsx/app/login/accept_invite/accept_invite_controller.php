@@ -3,7 +3,6 @@
 namespace Rsx\App\Login\AcceptInvite;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Auth\RsxAuth;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
@@ -12,8 +11,8 @@ use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
-use App\RSpade\Core\Turnstile\Rsx_Turnstile;
-use App\RSpade\Lib\Flash\Flash_Alert;
+use App\RSpade\Lib\SignIn\Turnstile\Rsx_Turnstile;
+use App\RSpade\Lib\Ui\Flash\Flash_Alert;
 use Rsx\App\Login\Invite_Helper;
 use Rsx\App\Login\Login_Controller;
 
@@ -245,8 +244,8 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
         // Password validation.
         if ($password === '') {
             $errors['password'] = 'Password is required';
-        } elseif (strlen($password) < 8) {
-            $errors['password'] = 'Password must be at least 8 characters';
+        } elseif (strlen($password) < (int) config('rsx.auth.password_min_length')) {
+            $errors['password'] = 'Password must be at least ' . (int) config('rsx.auth.password_min_length') . ' characters';
         }
 
         if ($password !== $password_confirm) {
@@ -302,7 +301,7 @@ class Accept_Invite_Controller extends Rsx_Controller_Abstract
             // person at that address, and the code they followed proves they read it.
             $login_user = new Login_User_Model();
             $login_user->email = $invitation->email;
-            $login_user->password = Hash::make($password);
+            $login_user->set_password($password);
             $login_user->is_verified = 1;
             $login_user->is_activated = 1;
             $login_user->save();

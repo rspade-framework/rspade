@@ -5,7 +5,7 @@ namespace Rsx\App\Dev\Flash;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Rsx;
-use App\RSpade\Lib\Flash\Flash_Alert;
+use App\RSpade\Lib\Ui\Flash\Flash_Alert;
 
 /**
  * Flash alert showcase - CLOSED: no one can reach it, by declaration.

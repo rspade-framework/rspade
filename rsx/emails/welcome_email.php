@@ -2,9 +2,9 @@
 
 namespace Rsx\Emails;
 
-use App\RSpade\Core\Mail\Rsx_Email_Abstract;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Rsx;
+use App\RSpade\Lib\Messaging\Mail\Rsx_Email_Abstract;
 
 /**
  * Welcome_Email - sent to a new staff user once their account exists.

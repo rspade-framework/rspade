@@ -11,20 +11,21 @@ use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Auth\Auth_Password_Reset_Required_Exception;
 use App\RSpade\Core\Auth\Auth_Throttled_Exception;
+use App\RSpade\Core\Auth\Forced_Password_Change_Exception;
 use App\RSpade\Core\Auth\RsxAuth;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Dispatch\Rsx_Request_Channel;
-use App\RSpade\Core\Login\Login_Notice;
-use App\RSpade\Core\Login\Login_Redirect;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Login_History;
 use App\RSpade\Core\Session\Session;
-use App\RSpade\Core\Turnstile\Rsx_Turnstile;
-use App\RSpade\Core\TwoFactor\Rsx_Two_Factor;
-use App\RSpade\Core\TwoFactor\Two_Factor_Failed_Exception;
-use App\RSpade\Lib\Flash\Flash_Alert;
+use App\RSpade\Lib\SignIn\Redirect\Login_Notice;
+use App\RSpade\Lib\SignIn\Redirect\Login_Redirect;
+use App\RSpade\Lib\SignIn\Turnstile\Rsx_Turnstile;
+use App\RSpade\Lib\SignIn\TwoFactor\Rsx_Two_Factor;
+use App\RSpade\Lib\SignIn\TwoFactor\Two_Factor_Failed_Exception;
+use App\RSpade\Lib\Ui\Flash\Flash_Alert;
 use Rsx\App\Login\Invite_Helper;
 
 /**
@@ -40,8 +41,13 @@ use Rsx\App\Login\Invite_Helper;
  * SUCCESS always means full authentication; whether a second step follows is
  * Rsx_Two_Factor::is_enabled().
  *
+ * A PASSWORD THAT MUST BE REPLACED is chosen at sign-in: verify_credentials() throws
+ * Auth_Password_Reset_Required_Exception for a flagged identity, index() parks it with
+ * RsxAuth::begin_forced_password_change(), and new_password() saves the new one and continues
+ * the same ladder (second factor, then complete_sign_in()).
+ *
  * ONE COMPLETION FUNCTION. Every staff entrance finishes in complete_sign_in(): the
- * password form, the second-factor challenge (verify_2fa), a passkey, an accepted invitation
+ * password form (and its forced password change), the second-factor challenge (verify_2fa), a passkey, an accepted invitation
  * (Accept_Invite_Controller) and a federated sign-in (Rsx\Handlers\Sso_Handlers). It signs
  * in when the caller has not, parks what the person still owes (an outstanding
  * second-factor enrollment under rsx.auth.require_two_factor) and answers where they land.
@@ -103,6 +109,7 @@ class Login_Controller extends Rsx_Controller_Abstract
             // first - and is shown the same way.
             $thrown_refusal = null;
             $login_user = null;
+            $forced_change_identity = null;
 
             try {
                 if (empty($posted_email)) {
@@ -135,42 +142,38 @@ class Login_Controller extends Rsx_Controller_Abstract
             } catch (Auth_Password_Reset_Required_Exception $e) {
                 // The password was right and the account must choose a new one before it may
                 // sign in with one (login_users.password_reset_required; the framework has
-                // already recorded the refusal). This application has no self-service reset,
-                // so the way through is an administrator: rsx:users:password:set.
-                $thrown_refusal = $e->getMessage() . ' Contact your administrator to have it reset.';
+                // already recorded the refusal). It chooses it right here: the "Choose a new
+                // password" step below, then the rest of the sign-in.
+                $forced_change_identity = $e->identity;
             }
 
             // THE APPLICATION'S OWN QUESTIONS ABOUT THE ACCOUNT GO HERE - a status your
             // application defines, an agreement not yet accepted. Nobody is signed in, so a
             // refusal is just an error on the form: there is no session to undo and no
             // logout() to remember.
-            $refusal = $login_user !== null ? static::__account_refusal($login_user) : null;
+            $proven = $login_user ?? $forced_change_identity;
+            $refusal = $proven !== null ? static::__account_refusal($proven) : null;
 
             if ($thrown_refusal !== null) {
                 $error = $thrown_refusal;
             } elseif ($refusal !== null) {
                 $error = $refusal;
+            } elseif ($forced_change_identity !== null) {
+                // THE FORCED PASSWORD CHANGE. The framework signs the browser's staff sign-in
+                // out and parks the identity - NOT signed in - for the "Choose a new password"
+                // page (new_password()), which saves it and then continues this same ladder:
+                // the second factor next, then complete_sign_in(). The invite code is parked
+                // AFTER, because the sign-out clears the staff realm's session values.
+                RsxAuth::begin_forced_password_change($forced_change_identity);
+
+                static::__park_invite_code($request->input('code'), null);
+
+                return redirect(Rsx::Route('Login_Controller::new_password'));
             } elseif ($login_user !== null) {
-                $invite_code = $request->input('code');
-
-                if (Rsx_Two_Factor::is_enabled($login_user)) {
-                    // The challenge signs the browser's staff sign-in out and parks the
-                    // pending identity; the invite code is parked beside it AFTER, because a
-                    // sign-out clears the staff realm's session values. The session carries
-                    // both and is signed in as nobody.
-                    Rsx_Two_Factor::begin_challenge($login_user);
-
-                    static::__park_invite_code($invite_code);
-
-                    return redirect(Rsx::Route('Login_Controller::verify'));
-                }
-
-                // No second factor: this IS the login, and complete_sign_in() performs it.
-                //
                 // It refuses an identity with no enabled site membership (null), which is
                 // unreachable here: verify_credentials() asked the same question a few
                 // statements ago.
-                $destination = static::complete_sign_in($login_user, sign_in: true, invite_code: $invite_code);
+                $destination = static::__continue_sign_in($login_user, $request->input('code'));
 
                 if ($destination === null) {
                     shouldnt_happen('RsxAuth::login() refused an identity verify_credentials() had just admitted');
@@ -202,6 +205,134 @@ class Login_Controller extends Rsx_Controller_Abstract
             'invite_code' => $invite_code,
             'prefill_email' => $email_value,
             'error' => $error,
+        ]);
+    }
+
+    /**
+     * What follows a proven password: the second-factor challenge when the identity holds a
+     * factor, otherwise the sign-in itself (complete_sign_in()). Answers where the visitor
+     * goes next - null only when complete_sign_in() refused (no enabled membership).
+     *
+     * The password form and the forced password change both continue through here, so a
+     * forced change is never a way around a second factor: it is the step BEFORE the factor.
+     *
+     * @param Login_User_Model $login_user The identity whose password was just proven (or just chosen).
+     * @param string|null $invite_code The invite code the login form carried, if any.
+     * @return string|null
+     */
+    private static function __continue_sign_in(Login_User_Model $login_user, ?string $invite_code): ?string
+    {
+        if (Rsx_Two_Factor::is_enabled($login_user)) {
+            // The challenge signs the browser's staff sign-in out and parks the pending
+            // identity; the invite code is parked beside it AFTER, because a sign-out clears
+            // the staff realm's session values. The session carries both and is signed in as
+            // nobody.
+            Rsx_Two_Factor::begin_challenge($login_user);
+
+            static::__park_invite_code($invite_code, Rsx_Two_Factor::challenge_expires_at());
+
+            return Rsx::Route('Login_Controller::verify');
+        }
+
+        // No second factor: this IS the login, and complete_sign_in() performs it.
+        return static::complete_sign_in($login_user, sign_in: true, invite_code: $invite_code);
+    }
+
+    /**
+     * The "Choose a new password" step of a sign-in whose password was right but must be
+     * replaced (login_users.password_reset_required - an administrator's temporary password, or
+     * rsx:users:force_password_reset).
+     *
+     * Served to a browser that is deliberately NOT signed in: index() parked the identity with
+     * RsxAuth::begin_forced_password_change(). No email and no token: the proof is the password
+     * the visitor just typed, carried by their own session. The POST checks this application's
+     * password rule (rsx.auth.password_min_length, typed twice), then
+     * RsxAuth::complete_forced_password_change() refuses the current password, draws on the
+     * sign-in throttle and saves the new one through Login_User_Model (the flag clears, other
+     * sign-ins end, trusted browsers are forgotten) - and the sign-in continues through
+     * __continue_sign_in(): a second factor next, then complete_sign_in().
+     *
+     * Nothing pending (never begun, signed out, or the password changed some other way since)
+     * goes back to /login; ?cancel=1 forgets the parked identity first. A signed-in visitor goes
+     * to the dashboard. No Turnstile: the step answers only from the identity parked on the
+     * caller's own session, which passed Turnstile with the password.
+     */
+    #[Route('/login/new-password', methods: ['GET', 'POST'])]
+    public static function new_password(Request $request, array $params = [])
+    {
+        if (Session::is_logged_in()) {
+            return redirect(Rsx::Route('Dashboard_Index_Action'));
+        }
+
+        if (!empty($params['cancel'])) {
+            RsxAuth::abandon_forced_password_change();
+            static::__consume_invite_code();
+
+            return redirect(Rsx::Route('Login_Controller::index'));
+        }
+
+        $pending = RsxAuth::forced_password_change_pending();
+
+        if ($pending === null) {
+            return redirect(Rsx::Route('Login_Controller::index'));
+        }
+
+        $error = null;
+        $min_length = (int) config('rsx.auth.password_min_length');
+
+        if ($request->is_post()) {
+            $password = (string) $request->input('password');
+            $confirmation = (string) $request->input('password_confirmation');
+
+            if ($password === '') {
+                $error = 'Password is required';
+            } elseif (strlen($password) < $min_length) {
+                $error = "Password must be at least {$min_length} characters";
+            } elseif ($password !== $confirmation) {
+                $error = 'Passwords do not match';
+            } else {
+                try {
+                    // The one place a forced change at sign-in sets a password.
+                    $login_user = RsxAuth::complete_forced_password_change($password);
+                } catch (Auth_Throttled_Exception $e) {
+                    $error = $e->getMessage();
+                } catch (Forced_Password_Change_Exception $e) {
+                    if ($e->reason() === Forced_Password_Change_Exception::REASON_NOTHING_PENDING) {
+                        return redirect(Rsx::Route('Login_Controller::index'));
+                    }
+
+                    $error = $e->getMessage();
+                }
+
+                if ($error === null) {
+                    $destination = static::__continue_sign_in($login_user, static::__consume_invite_code());
+
+                    if ($destination !== null) {
+                        return redirect($destination);
+                    }
+
+                    // The membership was switched off between the password and now: refused
+                    // exactly as a wrong password is, the cause kept in the audit trail.
+                    Login_History::record_failure(
+                        (string) $login_user->email,
+                        Login_History::STATUS_FAILED_DISABLED,
+                        null,
+                        (int) $login_user->id
+                    );
+
+                    return rsx_view('Login_Index', [
+                        'invite_code' => null,
+                        'prefill_email' => (string) $login_user->email,
+                        'error' => 'Invalid email or password. Please try again.',
+                    ]);
+                }
+            }
+        }
+
+        return rsx_view('Login_New_Password', [
+            'email' => $pending['email'],
+            'error' => $error,
+            'min_length' => $min_length,
         ]);
     }
 
@@ -585,20 +716,23 @@ class Login_Controller extends Rsx_Controller_Abstract
     }
 
     /**
-     * Park the login form's invite code for the duration of the challenge.
+     * Park the login form's invite code for the step the sign-in still owes.
      *
-     * Parked with the challenge's own expiry, so it cannot outlive the sign-in it belongs to.
+     * Parked with that step's own expiry (the second-factor challenge's window; none for the
+     * forced password change, which lives as long as the session), so it cannot outlive the
+     * sign-in it belongs to. A staff sign-out clears it either way.
      *
      * @param string|null $invite_code
+     * @param string|null $expires_at
      * @return void
      */
-    private static function __park_invite_code(?string $invite_code): void
+    private static function __park_invite_code(?string $invite_code, ?string $expires_at): void
     {
         if (!$invite_code) {
             return;
         }
 
-        Session::put_value(self::INVITE_CODE_KEY, (string) $invite_code, Rsx_Two_Factor::challenge_expires_at());
+        Session::put_value(self::INVITE_CODE_KEY, (string) $invite_code, $expires_at);
     }
 
     /**

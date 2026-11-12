@@ -9,9 +9,9 @@ use App\RSpade\Core\Api\Api_Catalog;
 use App\RSpade\Core\Api\Api_Key_Model;
 use App\RSpade\Core\Api\Api_Scope_Validation_Exception;
 use App\RSpade\Core\Api\Api_Scopes;
-use App\RSpade\Core\Confirmation\Rsx_Password_Confirmation;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Session\Session;
+use App\RSpade\Lib\SignIn\Confirmation\Rsx_Password_Confirmation;
 use Rsx\App\Frontend\Settings\ApiKeys\Api_Keys_DataGrid;
 
 /**

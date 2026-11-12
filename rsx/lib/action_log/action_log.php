@@ -41,30 +41,42 @@ class Action_Log
     /**
      * Record an action
      *
+     * WHO and FROM WHERE default to the current session: the signed-in identity is the actor
+     * and Session::get_audit_session_id() the acting context (the address, the user agent, an
+     * impersonator - read back through Action_Log_Model::audit_ip_address(), never copied
+     * onto the row). Code recording an act it was HANDED rather than one its own request is
+     * doing - a task writing what an event reported - passes both explicitly; the session it
+     * runs in names nobody.
+     *
      * @param int $type Action_Log_Model::TYPE_* constant
      * @param object $subject The primary entity (model instance) that was acted upon
      * @param array $related Optional related entities as [[model, role_id], ...]
      * @param array $metadata Optional additional data for the action
+     * @param object|null $actor Who did it (Login_User_Model, Portal_User_Model); null = the
+     *        signed-in identity
+     * @param int|null $audit_session_id Where it was done from; null = the current one
      * @return Action_Log_Model The created action log entry
      */
     public static function record(
         int $type,
         object $subject,
         array $related = [],
-        array $metadata = []
+        array $metadata = [],
+        ?object $actor = null,
+        ?int $audit_session_id = null
     ): Action_Log_Model {
-        // Get current actor from session
-        $login_user = Session::get_login_user();
+        $actor = $actor ?? Session::get_login_user();
 
         // Create the action log entry
         $log = new Action_Log_Model();
         $log->site_id = Session::get_site_id();
         $log->type_id = $type;
+        $log->audit_session_id = $audit_session_id ?? Session::get_audit_session_id();
 
         // Set actor (polymorphic) - null for system actions
-        if ($login_user) {
-            $log->actor_type = class_basename($login_user);
-            $log->actor_id = $login_user->id;
+        if ($actor) {
+            $log->actor_type = class_basename($actor);
+            $log->actor_id = $actor->id;
         }
 
         // Set subject (polymorphic) - the entity being acted upon

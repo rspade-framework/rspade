@@ -50,7 +50,8 @@ DESCRIPTION
 
 API REFERENCE
 
-    Action_Log::record($type, $subject, $related = [], $metadata = [])
+    Action_Log::record($type, $subject, $related = [], $metadata = [],
+                       $actor = null, $audit_session_id = null)
         Record an action to the action log.
 
         Parameters:
@@ -58,12 +59,24 @@ API REFERENCE
             $subject    object  The entity being acted upon (model instance)
             $related    array   Optional: [[model, role_id], ...]
             $metadata   array   Optional: Additional context data
+            $actor      object  Optional: who did it; null = the signed-in
+                                identity
+            $audit_session_id int  Optional: where it was done from; null =
+                                Session::get_audit_session_id()
 
         Returns:
             Action_Log_Model instance
 
-        The actor is automatically set from the current session (Login_User).
-        For system actions (no logged-in user), actor will be null.
+        The actor and the audit session default to the current session's. For
+        system actions (no logged-in user, a command, a plain task) both are
+        null. Code recording an act it was HANDED (a task writing what an
+        event reported) passes both.
+
+    $log->audit_ip_address()
+        The client address the act was done from, read from the row's audit
+        session (Session::get_audit_session()) - never stored on the row.
+        Null where nobody was acting. A screen showing its location resolves
+        Rsx_Geo_Ip::label() on every load and credits DB-IP (rsx:man geo_ip).
 
     Action_Log::get_for_entity($entity, $limit = null)
         Get action logs where entity is subject or related.
@@ -92,6 +105,34 @@ ACTION TYPES
         TYPE_TASK_CREATED       30
         TYPE_TASK_UPDATED       31
         TYPE_TASK_DELETED       32
+        TYPE_PARTY_CREATED      40
+        TYPE_PARTY_UPDATED      41
+        TYPE_PARTY_DELETED      42
+        TYPE_PASSWORD_CHANGED           50   metadata.cause
+        TYPE_PASSWORD_RESET_REQUESTED   51
+
+    Account Security Types
+        Written by ONE place, Password_Audit_Service::record_password_event,
+        dispatched by rsx/handlers/Password_Event_Handlers from the
+        framework's login_user.password.changed / portal_user.password.changed
+        (rsx:man session, PASSWORD CHANGES) and the application's
+        login_user.password.reset_requested /
+        portal_user.password.reset_requested - never by a controller, so no
+        path that changes a password goes unrecorded.
+
+        - One row on EVERY site the identity belongs to (a staff password is
+          one credential across all of them).
+        - Subject: the affected person's membership of that site (User_Model),
+          or the portal user.
+        - Actor: whoever did it - the user (also for a reset link and the
+          forced change at sign-in, where nobody is signed in but the owner
+          proved who they are) or the administrator; null from the command
+          line.
+        - metadata.cause (TYPE_PASSWORD_CHANGED): self | reset_link | admin |
+          forced_change | cli | unknown - the framework's Password_Change
+          vocabulary, phrased by the renderer.
+        - The renderer prints the address: "Ada Lovelace reset their password
+          from an emailed link from 203.0.113.7".
 
     Adding Custom Types
         In your model extension, add to the $enums array:
@@ -161,7 +202,9 @@ BEST PRACTICES
             );
 
         Do NOT record in model events (creating, created, etc.). This
-        conflates user actions with system operations.
+        conflates user actions with system operations. The one exception is
+        a framework EVENT that reports a user action from every path (the
+        password-change events): its one handler records it.
 
     Metadata Usage
         Use metadata for additional context not needed in the list view
@@ -209,8 +252,12 @@ FILES
     /rsx/lib/action_log/action_log.php         Helper class
     /rsx/lib/action_log/action_log_renderer.php  Render functions
     /rsx/app/frontend/action_logs/             CRUD module
+    /rsx/handlers/Password_Event_Handlers.php  password events -> the task
+    /rsx/services/password_audit_service.php   password rows + notice email
 
 SEE ALSO
     rsx:man crud
     rsx:man model_fetch
     rsx:man enums
+    rsx:man session (PASSWORD CHANGES, AUDIT SESSIONS)
+    rsx:man geo_ip

@@ -15,7 +15,7 @@ use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
-use App\RSpade\Core\Turnstile\Rsx_Turnstile;
+use App\RSpade\Lib\SignIn\Turnstile\Rsx_Turnstile;
 
 /**
  * The invitation sign-in endpoints work under the per-request site locks.

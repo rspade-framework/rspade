@@ -1,5 +1,5 @@
 @rsx_id('Two_Factor_Challenge_Spent_Email')
-{!! \App\RSpade\Core\Mail\Rsx_Mail_Layout::header($subject ?? 'Sign-in attempts were blocked') !!}
+{!! \App\RSpade\Lib\Messaging\Mail\Rsx_Mail_Layout::header($subject ?? 'Sign-in attempts were blocked') !!}
 
 <p>Hello,</p>
 
@@ -16,4 +16,4 @@
     administrator.
 </p>
 
-{!! \App\RSpade\Core\Mail\Rsx_Mail_Layout::footer($unsubscribe_url ?? null) !!}
+{!! \App\RSpade\Lib\Messaging\Mail\Rsx_Mail_Layout::footer($unsubscribe_url ?? null) !!}

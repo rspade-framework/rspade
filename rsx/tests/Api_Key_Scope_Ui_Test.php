@@ -11,10 +11,10 @@ use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Api\Api_Key_Model;
 use App\RSpade\Core\Api\Api_Scopes;
-use App\RSpade\Core\Confirmation\Rsx_Password_Confirmation;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
+use App\RSpade\Lib\SignIn\Confirmation\Rsx_Password_Confirmation;
 use Rsx\App\Frontend\Settings\ApiKeys\Frontend_Settings_Api_Keys_Controller;
 
 /**

@@ -9,7 +9,7 @@ namespace Rsx\Models;
 
 use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
 use App\RSpade\Core\Models\Login_User_Model;
-use App\RSpade\Core\Models\Portal_User_Model;
+use App\RSpade\Lib\Portal\Portal_User_Model;
 use Rsx\Models\Portal_Request_Thread_Model;
 
 /**

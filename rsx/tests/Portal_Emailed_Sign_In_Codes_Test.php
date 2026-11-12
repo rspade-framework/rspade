@@ -8,16 +8,16 @@
 namespace Rsx\Tests;
 
 use Illuminate\Http\Request;
-use App\RSpade\Core\Models\Email_Queue_Model;
-use App\RSpade\Core\Models\Portal_User_Model;
-use App\RSpade\Core\Portal\Portal_Session;
-use App\RSpade\Core\Portal\Rsx_Portal;
-use App\RSpade\Core\Portal\Rsx_Portal_Url;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
-use App\RSpade\Core\Turnstile\Rsx_Turnstile;
-use App\RSpade\Core\TwoFactor\Rsx_Portal_Two_Factor;
+use App\RSpade\Lib\Messaging\Mail\Email_Queue_Model;
+use App\RSpade\Lib\Portal\Portal_Session;
+use App\RSpade\Lib\Portal\Portal_User_Model;
+use App\RSpade\Lib\Portal\Rsx_Portal;
+use App\RSpade\Lib\Portal\Rsx_Portal_Url;
+use App\RSpade\Lib\SignIn\Turnstile\Rsx_Turnstile;
+use App\RSpade\Lib\SignIn\TwoFactor\Rsx_Portal_Two_Factor;
 use Rsx\Portal\Auth\Portal_Login_Controller;
 
 /**

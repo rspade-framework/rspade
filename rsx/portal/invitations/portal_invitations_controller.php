@@ -10,7 +10,7 @@ namespace Rsx\Portal\Invitations;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
-use App\RSpade\Core\Models\Portal_Notification_Model;
+use App\RSpade\Lib\Portal\Portal_Notification_Model;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Portal_Invitation_Model;
 use Rsx\Models\Portal_Membership_Model;

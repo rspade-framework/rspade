@@ -29,12 +29,13 @@ records nothing, so a session that only browsed lists nothing here.
                 <tr>
                     <td><%= Rsx_Time.format_timestamp(row.last_seen_at) %></td>
                     <td><%= Rsx_Time.format_timestamp(row.first_seen_at) %></td>
-                    <td><%= row.ip_address %></td>
+                    <td><Ip_Address_Display $ip_address=row.ip_address $location=row.ip_address__location /></td>
                     <td><span title="<%= row.user_agent || '' %>"><%= row.device_summary %></span></td>
                 </tr>
                 <% } %>
             </tbody>
         </Record_Table>
+        <Geo_Ip_Credit />
 
         <% if (this.data.total > this.data.limit) { %>
             <div class="User_Session_Activity__pager">

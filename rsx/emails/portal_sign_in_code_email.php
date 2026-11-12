@@ -2,8 +2,8 @@
 
 namespace Rsx\Emails;
 
-use App\RSpade\Core\Mail\Rsx_Email_Abstract;
-use App\RSpade\Core\Models\Portal_User_Model;
+use App\RSpade\Lib\Messaging\Mail\Rsx_Email_Abstract;
+use App\RSpade\Lib\Portal\Portal_User_Model;
 
 /**
  * Portal_Sign_In_Code_Email - the six-digit code, and its sign-in link, that complete a portal

@@ -244,6 +244,10 @@ class Clients_Portal_Panel extends Component {
     /**
      * Upload a file through the framework upload transport, then attach it to this
      * client as a document via documents_add (a type-safe Ajax endpoint).
+     *
+     * A file whose bytes the client's documents already hold is asked about by the
+     * endpoint (Rsx_Form.call_answering() presents it through the registered question
+     * handler): Upload Again files it; Skip This File and Cancel Upload file nothing.
      */
     async _upload_document(file) {
         this.$sid('upload-doc-btn').prop('disabled', true);
@@ -254,12 +258,14 @@ class Clients_Portal_Panel extends Component {
 
             const result = await Ajax.upload(form_data);
 
-            await this.alive(Frontend_Clients_Controller.documents_add({
+            const filed = await this.alive(Rsx_Form.call_answering(Frontend_Clients_Controller.documents_add, {
                 client_id: this.args.client_id,
                 key: result.attachment.key,
             }));
 
-            this.reload();
+            if (!Rsx_Form.is_cancelled(filed) && !filed.skipped) {
+                this.reload();
+            }
         } catch (err) {
             // The upload itself is not through alive(): a stop mid-upload still attaches the
             // file, so a late upload failure can arrive here after the stop.

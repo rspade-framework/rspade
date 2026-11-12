@@ -200,7 +200,7 @@ class Modal {
                     body: body,
                     max_width: 620,
                     buttons: [
-                        { label: 'Back', value: null, class: 'btn-link' },
+                        { label: question.back_label || 'Back', value: null, class: 'btn-link' },
                         { label: question.cancel_label || 'No', value: Modal._QUESTION_NO, class: 'btn-secondary' },
                         { label: question.confirm_label || 'Yes', value: true, class: 'btn-primary', default: true },
                     ],
@@ -212,7 +212,7 @@ class Modal {
                 if (answer === Modal._QUESTION_NO) {
                     return false;
                 }
-                return Rsx_Form.CANCELLED;   // Back, X, Escape, backdrop
+                return Rsx_Form.CANCELLED;   // Back (or its back_label), X, Escape, backdrop
             }
 
             if (question.kind === 'field_conflict') {

@@ -8,9 +8,9 @@
 namespace Rsx\Handlers;
 
 use App\RSpade\Core\Files\File_Attachment_Model;
-use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Models\User_Model;
-use App\RSpade\Core\Portal\Rsx_Portal;
+use App\RSpade\Lib\Portal\Portal_User_Model;
+use App\RSpade\Lib\Portal\Rsx_Portal;
 use Rsx\Models\Portal_Request_Thread_Model;
 use Rsx\Models\Shared_Item_Model;
 use Rsx\Portal_Permission;

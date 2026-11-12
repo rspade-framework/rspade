@@ -182,7 +182,7 @@
                                                 <span class="text-muted small"><%= session.sign_out_reason || 'Signed out' %> &middot; <%= Rsx_Time.relative(session.signed_out_at) %></span>
                                             <% } %>
                                         </td>
-                                        <td><%= session.ip_address %></td>
+                                        <td><Ip_Address_Display $ip_address=session.ip_address $location=session.ip_address__location /></td>
                                         <td><%= Rsx_Time.relative(session.last_active) %></td>
                                         <td class="text-end">
                                             <% if (_u.can_administer && session.can_sign_out) { %>
@@ -193,6 +193,7 @@
                                     <% } %>
                                 </tbody>
                             </Record_Table>
+                            <Geo_Ip_Credit />
                         <% } else { %>
                             <Empty_State $icon="bi bi-laptop">
                                 <Slot:title>No recent sessions</Slot:title>
@@ -201,6 +202,12 @@
                         <% } %>
                     </Slot:body>
                 </Section>
+
+                <%-- What was done TO this user and what they did, on this site - for a viewer
+                     who may read the action log (can_view_user_activity). --%>
+                <% if (this.data.can_view_history) { %>
+                    <Settings_User_Management_View_History $activity=this.data.activity />
+                <% } %>
             </Card_Widget>
         </Slot:main>
 
@@ -230,6 +237,14 @@
                                 </button>
                             <% } %>
                         <% } %>
+                    <% } %>
+                    <%-- Offered exactly when set_user_password() would accept it: a user the
+                         caller administers, not the caller, signed up, and a member of this
+                         site only (can_reset_password). --%>
+                    <% if (_u.can_reset_password) { %>
+                        <button $sid="btn_reset_password" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-key"></i> Reset Password
+                        </button>
                     <% } %>
                     <% if (_u.can_administer && _u.invitation_status !== 'accepted' && _u.is_enabled) { %>
                         <button $sid="btn_resend_invite" class="btn btn-outline-secondary btn-sm">

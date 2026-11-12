@@ -8,14 +8,17 @@
 namespace Rsx\Portal\Auth;
 
 use Illuminate\Http\Request;
+use App\RSpade\Core\Auth\Password_Change;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Locks\Site_Lock;
-use App\RSpade\Core\Login\Login_Redirect;
-use App\RSpade\Core\Models\Portal_User_Model;
-use App\RSpade\Core\Portal\Portal_Session;
-use App\RSpade\Core\Portal\Rsx_Portal;
-use App\RSpade\Core\Turnstile\Rsx_Turnstile;
-use App\RSpade\Lib\Flash\Flash_Alert;
+use App\RSpade\Core\Rsx;
+use App\RSpade\Core\Session\Session;
+use App\RSpade\Lib\Portal\Portal_Session;
+use App\RSpade\Lib\Portal\Portal_User_Model;
+use App\RSpade\Lib\Portal\Rsx_Portal;
+use App\RSpade\Lib\SignIn\Redirect\Login_Redirect;
+use App\RSpade\Lib\SignIn\Turnstile\Rsx_Turnstile;
+use App\RSpade\Lib\Ui\Flash\Flash_Alert;
 use Rsx\Emails\Portal_Password_Reset_Email;
 use Rsx\Models\Portal_Password_Reset_Model;
 
@@ -74,6 +77,17 @@ class Portal_Password_Reset_Controller extends Rsx_Controller_Abstract
                             ->send();
                     }, 'Portal password reset requested');
 
+                    // The one place a portal reset is requested: an APPLICATION event shaped
+                    // like the framework's portal_user.password.changed, recorded by
+                    // Password_Event_Handlers.
+                    Rsx::trigger_action('portal_user.password.reset_requested', [
+                        'identity' => $portal_user,
+                        'cause' => null,
+                        'actor' => null,
+                        'audit_session_id' => Session::get_audit_session_id(),
+                        'ip_address' => Session::get_client_ip(),
+                    ]);
+
                     $success = true;
                 } else {
                     // Don't reveal whether email exists - always show success
@@ -112,7 +126,7 @@ class Portal_Password_Reset_Controller extends Rsx_Controller_Abstract
             ]);
         }
 
-        $reset = Portal_Password_Reset_Model::find_by_token($token);
+        $reset = Portal_Password_Reset_Model::find_by_secret((string) $token);
 
         if (!$reset) {
             return rsx_view('Portal_Password_Reset_Invalid', [
@@ -168,7 +182,10 @@ class Portal_Password_Reset_Controller extends Rsx_Controller_Abstract
                         return false;
                     }
 
-                    $portal_user->set_password($password);
+                    // The one place a portal reset link sets a password. Once this commits,
+                    // the password-change event ends every other open link of the portal user
+                    // and records the change (Password_Event_Handlers).
+                    $portal_user->set_password($password, Password_Change::CAUSE_RESET_LINK);
                     $portal_user->save();
 
                     return true;

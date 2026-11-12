@@ -156,6 +156,10 @@ class Clients_Request_Thread_Action extends Spa_Action {
 
     /**
      * Post the reply: message body + staged attachment keys + optional status change.
+     *
+     * A staged file the thread already holds is asked about first, one question per file
+     * (Rsx_Form.call_answering(), through the registered question handler): Upload Again
+     * sends it, Skip This File leaves it out, Cancel Upload sends nothing at all.
      */
     async _send_reply() {
         const body = str(this.$sid('reply-body').val()).trim();
@@ -169,12 +173,18 @@ class Clients_Request_Thread_Action extends Spa_Action {
 
         this.$sid('send-btn').prop('disabled', true);
         try {
-            await this.alive(Frontend_Clients_Controller.request_thread_reply({
+            const result = await this.alive(Rsx_Form.call_answering(Frontend_Clients_Controller.request_thread_reply, {
                 thread_id: this.args.thread_id,
                 body,
                 status: status !== '' ? int(status) : null,
                 attachment_keys,
             }));
+            if (Rsx_Form.is_cancelled(result)) {
+                // Cancel Upload: nothing was sent; the composer keeps its text and files.
+                this.$sid('send-btn').prop('disabled', false);
+                return;
+            }
+
             this.state.pending_attachments = [];
             this.reload();
         } catch (e) {

@@ -9,9 +9,9 @@ namespace Rsx\Portal\Auth;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
-use App\RSpade\Core\Login\Login_Notice;
-use App\RSpade\Core\Portal\Portal_Session;
-use App\RSpade\Core\Portal\Rsx_Portal;
+use App\RSpade\Lib\Portal\Portal_Session;
+use App\RSpade\Lib\Portal\Rsx_Portal;
+use App\RSpade\Lib\SignIn\Redirect\Login_Notice;
 
 /**
  * Portal Logout Controller

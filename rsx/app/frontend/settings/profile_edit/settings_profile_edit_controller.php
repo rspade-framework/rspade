@@ -114,6 +114,10 @@ class Frontend_Settings_Profile_Edit_Controller extends Rsx_Controller_Abstract
             $new_photo = File_Attachment_Model::find_by_key((string) $photo_key);
             if (!$new_photo || !$new_photo->can_user_assign_this_file()) {
                 $errors['profile_photo'] = 'The photo could not be attached. Upload it again.';
+            } elseif ($current_photo && $new_photo->has_same_content_as($current_photo)) {
+                // The same picture again, under any name: a replacement whose bytes ARE the
+                // current photo changes nothing. The upload stays unclaimed for the sweep.
+                $new_photo = null;
             }
         }
 

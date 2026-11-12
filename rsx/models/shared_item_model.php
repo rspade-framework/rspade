@@ -4,7 +4,7 @@ namespace Rsx\Models;
 
 use Illuminate\Support\Str;
 use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
-use App\RSpade\Core\Portal\Portal_Authorizable;
+use App\RSpade\Lib\Portal\Portal_Authorizable;
 use Rsx\Models\Contact_Model;
 use Rsx\Portal_Permission;
 /**
@@ -175,7 +175,7 @@ class Shared_Item_Model extends Rsx_Site_Model_Abstract
      */
     public function get_share_url(): string|false
     {
-        $url = \App\RSpade\Core\Portal\Rsx_Portal::Route(
+        $url = \App\RSpade\Lib\Portal\Rsx_Portal::Route(
             'Portal_Share_Link_Controller::open',
             ['token' => $this->token],
             site_id: (int) $this->site_id

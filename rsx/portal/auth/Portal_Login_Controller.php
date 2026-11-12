@@ -11,19 +11,20 @@ use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Auth\Auth_Password_Reset_Required_Exception;
 use App\RSpade\Core\Auth\Auth_Throttled_Exception;
+use App\RSpade\Core\Auth\Forced_Password_Change_Exception;
 use App\RSpade\Core\Auth\Portal_Auth;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Locks\Site_Lock;
-use App\RSpade\Core\Login\Login_Redirect;
-use App\RSpade\Core\Mail\Rsx_Mail;
-use App\RSpade\Core\Models\Portal_User_Model;
-use App\RSpade\Core\Portal\Portal_Session;
-use App\RSpade\Core\Portal\Rsx_Portal;
 use App\RSpade\Core\Session\Portal_Login_History;
-use App\RSpade\Core\Turnstile\Rsx_Turnstile;
-use App\RSpade\Core\TwoFactor\Rsx_Portal_Two_Factor;
-use App\RSpade\Core\TwoFactor\Two_Factor_Failed_Exception;
-use App\RSpade\Lib\Flash\Flash_Alert;
+use App\RSpade\Lib\Messaging\Mail\Rsx_Mail;
+use App\RSpade\Lib\Portal\Portal_Session;
+use App\RSpade\Lib\Portal\Portal_User_Model;
+use App\RSpade\Lib\Portal\Rsx_Portal;
+use App\RSpade\Lib\SignIn\Redirect\Login_Redirect;
+use App\RSpade\Lib\SignIn\Turnstile\Rsx_Turnstile;
+use App\RSpade\Lib\SignIn\TwoFactor\Rsx_Portal_Two_Factor;
+use App\RSpade\Lib\SignIn\TwoFactor\Two_Factor_Failed_Exception;
+use App\RSpade\Lib\Ui\Flash\Flash_Alert;
 use Rsx\Emails\Portal_Sign_In_Code_Email;
 use Rsx\Models\Portal_Membership_Model;
 
@@ -33,6 +34,11 @@ use Rsx\Models\Portal_Membership_Model;
  * Handles portal user authentication: the password form, the second-factor challenge, and
  * passwordless passkey sign-in. Public by design - these are the routes an anonymous visitor
  * arrives on.
+ *
+ * A PASSWORD THAT MUST BE REPLACED is chosen at sign-in: Portal_Auth::verify_credentials()
+ * throws Auth_Password_Reset_Required_Exception for a flagged portal user, index() parks it
+ * with Portal_Auth::begin_forced_password_change(), and new_password() saves the new one and
+ * continues the same ladder (second step, then complete_sign_in()).
  *
  * THE TWO-STAGE LOGIN, portal edition. index() verifies the password and, when the portal
  * user holds a second factor (Rsx_Portal_Two_Factor::is_enabled()), parks them with
@@ -128,6 +134,7 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
                 // and a second factor may still be owed - so a recorded SUCCESS means the portal
                 // user is all the way in. See rsx:man portal, SIGNING IN.
                 $portal_user = null;
+                $forced_change_identity = null;
 
                 try {
                     $portal_user = Portal_Auth::verify_credentials(
@@ -146,42 +153,35 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
                     // The refusal message IS the user-facing string.
                     $error = $e->getMessage();
                 } catch (Auth_Password_Reset_Required_Exception $e) {
-                    // The password was right; the account must choose a new one first. Already
-                    // recorded. The form's "Forgot your password?" link is the way through.
-                    $error = $e->getMessage() . ' Use "Forgot your password?" below to choose a new one.';
+                    // The password was right and the account must choose a new one before it
+                    // may sign in with one (portal_users.password_reset_required; the framework
+                    // has already recorded the refusal). It chooses it right here: the "Choose a
+                    // new password" step, then the rest of the sign-in.
+                    $forced_change_identity = $e->identity;
                 }
 
-                if ($portal_user !== null) {
-                    // What this sign-in's second step accepts, or false for none -
-                    // this application's policy, from the one function that holds it.
-                    $accepts = static::challenge_accepts($portal_user);
+                // The application's account rules (can_login(): unverified, inactive), asked
+                // between the password and the sign-in - of a forced change's identity too.
+                $proven = $portal_user ?? $forced_change_identity;
+                $refusal = $proven !== null ? static::__account_refusal($proven) : null;
 
-                    // Check if user can log in (active and verified) - the application's
-                    // account rules, asked between the password and the sign-in.
-                    if (!$portal_user->can_login()) {
-                        if (!$portal_user->is_verified) {
-                            $error = 'Your account has not been verified. Please check your email.';
-                        } else {
-                            $error = 'Your account is not active. Please contact support.';
-                        }
-                    } elseif ($accepts !== false) {
-                        // A SECOND STEP IS OWED. Nothing is signed in: the portal user is
-                        // parked half-authenticated and the challenge page answers for them.
-                        // The invited-client destination is parked AFTER the challenge, which
-                        // signs the portal out first - and a sign-out clears the portal
-                        // realm's session values.
-                        Rsx_Portal_Two_Factor::begin_challenge($portal_user, $accepts);
+                if ($refusal !== null) {
+                    $error = $refusal;
+                } elseif ($forced_change_identity !== null) {
+                    // THE FORCED PASSWORD CHANGE. The framework signs the portal out and parks
+                    // the portal user - NOT signed in - for the "Choose a new password" page
+                    // (new_password()), which saves it and then continues this same ladder: the
+                    // second step next, then complete_sign_in(). The invited-client id and the
+                    // redirect are parked AFTER, because the sign-out clears the portal realm's
+                    // session values; they live as long as the parked identity does.
+                    Portal_Auth::begin_forced_password_change($forced_change_identity);
 
-                        Portal_Session::put_value(static::CLIENT_ID_KEY, $client_id, Rsx_Portal_Two_Factor::challenge_expires_at());
-                        Portal_Session::put_value(static::REDIRECT_KEY, Login_Redirect::consume(''), Rsx_Portal_Two_Factor::challenge_expires_at());
+                    Portal_Session::put_value(static::CLIENT_ID_KEY, $client_id);
+                    Portal_Session::put_value(static::REDIRECT_KEY, Login_Redirect::consume(''));
 
-                        return redirect(Rsx_Portal::Route('Portal_Login_Controller::verify'));
-                    } else {
-                        // No second step: this IS the sign-in, and complete_sign_in()
-                        // performs it - landing on the invited client's workspace when one
-                        // was carried in and the user has access, else the dashboard.
-                        return redirect(static::complete_sign_in($portal_user, sign_in: true, client_id: $client_id));
-                    }
+                    return redirect(Rsx_Portal::Route('Portal_Login_Controller::new_password'));
+                } elseif ($portal_user !== null) {
+                    return redirect(static::__continue_sign_in($portal_user, $client_id, Login_Redirect::consume('')));
                 }
             }
         }
@@ -190,6 +190,158 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
             'error' => $error,
             'posted_email' => $posted_email,
             'client_id' => $client_id,
+        ]);
+    }
+
+    /**
+     * What follows a proven password: the second step when this sign-in owes one
+     * (challenge_accepts()), otherwise the sign-in itself (complete_sign_in()). Answers where
+     * the visitor goes next.
+     *
+     * The password form and the forced password change both continue through here, so a
+     * forced change is never a way around a second factor: it is the step BEFORE the factor.
+     *
+     * @param Portal_User_Model $portal_user The portal user whose password was just proven (or just chosen).
+     * @param int $client_id The invited client carried in, or 0.
+     * @param string $redirect A validated threaded redirect, or ''.
+     * @return string
+     */
+    private static function __continue_sign_in(Portal_User_Model $portal_user, int $client_id, string $redirect): string
+    {
+        // What this sign-in's second step accepts, or false for none - this application's
+        // policy, from the one function that holds it.
+        $accepts = static::challenge_accepts($portal_user);
+
+        if ($accepts !== false) {
+            // A SECOND STEP IS OWED. Nothing is signed in: the portal user is parked
+            // half-authenticated and the challenge page answers for them. The invited-client
+            // destination and the redirect are parked AFTER the challenge, which signs the
+            // portal out first - and a sign-out clears the portal realm's session values.
+            Rsx_Portal_Two_Factor::begin_challenge($portal_user, $accepts);
+
+            Portal_Session::put_value(static::CLIENT_ID_KEY, $client_id, Rsx_Portal_Two_Factor::challenge_expires_at());
+            Portal_Session::put_value(static::REDIRECT_KEY, $redirect, Rsx_Portal_Two_Factor::challenge_expires_at());
+
+            return Rsx_Portal::Route('Portal_Login_Controller::verify');
+        }
+
+        // No second step: this IS the sign-in, and complete_sign_in() performs it - landing on
+        // the threaded redirect, the invited client's workspace, or the dashboard.
+        return static::complete_sign_in($portal_user, sign_in: true, client_id: $client_id, redirect: $redirect);
+    }
+
+    /**
+     * May this portal user sign in, by THIS APPLICATION's account rules? Null admits; a string
+     * is the error shown on the form. The framework has answered its own questions (the right
+     * password on this portal's site); status and verification are this application's.
+     */
+    private static function __account_refusal(Portal_User_Model $portal_user): ?string
+    {
+        if ($portal_user->can_login()) {
+            return null;
+        }
+
+        if (!$portal_user->is_verified) {
+            return 'Your account has not been verified. Please check your email.';
+        }
+
+        return 'Your account is not active. Please contact support.';
+    }
+
+    /**
+     * The "Choose a new password" step of a sign-in whose password was right but must be
+     * replaced (portal_users.password_reset_required - set by staff, or an operator).
+     *
+     * Served to a browser that is deliberately NOT signed in to the portal: index() parked the
+     * portal user with Portal_Auth::begin_forced_password_change(). No email and no token: the
+     * proof is the password the visitor just typed, carried by their own session. The POST
+     * checks this application's password rule (rsx.portal.password_min_length, typed twice),
+     * then Portal_Auth::complete_forced_password_change() refuses the current password, draws
+     * on the sign-in throttle and saves the new one through Portal_User_Model with the cause
+     * forced_change (the flag clears, other sign-ins end) - and the sign-in continues through
+     * __continue_sign_in(): a second step next, then complete_sign_in().
+     *
+     * Nothing pending (never begun, signed out, or the password changed some other way since)
+     * goes back to /login; ?cancel=1 forgets the parked portal user first. A signed-in visitor
+     * goes to their destination. No Turnstile: the step answers only from the portal user
+     * parked on the caller's own session, which passed Turnstile with the password.
+     */
+    #[Portal_Route('/login/new-password', methods: ['GET', 'POST'])]
+    public static function new_password(Request $request, array $params = [])
+    {
+        if (Portal_Session::is_logged_in()) {
+            return redirect(static::destination(Portal_Session::get_portal_user(), 0));
+        }
+
+        if (!empty($params['cancel'])) {
+            Portal_Auth::abandon_forced_password_change();
+            static::__take_parked_client_id();
+            static::__take_parked_redirect();
+
+            return redirect(Rsx_Portal::Route('Portal_Login_Controller::index'));
+        }
+
+        $pending = Portal_Auth::forced_password_change_pending();
+
+        if ($pending === null) {
+            return redirect(Rsx_Portal::Route('Portal_Login_Controller::index'));
+        }
+
+        $error = null;
+        $min_length = (int) config('rsx.portal.password_min_length');
+
+        if ($request->is_post()) {
+            $password = (string) $request->input('password');
+            $confirmation = (string) $request->input('password_confirmation');
+
+            if ($password === '') {
+                $error = 'Password is required';
+            } elseif (strlen($password) < $min_length) {
+                $error = "Password must be at least {$min_length} characters";
+            } elseif ($password !== $confirmation) {
+                $error = 'Passwords do not match';
+            } else {
+                $portal_user = null;
+
+                try {
+                    // The one place a forced change at portal sign-in sets a password.
+                    $portal_user = Portal_Auth::complete_forced_password_change($password);
+                } catch (Auth_Throttled_Exception $e) {
+                    $error = $e->getMessage();
+                } catch (Forced_Password_Change_Exception $e) {
+                    if ($e->reason() === Forced_Password_Change_Exception::REASON_NOTHING_PENDING) {
+                        return redirect(Rsx_Portal::Route('Portal_Login_Controller::index'));
+                    }
+
+                    $error = $e->getMessage();
+                }
+
+                if ($portal_user !== null) {
+                    // The parked destination is taken BEFORE the sign-in continues: a second
+                    // step signs the portal out (clearing these values) and re-parks them.
+                    $client_id = static::__take_parked_client_id();
+                    $redirect = static::__take_parked_redirect();
+                    $refusal = static::__account_refusal($portal_user);
+
+                    if ($refusal === null) {
+                        return redirect(static::__continue_sign_in($portal_user, $client_id, $redirect));
+                    }
+
+                    // The account was deactivated between the password and now: the password is
+                    // changed, nobody is signed in, and the login form says why.
+                    return rsx_view('Portal_Login_Index', [
+                        'error' => $refusal,
+                        'posted_email' => (string) $portal_user->email,
+                        'client_id' => $client_id,
+                    ]);
+                }
+            }
+        }
+
+        return rsx_view('Portal_Login_New_Password', [
+            'email' => $pending['email'],
+            'error' => $error,
+            'min_length' => $min_length,
         ]);
     }
 
@@ -245,13 +397,21 @@ class Portal_Login_Controller extends Rsx_Controller_Abstract
             return response_error(Ajax::ERROR_VALIDATION, $e->getMessage());
         }
 
-        $client_id = (int) (Portal_Session::get_value(static::CLIENT_ID_KEY) ?? 0);
-        Portal_Session::forget_value(static::CLIENT_ID_KEY);
+        $client_id = static::__take_parked_client_id();
 
         return ['redirect' => static::complete_sign_in($portal_user, sign_in: false, client_id: $client_id, redirect: static::__take_parked_redirect())];
     }
 
-    /** The redirect parked across the challenge, or '' for none. Answers it once. */
+    /** The invited-client id parked across a hop, or 0 for none. Answers it once. */
+    private static function __take_parked_client_id(): int
+    {
+        $client_id = (int) (Portal_Session::get_value(static::CLIENT_ID_KEY) ?? 0);
+        Portal_Session::forget_value(static::CLIENT_ID_KEY);
+
+        return $client_id;
+    }
+
+    /** The redirect parked across a hop (the challenge, the forced change), or '' for none. Answers it once. */
     private static function __take_parked_redirect(): string
     {
         $redirect = (string) (Portal_Session::get_value(static::REDIRECT_KEY) ?? '');

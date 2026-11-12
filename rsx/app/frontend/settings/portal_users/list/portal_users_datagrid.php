@@ -8,8 +8,8 @@
 namespace Rsx\App\Frontend\Settings\PortalUsers\List;
 
 use Illuminate\Database\Eloquent\Builder;
-use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Session\Session;
+use App\RSpade\Lib\Portal\Portal_User_Model;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Contact_Model;
 use Rsx\Models\Portal_Membership_Model;

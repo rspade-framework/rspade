@@ -4,8 +4,8 @@ namespace Rsx\Models;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
-use App\RSpade\Core\Models\Portal_User_Model;
 use App\RSpade\Core\Models\User_Model;
+use App\RSpade\Lib\Portal\Portal_User_Model;
 use Rsx\Lib\FieldChecks\Field_Checks;
 use Rsx\Models\Client_Department_Model;
 use Rsx\Models\Client_Model;
@@ -216,7 +216,7 @@ class Contact_Model extends Rsx_Site_Model_Abstract
      * Returns null when the contact has no portal access. Used by the staff
      * "View as Client" impersonation affordance.
      *
-     * @return \App\RSpade\Core\Models\Portal_User_Model|null
+     * @return \App\RSpade\Lib\Portal\Portal_User_Model|null
      */
     public function resolve_portal_user()
     {

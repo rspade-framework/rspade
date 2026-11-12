@@ -2,7 +2,7 @@
 
 namespace Rsx\Emails;
 
-use App\RSpade\Core\Mail\Rsx_Email_Abstract;
+use App\RSpade\Lib\Messaging\Mail\Rsx_Email_Abstract;
 
 /**
  * Two_Factor_Challenge_Spent_Email - tells an account owner that somebody got past their

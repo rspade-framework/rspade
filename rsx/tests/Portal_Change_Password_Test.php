@@ -10,11 +10,11 @@ namespace Rsx\Tests;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Auth\Login_Throttle;
-use App\RSpade\Core\Models\Portal_User_Model;
-use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Session\Portal_Login_History;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
+use App\RSpade\Lib\Portal\Portal_Session;
+use App\RSpade\Lib\Portal\Portal_User_Model;
 use Rsx\Portal\Settings\Portal_Settings_Controller;
 
 /**

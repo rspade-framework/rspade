@@ -3,7 +3,10 @@
 
 namespace Rsx\Lib\ActionLog;
 
+use App\RSpade\Core\Auth\Password_Change;
+use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Rsx;
+use App\RSpade\Lib\Portal\Portal_User_Model;
 use Rsx\Models\Action_Log_Model;
 
 /**
@@ -268,5 +271,90 @@ class Action_Log_Renderer
         $name = htmlspecialchars($party->name);
 
         return "{$actor_name} deleted party {$name}";
+    }
+
+    // =========================================================================
+    // Account Security (written by Password_Event_Handlers)
+    // =========================================================================
+
+    /**
+     * A password change. metadata.cause is the framework's Password_Change::CAUSE_* value;
+     * the subject is the affected person's membership of this site (User_Model) or a portal
+     * user (Portal_User_Model).
+     */
+    public static function password_changed(Action_Log_Model $log): string
+    {
+        $subject = static::account_name($log);
+        $actor = $log->actor;
+        $by_subject = $actor !== null && static::is_subject_identity($log, $actor);
+
+        $line = match ($log->get_metadata()['cause'] ?? null) {
+            Password_Change::CAUSE_SELF => $by_subject
+                ? "{$subject} changed their password"
+                : static::actor_name($log) . " changed the password of {$subject}",
+            Password_Change::CAUSE_RESET_LINK => "{$subject} reset their password from an emailed link",
+            Password_Change::CAUSE_ADMIN => static::actor_name($log) . " set a temporary password for {$subject}",
+            Password_Change::CAUSE_FORCED_CHANGE => "{$subject} chose a new password at sign-in",
+            Password_Change::CAUSE_CLI => "The password of {$subject} was set from the command line",
+            default => "The password of {$subject} was changed",
+        };
+
+        return $line . static::from_address($log);
+    }
+
+    public static function password_reset_requested(Action_Log_Model $log): string
+    {
+        return static::account_name($log) . ' requested a password reset link' . static::from_address($log);
+    }
+
+    /**
+     * The account an account-security row is about: a link to the user's page for a staff
+     * membership, the address for a portal user.
+     */
+    protected static function account_name(Action_Log_Model $log): string
+    {
+        $subject = $log->subject;
+
+        if (!$subject) {
+            return 'a user (deleted)';
+        }
+
+        if ($subject instanceof Portal_User_Model) {
+            return 'portal user ' . htmlspecialchars((string) $subject->email);
+        }
+
+        $name = trim($subject->first_name . ' ' . $subject->last_name) ?: (string) $subject->email;
+        $link = Rsx::Route('Settings_User_Management_View_Action', $subject->id);
+
+        return '<a href="' . $link . '">' . htmlspecialchars($name) . '</a>';
+    }
+
+    /**
+     * Is the actor the identity the row is about (a person acting on their own account)?
+     */
+    protected static function is_subject_identity(Action_Log_Model $log, object $actor): bool
+    {
+        $subject = $log->subject;
+
+        if (!$subject) {
+            return false;
+        }
+
+        if ($subject instanceof Portal_User_Model) {
+            return $actor instanceof Portal_User_Model && (int) $actor->id === (int) $subject->id;
+        }
+
+        return $actor instanceof Login_User_Model && (int) $actor->id === (int) $subject->login_user_id;
+    }
+
+    /**
+     * " - from 203.0.113.7" when the row's audit session recorded an address (never when the
+     * act came from a command or a task, which have none).
+     */
+    protected static function from_address(Action_Log_Model $log): string
+    {
+        $ip_address = $log->audit_ip_address();
+
+        return $ip_address === null ? '' : ' from ' . htmlspecialchars($ip_address);
     }
 }

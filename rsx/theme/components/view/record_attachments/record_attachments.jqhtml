@@ -13,8 +13,10 @@ Event OUT:
 
 The section draws what it is given and never fetches: the host page loads the rows with the
 rest of its data and passes them in. Uploading sends each file through Ajax.upload(), then
-posts every returned key to $controller::$method in ONE call. Clicking a row opens
-Attachment_Preview_Modal.
+posts every returned key to $controller::$method in ONE call through
+Rsx_Form.call_answering(), so the endpoint's duplicate-upload question (one per file the
+record already holds: Cancel Upload / Skip This File / Upload Again) is asked through the
+application's question handler. Clicking a row opens Attachment_Preview_Modal.
 
 Dropping files anywhere on the section uploads them (rsx:man droppable). The section is the
 drop target only when $can_upload is set.

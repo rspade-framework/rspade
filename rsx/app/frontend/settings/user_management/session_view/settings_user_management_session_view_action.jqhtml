@@ -65,12 +65,13 @@ something from (User_Session_Activity).
                         <View_Field $label="First Signed In Here"><%= Rsx_Time.format_timestamp(_s.first_seen) %></View_Field>
                         <View_Field $label="Sign-ins"><%= _s.sign_in_count %></View_Field>
                         <View_Field $label="IP Address">
-                            <% if (_s.ip_address) { %><%= _s.ip_address %><% } else { %><Empty_Value /><% } %>
+                            <Ip_Address_Display $ip_address=_s.ip_address $location=_s.ip_address__location />
                         </View_Field>
                         <View_Field $label="Browser">
                             <% if (_s.user_agent) { %><span class="small"><%= _s.user_agent %></span><% } else { %><Empty_Value /><% } %>
                         </View_Field>
                     </View_Fields>
+                    <Geo_Ip_Credit />
                 </Section>
 
                 <Section $title="Activity" $flush=true>

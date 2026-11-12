@@ -6,6 +6,8 @@
 
 namespace Rsx\Lib\Sessions;
 
+use App\RSpade\Lib\Geo\Ip\Rsx_Geo_Ip;
+
 /**
  * Session_Listing - this application's convention for showing "where you're signed in".
  *
@@ -24,6 +26,8 @@ namespace Rsx\Lib\Sessions;
  *     only on a SIGNED-IN entry that is not the browser reading the page (signing yourself
  *     out is the sign-out link's job) and is not an API key's use (that ends when the key is
  *     revoked).
+ *   - row() also ships ip_address__location - where the address is (Rsx_Geo_Ip::label()),
+ *     resolved on every load and never stored; a screen that shows it shows <Geo_Ip_Credit />.
  *   - find() is the record rule for an endpoint handed an id: the id must be one of the
  *     entries the screen lists, or it is not found.
  *
@@ -79,8 +83,8 @@ class Session_Listing
      * browser.
      *
      * @param array $session A get_sessions_for_user() entry
-     * @return array {id, device_summary, user_agent, ip_address, first_seen, signed_in_at,
-     *               last_active, is_signed_in, signed_out_at, sign_out_reason, sign_in_count,
+     * @return array {id, device_summary, user_agent, ip_address, ip_address__location, first_seen,
+     *               signed_in_at, last_active, is_signed_in, signed_out_at, sign_out_reason, sign_in_count,
      *               is_current, is_impersonation, is_api, can_sign_out}
      */
     public static function row(array $session): array
@@ -90,6 +94,7 @@ class Session_Listing
             'device_summary' => $session['device_summary'],
             'user_agent' => $session['user_agent'],
             'ip_address' => $session['ip_address'],
+            'ip_address__location' => $session['ip_address'] !== null ? Rsx_Geo_Ip::label((string) $session['ip_address']) : null,
             'first_seen' => $session['first_seen'],
             'signed_in_at' => $session['signed_in_at'],
             'last_active' => $session['last_active'],

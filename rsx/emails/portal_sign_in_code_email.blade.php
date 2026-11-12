@@ -1,5 +1,5 @@
 @rsx_id('Portal_Sign_In_Code_Email')
-{!! \App\RSpade\Core\Mail\Rsx_Mail_Layout::header($subject ?? 'Your sign-in code') !!}
+{!! \App\RSpade\Lib\Messaging\Mail\Rsx_Mail_Layout::header($subject ?? 'Your sign-in code') !!}
 
 <p><strong>Finish signing in to the {{ $app_name }} client portal</strong></p>
 
@@ -19,4 +19,4 @@
     If you did not just try to sign in, someone may know your password. Change it, and do not share this code or forward this email to anyone.
 </p>
 
-{!! \App\RSpade\Core\Mail\Rsx_Mail_Layout::footer($unsubscribe_url ?? null) !!}
+{!! \App\RSpade\Lib\Messaging\Mail\Rsx_Mail_Layout::footer($unsubscribe_url ?? null) !!}

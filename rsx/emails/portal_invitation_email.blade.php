@@ -1,5 +1,5 @@
 @rsx_id('Portal_Invitation_Email')
-{!! \App\RSpade\Core\Mail\Rsx_Mail_Layout::header($subject ?? 'Invitation') !!}
+{!! \App\RSpade\Lib\Messaging\Mail\Rsx_Mail_Layout::header($subject ?? 'Invitation') !!}
 
 <p>Hello,</p>
 
@@ -27,4 +27,4 @@
     If you did not expect this invitation, you can safely ignore this email.
 </p>
 
-{!! \App\RSpade\Core\Mail\Rsx_Mail_Layout::footer($unsubscribe_url ?? null) !!}
+{!! \App\RSpade\Lib\Messaging\Mail\Rsx_Mail_Layout::footer($unsubscribe_url ?? null) !!}

@@ -5,8 +5,8 @@ namespace Rsx\App\Frontend\Settings\SiteSettings;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Models\Site_Model;
-use App\RSpade\Core\Portal\Rsx_Portal_Url;
 use App\RSpade\Core\Session\Session;
+use App\RSpade\Lib\Portal\Rsx_Portal_Url;
 
 /**
  * The current site's own settings: its name, and its client portal - whether the site

@@ -15,19 +15,20 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Files\File_Attachment_Model;
+use App\RSpade\Core\Files\Rsx_Duplicate_Upload;
 use App\RSpade\Core\Forms\Form_Edit;
-use App\RSpade\Core\Mail\Rsx_Mail;
-use App\RSpade\Core\Models\Portal_Notification_Model;
-use App\RSpade\Core\Models\Portal_User_Model;
-use App\RSpade\Core\Portal\Portal_Session;
-use App\RSpade\Core\Portal\Rsx_Portal;
-use App\RSpade\Core\Portal\Rsx_Portal_Url;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Task\Task;
 use App\RSpade\Core\Time\Rsx_Date;
-use App\RSpade\Lib\Flash\Flash_Alert;
+use App\RSpade\Lib\Messaging\Mail\Rsx_Mail;
+use App\RSpade\Lib\Portal\Portal_Notification_Model;
+use App\RSpade\Lib\Portal\Portal_Session;
+use App\RSpade\Lib\Portal\Portal_User_Model;
+use App\RSpade\Lib\Portal\Rsx_Portal;
+use App\RSpade\Lib\Portal\Rsx_Portal_Url;
+use App\RSpade\Lib\Ui\Flash\Flash_Alert;
 use Rsx\App\Frontend\Clients\List\Clients_DataGrid;
 use Rsx\Emails\Portal_Invitation_Email;
 use Rsx\Emails\Portal_Shared_Content_Email;
@@ -1511,6 +1512,10 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * the returned key. can_user_assign_this_file() is STRUCTURAL, not a per-user check:
      * it proves the file is still unclaimed and belongs to this tenant. WHO may claim it
      * is this endpoint's decision, and here that is its can_edit_data gate.
+     *
+     * A file whose bytes the client's documents already hold is asked about first
+     * (Rsx_Duplicate_Upload): Upload Again files it, Skip This File files nothing and answers
+     * skipped: true - the upload stays unclaimed for the framework's sweep.
      */
     #[Auth('can_edit_data')]
     #[Writer]
@@ -1534,12 +1539,22 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             return response_error(Ajax::ERROR_VALIDATION, 'File not found or access denied');
         }
 
+        $screen = Rsx_Duplicate_Upload::screen($params, $client, [$attachment]);
+        if ($screen['question'] !== null) {
+            return $screen['question'];
+        }
+
+        if ($screen['skip'] !== []) {
+            return ['attachment_id' => null, 'key' => null, 'name' => $attachment->file_name, 'skipped' => true];
+        }
+
         $attachment->add_to($client, Client_Model::DOCUMENTS_CATEGORY);
 
         return [
             'attachment_id' => $attachment->id,
             'key' => $attachment->key,
             'name' => $attachment->file_name,
+            'skipped' => false,
         ];
     }
 
@@ -2227,6 +2242,11 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
      * AFTER the message. The body may be empty only when there is at least one
      * attachment or a status change. A CLOSED thread is refused unless the same
      * submission changes its status away from Closed (a reopen).
+     *
+     * An attachment whose bytes the thread already holds is asked about before anything is
+     * written (Rsx_Duplicate_Upload, one question per such file). A skipped file is left
+     * unclaimed; a reply left with no body, no file and no status change posts nothing and
+     * answers message_id null.
      */
     #[Auth('can_edit_data')]
     #[Writer]
@@ -2277,17 +2297,36 @@ class Frontend_Clients_Controller extends Rsx_Controller_Abstract
             ]);
         }
 
+        // The staged files still claimable; a key that is not is passed over.
+        $uploads = [];
+        foreach ($attachment_keys as $key) {
+            $attachment = is_string($key) ? File_Attachment_Model::find_by_key($key) : null;
+            if ($attachment && $attachment->can_user_assign_this_file()) {
+                $uploads[] = $attachment;
+            }
+        }
+
+        // Ask about each file the thread already holds - before anything is written.
+        $screen = Rsx_Duplicate_Upload::screen($params, $thread, $uploads);
+        if ($screen['question'] !== null) {
+            return $screen['question'];
+        }
+
+        if ($body === '' && $screen['file'] === [] && $status_change === null) {
+            return [
+                'thread_id' => $thread->id,
+                'message_id' => null,
+                'status_id' => $thread->status_id,
+            ];
+        }
+
         $staff = Session::get_login_user();
 
         // Post the message (staff author -> no auto status transition).
         $message = $thread->post_message($staff, $body);
 
-        // Attach staff files (review-exempt). Validate assignability before attaching.
-        foreach ($attachment_keys as $key) {
-            $attachment = File_Attachment_Model::find_by_key($key);
-            if (!$attachment || !$attachment->can_user_assign_this_file()) {
-                continue;
-            }
+        // Attach staff files (review-exempt).
+        foreach ($screen['file'] as $attachment) {
             $attachment->add_to($thread, static::DOCUMENTS_THREAD_CATEGORY);
 
             $document = new Portal_Request_Document_Model();

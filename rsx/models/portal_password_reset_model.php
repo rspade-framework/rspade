@@ -7,20 +7,18 @@
 
 namespace Rsx\Models;
 
-use Illuminate\Support\Str;
 use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
-use App\RSpade\Core\Models\Portal_User_Model;
-
+use App\RSpade\Lib\Portal\Portal_User_Model;
+use Rsx\Lib\PasswordReset\Password_Reset_Token;
 /**
- * Portal_Password_Reset_Model - Manages portal user password reset tokens
+ * Portal_Password_Reset_Model - a portal user's emailed "set a new password" link.
  *
- * Password reset flow:
+ * The token rules (hashed at rest, one live link per portal user, expiry, single-use claim)
+ * are Password_Reset_Token's, shared with the staff Login_User_Password_Reset_Model.
  *
- * 1. User requests password reset with their email
- * 2. System creates token and sends email with reset link
- * 3. User clicks link, lands on password reset page
- * 4. User sets new password
- * 5. Token marked as used (used_at set)
+ * Flow: the user asks on /password/reset -> create_for_user() mints the link and the email
+ * carries it -> /password/reset/:token finds it (find_by_secret()), claim()s it and saves the
+ * new password in one write section.
  */
 /**
  * _AUTO_GENERATED_ Database type hints - do not edit manually
@@ -33,7 +31,7 @@ use App\RSpade\Core\Models\Portal_User_Model;
  * @property int $id
  * @property int $portal_user_id
  * @property int $site_id
- * @property string $token
+ * @property string $token_hash
  * @property string $updated_at
  * @property int $updated_by_id
  * @property int $updated_by_type
@@ -42,7 +40,9 @@ use App\RSpade\Core\Models\Portal_User_Model;
  * @mixin \Eloquent
  */
 class Portal_Password_Reset_Model extends Rsx_Site_Model_Abstract
-             {
+{
+    use Password_Reset_Token;
+
     /**
      * UNBOUNDED: this table's row count grows with customer activity, not with the
      * codebase, so no reader may assume the set is small.
@@ -58,137 +58,44 @@ class Portal_Password_Reset_Model extends Rsx_Site_Model_Abstract
     public static $unbounded = true;
 
     /**
-     * Columns toArray() never sends to the browser. token is a bearer credential: whoever holds it can set the account's password. It reaches its owner only
-     * inside the emailed link.
+     * Columns toArray() never sends to the browser. token_hash is a digest of a bearer link's
+     * secret; it has no client-side reader.
      *
      * @var string[]
      */
-    public static $neverExport = ['token'];
+    public static $neverExport = ['token_hash'];
 
     protected $table = 'portal_password_resets';
-    protected $fillable = []; // No mass assignment - always explicit
 
     // No enums for this model
     public static $enums = [];
 
+    protected static function _password_reset_owner_column(): string
+    {
+        return 'portal_user_id';
+    }
+
     /**
-     * Create a password reset token for a portal user
+     * Mint the portal user's reset link (ending any link they already hold), valid for
+     * rsx.portal.password_reset_expiry_hours. get_reset_url() builds its URL - on this
+     * instance only, the one that holds the secret.
      *
      * @param Portal_User_Model $portal_user
-     * @param int|null $expiry_hours Hours until expiration (null uses config default)
      * @return static
      */
-    public static function create_for_user(Portal_User_Model $portal_user, ?int $expiry_hours = null): self
+    public static function create_for_user(Portal_User_Model $portal_user): self
     {
-        $expiry_hours = $expiry_hours ?? config('rsx.portal.password_reset_expiry_hours', 1);
-
-        // Invalidate any existing unused tokens for this user
-        static::where('portal_user_id', $portal_user->id)
-            ->whereNull('used_at')
-            ->update(['used_at' => now()]);
-
-        $reset = new static();
-        $reset->site_id = $portal_user->site_id;
-        $reset->portal_user_id = $portal_user->id;
-        $reset->token = static::generate_token();
-        $reset->expires_at = now()->addHours($expiry_hours);
-        $reset->save();
-
-        return $reset;
+        return static::_mint(
+            (int) $portal_user->id,
+            (int) config('rsx.portal.password_reset_expiry_hours'),
+            function (self $reset) use ($portal_user) {
+                $reset->site_id = $portal_user->site_id;
+            }
+        );
     }
 
     /**
-     * Generate a unique token
-     *
-     * @return string
-     */
-    public static function generate_token(): string
-    {
-        do {
-            // Generate a URL-safe random token
-            $token = Str::random(64);
-        } while (static::where('token', $token)->exists());
-
-        return $token;
-    }
-
-    /**
-     * Find password reset by token
-     *
-     * @param string $token
-     * @return static|null
-     */
-    public static function find_by_token(string $token): ?self
-    {
-        return static::where('token', $token)->first();
-    }
-
-    /**
-     * Check if the reset token is valid (not expired, not used)
-     *
-     * @return bool
-     */
-    public function is_valid(): bool
-    {
-        // Already used
-        if ($this->used_at !== null) {
-            return false;
-        }
-
-        // Expired
-        if (now()->isAfter($this->expires_at)) {
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Check if the token has been used
-     *
-     * @return bool
-     */
-    public function is_used(): bool
-    {
-        return $this->used_at !== null;
-    }
-
-    /**
-     * Check if the token has expired
-     *
-     * @return bool
-     */
-    public function is_expired(): bool
-    {
-        return now()->isAfter($this->expires_at);
-    }
-
-    /**
-     * Use the reset up, if nobody has yet: ONE conditional UPDATE that marks it used only
-     * while it is still unused and unexpired. Exactly one of any number of concurrent
-     * submissions of the same link wins it, so the caller writes the new password only after
-     * this answers true - claiming first, then writing, is what makes a link single-use.
-     *
-     * raw_bulk(): the UPDATE itself is the test-and-set; loading the row and saving it would
-     * reopen the race this exists to close.
-     *
-     * @return bool Whether THIS call used it up (false: already used, or expired)
-     */
-    public function claim(): bool
-    {
-        $claimed = static::where('id', $this->id)
-            ->whereNull('used_at')
-            ->where('expires_at', '>', now())
-            ->raw_bulk()
-            ->update(['used_at' => now()]);
-
-        $this->refresh();
-
-        return $claimed === 1;
-    }
-
-    /**
-     * Get the associated portal user
+     * The portal user this link resets.
      *
      * @return Portal_User_Model|null
      */
@@ -199,16 +106,20 @@ class Portal_Password_Reset_Model extends Rsx_Site_Model_Abstract
 
     /**
      * The full reset URL, on the reset's own site's portal. Only a portal page of that site
-     * requests a reset, so the site has a portal.
+     * requests a reset, so the site has a portal. Only the minting instance can build it.
      *
      * @param array $params Extra query parameters (a threaded Login_Redirect::params())
      * @return string
      */
     public function get_reset_url(array $params = []): string
     {
-        $url = \App\RSpade\Core\Portal\Rsx_Portal::Route(
+        if ($this->get_secret() === null) {
+            shouldnt_happen('Portal password reset link built from a row that did not mint it');
+        }
+
+        $url = \App\RSpade\Lib\Portal\Rsx_Portal::Route(
             'Portal_Password_Reset_Controller::reset',
-            ['token' => $this->token] + $params,
+            ['token' => $this->get_secret()] + $params,
             site_id: (int) $this->site_id
         );
 
@@ -217,24 +128,5 @@ class Portal_Password_Reset_Model extends Rsx_Site_Model_Abstract
         }
 
         return rsx_absolute_url($url);
-    }
-
-    /**
-     * Delete expired/used tokens older than given days
-     *
-     * @param int $days
-     * @return int Number of deleted records
-     */
-    public static function cleanup_old_tokens(int $days = 7): int
-    {
-        return static::where(function ($query) {
-            $query->whereNotNull('used_at');
-        })
-            ->orWhere(function ($query) {
-                $query->whereNull('used_at')
-                    ->where('expires_at', '<', now());
-            })
-            ->where('created_at', '<', now()->subDays($days))
-            ->delete();
     }
 }

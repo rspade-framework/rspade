@@ -11,15 +11,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Locks\RsxLocks;
-use App\RSpade\Core\Models\Email_Queue_Model;
 use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
-use App\RSpade\Core\TwoFactor\Rsx_Two_Factor;
-use App\RSpade\Core\TwoFactor\Totp;
+use App\RSpade\Lib\Messaging\Mail\Email_Queue_Model;
+use App\RSpade\Lib\SignIn\TwoFactor\Rsx_Two_Factor;
+use App\RSpade\Lib\SignIn\TwoFactor\Totp;
 use Rsx\App\Login\Login_Controller;
 
 /**

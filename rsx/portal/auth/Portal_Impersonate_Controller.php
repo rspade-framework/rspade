@@ -9,7 +9,7 @@ namespace Rsx\Portal\Auth;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
-use App\RSpade\Core\Portal\Portal_Session;
+use App\RSpade\Lib\Portal\Portal_Session;
 
 /**
  * Portal Impersonate Controller

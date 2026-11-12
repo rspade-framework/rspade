@@ -3,8 +3,8 @@
 namespace Rsx\Handlers;
 
 use App\RSpade\Core\Auth\Auth_Gates;
-use App\RSpade\Core\Portal\Rsx_Portal;
 use App\RSpade\Core\Session\Session;
+use App\RSpade\Lib\Portal\Rsx_Portal;
 
 /**
  * User_Profile_Url_Handlers

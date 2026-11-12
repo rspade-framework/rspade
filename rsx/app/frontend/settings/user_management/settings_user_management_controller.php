@@ -5,6 +5,7 @@ namespace Rsx\App\Frontend\Settings\UserManagement;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Api\Api_Key_Model;
+use App\RSpade\Core\Auth\Password_Change;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Forms\Form_Edit;
 use App\RSpade\Core\Models\Login_User_Model;
@@ -15,12 +16,15 @@ use App\RSpade\Core\Session\Audit_Session;
 use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Time\Rsx_Date;
 use App\RSpade\Core\Time\Rsx_Time;
-use App\RSpade\Core\TwoFactor\Rsx_Two_Factor;
-use App\RSpade\Lib\Flash\Flash_Alert;
+use App\RSpade\Lib\Geo\Ip\Rsx_Geo_Ip;
+use App\RSpade\Lib\SignIn\Confirmation\Rsx_Password_Confirmation;
+use App\RSpade\Lib\SignIn\TwoFactor\Rsx_Two_Factor;
+use App\RSpade\Lib\Ui\Flash\Flash_Alert;
 use Rsx\App\Frontend\Settings\UserManagement\List\Users_DataGrid;
 use Rsx\Emails\User_Invitation_Email;
 use Rsx\Lib\FieldChecks\Field_Checks;
 use Rsx\Lib\Sessions\Session_Listing;
+use Rsx\Models\Action_Log_Model;
 
 /**
  * User administration for the signed-in user's site.
@@ -36,6 +40,12 @@ use Rsx\Lib\Sessions\Session_Listing;
 #[Auth('is_logged_in', 'can_manage_users')]
 class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstract
 {
+    /**
+     * How many of a user's most recent action-log rows the view page's History shows - the
+     * window every record's Activity tab uses. The complete log is the Action Log screen.
+     */
+    const ACTIVITY_LIMIT = 50;
+
     /** Rows per page of a session's activity on the session page. */
     const ACTIVITY_PAGE_SIZE = 25;
 
@@ -507,6 +517,213 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
     }
 
     /**
+     * Ajax endpoint: an administrator sets a user's password - a TEMPORARY one. The Reset
+     * Password dialog posts here.
+     *
+     * The administrator types the password (shown in clear) and reads it out to the user; the identity is
+     * flagged Login_User_Model::require_password_reset() in the SAME save, so the user's next
+     * password sign-in stops at "Choose a new password" (Login_Controller::new_password()) and
+     * the administrator's password never stays the user's. The flag holds even over an identity
+     * that was already flagged. The model does the rest: every sign-in of the user ends, their
+     * two-factor trusted browsers are forgotten. Once it commits, the password-change event
+     * (cause 'admin') ends every open "Forgot your password?" link of the identity - so a link
+     * mailed earlier cannot replace this password - and records the change on the user's
+     * history (Password_Event_Handlers). Nothing is emailed to the user.
+     *
+     * Refused (nothing changes):
+     *   - on the caller's OWN account: Change Password asks for the current password first,
+     *     and this would walk around it;
+     *   - for a user whose role the caller does not administer (equal-or-lower administration,
+     *     __administrable_user());
+     *   - for a user with no sign-in yet (an invitation not accepted: there is no password);
+     *   - for an identity that is also a member of ANOTHER site. A login identity's password
+     *     is one credential across every site it belongs to, and this site's administrator
+     *     has no authority over the others - the user resets it themselves ("Forgot your
+     *     password?"), or an operator does (rsx:users:password:set --require-reset);
+     *   - without a recent password confirmation from the caller (Rsx_Password_Confirmation):
+     *     this hands the caller a way into somebody else's account.
+     *
+     * @param array $params {id, new_password}
+     * @return array {id, password_reset_required: true}
+     */
+    #[Writer]
+    #[Ajax_Endpoint]
+    public static function set_user_password(Request $request, array $params = [])
+    {
+        $user = static::__administrable_user($params['id'] ?? null);
+
+        if (!$user instanceof User_Model) {
+            return $user;
+        }
+
+        $refusal = static::__password_reset_refusal($user);
+
+        if ($refusal !== null) {
+            return $refusal;
+        }
+
+        Rsx_Password_Confirmation::require_confirmed();
+
+        $login_user_id = (int) $user->login_user_id;
+
+        // One field, shown in clear in the dialog (the administrator reads it out), so there is
+        // no confirmation field to compare it with.
+        $password = (string) ($params['new_password'] ?? '');
+        $min_length = (int) config('rsx.auth.password_min_length');
+
+        if ($password === '') {
+            return response_form_error('Please correct the errors below.', ['new_password' => 'Password is required']);
+        }
+
+        if (strlen($password) < $min_length) {
+            return response_form_error('Please correct the errors below.', ['new_password' => "Password must be at least {$min_length} characters"]);
+        }
+
+        $login_user = Login_User_Model::where('id', $login_user_id)->first();
+
+        if ($login_user === null) {
+            return response_error(Ajax::ERROR_NOT_FOUND, 'User not found');
+        }
+
+        // The one place an administrator sets a password: temporary, in the same save.
+        $login_user->set_password($password, Password_Change::CAUSE_ADMIN);
+        $login_user->require_password_reset();
+        $login_user->save();
+
+        return [
+            'id' => $user->id,
+            'password_reset_required' => true,
+        ];
+    }
+
+    /**
+     * Ajax endpoint: what the Reset Password dialog needs - the user's name and the address
+     * they SIGN IN with, for the dialog's hidden autocomplete="username" field (so a password
+     * manager files the typed password under the target account and never over the
+     * administrator's own saved login). Refused exactly as set_user_password() refuses.
+     *
+     * @return array {id, name, sign_in_email}
+     */
+    #[Ajax_Endpoint]
+    public static function get_user_for_password_reset(Request $request, array $params = [])
+    {
+        $user = static::__administrable_user($params['user_id'] ?? null, 'user_id');
+
+        if (!$user instanceof User_Model) {
+            return $user;
+        }
+
+        $refusal = static::__password_reset_refusal($user);
+
+        if ($refusal !== null) {
+            return $refusal;
+        }
+
+        return [
+            'id' => $user->id,
+            'name' => trim($user->first_name . ' ' . $user->last_name) ?: $user->email,
+            'sign_in_email' => (string) Login_User_Model::where('id', (int) $user->login_user_id)->value('email'),
+        ];
+    }
+
+    /**
+     * Why the caller may not set this (administrable) user's password, as the error response
+     * to return - or null when they may. See set_user_password().
+     */
+    private static function __password_reset_refusal(User_Model $user)
+    {
+        if ((int) $user->id === (int) Session::get_user_id()) {
+            return response_unauthorized('Change your own password in Settings > Password & Security.');
+        }
+
+        if (!$user->login_user_id) {
+            return response_form_error('This user has not accepted their invitation yet, so there is no password to reset.');
+        }
+
+        if (static::__is_member_elsewhere($user)) {
+            return response_unauthorized('This user also signs in to another site, so only they can change their password (Forgot your password? on the sign-in page).');
+        }
+
+        return null;
+    }
+
+    /**
+     * Does this user's login identity also belong to another site? Its password is one
+     * credential across all of them.
+     */
+    private static function __is_member_elsewhere(User_Model $user): bool
+    {
+        $login_user_id = (int) $user->login_user_id;
+        $site_id = (int) Session::get_site_id();
+
+        return User_Model::without_site_scope(
+            fn () => User_Model::where('login_user_id', $login_user_id)->where('site_id', '!=', $site_id)->exists()
+        );
+    }
+
+    /**
+     * Ajax endpoint: the user's HISTORY on this site - every action-log row whose SUBJECT is
+     * this user (what was done TO them: an administrator's password reset, their own password
+     * changes and reset requests) together with every row they PERFORMED (actor = their login
+     * identity), newest first. A row that is both is listed once.
+     *
+     * The action log is for administrators: the same can_view_user_activity check the Action
+     * Log screen carries (on top of this class's can_manage_users), so this section never shows
+     * what that screen refuses. The view page asks Activity_Feed.can_view() before calling it.
+     *
+     * The most recent ACTIVITY_LIMIT rows - the same window as every record's Activity tab; the
+     * whole log is the Action Log screen. Each row carries the address it was done from (read
+     * from its audit session) and that address's location, resolved now and never stored.
+     *
+     * @param array $params {id}
+     * @return array {activity: [{id, html, created_at, type_id, ip_address, ip_address__location}]}
+     */
+    #[Auth('can_view_user_activity')]
+    #[Ajax_Endpoint]
+    public static function get_user_activity(Request $request, array $params = [])
+    {
+        $user = static::__site_user($params['id'] ?? null);
+
+        if (!$user instanceof User_Model) {
+            return $user;
+        }
+
+        $user_id = (int) $user->id;
+        $login_user_id = $user->login_user_id === null ? null : (int) $user->login_user_id;
+
+        $logs = Action_Log_Model::where(function ($query) use ($user_id, $login_user_id) {
+            $query->where(function ($subject) use ($user_id) {
+                $subject->where('subject_type', 'User_Model')->where('subject_id', $user_id);
+            });
+
+            if ($login_user_id !== null) {
+                $query->orWhere(function ($actor) use ($login_user_id) {
+                    $actor->where('actor_type', 'Login_User_Model')->where('actor_id', $login_user_id);
+                });
+            }
+        })
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->limit(self::ACTIVITY_LIMIT)
+            ->get();
+
+        $activity = [];
+        foreach ($logs as $log) {
+            $ip_address = $log->audit_ip_address();
+            $activity[] = [
+                'id' => $log->id,
+                'html' => $log->render(),
+                'created_at' => $log->created_at,
+                'type_id' => $log->type_id,
+                'ip_address' => $ip_address,
+                'ip_address__location' => $ip_address !== null ? Rsx_Geo_Ip::label($ip_address) : null,
+            ];
+        }
+
+        return ['activity' => $activity];
+    }
+
+    /**
      * Ajax endpoint: Get user details for view page
      *
      * @param Request $request
@@ -572,6 +789,9 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             'role_id__label' => $user->role_id__label ?? 'Member',
             'can_administer' => Session::get_user()->can_admin_role((int) $user->role_id),
             'is_self' => (int) $user->id === (int) Session::get_user_id(),
+            // Reset Password is offered exactly when set_user_password() would accept it.
+            'can_reset_password' => Session::get_user()->can_admin_role((int) $user->role_id)
+                && static::__password_reset_refusal($user) === null,
             'invitation_status' => $user->get_invitation_status(),
             'created_at' => $user->created_at,
             'profile_photo_attachment_id' => $profile_photo_attachment_id,
@@ -627,7 +847,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
      * get_user_session().
      *
      * @param array $params id (users.id), user_session_id, offset (default 0)
-     * @return array {rows: [{id, ip_address, device_summary, user_agent, first_seen_at,
+     * @return array {rows: [{id, ip_address, ip_address__location, device_summary, user_agent, first_seen_at,
      *               last_seen_at}], total, offset, limit}
      */
     #[Ajax_Endpoint]
@@ -660,6 +880,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
         $page['rows'] = array_map(fn ($row) => [
             'id' => $row['id'],
             'ip_address' => $row['ip_address'],
+            'ip_address__location' => $row['ip_address'] !== null ? Rsx_Geo_Ip::label((string) $row['ip_address']) : null,
             'device_summary' => $row['device_summary'],
             'user_agent' => $row['user_agent'],
             'first_seen_at' => $row['first_seen_at'],

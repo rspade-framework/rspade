@@ -3,7 +3,7 @@
 namespace Rsx\Models;
 
 use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
-use App\RSpade\Core\Portal\Portal_Authorizable;
+use App\RSpade\Lib\Portal\Portal_Authorizable;
 use Rsx\Portal_Permission;
 /**
  * Portal_Project_Model - Tracks which projects are visible on a client's portal

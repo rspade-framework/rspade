@@ -69,7 +69,7 @@
                                         <% } %>
                                     </td>
                                     <td>
-                                        <% if (session.ip_address) { %><%= session.ip_address %><% } else { %><Empty_Value /><% } %>
+                                        <Ip_Address_Display $ip_address=session.ip_address $location=session.ip_address__location />
                                     </td>
                                     <td><%= Rsx_Time.relative(session.last_active) %></td>
                                     <td>
@@ -81,6 +81,7 @@
                                 <% } %>
                             </tbody>
                         </Record_Table>
+                        <Geo_Ip_Credit />
                     <% } %>
                 </Slot:body>
             </Section>

@@ -11,14 +11,19 @@ empty database (`Rsx_Initial_User::create()` - the first-run screen, the `RSPADE
 post-migrate step, the test seed). Nothing on these pages lets a visitor create an account of
 their own, and a federated sign-in never creates one either.
 
-**There is no staff forgot-password / reset page, deliberately.** A staff password is reset by
-an operator (`rsx:users:password:set`, which also clears a forced-reset flag); the login page
-offers no "forgot password" link. The portal has a self-service reset
-(`rsx/portal/auth/CLAUDE.md`); a staff one would be a new rung built the same way.
+**A staff password is reset three ways**: by its owner from the login page ("Forgot your
+password?" -> an emailed link, `password_reset/`), by an administrator in User Management
+(Reset Password - a TEMPORARY password the user must replace at their next sign-in,
+`rsx/app/frontend/settings/user_management/CLAUDE.md`), and by an operator
+(`rsx:users:password:set [--require-reset]`). A password that must be replaced is chosen AT
+SIGN-IN, on the "Choose a new password" step (`/login/new-password`), never by email. See
+PASSWORD RESET below.
 
 | Rung | Class / file | Route | What it does |
 |---|---|---|---|
-| Login | `Login_Controller` (`login_controller.php`) | `/login` GET+POST | Turnstile, then `RsxAuth::verify_credentials($credentials, record: false)` - the password is checked and NOBODY is signed in. A failure records `STATUS_FAILED_PASSWORD` itself. On success `__account_refusal()` is asked (the application's own account rules; it admits everybody as shipped), then a second factor issues the challenge, otherwise `complete_sign_in(sign_in: true)`. `complete_sign_in()` (which calls `RsxAuth::login()`) and a passed challenge are the only things that sign anybody in. |
+| Login | `Login_Controller` (`login_controller.php`) | `/login` GET+POST | Turnstile, then `RsxAuth::verify_credentials($credentials, record: false)` - the password is checked and NOBODY is signed in. A failure records `STATUS_FAILED_PASSWORD` itself. On success `__account_refusal()` is asked (the application's own account rules; it admits everybody as shipped), then `__continue_sign_in()`: a second factor issues the challenge, otherwise `complete_sign_in(sign_in: true)`. A correct password on an identity flagged `password_reset_required` goes to the Choose a new password rung instead. `complete_sign_in()` (which calls `RsxAuth::login()`) and a passed challenge are the only things that sign anybody in. The page links "Forgot your password?" under the password field. |
+| Choose a new password | `Login_Controller::new_password` (`login_new_password.blade.php`) | `/login/new-password` GET+POST | The forced password change at sign-in. `index()` caught `Auth_Password_Reset_Required_Exception`, asked `__account_refusal()` of `$e->identity`, and called `RsxAuth::begin_forced_password_change()` (signs the staff realm out, parks the identity - nobody is signed in) and redirected here. The POST checks `rsx.auth.password_min_length` and the confirmation, then `RsxAuth::complete_forced_password_change()` (refuses the CURRENT password, draws on the sign-in throttle, saves through the model: the flag clears, other sign-ins end) and continues through `__continue_sign_in()` - the second factor NEXT, then `complete_sign_in(sign_in: true)`. So a forced change is never a way around a second factor. Nothing pending -> `/login`; `?cancel=1` forgets the parked identity; a membership switched off meanwhile records `STATUS_FAILED_DISABLED` and answers the login form's generic error. No email, no token, no Turnstile (the step answers only the identity parked on the caller's own session). |
+| Forgot password | `Password_Reset_Controller` (`password_reset/`) | `/password/reset` GET+POST, `/password/reset/:token` GET+POST | Request: Turnstile, then `Login_Throttle::require_not_throttled($email)` (its message on refusal), then a link is minted (`Login_User_Password_Reset_Model::create_for()`) and `Password_Reset_Email` (SECURITY) queued ONLY for a live identity holding an enabled membership (`RsxAuth::has_enabled_membership()`) - in a `Site_Lock::write()` section on the visitor's site (0), the queue row being site-scoped. EVERY well-formed submission answers the same "if an account exists for that address, a link is on its way". Reset: the link is found by `find_by_secret()`; used / expired / unknown answer `Password_Reset_Invalid`; the POST checks `rsx.auth.password_min_length` + confirmation, then in one transaction `claim()`s the link (single use under a race), `set_password($password, Password_Change::CAUSE_RESET_LINK)` + `save()` (the password-change event, after the commit, ends the identity's other open links) - and sends the visitor to `/login` with `Login_Notice` `password_reset`. **Completing a reset signs nobody in**: the sign-in (and its second factor) runs as any other. A signed-in visitor is sent to the dashboard. |
 | Challenge | `Login_Controller::verify` + `verify_2fa` | `/login/verify` GET + an `#[Ajax_Endpoint]` | The screen hosting `<Two_Factor_Challenge>` for a second factor (an authenticator code, a passkey or a recovery code - this application emails no staff codes), with `$cancel_url` = `/login`, and the endpoint it posts to. A signed-in visitor is sent to the dashboard (the challenge was answered in another tab); nothing pending redirects back to `/login`. `login_verify.js` hides the recovery-code hint when the widget fires `completed`. |
 | Passkey sign-in | `Login_Controller::passkey_login` | an `#[Ajax_Endpoint]` | The endpoint `<Passkey_Sign_In>` on the login page posts to: `Rsx_Two_Factor::verify_passkey_login()`, then `complete_sign_in(sign_in: false)`. Passwordless - no password stage, no second factor after it. |
 | Logout | `Login_Controller::logout` | `/logout` | `RsxAuth::logout()` then `Login_Redirect::consume($default)`. |
@@ -114,11 +119,11 @@ See `rsx:man session`.
 **The throttle, and a password that must be reset.** `login_controller.php` catches
 `Auth_Throttled_Exception` around the whole attempt and surfaces `$e->getMessage()` verbatim
 ahead of the wrong-password branch, so a lockout is never reported as bad credentials. It
-catches `Auth_Password_Reset_Required_Exception` the same way - a correct password on an
-identity flagged `login_users.password_reset_required` (set with
-`rsx:users:force_password_reset`) - and adds that an administrator resets it: this app has no
-self-service reset, so the way through is `rsx:users:password:set`, which clears the flag. `RsxAuth::verify_credentials()` throws it as its
-own first statement, and `verify_2fa` catches the same exception from
+catches `Auth_Password_Reset_Required_Exception` too - a correct password on an identity
+flagged `login_users.password_reset_required` (an administrator's Reset Password,
+`rsx:users:password:set --require-reset`, `rsx:users:force_password_reset`) - and sends the
+visitor to the Choose a new password rung. `RsxAuth::verify_credentials()` throws the throttle
+refusal as its own first statement, and `verify_2fa` catches the same exception from
 `Rsx_Two_Factor::verify_challenge()` and answers it as an `ERROR_VALIDATION` the challenge
 component renders inline. Nothing here counts failures itself: `Login_History::record_failure()`
 is what feeds the throttle, and it is called once per failed password.
@@ -264,6 +269,42 @@ Blade page's JS in this module needs that guard.
   hard-code their destinations, so only `/logout` honours it. The portal login blade shows
   the complete shape.
 
+## PASSWORD RESET
+
+**The link** - `Login_User_Password_Reset_Model` (`login_user_password_resets`, NOT site-scoped:
+a login identity spans every site) over the shared `Password_Reset_Token` trait
+(`rsx/lib/password_reset/`, also `Portal_Password_Reset_Model`'s): the table stores
+`token_hash` = SHA-256 of the link's 256-bit secret, never the link, so only the instance that
+minted it can build the URL (`get_reset_url()`); ONE live link per identity (minting ends the
+others); `rsx.auth.password_reset_expiry_hours` (1); single use by an atomic `claim()`;
+ANY change of the identity's password - completing a link, Password & Security, an
+administrator's Reset Password, the forced change, the CLI - ends every other open link
+(`invalidate_open_for()`, called once, by `rsx/handlers/Password_Event_Handlers` on the
+framework's `login_user.password.changed`). Used and expired links are deleted nightly, staff
+and portal, by the maintenance task `Password_Reset_Link_Service::sweep` (`rsx/services/`).
+
+**Recorded and announced**: every change, and every request that mailed a link, is an
+action-log row on the user's history on each of their sites, with the address it came from;
+a change the owner made (their own, a link, the forced change) also mails
+`Password_Changed_Email` (SECURITY). Each change states its cause on the way in -
+`set_password($password, Password_Change::CAUSE_*)`: `self` in Password & Security,
+`reset_link` here, `admin` in User Management (the framework states `forced_change` and `cli`).
+The request side fires the application event `login_user.password.reset_requested` from
+`__send_link_if_account()` (only when a link was minted). `rsx/lib/action_log/CLAUDE.md`.
+
+**What the request page says** is the same sentence for every address - this template never
+reveals whether an address holds an account (an unknown, deleted or disabled address is mailed
+nothing and told the same). An application that wants a truthful "no account with that address"
+changes `Password_Reset_Controller::request()` and accepts that the page then answers who has an
+account, to anyone who passes Turnstile.
+
+**Which password rule**: `rsx.auth.password_min_length` (8) on every staff form that chooses a
+password (accept invite, Password & Security, the reset link, the forced change, Reset Password).
+The framework itself refuses only an empty password and, on the forced change, the current one.
+
+**Passkey and SSO sign-ins are not refused by the flag** - they never present the password -
+so a flagged user who signs in that way keeps the flag until their next password sign-in.
+
 ## CREDENTIAL FIELDS
 
 Every field that asks for a sign-in identifier, a password or a one-time code - on these pages,
@@ -335,10 +376,26 @@ name or an address forwards both the same way (skill `rspade:form-input-contract
 | `login_index.blade.php` | `email` (`username`), `password` (`current-password`) |
 | `login_verify.blade.php` | `<Two_Factor_Challenge $autofill_id="code">` (`one-time-code`; the recovery box is `off`) |
 | `accept_invite/create_account.blade.php` | `given_name`, `family_name`, `email` (read-only, `username`), `new_password`, `new_password_confirmation` |
-| `accept_invite/accept_invite.blade.php`, the site picker, site unauthorized | no fields |
+| `login_new_password.blade.php` | hidden read-only `email` (`username`, the parked address, unnamed), `new_password`, `new_password_confirmation` (`new-password`) |
+| `password_reset/password_reset_request.blade.php` | `email` (`username`) |
+| `password_reset/password_reset_reset.blade.php` | hidden read-only `email` (`username`, the link's identity, unnamed), `new_password`, `new_password_confirmation` (`new-password`) |
+| `accept_invite/accept_invite.blade.php`, the site picker, site unauthorized, `password_reset/password_reset_invalid.blade.php` | no fields |
 | Password & Security (`frontend/settings/password_security/`) | hidden `email` (`username`), `current_password`, `new_password`, `new_password_confirmation`; TOTP enrollment's code `code` |
 | `Password_Confirmation_Modal` (`rsx/lib/password_confirmation/`) | `password` (`current-password`) |
-| Add / edit user (`frontend/settings/user_management/`) | no credential: the email is SOMEBODY ELSE's address and stays `off`; no password is set there |
+| Add / edit user (`frontend/settings/user_management/`) | no credential: the email is SOMEBODY ELSE's address and stays `off` |
+| Reset Password (`frontend/settings/user_management/reset_password/`) | hidden read-only `email` (`username`) carrying the TARGET user's sign-in address - so a password manager files the typed password under them, never over the administrator's own login - and `new_password` (`new-password`, shown in clear: it is read out) |
+
+## WHERE A STAFF PASSWORD IS SET
+
+Every path saves through `Login_User_Model::set_password()` + `save()`, once, at a line marked
+"The one place ...": Password & Security (`change_password`), the reset link
+(`Password_Reset_Controller::reset`), the forced change (inside the framework's
+`RsxAuth::complete_forced_password_change()`, called from `Login_Controller::new_password`),
+an administrator (`Frontend_Settings_User_Management_Controller::set_user_password`), the
+operator (`rsx:users:password:set`); plus an account's first password (accept invite, the
+initial user). The model's own consequences follow every one: a cleared forced-reset flag
+(unless `require_password_reset()` was asked in the same save), forgotten two-factor trusted
+browsers, every other sign-in ended.
 
 ## WHO SIGNS ANYBODY IN
 

@@ -298,7 +298,7 @@ FILES
     /rsx/lib/notification/notification_renderer.php Render functions
     /rsx/app/frontend/notifications/                Controller
     /rsx/theme/components/notification/             Dropdown component
-    /system/app/RSpade/Core/Throttle/Rsx_Throttle.php  Rate limiting
+    /system/app/RSpade/Lib/SignIn/Throttle/Rsx_Throttle.php  Rate limiting
 
 SEE ALSO
     rsx:man action_log

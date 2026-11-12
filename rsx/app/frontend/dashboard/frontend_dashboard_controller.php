@@ -147,12 +147,15 @@ class Frontend_Dashboard_Controller extends Rsx_Controller_Abstract
      */
     private static function _activity_icon(int $type_id): array
     {
-        // Type ranges: client 1-9, contact 10-19, project 20-29, task 30-39.
+        // Type ranges: client 1-9, contact 10-19, project 20-29, task 30-39, party 40-49,
+        // account security 50-59 - Activity_Feed.decorate()'s buckets, kept in step.
         return match (intdiv($type_id, 10)) {
             0 => ['bi bi-building', 'primary'],
             1 => ['bi bi-person', 'info'],
             2 => ['bi bi-folder', 'success'],
             3 => ['bi bi-check2-square', 'warning'],
+            4 => ['bi bi-diagram-3', 'secondary'],
+            5 => ['bi bi-shield-lock', 'danger'],
             default => ['bi bi-activity', 'secondary'],
         };
     }

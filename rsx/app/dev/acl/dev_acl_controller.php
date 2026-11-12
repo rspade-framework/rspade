@@ -109,7 +109,7 @@ class Dev_Acl_Controller extends Rsx_Controller_Abstract
                 // Create login user with random password
                 $login_user = new Login_User_Model();
                 $login_user->email = $test_user['email'];
-                $login_user->password = password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT);
+                $login_user->set_password(bin2hex(random_bytes(16)));
                 $login_user->save();
             }
 

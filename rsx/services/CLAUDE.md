@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Four services extending `Rsx_Service_Abstract`, one of them in a directory of its own. Every method is
+Six services extending `Rsx_Service_Abstract`, one of them in a directory of its own. Every method is
 `public static function name(Task_Instance $task, array $params = [])`, reports through
 `$task` (status, progress, stdout, state, summary) and returns `null` on success - the
 return value is the run's return code, never data.
@@ -30,6 +30,28 @@ return value is the run's return code, never data.
   `Site_Lock::write()` section per batch whose delete re-states the rule. Reports the cutoff
   per site, progress over the sites, `{deleted, purge_seen_after_days, disabled}` as its
   state, a stdout line and a summary.
+- **`Password_Reset_Link_Service::sweep`** — `#[Task]` + `#[Schedule('maintenance')]` +
+  `#[Exclusive('maintenance')]`. Deletes every SPENT password reset link, staff
+  (`login_user_password_resets`) and portal (`portal_password_resets`): used (completed,
+  superseded by a newer request, or ended by a password change) or past `expires_at`. The rule
+  is `Password_Reset_Token::query_spent()` (`rsx/lib/password_reset/`), restated in every
+  delete; a live link is never touched, and a spent link and an unknown one answer the same
+  "invalid link" page, so nobody can tell a row went. The staff table is not site-scoped and is
+  deleted in batches of 500 with no site lock; the portal table walks every site
+  (`Session::set_temporary_site_id()`), one `Site_Lock::write()` section per batch. Reports
+  each phase, progress over the sites, `{deleted_staff, deleted_portal}` as its state, a
+  stdout line and a summary.
+- **`Password_Audit_Service::record_password_event`** — `#[Task]`, dispatched ONLY by
+  `rsx/handlers/Password_Event_Handlers` (a password change, or a reset request that mailed a
+  link). Runs as nobody: who acted (`actor_type`/`actor_id`), from where (`audit_session_id`)
+  and the cause travel in its params. Writes one action-log row (`TYPE_PASSWORD_CHANGED` with
+  `metadata.cause`, or `TYPE_PASSWORD_RESET_REQUESTED`) on EVERY site the identity belongs to
+  (a portal user: its one site), each in its own `Site_Lock::write()` section with that site
+  declared for the section only; the subject is the person's membership there, the actor the
+  person who acted - the identity itself for a reset link or the forced change. Then, for a
+  change the owner made (`NOTIFIED_CAUSES`: self, reset_link, forced_change, unknown), queues
+  `Password_Changed_Email` on site 0 (staff) or the portal's site. Reports `{recorded,
+  notified}` and a summary.
 - **`Mass_Edit_Service`** — `delete_clients`, `delete_contacts`, `delete_projects`: the
   datagrid footer "Delete" mass actions, each `#[Task]` + `#[Run_As_Dispatcher]` (it acts as
   the person who clicked, so the action log, revisions and authorship name them) +

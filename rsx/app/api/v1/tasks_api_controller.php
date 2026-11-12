@@ -391,6 +391,10 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
      * Two-step, and the first step is the framework's: POST the bytes to /api/v1/files,
      * then pass the `key` it returned here. A key may be claimed ONCE.
      *
+     * A file whose bytes the task already holds, under any name, answers 409 duplicate_upload
+     * unless duplicate_upload says what to do: true attaches it again, false attaches
+     * nothing and answers {"skipped": true, "existing": <that attachment>}.
+     *
      * @api-response
      * {
      *   "attachment_id": 15,
@@ -407,6 +411,7 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
     #[Api_Endpoint('/api/v1/tasks/:id/attachments/attach', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Task ID')]
     #[Api_Param('key', type: 'string', required: true, description: 'File key returned by POST /api/v1/files')]
+    #[Api_Param('duplicate_upload', type: 'bool', required: false, description: 'When the task already holds a file with identical bytes: true attaches this one anyway, false attaches nothing (answers skipped: true). Omitted, such a file is refused with 409 duplicate_upload.')]
     public static function attachments_attach(Request $request, array $params = [])
     {
         $task = Task_Model::find($params['id']);
@@ -426,6 +431,26 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
                 ['key' => 'Not found, or already attached to something else'],
                 'File not available to attach'
             );
+        }
+
+        // THE DUPLICATE QUESTION, answered by a parameter. A file whose bytes the task already
+        // holds (under any name) is a likely retry of an upload whose answer was lost - a
+        // retry re-uploads and gets a new key - so it is refused unless the caller says what
+        // to do: duplicate_upload true attaches it, false attaches nothing.
+        $existing = $attachment->duplicates_on($task)->first();
+        if ($existing !== null) {
+            $decision = $params['duplicate_upload'] ?? null;
+            if ($decision === null) {
+                return Rsx_Api::error(
+                    'duplicate_upload',
+                    "This file's contents are already attached to this task as attachment {$existing->id} ({$existing->file_name}). "
+                        . 'Send duplicate_upload=true to attach it again, or duplicate_upload=false to skip it.',
+                    409
+                );
+            }
+            if ($decision === false) {
+                return ['skipped' => true, 'existing' => static::__attachment_payload($existing)];
+            }
         }
 
         // add_to(), not attach_to(): a task may carry MANY files. attach_to() is the

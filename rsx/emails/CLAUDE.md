@@ -2,13 +2,16 @@
 
 ## WHAT IS HERE
 
-Eight `X_Email extends Rsx_Email_Abstract` classes, each beside its own blade, plus one
-stylesheet. Six are `const CATEGORY = self::TRANSACTIONAL`; `Portal_Sign_In_Code_Email` and
-`Two_Factor_Challenge_Spent_Email` are `SECURITY`.
+Ten `X_Email extends Rsx_Email_Abstract` classes, each beside its own blade, plus one
+stylesheet. Six are `const CATEGORY = self::TRANSACTIONAL`; `Password_Reset_Email`,
+`Password_Changed_Email`, `Portal_Sign_In_Code_Email` and `Two_Factor_Challenge_Spent_Email`
+are `SECURITY`.
 
 | Class | Sent from |
 |---|---|
 | `Portal_Invitation_Email` | `Frontend_Clients_Controller` (new-account and existing-account invites, and staff's resend). Its subject branches on whether the recipient already has an account, and its `tag()` (`new_account` / `existing_account`) records which on the queue row. |
+| `Password_Changed_Email` | `Password_Audit_Service::record_password_event` (dispatched by `rsx/handlers/Password_Event_Handlers` from the framework's `login_user.password.changed` / `portal_user.password.changed`) — "your password was changed", to the identity's own address, staff or portal: what happened (by the change's cause), when (formatted in `data()`, in the account's own zone when it chose one), from which address (read from the event's audit session), and **"If this wasn't you, contact an administrator."** Sent when the OWNER chose the password (`self`, `reset_link`, `forced_change`) or the cause is `unknown`; never for `admin` or `cli` - that person hands the password over, and the owner's forced replacement of it at sign-in sends the notice. `SECURITY`: a required notice about the recipient's own account. |
+| `Password_Reset_Email` | `Password_Reset_Controller::request()` (`rsx/app/login/password_reset/`) — a staff identity's single-use "choose a new password" link, sent only for a live identity that may sign in while the page answers the same for every address. `SECURITY`: the recipient's own address asked for it and a locked-out owner must receive it whatever the opt-outs or the site block list say. |
 | `Portal_Password_Reset_Email` | `Portal_Password_Reset_Controller` — only when the user can log in, while the page reports success either way (no enumeration). |
 | `Portal_Request_Reply_Email` | `Portal_Request_Threads_Controller` — tells the staff owner a client replied; the body is a truncated snippet, never the whole message. |
 | `Portal_Sign_In_Code_Email` | `Portal_Login_Controller::send_code()` — the six-digit code AND its sign-in link (`$link`, from `Rsx_Portal_Two_Factor::issued_link()` after `issue_code()`) that complete a portal sign-in, only when `rsx.portal.emailed_sign_in_codes` is on (off as shipped). The code comes first, then the link as bold text (it works only in the browser that started the sign-in); a resend is word for word the original, stating the configured window (`rsx.two_factor.challenge_window_minutes`), since the framework restarts the code's clock on every send. `SECURITY`: it reaches an address on the site block list and ignores the opt-out, because the recipient asked for it a moment ago and cannot get in without it. |
@@ -35,6 +38,12 @@ Every blade is body content between two framework calls —
 `Rsx_Mail_Layout::header($subject)` and `Rsx_Mail_Layout::footer($unsubscribe_url ?? null)`,
 the footer taking no argument on a staff-facing message.
 
+**A SECURITY email offers no way to turn it off.** The builder passes `$unsubscribe_url` null for
+`SECURITY` (and `TRANSACTIONAL`), so the shared footer prints only the copyright and the
+optional `rsx.mail.branding.footer_text` - keep that line free of "manage your notifications"
+wording, since it rides every category. A security notice instead ends with what to do if it
+was not the recipient ("If this wasn't you, contact an administrator.").
+
 **`sample()` is mandatory and must not touch the database.** The manifest build FATALs on an
 email class without one, with the signature in the error text. It exists so
 `php artisan rsx:mail:test you@example.com --email=Welcome_Email` can render and send any
@@ -58,8 +67,10 @@ silently in somebody else's inbox with the queue row still saying SENT).
 - **Add an email**: a class with `const CATEGORY`, `subject()`, `data()` and a DB-free
   `sample()`, plus a blade declaring `@rsx_id` with the class basename. Pick the category
   honestly — `TRANSACTIONAL` ignores unsubscribe, so a message a recipient could reasonably
-  want to stop is `NOTIFICATION`; `SECURITY` is only for a notice the recipient set in motion
-  and cannot get in without (a sign-in code).
+  want to stop is `NOTIFICATION`; `SECURITY` is only for a notice about the recipient's own
+  account that must reach them whatever they opted out of - something they set in motion and
+  cannot get in without (a sign-in code), or a warning that somebody acted on the account (a
+  changed password, a spent second-factor challenge).
 - **One class, several kinds of message** (the invitation's two shapes): override `tag()` to
   return the kind - a short string, at most 64 characters - so `rsx:mail:queue --tag=` and an
   email-history screen can tell the kinds apart. An email that is one kind of message

@@ -14,8 +14,9 @@ dispatcher, bundle, layout, routing attributes and permission facade.
   `Portal_Password_Reset_Controller`,
   `Portal_Impersonate_Controller` (the staff "View as Client" stop; starting one is the
   framework's `Portal_Session::begin_impersonation_from_staff()`), plus
-  `portal_auth_layout.blade.php` and the seven blades of their outcome states (the second-
-  factor challenge page `portal_login_verify.blade.php` among them), and
+  `portal_auth_layout.blade.php` and the eight blades of their outcome states (the second-
+  factor challenge page `portal_login_verify.blade.php` and the forced password change's
+  `portal_login_new_password.blade.php` among them), and
   `portal_auth_bundle.php` — `Portal_Auth_Bundle`, the bundle those pages and the error
   pages render (see TWO BUNDLES below). Own `CLAUDE.md`: the whole ladder, and the credential-field rules
   its forms follow.
@@ -254,13 +255,15 @@ User self-service page (composed from the shared theme components — see
 - **Team Members** — list of portal users sharing the same client membership
 - **Where You're Signed In** — the account's own sessions (`Portal_Session::get_sessions_for_user()`
   through `Session_Listing`, `rsx/lib/sessions/`: signed in and signed out, the last three
-  months, "This device" marked), with device, status, IP, last activity and Sign Out on every
+  months, "This device" marked), with device, status, IP with its location (`<Ip_Address_Display>`,
+  `<Geo_Ip_Credit />` under the table), last activity and Sign Out on every
   other signed-in device (`terminate_session`, which takes a `user_session_id` the list shows;
   anything else is not found)
 - **Account Info** — email, status, last login, member since
 
 ### Auth Pages (Server-Side Blade)
-Login, the two-factor challenge, registration, password reset and logout: `auth/CLAUDE.md`.
+Login, the forced password change at sign-in, the two-factor challenge, registration,
+password reset and logout: `auth/CLAUDE.md`.
 
 ## Testing
 

@@ -11,8 +11,9 @@ use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
 use App\RSpade\Core\Files\File_Attachment_Model;
-use App\RSpade\Core\Models\Portal_User_Model;
+use App\RSpade\Core\Files\Rsx_Duplicate_Upload;
 use App\RSpade\Core\Rsx;
+use App\RSpade\Lib\Portal\Portal_User_Model;
 use Rsx\Emails\Portal_Request_Reply_Email;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Portal_Request_Document_Model;
@@ -231,17 +232,38 @@ class Portal_Request_Threads_Controller extends Rsx_Controller_Abstract
             ]);
         }
 
+        // The staged files still claimable; a key that is not is passed over.
+        $uploads = [];
+        foreach ($attachment_keys as $key) {
+            $attachment = is_string($key) ? File_Attachment_Model::find_by_key($key) : null;
+            if ($attachment && $attachment->can_user_assign_this_file()) {
+                $uploads[] = $attachment;
+            }
+        }
+
+        // Ask about each file the thread already holds (Rsx_Duplicate_Upload) - before anything
+        // is written. A skipped file stays unclaimed; a reply left with no body and no file
+        // posts nothing and answers message_id null.
+        $screen = Rsx_Duplicate_Upload::screen($params, $thread, $uploads);
+        if ($screen['question'] !== null) {
+            return $screen['question'];
+        }
+
+        if ($body === '' && $screen['file'] === []) {
+            return [
+                'thread_id' => $thread->id,
+                'message_id' => null,
+                'status_id' => $thread->status_id,
+            ];
+        }
+
         $portal_user = Portal_Permission::current_user();
 
         // Post the message (portal author -> auto RESPONSE_SUBMITTED on a non-closed thread).
         $message = $thread->post_message($portal_user, $body);
 
-        // Attach client files (reviewable submissions). Validate assignability first.
-        foreach ($attachment_keys as $key) {
-            $attachment = File_Attachment_Model::find_by_key($key);
-            if (!$attachment || !$attachment->can_user_assign_this_file()) {
-                continue;
-            }
+        // Attach client files (reviewable submissions).
+        foreach ($screen['file'] as $attachment) {
             $attachment->add_to($thread, static::DOCUMENTS_THREAD_CATEGORY);
 
             $document = new Portal_Request_Document_Model();

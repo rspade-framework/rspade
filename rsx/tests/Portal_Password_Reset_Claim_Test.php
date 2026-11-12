@@ -8,15 +8,16 @@
 namespace Rsx\Tests;
 
 use Illuminate\Http\Request;
-use App\RSpade\Core\Models\Portal_User_Model;
-use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
-use App\RSpade\Core\Turnstile\Rsx_Turnstile;
+use App\RSpade\Lib\Portal\Portal_Session;
+use App\RSpade\Lib\Portal\Portal_User_Model;
+use App\RSpade\Lib\SignIn\Turnstile\Rsx_Turnstile;
 use Rsx\Models\Portal_Password_Reset_Model;
 use Rsx\Portal\Auth\Portal_Password_Reset_Controller;
 
 /**
- * A portal password-reset link is single-use even when two submissions race on it:
+ * A portal password-reset link (Password_Reset_Token) is stored as a hash, one live link per
+ * portal user, and is single-use even when two submissions race on it:
  * Portal_Password_Reset_Model::claim() uses the link up with one conditional UPDATE, and the
  * reset form writes the new password only after its own claim succeeded.
  *
@@ -54,7 +55,7 @@ class Portal_Password_Reset_Claim_Test extends Rsx_Test_Abstract
 
         static::__assert_true($reset->claim(), 'the first claim uses the link up');
         static::__assert_false($reset->claim(), 'a second claim of the same link is refused');
-        static::__assert_false(Portal_Password_Reset_Model::find_by_token($reset->token)->claim(), 'from a fresh read too');
+        static::__assert_false(Portal_Password_Reset_Model::find_by_secret($reset->get_secret())->claim(), 'from a fresh read too');
         static::__assert_true($reset->is_used());
     }
 
@@ -74,16 +75,16 @@ class Portal_Password_Reset_Claim_Test extends Rsx_Test_Abstract
         $reset = Portal_Password_Reset_Model::create_for_user($user);
 
         // The other request won the link between this one's validity check and its write.
-        $loaded = Portal_Password_Reset_Model::find_by_token($reset->token);
+        $loaded = Portal_Password_Reset_Model::find_by_secret($reset->get_secret());
         static::__assert_true($loaded->is_valid(), 'this request saw a valid link');
         static::__assert_true($reset->claim(), 'the other request claims it');
 
-        $request = Request::create('/password/reset/' . $reset->token, 'POST', [
+        $request = Request::create('/password/reset/' . $reset->get_secret(), 'POST', [
             'password' => self::NEW_PASSWORD,
             'password_confirm' => self::NEW_PASSWORD,
             Rsx_Turnstile::FIELD => Rsx_Turnstile::INACTIVE,
         ]);
-        Portal_Password_Reset_Controller::reset($request, ['token' => $reset->token]);
+        Portal_Password_Reset_Controller::reset($request, ['token' => $reset->get_secret()]);
 
         $after = $user->fresh();
         static::__assert_true($after->check_password(self::OLD_PASSWORD), 'the password is unchanged');
@@ -95,14 +96,29 @@ class Portal_Password_Reset_Claim_Test extends Rsx_Test_Abstract
         $user = static::__portal_user();
         $reset = Portal_Password_Reset_Model::create_for_user($user);
 
-        $request = Request::create('/password/reset/' . $reset->token, 'POST', [
+        $request = Request::create('/password/reset/' . $reset->get_secret(), 'POST', [
             'password' => self::NEW_PASSWORD,
             'password_confirm' => self::NEW_PASSWORD,
             Rsx_Turnstile::FIELD => Rsx_Turnstile::INACTIVE,
         ]);
-        Portal_Password_Reset_Controller::reset($request, ['token' => $reset->token]);
+        Portal_Password_Reset_Controller::reset($request, ['token' => $reset->get_secret()]);
 
         static::__assert_true($user->fresh()->check_password(self::NEW_PASSWORD), 'the new password is set');
         static::__assert_true($reset->fresh()->is_used(), 'and the link is used up');
+    }
+
+    public static function test_the_table_holds_only_the_hash_and_a_new_link_ends_the_old()
+    {
+        $user = static::__portal_user();
+        $first = Portal_Password_Reset_Model::create_for_user($user);
+        $secret = $first->get_secret();
+
+        $stored = Portal_Password_Reset_Model::find($first->id);
+        static::__assert_equals(hash('sha256', $secret), $stored->token_hash, 'the digest is stored');
+        static::__assert_null($stored->get_secret(), 'a row read back cannot build the link');
+
+        $second = Portal_Password_Reset_Model::create_for_user($user);
+        static::__assert_true(Portal_Password_Reset_Model::find_by_secret($secret)->is_used(), 'the first link is dead');
+        static::__assert_true(Portal_Password_Reset_Model::find_by_secret($second->get_secret())->is_valid(), 'the second is live');
     }
 }

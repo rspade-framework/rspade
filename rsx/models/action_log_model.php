@@ -3,6 +3,7 @@
 namespace Rsx\Models;
 
 use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
+use App\RSpade\Core\Session\Session;
 use Rsx\Models\Action_Log_Related_Model;
 
 /**
@@ -22,6 +23,7 @@ use Rsx\Models\Action_Log_Related_Model;
  *
  * @property int $actor_id
  * @property int $actor_type
+ * @property int $audit_session_id
  * @property string $created_at
  * @property int $created_by_id
  * @property int $created_by_type
@@ -66,6 +68,8 @@ class Action_Log_Model extends Rsx_Site_Model_Abstract
     const TYPE_PARTY_CREATED = 40;
     const TYPE_PARTY_UPDATED = 41;
     const TYPE_PARTY_DELETED = 42;
+    const TYPE_PASSWORD_CHANGED = 50;
+    const TYPE_PASSWORD_RESET_REQUESTED = 51;
     /**
      * UNBOUNDED: this table's row count grows with customer activity, not with the
      * codebase, so no reader may assume the set is small.
@@ -172,6 +176,19 @@ class Action_Log_Model extends Rsx_Site_Model_Abstract
                 'label' => 'Party Deleted',
                 'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::party_deleted',
             ],
+            // Account security (50-59) - written ONLY by Password_Event_Handlers, from the
+            // framework's password-change events, on every site the identity belongs to.
+            // metadata.cause is the framework's Password_Change::CAUSE_* vocabulary.
+            50 => [
+                'constant' => 'TYPE_PASSWORD_CHANGED',
+                'label' => 'Password Changed',
+                'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::password_changed',
+            ],
+            51 => [
+                'constant' => 'TYPE_PASSWORD_RESET_REQUESTED',
+                'label' => 'Password Reset Requested',
+                'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::password_reset_requested',
+            ],
         ],
     ];
 
@@ -276,6 +293,22 @@ class Action_Log_Model extends Rsx_Site_Model_Abstract
     public function getSubjectDisplayAttribute(): string
     {
         return $this->subject_display();
+    }
+
+    /**
+     * The client address the act was done from - read from the row's audit session
+     * (Session::get_audit_session()), never stored on the row. Null where nobody was acting
+     * (a command, a plain task) or the act was recorded before rows carried one.
+     *
+     * @return string|null
+     */
+    public function audit_ip_address(): ?string
+    {
+        if ($this->audit_session_id === null) {
+            return null;
+        }
+
+        return Session::get_audit_session((int) $this->audit_session_id)['ip_address'] ?? null;
     }
 
     /**

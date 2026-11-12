@@ -3,8 +3,8 @@
 namespace Rsx\Handlers;
 
 use App\RSpade\Core\Locks\Site_Lock;
-use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Session\Session;
+use App\RSpade\Lib\Portal\Portal_Session;
 use Rsx\Emails\Two_Factor_Challenge_Spent_Email;
 
 /**

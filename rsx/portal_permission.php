@@ -7,9 +7,9 @@
 
 namespace Rsx;
 
-use App\RSpade\Core\Models\Portal_User_Model;
-use App\RSpade\Core\Portal\Portal_Permission_Abstract;
-use App\RSpade\Core\Portal\Portal_Session;
+use App\RSpade\Lib\Portal\Portal_Permission_Abstract;
+use App\RSpade\Lib\Portal\Portal_Session;
+use App\RSpade\Lib\Portal\Portal_User_Model;
 use Rsx\Models\Portal_Membership_Model;
 
 /**

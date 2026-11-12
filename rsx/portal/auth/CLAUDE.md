@@ -9,7 +9,7 @@ and what a page lets a visitor do is decided in its body.
 
 | Controller | Route(s) | What it does |
 |---|---|---|
-| `Portal_Login_Controller` | `/login` GET+POST, `/login/verify` GET, Ajax `verify_2fa`, `send_code`, `passkey_login` | The password form, the second-factor screen and its endpoints, passwordless passkey sign-in, and `complete_sign_in()` - the ONE place every portal entrance finishes. |
+| `Portal_Login_Controller` | `/login` GET+POST, `/login/new-password` GET+POST, `/login/verify` GET, Ajax `verify_2fa`, `send_code`, `passkey_login` | The password form, the forced password change at sign-in ("Choose a new password"), the second-factor screen and its endpoints, passwordless passkey sign-in, and `complete_sign_in()` - the ONE place every portal entrance finishes. |
 | `Portal_Register_Controller` | `/register?code=X` GET+POST | Account creation from a portal invitation: set a password, signed in through `complete_sign_in()`. |
 | `Portal_Password_Reset_Controller` | `/password/reset` GET+POST, `/password/reset/:token` GET+POST | The forgot-password request (Turnstile first; always answers "sent", so it reveals no address) and the reset form behind the emailed link (`Portal_Password_Reset_Email`, `Portal_Password_Reset_Model`). |
 | `Portal_Logout_Controller` | `/logout` | `Portal_Session::logout()`, back to `/login`. |
@@ -19,6 +19,7 @@ and what a page lets a visitor do is decided in its body.
 | Page | Rendered by |
 |---|---|
 | `portal_login_index.blade.php` (+ `.scss`, the "or" divider) | `/login` |
+| `portal_login_new_password.blade.php` | `/login/new-password` |
 | `portal_login_verify.blade.php` (+ `portal_login_verify.js`) | `/login/verify` |
 | `portal_register_index.blade.php` | `/register` |
 | `portal_password_reset_request.blade.php` | `/password/reset` |
@@ -47,19 +48,39 @@ the line (`rsx/portal/CLAUDE.md`, TWO BUNDLES).
   sent to their destination (the challenge was answered in another tab), and
   `portal_login_verify.js` hides the recovery-code hint when the widget fires `completed`
 - **Registration** (`/register?code=X`) — invitation-based account creation
-- **Password Reset** (`/password/reset`) — request + reset token flow. The link is single-use
-  even under concurrent submissions: the form calls `Portal_Password_Reset_Model::claim()` (one
-  conditional UPDATE that marks it used only while unused and unexpired) and writes the new
-  password only when its own claim succeeded
+- **Password Reset** (`/password/reset`) — request + reset token flow, on the token rules the
+  staff reset shares (`Password_Reset_Token`, `rsx/lib/password_reset/`): only the SHA-256 of the
+  link's secret is stored, a new request ends the old link, and the link is single-use even
+  under concurrent submissions: the form calls `Portal_Password_Reset_Model::claim()` (one
+  conditional UPDATE that marks it used only while unused and unexpired), writes the new
+  password only when its own claim succeeded (`set_password(..., Password_Change::CAUSE_RESET_LINK)`);
+  the framework's `portal_user.password.changed`, after the commit, ends every other open link
+  (`invalidate_open_for()`, in `rsx/handlers/Password_Event_Handlers`, for EVERY portal
+  password change) and records the change on the site's action log with the security notice
+  email. A request that mailed a link fires the application event
+  `portal_user.password.reset_requested`, recorded the same way. Used and expired links are
+  deleted nightly by `Password_Reset_Link_Service::sweep` (`rsx/services/`). A flagged account is NOT
+  sent here: it chooses its new password at sign-in (below)
+- **Choose a new password** (`/login/new-password`) — the forced password change at sign-in,
+  the staff rung's twin (`rsx/app/login/CLAUDE.md`). `index()` catches
+  `Auth_Password_Reset_Required_Exception` for a correct password on a portal user flagged
+  `password_reset_required` (set by staff or an operator), asks `can_login()` of
+  `$e->identity`, calls `Portal_Auth::begin_forced_password_change()` (signs the portal out,
+  parks the portal user - nobody is signed in), parks the invited-client id and the redirect
+  AFTER it (the sign-out clears portal session values), and redirects here. The POST checks
+  `rsx.portal.password_min_length` and the confirmation, then
+  `Portal_Auth::complete_forced_password_change()` (refuses the CURRENT password, draws on the
+  sign-in throttle, saves through the model with the cause `forced_change` in a
+  `Site_Lock::write()` section on the portal's site: the flag clears, other sign-ins end) and
+  continues through `__continue_sign_in()` - the second step NEXT when `challenge_accepts()`
+  owes one, then `complete_sign_in(sign_in: true)`. So a forced change is never a way around a
+  second factor. Nothing pending -> `/login`; `?cancel=1` forgets the parked portal user; an
+  account deactivated meanwhile answers the login form with the `can_login()` refusal. No
+  email, no token, no Turnstile (the step answers only the portal user parked on the caller's
+  own session, which passed Turnstile with the password)
 - **Logout** (`/logout`) — clears portal session, redirects to login
 
 ### The sign-in ladder, second factors and federated sign-in
-
-The portal realm has the framework's whole second-factor subsystem (`Rsx_Portal_Two_Factor`,
-credentials in `_portal_two_factor_credentials`) and its own federated sign-in
-(`Rsx_Portal_Sso`, links in `_portal_sso_identities`). Neither shares anything with the staff
-realm but the provider registry, so a staff passkey or a staff Google link never signs anybody
-in here. How this app uses them:
 
 The portal realm has the framework's whole second-factor subsystem (`Rsx_Portal_Two_Factor`,
 credentials in `_portal_two_factor_credentials`) and its own federated sign-in
@@ -72,10 +93,10 @@ in here. How this app uses them:
   (throttle first, the lookup on this portal's site, the hash check), records a miss itself as
   `Portal_Login_History::record_failure(..., STATUS_FAILED_PASSWORD)` and a password-only
   sign-in as `record_success()`, and asks the account questions (`can_login()`: unverified,
-  inactive) between the check and the sign-in. Both thrown refusals are shown as the form's
-  error: `Auth_Throttled_Exception`, and `Auth_Password_Reset_Required_Exception` for a correct
-  password on a portal user flagged `password_reset_required` (pointing at "Forgot your
-  password?"; the framework clears the flag when the reset saves the new password).
+  inactive) between the check and the sign-in. `Auth_Throttled_Exception` is shown as the
+  form's error; `Auth_Password_Reset_Required_Exception` (a correct password on a portal user
+  flagged `password_reset_required`) goes to Choose a new password above, and the framework
+  clears the flag when the new password saves.
 - **Password login is two-stage**: a portal user holding a second factor is parked with
   `Rsx_Portal_Two_Factor::begin_challenge()` (the invited-client id rides the session under
   `CLIENT_ID_KEY`, parked AFTER the challenge, whose sign-out clears portal session values) and
@@ -111,7 +132,7 @@ in here. How this app uses them:
   a verified provider email that matches a portal user of this site is connected and signed in;
   anything else declines. Register the portal callback (`Rsx_Portal_Sso::callback_url('<key>')`)
   in each provider's console.
-- **One completion function.** Every way in - the password form, the challenge, a passkey, a
+- **One completion function.** Every way in - the password form (and its forced password change), the challenge, a passkey, a
   registration from an invitation (`Portal_Register_Controller`) and a federated sign-in -
   finishes in `Portal_Login_Controller::complete_sign_in($portal_user, $sign_in, $client_id)`:
   `sign_in: true` (password, registration) signs in there with
@@ -123,7 +144,8 @@ in here. How this app uses them:
   switches site. The sign-in Ajax endpoints (`verify_2fa`, `send_code`, `passkey_login`)
   declare `#[Writer]` - the sign-in stamps the site-scoped portal user. The page routes take
   no automatic lock, so each write they make is a `Site_Lock::write(Portal_Session::get_site_id(), ...)`
-  section: the password sign-in in `complete_sign_in(sign_in: true)`, registration (account,
+  section: the password sign-in in `complete_sign_in(sign_in: true)`, the forced change's save
+  (inside `Portal_Auth::complete_forced_password_change()`), registration (account,
   membership, used invitation and sign-in in ONE section - `complete_sign_in()` reuses it),
   the reset request (token and email) and the reset itself (claim and new password), and a
   share link's `mark_accessed()`.
@@ -166,6 +188,7 @@ FIELDS; the portal's fields:
 | Page | Fields (id, `autocomplete`) |
 |---|---|
 | `portal_login_index.blade.php` | `email` `username`, `password` `current-password` |
+| `portal_login_new_password.blade.php` | hidden read-only `email` `username` (the parked address, unnamed), `new_password` / `new_password_confirmation` `new-password` |
 | `portal_login_verify.blade.php` | `<Two_Factor_Challenge $autofill_id="code">` - `code` `one-time-code` |
 | `portal_register_index.blade.php` | hidden read-only `email` `username` (the invited address), `new_password` / `new_password_confirmation` `new-password` |
 | `portal_password_reset_request.blade.php` | `email` `username` |
@@ -175,7 +198,8 @@ FIELDS; the portal's fields:
 | "Confirm it's you" (`rsx/lib/password_confirmation/`) | `password` `current-password` |
 
 On these Blade pages the `id` follows the convention and the `name` stays what the controller
-reads (`password`, `password_confirm`), so the endpoints are untouched. The identifier on a
+reads (`password`, `password_confirm`; `password_confirmation` on Choose a new password, as on
+the staff twin), so the endpoints are untouched. The identifier on a
 password-setting page carries NO name: it is a hint to the password manager and is never
 posted - the account comes from the invitation or the reset token, never from the form.
 

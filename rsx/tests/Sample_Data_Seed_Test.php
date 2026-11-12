@@ -8,10 +8,10 @@
 namespace Rsx\Tests;
 
 use App\RSpade\Core\Files\File_Attachment_Model;
-use App\RSpade\Core\Mail\Rsx_Test_Recipients;
 use App\RSpade\Core\Task\Task;
 use App\RSpade\Core\Task\Task_Run_Model;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
+use App\RSpade\Lib\Messaging\Mail\Rsx_Test_Recipients;
 use Rsx\Models\Action_Log_Model;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Contact_Model;

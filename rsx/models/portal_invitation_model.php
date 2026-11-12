@@ -9,7 +9,7 @@ namespace Rsx\Models;
 
 use Illuminate\Support\Str;
 use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
-use App\RSpade\Core\Models\Portal_User_Model;
+use App\RSpade\Lib\Portal\Portal_User_Model;
 
 /**
  * _AUTO_GENERATED_ Database type hints - do not edit manually
@@ -357,7 +357,7 @@ class Portal_Invitation_Model extends Rsx_Site_Model_Abstract
      */
     public function get_invitation_url(): string|false
     {
-        $url = \App\RSpade\Core\Portal\Rsx_Portal::Route(
+        $url = \App\RSpade\Lib\Portal\Rsx_Portal::Route(
             'Portal_Register_Controller',
             ['code' => $this->invitation_code],
             site_id: (int) $this->site_id

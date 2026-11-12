@@ -51,6 +51,7 @@ consumer proved the old name under-described it).
 | A count beside a title | `Count_Pill` |
 | A reference to another record | `Entity_Link` |
 | An empty list region | `Empty_State`; a single empty cell is `Empty_Value` |
+| An IP address (with where it is) | `Ip_Address_Display` (`$ip_address`, `$location` = the endpoint's `ip_address__location`); the region carries `<Geo_Ip_Credit />` once |
 | An inline warning/error banner | `Callout` (`danger` / `warning`) |
 | Secondary + destructive actions | `Action_Menu` (destructive items live INSIDE it) |
 | Tabbed view content | `Tab_Bar` + `Tab_Panels` / `Tab_Panel` |

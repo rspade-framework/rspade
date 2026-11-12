@@ -2,8 +2,8 @@
 
 namespace Rsx\Emails;
 
-use App\RSpade\Core\Mail\Rsx_Email_Abstract;
 use App\RSpade\Core\Rsx;
+use App\RSpade\Lib\Messaging\Mail\Rsx_Email_Abstract;
 
 /**
  * Portal_Request_Reply_Email - tells the staff owner of a request that the client

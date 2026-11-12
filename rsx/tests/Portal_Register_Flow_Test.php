@@ -7,10 +7,10 @@ namespace Rsx\Tests;
 
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use App\RSpade\Core\Models\Portal_User_Model;
-use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
-use App\RSpade\Core\Turnstile\Rsx_Turnstile;
+use App\RSpade\Lib\Portal\Portal_Session;
+use App\RSpade\Lib\Portal\Portal_User_Model;
+use App\RSpade\Lib\SignIn\Turnstile\Rsx_Turnstile;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Portal_Invitation_Model;
 use Rsx\Models\Portal_Membership_Model;

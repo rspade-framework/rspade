@@ -7,9 +7,10 @@ use Illuminate\Support\Facades\Hash;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Auth\Auth_Throttled_Exception;
 use App\RSpade\Core\Auth\Login_Throttle;
+use App\RSpade\Core\Auth\Password_Change;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
-use App\RSpade\Core\Portal\Portal_Session;
 use App\RSpade\Core\Session\Portal_Login_History;
+use App\RSpade\Lib\Portal\Portal_Session;
 use Rsx\Lib\Sessions\Session_Listing;
 
 /**
@@ -102,7 +103,8 @@ class Portal_Settings_Controller extends Rsx_Controller_Abstract
             ]);
         }
 
-        $user->set_password($new_password);
+        // The one place a portal user changes their own password.
+        $user->set_password($new_password, Password_Change::CAUSE_SELF);
         $user->save();
 
         return ['message' => 'Password updated successfully'];

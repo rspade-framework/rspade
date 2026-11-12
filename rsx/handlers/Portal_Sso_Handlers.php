@@ -2,12 +2,12 @@
 
 namespace Rsx\Handlers;
 
-use App\RSpade\Core\Models\Portal_User_Model;
-use App\RSpade\Core\Portal\Portal_Session;
-use App\RSpade\Core\Portal\Rsx_Portal;
-use App\RSpade\Core\Sso\Rsx_Portal_Sso;
-use App\RSpade\Core\Sso\Sso_Failed_Exception;
-use App\RSpade\Lib\Flash\Flash_Alert;
+use App\RSpade\Lib\Portal\Portal_Session;
+use App\RSpade\Lib\Portal\Portal_User_Model;
+use App\RSpade\Lib\Portal\Rsx_Portal;
+use App\RSpade\Lib\SignIn\Sso\Rsx_Portal_Sso;
+use App\RSpade\Lib\SignIn\Sso\Sso_Failed_Exception;
+use App\RSpade\Lib\Ui\Flash\Flash_Alert;
 use Rsx\Portal\Auth\Portal_Login_Controller;
 
 /**

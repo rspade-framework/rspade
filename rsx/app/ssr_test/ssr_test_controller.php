@@ -12,9 +12,9 @@ namespace Rsx\App\SsrTest;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
-use App\RSpade\Core\Debug\Rsx_Diagnostics;
 use App\RSpade\Core\SSR\Rsx_SSR;
 use App\RSpade\Core\View\PageData;
+use App\RSpade\Lib\Developer\Debug\Rsx_Diagnostics;
 
 /**
  * A framework harness, reachable only on a framework-development box

@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\Hash;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Auth\Auth_Throttled_Exception;
 use App\RSpade\Core\Auth\Login_Throttle;
+use App\RSpade\Core\Auth\Password_Change;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
-use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Session\Login_History;
 use App\RSpade\Core\Session\Session;
 use Rsx\Lib\Sessions\Session_Listing;
@@ -22,9 +22,6 @@ use Rsx\Lib\Sessions\Session_Listing;
 #[Auth('is_logged_in')]
 class Frontend_Settings_Password_Security_Controller extends Rsx_Controller_Abstract
 {
-    /** The shortest password this application accepts - the same rule accepting an invitation applies. */
-    const PASSWORD_MIN_LENGTH = 8;
-
     /**
      * Change the signed-in identity's password. The Change Password <Rsx_Form> posts here.
      *
@@ -62,8 +59,8 @@ class Frontend_Settings_Password_Security_Controller extends Rsx_Controller_Abst
 
         if ($new_password === '') {
             $errors['new_password'] = 'New password is required';
-        } elseif (strlen($new_password) < self::PASSWORD_MIN_LENGTH) {
-            $errors['new_password'] = 'Password must be at least ' . self::PASSWORD_MIN_LENGTH . ' characters';
+        } elseif (strlen($new_password) < (int) config('rsx.auth.password_min_length')) {
+            $errors['new_password'] = 'Password must be at least ' . (int) config('rsx.auth.password_min_length') . ' characters';
         }
 
         if ($new_password !== $confirm) {
@@ -95,7 +92,8 @@ class Frontend_Settings_Password_Security_Controller extends Rsx_Controller_Abst
             ]);
         }
 
-        $login_user->password = Login_User_Model::hash_password($new_password);
+        // The one place a user changes their own password.
+        $login_user->set_password($new_password, Password_Change::CAUSE_SELF);
         $login_user->save();
 
         return ['changed' => true];

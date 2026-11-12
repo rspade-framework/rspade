@@ -1,0 +1,41 @@
+<%--
+Settings_User_Management_View_History - the user view's History section (a page REGION).
+
+$activity - the user's action-log rows from get_user_activity(), already decorated with
+            Activity_Feed.decorate(): what was done TO the user (its subject is the user)
+            and what the user did (its actor is their login identity). Each summary line
+            names the address it came from where one was recorded; the location beside it
+            is resolved on every load and never stored, so the region carries the DB-IP
+            credit when it shows one.
+
+Pure display - no on_load(), no handlers, no SCSS. Drawn only for a viewer who may read
+the action log (Activity_Feed.can_view()).
+--%>
+<Define:Settings_User_Management_View_History>
+    <% const _activity = this.args.activity; %>
+    <Section $title="History" $count=_activity.length $flush=true>
+        <Slot:body>
+            <% if (_activity.length === 0) { %>
+                <Empty_State $icon="bi bi-clock-history">
+                    <Slot:title>No history yet</Slot:title>
+                    <Slot:body>What this user does, and what is done to their account, will appear here.</Slot:body>
+                </Empty_State>
+            <% } else { %>
+                <% for (const a of _activity) { %>
+                    <Feed_Row $icon=a.icon $variant=a.variant>
+                        <Slot:body>
+                            <%!= a.html %>
+                            <% if (a.ip_address__location) { %>
+                                <span class="text-muted">(<%= a.ip_address__location %>)</span>
+                            <% } %>
+                        </Slot:body>
+                        <Slot:time><%= Rsx_Time.relative(a.created_at) %></Slot:time>
+                    </Feed_Row>
+                <% } %>
+                <% if (_activity.some(a => a.ip_address__location)) { %>
+                    <Geo_Ip_Credit />
+                <% } %>
+            <% } %>
+        </Slot:body>
+    </Section>
+</Define:Settings_User_Management_View_History>

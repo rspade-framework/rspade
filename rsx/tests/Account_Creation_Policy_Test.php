@@ -16,7 +16,7 @@ use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Core\Session\Session;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
-use App\RSpade\Core\Turnstile\Rsx_Turnstile;
+use App\RSpade\Lib\SignIn\Turnstile\Rsx_Turnstile;
 use Rsx\App\Login\AcceptInvite\Accept_Invite_Controller;
 use Rsx\App\Login\Login_Controller;
 use Rsx\Handlers\Sso_Handlers;

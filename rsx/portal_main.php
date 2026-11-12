@@ -9,8 +9,8 @@ namespace Rsx;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Locks\Site_Lock;
-use App\RSpade\Core\Portal\Portal_Main_Abstract;
-use App\RSpade\Core\Portal\Portal_Session;
+use App\RSpade\Lib\Portal\Portal_Main_Abstract;
+use App\RSpade\Lib\Portal\Portal_Session;
 use Rsx\Models\Client_Model;
 use Rsx\Portal_Permission;
 

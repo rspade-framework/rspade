@@ -1,0 +1,10 @@
+// Ip_Address_Display - an address, with its approximate location as a muted second line.
+.Ip_Address_Display {
+    display: inline-block;
+
+    &__location {
+        display: block;
+        color: var(--bs-secondary-color);
+        font-size: $font-size-sm;
+    }
+}

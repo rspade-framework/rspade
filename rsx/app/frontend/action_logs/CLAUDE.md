@@ -51,6 +51,10 @@ action_logs/
 
 See `/rsx/resource/man/action_log.txt` for full documentation.
 
+Every row's summary comes from its renderer, so the account-security rows (a changed
+password, a reset request) print the address they came from wherever they appear - here, the
+detail page, a user's History and the dashboard.
+
 ## HOW TO CUSTOMIZE
 
 - **The search box** matches an action TYPE by its label (the term is mapped to the
