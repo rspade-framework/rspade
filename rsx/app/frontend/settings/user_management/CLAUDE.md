@@ -129,8 +129,9 @@ framework's and are never queried here.
   status (signed in, or why and when it ended), IP with its location and last activity, each
   row opening the session page, with Sign out per row and Sign out everywhere.
 - **Locations**: every address these screens show travels with `ip_address__location`
-  (`Rsx_Geo_Ip::label()`, from `Session_Listing::row()` and from `get_user_session_activity`),
-  resolved on every load and never stored; it renders through `<Ip_Address_Display>`, and each region
+  (`Rsx_Geo_Ip::label()` - "City, State, USA", or the network's name for a listed
+  cloud/hosting/CDN/AI network - from `Session_Listing::row()` and from
+  `get_user_session_activity`), resolved on every load and never stored; it renders through `<Ip_Address_Display>`, and each region
   showing one carries `<Geo_Ip_Credit />` (DB-IP's attribution). `rsx:man geo_ip`.
 - **The record rule**: `get_user_session`, `get_user_session_activity` and
   `terminate_user_session` take a `user_session_id` that must be one the view page lists for

@@ -35,7 +35,8 @@ One subdirectory per component (template + SCSS, `.js` only where behaviour exis
 - `empty_state/` — `Empty_State`: an empty LIST region (icon + title + reason + CTA).
 - `empty_value/` — `Empty_Value`: the one muted em-dash for a single empty cell.
 - `ip_address_display/` — `Ip_Address_Display`: an IP address with its approximate location (the endpoint's
-  `ip_address__location`, `Rsx_Geo_Ip::label()`) as a muted second line; the region shows
+  `ip_address__location`, `Rsx_Geo_Ip::label()`: "City, State, USA", or a listed network's
+  name such as "AWS") as a muted second line; the region shows
   `<Geo_Ip_Credit />` once.
 - `callout/` — `Callout`: the inline alert banner; `$variant` is validated loudly.
 - `entity_link/` — `Entity_Link`: a fetched entity reference (type icon + name + link).
