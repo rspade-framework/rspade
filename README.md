@@ -420,14 +420,19 @@ what you meant, surprising if it is not.
 
 ### Behind a reverse proxy
 
-The container serves plain HTTP on port **80** and expects TLS to be terminated
-in front of it. Put it on a network with your proxy and publish nothing:
+The container never holds a certificate: TLS is terminated in front of it, and
+the proxy forwards to port **8000**. That port is the same site as port 80,
+telling the application the visitor is on https - which is what makes generated
+URLs `https://` and the session cookie `Secure`. Port 80 is the plain-http
+port for a local container with nothing in front of it. Put the container on a
+network with your proxy and publish nothing:
 
 ```bash
 docker network create web
 
 docker run -d --name rspade --network web \
   -e VIRTUAL_HOST=app.example.com \
+  -e VIRTUAL_PORT=8000 \
   -e LETSENCRYPT_HOST=app.example.com \
   -v "$PWD":/var/www/html \
   -v "$PWD/storage/mysql_data":/var/lib/mysql \
@@ -440,7 +445,7 @@ and obtains the certificate itself:
 
 ```
 app.example.com {
-    reverse_proxy rspade:80
+    reverse_proxy rspade:8000
 }
 ```
 
@@ -457,8 +462,13 @@ what makes it https; the container itself never needs a certificate.
 
 Two things that follow from that, worth knowing before you debug them:
 
-- Forward the usual `X-Forwarded-Proto` and `X-Forwarded-For` headers. Both
-  proxies above do it by default.
+- The port decides the scheme, not a header. The container ignores an
+  `X-Forwarded-Proto` a proxy sends: a proxy pointed at port 80 gets `http://`
+  redirects and links however it is configured. If logins loop or links come out
+  `http://`, the proxy is forwarding to 80 - point it at 8000.
+- Forward `X-Forwarded-For` (both proxies above do by default) and name the
+  proxy in `RSPADE_TRUSTED_PROXIES`, so the application sees each visitor's own
+  address and not the proxy's.
 - The **production** image (`rspade/rspade-server-prod`) ships no database. It
   expects one you provide, configured through `.env` — so the `/var/lib/mysql`
   mount above is a development-image concern and does not apply to it.

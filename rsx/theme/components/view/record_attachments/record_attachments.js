@@ -7,7 +7,8 @@
  */
 class Record_Attachments extends Component {
     on_create() {
-        // File names currently on their way up, shown as pending rows.
+        // Files on their way up, shown as pending rows: {name, percent} (percent null until
+        // the first progress report).
         this.state.uploading = [];
 
         // Rsx_Droppable delivers dropped files here while the section carries rsx-droppable.
@@ -63,18 +64,22 @@ class Record_Attachments extends Component {
             throw new Error('Record_Attachments could not resolve the endpoint ' + this.args.controller + '::' + this.args.method);
         }
 
-        this.state.uploading = this.state.uploading.concat(files.map((file) => file.name));
+        const pending = files.map((file) => ({ name: file.name, percent: null }));
+        this.state.uploading = this.state.uploading.concat(pending);
         this.render();
 
         const keys = [];
         const failures = [];
 
-        await Promise.all(files.map(async (file) => {
+        await Promise.all(files.map(async (file, index) => {
             const form_data = new FormData();
             form_data.append('file', file);
+            const entry = pending[index];
 
             try {
-                const result = await Ajax.upload(form_data);
+                const result = await Ajax.upload(form_data, {
+                    on_progress: (loaded, total) => this._show_progress(entry, loaded, total),
+                });
                 keys.push(result.attachment.key);
             } catch (e) {
                 failures.push(file.name + ': ' + (e.message || 'upload failed'));
@@ -95,13 +100,7 @@ class Record_Attachments extends Component {
         // meanwhile; only what follows belongs to it.
         if (this.is_stopped()) return;
 
-        const names = files.map((file) => file.name);
-        this.state.uploading = this.state.uploading.filter((name) => {
-            const at = names.indexOf(name);
-            if (at === -1) return true;
-            names.splice(at, 1);
-            return false;
-        });
+        this.state.uploading = this.state.uploading.filter((entry) => !pending.includes(entry));
 
         if (failures.length > 0) {
             await this.alive(Modal.alert('Upload Failed', failures.join('\n')));
@@ -115,5 +114,23 @@ class Record_Attachments extends Component {
         if (attached) {
             this.trigger('changed');
         }
+    }
+
+    /**
+     * One upload's progress, written into its pending row in place: a re-render per progress
+     * report would rebuild the whole section many times a second. The entry keeps the figure,
+     * so a render meanwhile draws it too.
+     */
+    _show_progress(entry, loaded, total) {
+        if (total <= 0) return;
+        entry.percent = Math.floor((100 * loaded) / total);
+        const at = this.state.uploading.indexOf(entry);
+        if (at === -1 || this.is_stopped()) return;
+        this.$.find('.Record_Attachments__item--uploading').eq(at).find('.Record_Attachments__size').text(Record_Attachments.uploading_label(entry));
+    }
+
+    /** The size column of a pending row: "Uploading..." until the first report, then the percentage. */
+    static uploading_label(entry) {
+        return entry.percent === null ? 'Uploading...' : 'Uploading ' + entry.percent + '%';
     }
 }

@@ -12,8 +12,9 @@ Event OUT:
   'changed' - files were attached. The host refetches its attachment rows and re-renders.
 
 The section draws what it is given and never fetches: the host page loads the rows with the
-rest of its data and passes them in. Uploading sends each file through Ajax.upload(), then
-posts every returned key to $controller::$method in ONE call through
+rest of its data and passes them in. Uploading sends each file through Ajax.upload(), its
+pending row showing the percentage sent (on_progress), then posts every returned key to
+$controller::$method in ONE call through
 Rsx_Form.call_answering(), so the endpoint's duplicate-upload question (one per file the
 record already holds: Cancel Upload / Skip This File / Upload Again) is asked through the
 application's question handler. Clicking a row opens Attachment_Preview_Modal.
@@ -64,12 +65,12 @@ Usage:
                             </button>
                         </li>
                     <% } %>
-                    <% for (const name of _uploading) { %>
+                    <% for (const entry of _uploading) { %>
                         <li>
                             <div class="Record_Attachments__item Record_Attachments__item--uploading">
-                                <File_Type_Icon class="Record_Attachments__icon" $file_name=name />
-                                <span class="Record_Attachments__name"><%= name %></span>
-                                <span class="Record_Attachments__size">Uploading...</span>
+                                <File_Type_Icon class="Record_Attachments__icon" $file_name=entry.name />
+                                <span class="Record_Attachments__name"><%= entry.name %></span>
+                                <span class="Record_Attachments__size"><%= Record_Attachments.uploading_label(entry) %></span>
                             </div>
                         </li>
                     <% } %>

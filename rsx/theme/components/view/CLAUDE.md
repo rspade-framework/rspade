@@ -44,7 +44,8 @@ One subdirectory per component (template + SCSS, `.js` only where behaviour exis
   transaction that made it. A never-exported column's values arrive as the redaction
   marker the endpoint ships beside the page, and paint as a muted "(redacted)".
 - `record_attachments/` — `Record_Attachments`: a record's file list as a Section. Upload
-  by button or by dropping files on it; each file is a name with its type icon; a click
+  by button or by dropping files on it, each pending upload showing its percentage
+  (`Ajax.upload()`'s `on_progress`); each file is a name with its type icon; a click
   opens the preview dialog. It draws the rows it is given and fires `changed` after an
   upload; the host page loads the rows and names the claim endpoint (`$controller`,
   `$method`), which it calls through `Rsx_Form.call_answering()` so the duplicate-upload
