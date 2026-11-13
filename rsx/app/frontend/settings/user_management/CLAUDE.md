@@ -27,7 +27,7 @@ HISTORY below).
 ## EQUAL-OR-LOWER ADMINISTRATION
 
 A caller creates, edits, re-roles, disables and re-enables only users whose role is EQUAL to
-or LOWER than their own - the role's `can_admin_roles` list (`User_Model::$enums`, where every
+or LOWER than their own - the role's `can_admin_roles` list (the `role_id` enum on `User_Model`, where every
 administering role names itself and the roles below it), read through `can_admin_role()`.
 Every write asks it of the target's CURRENT role (`__administrable_user()`: `get_user_for_edit`,
 `save_user`, `set_user_enabled`, `get_user_for_password_reset`, `set_user_password`, `revoke_user_api_key`, `terminate_user_session`,

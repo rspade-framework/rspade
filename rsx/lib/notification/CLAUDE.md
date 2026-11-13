@@ -47,7 +47,7 @@ unread set (`rsx:man site_locks`, HOLDING A LOCK WELL, rule 8).
 
 ## HOW TO CUSTOMIZE
 
-- **Add a type**: a `TYPE_*` constant and `$enums` row on `Notification_Model`
+- **Add a type**: a `TYPE_*` constant and `type_id` enum value in `Notification_Model`'s `$columns`
   (`rsx:constants:regenerate` afterwards) plus a renderer method here. A renderer must work
   when the entity is gone — `task_assigned` shows the pattern, falling back to a title
   carried in `metadata`.

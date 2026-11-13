@@ -102,7 +102,7 @@ class Action_Logs_DataGrid extends DataGrid_Abstract
     private static function _type_ids_matching(string $term): array
     {
         $ids = [];
-        foreach (Action_Log_Model::$enums['type_id'] as $id => $definition) {
+        foreach (Action_Log_Model::enum_values('type_id') as $id => $definition) {
             if (stripos($definition['label'], $term) !== false) {
                 $ids[] = (int) $id;
             }

@@ -61,7 +61,7 @@ Live examples: `rsx/app/frontend/clients/clients_controller.php`,
 
 ## Adding an action type
 
-1. Add the integer to `Action_Log_Model`'s `$enums['type_id']` with `constant`,
+1. Add the integer to the `type_id` enum in `Action_Log_Model`'s `$columns` with `constant`,
    `label`, and a `renderer` of `FQCN::method`. **Keep the range convention**:
    client 1-9, contact 10-19, project 20-29, task 30-39, party 40-49 - the activity
    feed's icon map keys off those ranges.
@@ -133,7 +133,7 @@ Notification::send(
   outlive its subject.
 - **`Notification_Model::fetch()` serves the recipient only** - a notification whose
   `user_id` (a login_users id) is not the caller's is answered as a missing row.
-- Adding a type mirrors the action log: `$enums['type_id']` + a
+- Adding a type mirrors the action log: a `type_id` enum value in `$columns` + a
   `Notification_Renderer` static returning `['text' => ..., 'url' => ..., 'image_url' => ...]`,
   handling a missing entity.
 - UI: `<Notification_Dropdown>` is already in `Frontend_Spa_Layout`. It is **NOT

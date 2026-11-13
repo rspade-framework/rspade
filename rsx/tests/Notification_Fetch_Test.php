@@ -64,7 +64,7 @@ class Notification_Fetch_Test extends Rsx_Test_Abstract
         $notification = new Notification_Model();
         $notification->site_id = 1;
         $notification->user_id = $login_user_id;
-        $notification->type_id = array_key_first(Notification_Model::$enums['type_id']);
+        $notification->type_id = array_key_first(Notification_Model::enum_values('type_id'));
         if ($entity) {
             $notification->entity_type = class_basename($entity);
             $notification->entity_id = $entity->id;

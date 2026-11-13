@@ -58,7 +58,7 @@ detail page, a user's History and the dashboard.
 ## HOW TO CUSTOMIZE
 
 - **The search box** matches an action TYPE by its label (the term is mapped to the
-  `type_id`s whose `$enums` label contains it) and an ACTOR by the login identity's email
+  `type_id`s whose enum label contains it) and an ACTOR by the login identity's email
   or this site's name or email for that person (`Login_User_Model` / site-scoped
   `User_Model` subqueries on `actor_id`) - `build_query()` in `list/action_logs_datagrid.php`.
 - **Add a column or filter**: `list/action_logs_datagrid.php` (`$sortable_columns` and

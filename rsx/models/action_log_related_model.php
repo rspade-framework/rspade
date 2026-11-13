@@ -23,14 +23,14 @@ use Rsx\Models\Action_Log_Model;
  * @property int $action_log_id
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property int $id
  * @property int $related_id
- * @property int $related_type
- * @property int $role_id
+ * @property string $related_type type ref: a model class name, stored as a type-ref id
+ * @property int $role_id enum: ROLE_ACTOR, ROLE_TARGET, ROLE_MENTIONED (also $role_id__label and the other $role_id__* properties)
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  *
  * @property-read string $role_id__label
  * @property-read string $role_id__constant
@@ -68,14 +68,9 @@ class Action_Log_Related_Model extends Rsx_Model_Abstract
     protected $table = 'action_log_related';
     protected $fillable = []; // No mass assignment - always explicit
 
-    /**
-     * Polymorphic type reference columns
-     * related_type stores integer ID in database but exposes class name string
-     */
-    protected static $type_ref_columns = ['related_type'];
-
-    public static $enums = [
-        'role_id' => [
+    public static $columns = [
+        'related_type' => ['type_ref' => true],
+        'role_id' => ['enum' => [
             1 => [
                 'constant' => 'ROLE_ACTOR',
                 'label' => 'Actor',
@@ -88,7 +83,7 @@ class Action_Log_Related_Model extends Rsx_Model_Abstract
                 'constant' => 'ROLE_MENTIONED',
                 'label' => 'Mentioned',
             ],
-        ],
+        ]],
     ];
 
     /**

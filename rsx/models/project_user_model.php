@@ -17,13 +17,13 @@ use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
  *
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property int $id
  * @property int $project_id
  * @property int $site_id
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  * @property int $user_id
  *
  * @mixin \Eloquent
@@ -36,8 +36,6 @@ class Project_User_Model extends Rsx_Site_Model_Abstract
 
     protected $table = 'project_users';
     protected $fillable = []; // No mass assignment - always explicit
-
-    public static $enums = []; // Pivot has no enum fields
 
     /**
      * User ids assigned to a project.

@@ -14,14 +14,14 @@ use Rsx\Portal_Permission;
  * @property int $client_id
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property int $id
  * @property int $portal_user_id
- * @property int $role_id
+ * @property int $role_id enum: ROLE_VIEWER, ROLE_COLLABORATOR (also $role_id__label and the other $role_id__* properties)
  * @property int $site_id
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  *
  * @property-read string $role_id__label
  * @property-read string $role_id__constant
@@ -67,11 +67,11 @@ class Portal_Membership_Model extends Rsx_Site_Model_Abstract
     protected $table = 'portal_memberships';
     protected $fillable = [];
 
-    public static $enums = [
-        'role_id' => [
+    public static $columns = [
+        'role_id' => ['enum' => [
             1 => ['constant' => 'ROLE_VIEWER', 'label' => 'Viewer', 'badge' => 'bg-secondary'],
             2 => ['constant' => 'ROLE_COLLABORATOR', 'label' => 'Collaborator', 'badge' => 'bg-primary'],
-        ],
+        ]],
     ];
 
     // =========================================================================

@@ -337,7 +337,7 @@ class Contact_Model extends Rsx_Site_Model_Abstract
 
 A denial and a missing row return the same generic "not found" (anti-enumeration). Full contract: skill `rspade:model-fetch`.
 
-The model is also where a column's KIND is declared: `$enums` for an integer enum, `$text_types` for a TEXT column holding rich text (`'description' => Rich_Text::class`, which is why the edit page writes `<{Project_Model.editor_component_for('description')} $name="description" />` and names no widget). Skills `rspade:model-enums`, `rspade:text-types`.
+The model is also where a column's KIND is declared, one `$columns` entry per column: `enum` for an integer enum, `text_type` for a TEXT column holding rich text (`'description' => ['text_type' => Rich_Text::class]`, which is why the edit page writes `<{Project_Model.editor_component_for('description')} $name="description" />` and names no widget). Skill `rspade:models` (every kind, derived columns included), `rspade:model-enums`, `rspade:text-types`.
 
 ---
 

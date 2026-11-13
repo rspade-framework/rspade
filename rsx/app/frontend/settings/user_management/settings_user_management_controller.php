@@ -31,7 +31,7 @@ use Rsx\Models\Action_Log_Model;
  *
  * EQUAL-OR-LOWER ADMINISTRATION. A caller creates, edits, re-roles, re-invites the link of
  * and disables only users whose role is EQUAL to or LOWER than their own - the role's
- * can_admin_roles list (User_Model::$enums), read through can_admin_role(). Every endpoint
+ * can_admin_roles list (User_Model's role_id enum), read through can_admin_role(). Every endpoint
  * that changes a user asks it of the target's CURRENT role (__administrable_user()) and of
  * any NEW role it assigns (_validate_role_id()); a refusal is an ERROR_UNAUTHORIZED
  * response, never a silent no-op. Reads (the list, the view page) stay open to every

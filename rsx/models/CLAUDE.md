@@ -86,13 +86,13 @@ the grouping is for readers only):
   BEM-style `status_id__label` names are the API.
 - **`portal_fetch()` needs `portal_can_read()`**, fail-closed. Enforced by
   `PORTAL-MODEL-FETCH-01`.
-- **A credential column is in `public static $neverExport`** — `Shared_Item_Model`'s,
+- **A credential column is declared `never_export`** in `$columns` — `Shared_Item_Model`'s,
   `Portal_Invitation_Model`'s bearer token and both reset models' `token_hash` are. It is
   stripped from every payload after Laravel builds it (`$hidden` is not a security
-  control: `makeVisible()` undoes it), and the list unions up the inheritance chain.
+  control: `makeVisible()` undoes it), and an overriding entry can never drop it.
   `rsx:check` flags a `password` / `token` / `secret` column left off it
   (`MODEL-NEVER-EXPORT-01`).
-- **A computed value that must reach JS is `$appends` + a `getXAttribute()` accessor
+- **A computed value that must reach JS is an APPENDED property: `$appends` + a `getXAttribute()` accessor
   delegating to the public method** — Eloquent serializes it inside `toArray()`, so it
   rides every payload, and the JS stub declares it. Hand-adding the key inside `fetch()`
   puts it on that one payload and on no other, so **no `fetch()` here does that**: every
@@ -114,8 +114,17 @@ the grouping is for readers only):
   record cannot hold (lengths from `field_length()`, enum membership, formats, and for a task
   its site-scoped references and parent cycle; built on `rsx/lib/field_checks/`), and both the
   staff save and the external API run them, so the two can never disagree. A task's write is
-  shared too: `Task_Model::save_edit()` (fields, parent pair, derived `project_id` and its
-  cascade), called inside `Form_Edit::run()` by both, each passing `fields: Task_Model::EDIT_FIELDS`.
+  shared too: `Task_Model::save_edit()` (fields, parent pair, `direct_project_id` when sent),
+  called inside `Form_Edit::run()` by both, each passing `fields: Task_Model::EDIT_FIELDS`.
+- **Derived columns**: `Task_Model::$project_id` is the one here - declared
+  `['derived' => 'derive_project_id', 'from' => ['taskable_type', 'taskable_id', 'direct_project_id']]`,
+  computed by the framework's `save()` and never assigned (an assignment, a `Form_Edit::set()`
+  or a bulk `update()` naming it throws). It is the project the parent chain reaches
+  (`resolve_chain_project_id()`), else the user-chosen `direct_project_id`, which a task under
+  a project keeps untouched. Because a descendant's value depends on its ANCESTORS' parent pairs
+  (other rows), `Task_Model::save()` is overridden: when an existing task's parent pair changed it
+  calls `parent::save()` and then `rederive()` on every task below it, level by level, in one
+  transaction - every descendant, also below a child whose own value did not move.
 - **Fact groups**: columns that hold ONE edited fact are declared in `$fact_groups`, so a
   save of any of them is a conflict for a stale edit of any field stored in them
   (`rsx:man model`, FACT GROUPS). `Task_Model`'s `parent` group (`taskable_type` +
@@ -123,9 +132,14 @@ the grouping is for readers only):
   columns.
 - **Mark growth**: `public static $unbounded = true;` on any model whose row count
   grows with customer activity. `DB-UNBOUNDED-01` lints against it.
-- **Enums** are integer columns with a `$enums` map on the model. Run
-  `php artisan rsx:constants:regenerate` after changing one.
-- **Declared TEXT types**: a `$text_types` map beside `$enums` says what kind of string a
+- **Every column's kind is declared in `public static $columns`** (skill `rspade:models`,
+  `rsx:man model`, COLUMN DECLARATIONS): `enum`, `text_type`, `type_ref`, `never_export`,
+  `revision_exclude`, `derived` + `from`. A model with nothing to declare declares nothing.
+  Read a declaration through the accessors (`enum_values('col')`, ...), never `::$columns`.
+- **Enums** are BIGINT columns with an `enum` entry in `$columns`. `migrate` regenerates
+  the constants and the `_AUTO_GENERATED_` header in development; run
+  `php artisan rsx:constants:regenerate` after changing one without a migration.
+- **Declared TEXT types**: a `text_type` entry in `$columns` says what kind of string a
   TEXT column holds (`Rich_Text`, `Raw_Text` — see `rsx/lib/text_types/CLAUDE.md`). A
   declared column is read as a value object, filtered by its type on write, and printed by
   its type's component instead of by whatever escape the template picked. `Project_Model`

@@ -3,6 +3,7 @@
 namespace Rsx\Models;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
 use App\RSpade\Core\Forms\Form_Edit;
 use App\RSpade\Core\Models\User_Model;
@@ -19,25 +20,26 @@ use Rsx\Models\Project_Model;
  * @property string $completed_date
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property string $deleted_at
  * @property int $deleted_by_id
- * @property int $deleted_by_type
- * @property string $description
+ * @property string $deleted_by_type type ref: a model class name, stored as a type-ref id
+ * @property \Rsx\Lib\TextTypes\RichText\Rich_Text $description text type: a value object, filtered on write
+ * @property int $direct_project_id
  * @property string $due_date
- * @property float $hour_estimate
+ * @property string $hour_estimate decimal
  * @property int $id
  * @property string $notes
- * @property int $priority
- * @property int $project_id
+ * @property int $priority enum: PRIORITY_LOW, PRIORITY_MEDIUM, PRIORITY_HIGH, PRIORITY_URGENT (also $priority__label and the other $priority__* properties)
+ * @property-read int $project_id derived: computed by derive_project_id() from taskable_type, taskable_id, direct_project_id; never assigned
  * @property int $site_id
- * @property int $status
+ * @property int $status enum: STATUS_PENDING, STATUS_IN_PROGRESS, STATUS_COMPLETED, STATUS_CANCELLED (also $status__label and the other $status__* properties)
  * @property int $taskable_id
- * @property int $taskable_type
+ * @property string $taskable_type type ref: a model class name, stored as a type-ref id
  * @property string $title
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  *
  * @property-read string $status__label
  * @property-read string $status__constant
@@ -123,27 +125,32 @@ class Task_Model extends Rsx_Site_Model_Abstract
     }
 
     /**
-     * Polymorphic type reference columns
+     * Column declarations (see rsx:man model).
      *
-     * taskable_type stores integer ID in database but exposes class name string
-     * @var array
+     * `description` is authored in a WYSIWYG and holds HTML, so its text_type makes the value
+     * carry its own encoding instead of every template, endpoint and export remembering it -
+     * the same decision Project_Model makes, and states in full, for the same kind of column.
+     *
+     * `project_id` is derived by derive_project_id() from the parent pair and the
+     * user-editable `direct_project_id`; it is never assigned (see "The task's project"
+     * below).
      */
-    protected static $type_ref_columns = ['taskable_type'];
-
-    /**
-     * DECLARED TEXT TYPES - what kind of string this TEXT column actually holds.
-     *
-     * `description` is authored in a WYSIWYG and holds HTML, so the value carries its own
-     * encoding instead of every template, endpoint and export remembering it.
-     * Project_Model::$text_types states the reasoning in full; this is the same decision
-     * for the same kind of column.
-     *
-     * A TEXT column NOT listed here is still an ordinary string. Declaration is opt-in.
-     *
-     * @var array
-     */
-    public static $text_types = [
-        'description' => Rich_Text::class,
+    public static $columns = [
+        'taskable_type' => ['type_ref' => true],
+        'description' => ['text_type' => Rich_Text::class],
+        'status' => ['enum' => [
+            1 => ['constant' => 'STATUS_PENDING', 'label' => 'Pending', 'badge' => 'bg-secondary'],
+            2 => ['constant' => 'STATUS_IN_PROGRESS', 'label' => 'In Progress', 'badge' => 'bg-info'],
+            3 => ['constant' => 'STATUS_COMPLETED', 'label' => 'Completed', 'badge' => 'bg-success'],
+            4 => ['constant' => 'STATUS_CANCELLED', 'label' => 'Cancelled', 'badge' => 'bg-danger'],
+        ]],
+        'priority' => ['enum' => [
+            1 => ['constant' => 'PRIORITY_LOW', 'label' => 'Low', 'badge' => 'bg-secondary'],
+            2 => ['constant' => 'PRIORITY_MEDIUM', 'label' => 'Medium', 'badge' => 'bg-primary'],
+            3 => ['constant' => 'PRIORITY_HIGH', 'label' => 'High', 'badge' => 'bg-warning'],
+            4 => ['constant' => 'PRIORITY_URGENT', 'label' => 'Urgent', 'badge' => 'bg-danger'],
+        ]],
+        'project_id' => ['derived' => 'derive_project_id', 'from' => ['taskable_type', 'taskable_id', 'direct_project_id']],
     ];
 
     /**
@@ -162,24 +169,10 @@ class Task_Model extends Rsx_Site_Model_Abstract
      */
     public const EDIT_FIELDS = ['taskable_type' => 'taskable', 'taskable_id' => 'taskable'];
 
-    public static $enums = [
-        'status' => [
-            1 => ['constant' => 'STATUS_PENDING', 'label' => 'Pending', 'badge' => 'bg-secondary'],
-            2 => ['constant' => 'STATUS_IN_PROGRESS', 'label' => 'In Progress', 'badge' => 'bg-info'],
-            3 => ['constant' => 'STATUS_COMPLETED', 'label' => 'Completed', 'badge' => 'bg-success'],
-            4 => ['constant' => 'STATUS_CANCELLED', 'label' => 'Cancelled', 'badge' => 'bg-danger'],
-        ],
-        'priority' => [
-            1 => ['constant' => 'PRIORITY_LOW', 'label' => 'Low', 'badge' => 'bg-secondary'],
-            2 => ['constant' => 'PRIORITY_MEDIUM', 'label' => 'Medium', 'badge' => 'bg-primary'],
-            3 => ['constant' => 'PRIORITY_HIGH', 'label' => 'High', 'badge' => 'bg-warning'],
-            4 => ['constant' => 'PRIORITY_URGENT', 'label' => 'Urgent', 'badge' => 'bg-danger'],
-        ],
-    ];
-
     /**
      * Max hops when walking the taskable parent chain. A runaway guard on top of the
-     * visited-set cycle guard (a corrupt/self-referential chain can't loop forever).
+     * visited-set cycle guard (a corrupt/self-referential chain can't loop forever). The
+     * migration that introduced direct_project_id mirrors this number in SQL.
      */
     const CHAIN_DEPTH_CAP = 25;
 
@@ -223,13 +216,18 @@ class Task_Model extends Rsx_Site_Model_Abstract
     }
 
     // =========================================================================
-    // Derived project_id (see docs.dev/BACKLOG.md B-1 - this is the application-level
-    // case study the framework derived-column abstraction should generalize).
+    // The task's project.
     //
-    // A task's project_id is DERIVED (auto-populated, read-only) when its taskable parent
-    // chain (task -> task -> ... recursively) reaches a Project, or its direct parent IS a
-    // Project. Otherwise (parent is a Client/User, or there is no parent) project_id is
-    // user-editable. The save path computes this and cascades to descendants.
+    // project_id is a DERIVED column (see $columns): derive_project_id() computes it on every
+    // save that changes the parent pair or direct_project_id, and it is never assigned. It is
+    // the project the taskable parent chain (task -> task -> ... -> project) reaches, and
+    // otherwise direct_project_id - the project a user chose for a task whose chain reaches
+    // none. A task under a project chain keeps its direct_project_id untouched, so the value
+    // comes back if the chain is later broken.
+    //
+    // The framework derives from THIS record's columns only. A descendant's project depends
+    // on its ancestors' parent pairs, so save() rederives the whole subtree below a task
+    // whose parent changed.
     // =========================================================================
 
     /**
@@ -237,10 +235,11 @@ class Task_Model extends Rsx_Site_Model_Abstract
      *
      * - taskable = Project_Model  -> that project's id (chain resolved).
      * - taskable = Task_Model     -> recurse into that task's chain.
-     * - taskable = Client/User/none -> null (no chain project; project_id is user-editable).
+     * - taskable = Client/User/none -> null (no chain project; direct_project_id applies).
      *
-     * Cycle guard (visited task-id set) + CHAIN_DEPTH_CAP so a malformed/self-referential
-     * chain resolves to null instead of looping.
+     * A soft-deleted parent task still counts; the lookup is site-scoped. Cycle guard
+     * (visited task-id set) + CHAIN_DEPTH_CAP so a malformed/self-referential chain resolves
+     * to null instead of looping.
      */
     public function resolve_chain_project_id(): ?int
     {
@@ -285,58 +284,70 @@ class Task_Model extends Rsx_Site_Model_Abstract
     }
 
     /**
-     * True when the taskable chain resolves to a project (project_id is then read-only).
+     * The derive method of project_id: the project the parent chain reaches, else
+     * direct_project_id.
      */
-    public function is_project_id_derived(): bool
+    public function derive_project_id(): ?int
     {
-        return $this->resolve_chain_project_id() !== null;
+        return $this->resolve_chain_project_id()
+            ?? ($this->direct_project_id !== null ? (int) $this->direct_project_id : null);
     }
 
     /**
-     * Recompute project_id for every descendant reachable through a task-parent chain from
-     * this task, and persist any that changed. Called after a save that may have altered the
-     * chain (parent change, or this task's own project_id).
-     *
-     * A descendant (a task whose parent chain passes through this one) is chain-governed: its
-     * project_id tracks resolve_chain_project_id() - non-null when the chain still reaches a
-     * project, null when a re-parent broke the chain. NOTE (B-1 limitation): a task that BOTH
-     * has a task-parent rooted at a non-project AND a user-set project_id would be reset here;
-     * without a framework derived-flag column we cannot distinguish a stale derived value from
-     * a deliberate user value. Acceptable for this app-level case study; the framework
-     * abstraction (B-1) is expected to resolve it.
+     * Save, and when an existing task's parent pair changed, rederive the project of every
+     * task below it in the same transaction. The task's own project_id is derived by the
+     * framework's save(); its descendants' are not, because what they derive from - their
+     * ancestors' parent pairs - lives on other rows.
      */
-    public function recompute_descendant_project_ids(): void
+    public function save(array $options = [])
     {
-        $visited = [];
-        $queue = [$this->id];
+        if (!$this->exists || !$this->isDirty(['taskable_type', 'taskable_id'])) {
+            return parent::save($options);
+        }
 
-        $depth = 0;
-        while (!empty($queue)) {
-            if (++$depth > self::CHAIN_DEPTH_CAP) {
-                break; // runaway guard
+        return DB::transaction(function () use ($options) {
+            $result = parent::save($options);
+
+            if ($result) {
+                $this->__rederive_descendants();
             }
 
-            $children = static::where('taskable_type', 'Task_Model')
-                ->whereIn('taskable_id', $queue)
-                ->get();
+            return $result;
+        });
+    }
 
+    /**
+     * rederive() every task below this one, level by level through the task-parent links,
+     * soft-deleted ones included (their chain still counts). Every descendant is visited,
+     * also below a child whose own value did not change: a child whose direct_project_id
+     * equals the new chain project keeps its value while its own children still move. Each
+     * rederive() is a derived-only save that touches no parent pair, so it cascades no
+     * further by itself. The visited set ends a corrupt cyclic chain.
+     */
+    private function __rederive_descendants(): void
+    {
+        $visited = [(int) $this->id => true];
+        $level = [(int) $this->id];
+
+        while ($level !== []) {
             $next = [];
+
+            $children = static::withTrashed()
+                ->where('taskable_type', 'Task_Model')
+                ->whereIn('taskable_id', $level)
+                ->result_set();
+
             foreach ($children as $child) {
-                if (isset($visited[$child->id])) {
-                    continue; // cycle guard
+                if (isset($visited[(int) $child->id])) {
+                    continue;
                 }
-                $visited[$child->id] = true;
+                $visited[(int) $child->id] = true;
 
-                $chain = $child->resolve_chain_project_id();
-                if ((int) $child->project_id !== (int) $chain) {
-                    $child->project_id = $chain;
-                    $child->save();
-                }
-
-                $next[] = $child->id;
+                $child->rederive();
+                $next[] = (int) $child->id;
             }
 
-            $queue = $next;
+            $level = $next;
         }
     }
 
@@ -361,7 +372,7 @@ class Task_Model extends Rsx_Site_Model_Abstract
      *   - hour_estimate, when not blank, is a number of zero or more
      *   - taskable ({type, id}, type null = no parent) names a known parent type and a live
      *     record of this site; a task cannot be parented to itself or a descendant
-     *   - assigned_to_user_id and project_id, when not blank, name a live record of this site
+     *   - assigned_to_user_id and direct_project_id, when not blank, name a live record of this site
      *
      * A reference $task already holds (assignee, project, parent) is accepted as it stands,
      * so a task whose referent was since deleted still saves; a reference the submission
@@ -422,9 +433,9 @@ class Task_Model extends Rsx_Site_Model_Abstract
             $errors['assigned_to_user_id'] = 'The selected user does not exist';
         }
 
-        $project_id = !empty($values['project_id']) ? (int) $values['project_id'] : null;
-        if ($project_id && !static::__holds($existing, 'project_id', $project_id) && !Project_Model::find($project_id)) {
-            $errors['project_id'] = 'The selected project does not exist';
+        $project_id = !empty($values['direct_project_id']) ? (int) $values['direct_project_id'] : null;
+        if ($project_id && !static::__holds($existing, 'direct_project_id', $project_id) && !Project_Model::find($project_id)) {
+            $errors['direct_project_id'] = 'The selected project does not exist';
         }
 
         // Cycle guard: a task cannot be parented (directly or transitively) to itself.
@@ -437,16 +448,16 @@ class Task_Model extends Rsx_Site_Model_Abstract
     }
 
     /**
-     * Write submitted values onto this task through a Form_Edit, save it, and re-derive the
-     * project of every descendant. Run inside Form_Edit::run() after value_errors() found
-     * nothing: a new task is written whole, an existing one only on the fields the
-     * submission changed.
+     * Write submitted values onto this task through a Form_Edit and save it. Run inside
+     * Form_Edit::run() after value_errors() found nothing: a new task is written whole, an
+     * existing one only on the fields the submission changed.
      *
      * A blank status or priority is Pending / Medium. The parent arrives as ONE field,
      * `taskable` = {type, id}, and is written to the taskable_type / taskable_id pair.
-     * project_id is DERIVED: when the taskable chain reaches a project, project_id is that
-     * project and any submitted value is ignored; otherwise it takes the submitted value
-     * (nullable). See docs.dev/BACKLOG.md B-1.
+     * `direct_project_id` is written only when the submission carries it: the staff form
+     * leaves it out while the parent chain reaches a project (the picker shows the derived
+     * project then), so the stored choice survives. project_id is derived by save(), which
+     * also rederives every descendant when the parent changed.
      *
      * @param Form_Edit $edit The edit Form_Edit::run() handed its callback
      * @param array $values Submitted values keyed by field name
@@ -470,18 +481,11 @@ class Task_Model extends Rsx_Site_Model_Abstract
             $this->taskable_id = $parent_type ? $parent_id : null;
         }
 
-        // DERIVED project_id: the chain wins; else the submitted value (nullable).
-        $chain_project_id = $this->resolve_chain_project_id();
-        if ($chain_project_id !== null) {
-            $this->project_id = $chain_project_id;
-        } else {
-            $edit->set('project_id', !empty($values['project_id']) ? (int) $values['project_id'] : null);
+        if (array_key_exists('direct_project_id', $values)) {
+            $edit->set('direct_project_id', !empty($values['direct_project_id']) ? (int) $values['direct_project_id'] : null);
         }
 
         $this->save();
-
-        // Re-derive descendants whose chain runs through this task.
-        $this->recompute_descendant_project_ids();
     }
 
     /**

@@ -15,13 +15,13 @@ use Rsx\Portal_Permission;
  * @property int $client_id
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property int $id
  * @property int $project_id
  * @property int $site_id
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  *
  * @mixin \Eloquent
  */
@@ -38,8 +38,6 @@ class Portal_Project_Model extends Rsx_Site_Model_Abstract
 
     protected $table = 'portal_projects';
     protected $fillable = [];
-
-    public static $enums = [];
 
     /**
      * Record-level portal visibility (membership-scoped rule).

@@ -206,6 +206,11 @@
             "created_at": "2026-11-12T06:05:40+00:00",
             "created_by": "root",
             "command": "php artisan make:migration:safe add_audit_session_id_to_action_logs"
+        },
+        "2026_11_13_063004_add_direct_project_id_to_tasks.php": {
+            "created_at": "2026-11-13T06:30:04+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_direct_project_id_to_tasks"
         }
     }
 }

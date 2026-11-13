@@ -25,9 +25,9 @@ use Rsx\Models\Task_Model;
 /**
  * Frontend_Tasks_Controller - Ajax endpoints for Task Management.
  *
- * The DERIVED project_id (see docs.dev/BACKLOG.md B-1) is computed in save() from the task's
- * taskable parent chain and cascaded to descendants; a user-supplied project value is honored
- * only when the chain does NOT resolve to a project.
+ * A task's project_id is a derived column (Task_Model::derive_project_id()): the project its
+ * taskable parent chain reaches, otherwise the user's own choice, direct_project_id - the
+ * field the edit form submits.
  */
 #[Auth('is_logged_in', 'can_view_data')]
 class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
@@ -120,9 +120,10 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
     /**
      * Ajax endpoint: Resolve the derived project for a would-be parent (live edit-form check).
      *
-     * Given a candidate parent `taskable` = {type, id} (the shape save() takes), returns the project the task's
-     * chain WOULD derive to (id + name), or null (project field is then user-editable). Lets
-     * the edit UI render the project field read-only-derived vs editable without saving.
+     * Given a candidate parent `taskable` = {type, id} (the shape save() takes), returns the
+     * project the task's chain WOULD reach (id + name), or derived: false when it reaches none
+     * - then the task's project is its direct_project_id, which the form's picker edits. Lets
+     * the edit UI show the picker disabled-and-derived or editable without saving.
      */
     #[Ajax_Endpoint]
     public static function resolve_parent_project(Request $request, array $params = [])
@@ -249,10 +250,10 @@ class Frontend_Tasks_Controller extends Rsx_Controller_Abstract
      * Form_Edit the pair is that field, and Task_Model declares the pair a fact group, so a
      * re-parent saved while this form was open is asked about rather than overwritten.
      *
-     * project_id is DERIVED: after the parent is set, the taskable chain is resolved; if it
-     * reaches a project, project_id is that project (any user-supplied value ignored). If it
-     * does not, project_id takes the user value (nullable). Descendants are cascaded. See
-     * docs.dev/BACKLOG.md B-1 (this application-level derivation is that item's case study).
+     * The project picker submits `direct_project_id`, and leaves it out while the parent chain
+     * reaches a project (the picker is disabled and shows the derived project then), so the
+     * stored choice is kept. project_id is derived by Task_Model's save(), which also
+     * rederives every descendant of a re-parented task.
      *
      * A reference the record already holds is accepted as it stands, so a task whose
      * assignee, project or parent has since been deleted still saves; a reference the

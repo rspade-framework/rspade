@@ -13,13 +13,13 @@ use Rsx\Models\Contact_Model;
  * @property int $client_id
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property int $id
  * @property string $name
  * @property int $site_id
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  *
  * @mixin \Eloquent
  */
@@ -27,12 +27,6 @@ class Client_Department_Model extends Rsx_Site_Model_Abstract
                      {
     protected $table = 'client_departments';
     protected $fillable = []; // No mass assignment - always explicit
-
-    /**
-     * Enum field definitions
-     * Format: 'field_name' => [value => ['constant' => 'NAME', 'label' => 'Display']]
-     */
-    public static $enums = [];
 
     /**
      * Relationships

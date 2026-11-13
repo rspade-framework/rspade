@@ -47,7 +47,7 @@ from `rsx/theme/badges.scss`, not a second filled badge. Registry rows: Layer 4 
 
 ## HOW TO CUSTOMIZE
 
-- Badge colours come from the model's own `$enums` `badge` key — restyle the pill in
+- Badge colours come from the model's own enum `badge` property — restyle the pill in
   `status_badge.scss`, but change WHICH colour a status is in the model's enum table.
 - `$editable` (a click-to-change-status popover) is deliberately not built: a clickable
   status chip implies a transition endpoint. Add it in the same change that adds one.

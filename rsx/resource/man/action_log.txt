@@ -157,16 +157,17 @@ ACTION TYPES
           from 203.0.113.7".
 
     Adding Custom Types
-        In your model extension, add to the $enums array:
+        Add to the type_id enum in Action_Log_Model's $columns:
 
-            public static $enums = [
-                'type_id' => parent::$enums['type_id'] + [
+            public static $columns = [
+                'type_id' => ['enum' => [
+                    // ... existing types ...
                     100 => [
                         'constant' => 'TYPE_INVOICE_SENT',
                         'label' => 'Invoice Sent',
                         'renderer' => 'App\\Renderers\\Invoice_Renderer::sent',
                     ],
-                ],
+                ]],
             ];
 
 RELATED ROLES

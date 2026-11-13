@@ -29,7 +29,7 @@
                         <%--
                         The DYNAMIC COMPONENT TAG: the editor is whatever `description`'s
                         declared text type says edits it, so this form names no widget.
-                        Change Task_Model::$text_types and the editor here changes with it.
+                        Change Task_Model's text_type and the editor here changes with it.
                         --%>
                         <Form_Field $label="Description">
                             <{Task_Model.editor_component_for('description')} $name="description"
@@ -78,7 +78,7 @@
                             </div>
                             <div class="col-tablet-6">
                                 <Form_Field $label="Project">
-                                    <Ajax_Entity_Select_Input $sid="project_select" $name="project_id" $parent_type="Project_Model" $placeholder="Search for a project..." />
+                                    <Ajax_Entity_Select_Input $sid="project_select" $name="direct_project_id" $parent_type="Project_Model" $placeholder="Search for a project..." />
                                     <div $sid="project_note" class="form-text d-none"></div>
                                 </Form_Field>
                             </div>

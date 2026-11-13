@@ -20,7 +20,7 @@ use Brick\Math\Exception\MathException;
  *     own Model::field_length() - the same number the form's $max_length reads - so a rule
  *     never restates a schema literal. Under STRICT_TRANS_TABLES an over-long value is a
  *     database exception; here it is a field error naming the limit.
- *   - is_enum_value(): is a submitted id one of the column's declared $enums?
+ *   - is_enum_value(): is a submitted id one of the column's declared enum values?
  *   - is_web_url(): is a value an absolute http(s) address with a real host? Anything else
  *     (javascript:, data:, ftp:, a bare word) is refused before it can reach an <a href>.
  *   - website_short_url(): the client "website" spelling - scheme stripped for storage, and
@@ -84,7 +84,7 @@ class Field_Checks
      * Accepts an integer or an all-digits string (an Ajax form posts strings); anything else
      * - a label, a negative number, an array - is not.
      *
-     * @param string $model_class The model declaring the enum in $enums
+     * @param string $model_class The model declaring the enum in $columns
      * @param string $column The enum column
      * @param mixed $value Submitted value
      * @return bool

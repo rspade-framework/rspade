@@ -36,17 +36,17 @@ use Rsx\Models\Portal_Request_Thread_Model;
  * Table: portal_request_messages
  *
  * @property int $author_id
- * @property int $author_type
+ * @property string $author_type type ref: a model class name, stored as a type-ref id
  * @property string $body
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property int $id
  * @property int $site_id
  * @property int $thread_id
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  *
  * @mixin \Eloquent
  */
@@ -68,16 +68,15 @@ class Portal_Request_Message_Model extends Rsx_Site_Model_Abstract
 
     protected $table = 'portal_request_messages';
     protected $fillable = [];
-    public static $enums = []; // no enum columns (author is a type-ref, body is free text)
+    public static $columns = [
+        'author_type' => ['type_ref' => true],
+    ];
 
     // Realtime: a message emits its own change AND (via #[Realtime_Touch] on thread())
     // touches its thread, which in turn touches its client - the bottom link of the
     // 2-level cross-surface touch chain: portal reply -> message -> thread -> client ->
     // staff Clients_View live-refresh (onward cascade hydrates the thread to walk it).
     public static $realtime = true;
-
-    // author_type stores a class basename as a polymorphic type reference.
-    protected static $type_ref_columns = ['author_type'];
 
     /**
      * Parent thread (the message timeline depends on it; the thread then touches its client).

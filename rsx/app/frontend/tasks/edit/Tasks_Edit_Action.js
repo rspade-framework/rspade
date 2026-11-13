@@ -2,10 +2,13 @@
  * Task add/edit action
  *
  * Dual-route (/tasks/add + /tasks/edit/:id) form matching Projects_Edit. The Project
- * field is DERIVED-aware: when the selected parent chain reaches a project the field
- * renders read-only (disabled + "Derived from parent chain" note); otherwise it is an
- * editable project picker. The derived state is resolved live from the parent picker
- * via Frontend_Tasks_Controller.resolve_parent_project.
+ * picker edits `direct_project_id`, the project the user chooses for a task whose parent
+ * chain reaches none. When the selected parent chain DOES reach a project, the task's
+ * project is that one (Task_Model derives project_id): the picker is disabled, shows the
+ * derived project with a "Derived from parent chain" note, and the submission leaves
+ * direct_project_id out, so the stored choice is kept and comes back when the chain is
+ * broken. The derived state is resolved live from the parent picker via
+ * Frontend_Tasks_Controller.resolve_parent_project.
  */
 @route('/tasks/add')
 @route('/tasks/edit/:id')
@@ -31,13 +34,18 @@ class Tasks_Edit_Action extends Spa_Action {
             due_date: '',
             hour_estimate: '',
             assigned_to_user_id: '',
-            project_id: '',
+            direct_project_id: '',
             // Composite parent value for Parent_Selector_Input.
             taskable: { type: null, id: null },
         };
 
         this.data.error_data = null;
         this._watched_form = null;
+
+        // While the parent chain derives the project, the picker shows the derived one and
+        // this holds the direct_project_id it showed before, restored when the chain breaks.
+        this._project_derived = false;
+        this._direct_project_id = '';
     }
 
     async on_load() {
@@ -57,7 +65,7 @@ class Tasks_Edit_Action extends Spa_Action {
                 due_date: task.due_date || '',
                 hour_estimate: (task.hour_estimate === null || task.hour_estimate === undefined) ? '' : task.hour_estimate,
                 assigned_to_user_id: task.assigned_to_user_id || '',
-                project_id: task.project_id || '',
+                direct_project_id: task.direct_project_id || '',
                 taskable: { type: task.taskable_type || null, id: task.taskable_id || null },
             };
         } catch (e) {
@@ -106,13 +114,35 @@ class Tasks_Edit_Action extends Spa_Action {
         const $note = this.$sid('project_note');
 
         if (derived) {
+            if (!this._project_derived) {
+                this._direct_project_id = select.val();
+            }
+            this._project_derived = true;
             select.val(project_id);
             select.set_disabled(true);
             $note.text('Derived from parent chain: ' + (project_name || '')).removeClass('d-none');
         } else {
+            if (this._project_derived) {
+                select.val(this._direct_project_id);
+            }
+            this._project_derived = false;
             select.set_disabled(false);
             $note.addClass('d-none').text('');
         }
+    }
+
+    /**
+     * The form's before_submit hook: while the picker shows a derived project, the
+     * submission carries no direct_project_id - the endpoint writes that column only when
+     * the field is present, so the stored choice survives.
+     */
+    _omit_derived_project(values) {
+        if (!this._project_derived) {
+            return values;
+        }
+        const adjusted = Object.assign({}, values);
+        delete adjusted.direct_project_id;
+        return adjusted;
     }
 
     /**
@@ -121,6 +151,8 @@ class Tasks_Edit_Action extends Spa_Action {
      * changed a value (the derived-project fill is programmatic and never counts), off
      * when every value is back or the save succeeds - and goes off on the Cancel link
      * and in on_stop(). While it is on, the browser asks before the user leaves.
+     *
+     * It also installs the form's before_submit hook (_omit_derived_project()).
      *
      * A re-render replaces the form component, so this wires the instance it is given
      * and only that one.
@@ -136,6 +168,7 @@ class Tasks_Edit_Action extends Spa_Action {
         }
         this._watched_form = form;
 
+        form.before_submit = (values) => this._omit_derived_project(values);
         form.on('dirty', (form, dirty) => (dirty ? Rsx.set_navigation_guard() : Rsx.clear_navigation_guard()));
     }
 

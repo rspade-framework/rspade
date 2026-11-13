@@ -124,17 +124,17 @@ NOTIFICATION TYPES
         TYPE_TASK_ASSIGNED      30
 
     Adding Custom Types
-        Add to the $enums array in Notification_Model:
+        Add to the type_id enum in Notification_Model's $columns:
 
-            public static $enums = [
-                'type_id' => [
+            public static $columns = [
+                'type_id' => ['enum' => [
                     // ... existing types ...
                     100 => [
                         'constant' => 'TYPE_INVOICE_SENT',
                         'label' => 'Invoice Sent',
                         'renderer' => 'Rsx\\Lib\\Notification\\Notification_Renderer::invoice_sent',
                     ],
-                ],
+                ]],
             ];
 
         Then add the renderer method.

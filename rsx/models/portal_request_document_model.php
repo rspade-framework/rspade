@@ -43,19 +43,19 @@ use App\RSpade\Core\Files\File_Attachment_Model;
  * @property int $attachment_id
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property int $id
  * @property int $message_id
  * @property string $reject_reason
- * @property int $requires_review
- * @property int $review_status
+ * @property bool $requires_review
+ * @property int $review_status enum: REVIEW_PENDING, REVIEW_ACCEPTED, REVIEW_REJECTED (also $review_status__label and the other $review_status__* properties)
  * @property string $reviewed_at
  * @property int $reviewed_by
  * @property int $site_id
  * @property int $thread_id
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  *
  * @property-read string $review_status__label
  * @property-read string $review_status__constant
@@ -93,12 +93,12 @@ class Portal_Request_Document_Model extends Rsx_Site_Model_Abstract
     protected $table = 'portal_request_documents';
     protected $fillable = [];
 
-    public static $enums = [
-        'review_status' => [
+    public static $columns = [
+        'review_status' => ['enum' => [
             1 => ['constant' => 'REVIEW_PENDING', 'label' => 'Needs Review', 'badge' => 'bg-info text-dark', 'order' => 1],
             2 => ['constant' => 'REVIEW_ACCEPTED', 'label' => 'Accepted', 'badge' => 'bg-success', 'order' => 2],
             3 => ['constant' => 'REVIEW_REJECTED', 'label' => 'Rejected', 'badge' => 'bg-danger', 'order' => 3],
-        ],
+        ]],
     ];
 
     public function attachment(): ?File_Attachment_Model

@@ -17,7 +17,12 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   `Client_Address_Codes_Test` (a client's address codes are ISO: an enabled alpha-2 country,
   a subdivision of THAT country or `N/A` - the rule the staff save and the API both check),
   `Polymorphic_Parents_Test` (type-ref pairs read through stock `morphTo()`),
-  `Task_Derived_Project_Test` (the derived `project_id`, chain resolution and cycle guard),
+  `Task_Derived_Project_Test` (the derived `project_id`: chain resolution and cycle guard,
+  `direct_project_id` as the project of a task whose chain reaches none, a re-parent
+  rederiving every descendant - also below a child whose value stays - a broken chain
+  restoring each descendant's direct project, an assigned / `Form_Edit::set()` / bulk-updated
+  `project_id` refused, a cascade leaving no revision, `updated_at` or `updated_by` on the
+  descendants, and an edit that omits `direct_project_id` keeping the stored one),
   `Contact_Phone_Validation_Test` (server-side E.164 normalisation; a phone posted as an
   array is a field error),
   `Contact_Duplicate_Question_Test` (the duplicate-email question: asking writes nothing,
@@ -221,9 +226,11 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   `Contacts_Api_Client_Site_Test` — the contacts API accepts only a `client_id` of the
   caller's own site;
   `Task_Api_Write_Test` — task create and update over the API: the staff save and the API
-  refuse the same bad values with the same messages, a parent or project of another site (or
-  a deleted parent) is refused, the derived project follows the parent and cascades, an
-  update writes only the fields sent, another site's task is not found.
+  refuse the same bad values with the same messages, a parent or `direct_project_id` of another
+  site (or a deleted parent) is refused, the derived project follows the parent and cascades,
+  `direct_project_id` is the project until a chain reaches one and returns when it is removed,
+  `project_id` is refused by the parameter check as an unknown write parameter, an update
+  writes only the fields sent, another site's task is not found.
 - **Document sharing**: `Portal_Share_Link_Test` — sharing a document mints the invitation and
   sends nothing until the send step, which emails the share and the invitation once; the
   share link answers by who follows it (documents page, sign-in with a notice, accept-invite,

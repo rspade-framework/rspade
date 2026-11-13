@@ -17,17 +17,17 @@ use App\RSpade\Lib\Portal\Portal_User_Model;
  *
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property string $email
  * @property string $expires_at
  * @property int $id
- * @property string $invitation_code
+ * @property string $invitation_code never exported to the browser
  * @property array $metadata
  * @property int $site_id
- * @property int $status_id
+ * @property int $status_id enum: STATUS_PENDING, STATUS_USED, STATUS_EXPIRED, STATUS_REVOKED (also $status_id__label and the other $status_id__* properties)
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  * @property string $used_at
  *
  * @property-read string $status_id__label
@@ -57,12 +57,18 @@ class Portal_Invitation_Model extends Rsx_Site_Model_Abstract
     public static $unbounded = true;
 
     /**
-     * Columns toArray() never sends to the browser. invitation_code is a bearer credential: whoever holds it can register against the invitation. It reaches its owner only
-     * inside the emailed link.
-     *
-     * @var string[]
+     * invitation_code is a bearer credential: whoever holds it can register against the
+     * invitation. It reaches its owner only inside the emailed link, never in a payload.
      */
-    public static $neverExport = ['invitation_code'];
+    public static $columns = [
+        'invitation_code' => ['never_export' => true],
+        'status_id' => ['enum' => [
+            1 => ['constant' => 'STATUS_PENDING', 'label' => 'Pending', 'badge' => 'bg-info'],
+            2 => ['constant' => 'STATUS_USED', 'label' => 'Used', 'badge' => 'bg-secondary'],
+            3 => ['constant' => 'STATUS_EXPIRED', 'label' => 'Expired', 'badge' => 'bg-warning'],
+            4 => ['constant' => 'STATUS_REVOKED', 'label' => 'Revoked', 'badge' => 'bg-danger'],
+        ]],
+    ];
 
     /**
      * _AUTO_GENERATED_ Enum constants
@@ -74,15 +80,6 @@ class Portal_Invitation_Model extends Rsx_Site_Model_Abstract
 
     protected $table = 'portal_invitations';
     protected $fillable = []; // No mass assignment - always explicit
-
-    public static $enums = [
-        'status_id' => [
-            1 => ['constant' => 'STATUS_PENDING', 'label' => 'Pending', 'badge' => 'bg-info'],
-            2 => ['constant' => 'STATUS_USED', 'label' => 'Used', 'badge' => 'bg-secondary'],
-            3 => ['constant' => 'STATUS_EXPIRED', 'label' => 'Expired', 'badge' => 'bg-warning'],
-            4 => ['constant' => 'STATUS_REVOKED', 'label' => 'Revoked', 'badge' => 'bg-danger'],
-        ],
-    ];
 
     /**
      * The attributes that should be cast.

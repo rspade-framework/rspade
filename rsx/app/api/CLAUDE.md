@@ -13,6 +13,9 @@ docs live in framework core (`App\RSpade\Core\Api`).
   `Task_Model::value_errors()` and `Task_Model::save_edit()` inside `Form_Edit::run()` - and
   take the parent as the pair `taskable_type` + `taskable_id` (errors named `taskable`), passing
   `fields: Task_Model::EDIT_FIELDS` so a re-parent saved meanwhile is a 409, not overwritten.
+  The project a write sends is `direct_project_id`; `project_id` is derived (the project the
+  parent chain reaches, else `direct_project_id`), so it is not a write parameter and sending
+  it is a 422 "Unknown parameter". Responses carry both; the list filters on `project_id`.
 
 The framework serves `GET /api/vN/me`, the file endpoints and `GET /api/vN/openapi.json`
 (this API's OpenAPI 3.1 description, readable by any key with API access) at every version

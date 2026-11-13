@@ -29,7 +29,7 @@
                         <%--
                         The DYNAMIC COMPONENT TAG, and the one situation it is for: the
                         editor is whatever `description`'s declared text type says edits it,
-                        so this form names no widget. Change Project_Model::$text_types and
+                        so this form names no widget. Change Project_Model's text_type and
                         the editor here changes with it - which is the promise the whole
                         text-type feature makes, and it cannot be kept by a template that
                         hardcodes <Wysiwyg_Input>.

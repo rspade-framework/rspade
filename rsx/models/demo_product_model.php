@@ -14,18 +14,18 @@ use Rsx\Lib\TextTypes\RichText\Rich_Text;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: demo_products
  *
- * @property int $category_id
+ * @property int $category_id enum: CATEGORY_ELECTRONICS, CATEGORY_CLOTHING, CATEGORY_BOOKS, CATEGORY_FOOD (also $category_id__label and the other $category_id__* properties)
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
- * @property string $description
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
+ * @property \Rsx\Lib\TextTypes\RichText\Rich_Text $description text type: a value object, filtered on write
  * @property int $id
  * @property string $name
- * @property float $price
- * @property int $status_id
+ * @property string $price decimal
+ * @property int $status_id enum: STATUS_AVAILABLE, STATUS_OUT_OF_STOCK, STATUS_DISCONTINUED (also $status_id__label and the other $status_id__* properties)
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  *
  * @property-read string $status_id__label
  * @property-read string $status_id__constant
@@ -70,23 +70,15 @@ class Demo_Product_Model extends Rsx_Model_Abstract
      * @var array
      */
     /**
-     * DECLARED TEXT TYPES - what kind of string this TEXT column actually holds.
+     * Column declarations (see rsx:man model).
      *
-     * `description` is authored in a WYSIWYG and holds HTML, so the value carries its own
-     * encoding instead of every template, endpoint and export remembering it.
-     * Project_Model::$text_types states the reasoning in full; this is the same decision
-     * for the same kind of column.
-     *
-     * A TEXT column NOT listed here is still an ordinary string. Declaration is opt-in.
-     *
-     * @var array
+     * `description` is authored in a WYSIWYG and holds HTML, so its text_type makes the value
+     * carry its own encoding instead of every template, endpoint and export remembering it -
+     * the same decision Project_Model makes, and states in full, for the same kind of column.
      */
-    public static $text_types = [
-        'description' => Rich_Text::class,
-    ];
-
-    public static $enums = [
-        'status_id' => [
+    public static $columns = [
+        'description' => ['text_type' => Rich_Text::class],
+        'status_id' => ['enum' => [
             1 => [
                 'constant' => 'STATUS_AVAILABLE',
                 'label' => 'Available',
@@ -102,8 +94,8 @@ class Demo_Product_Model extends Rsx_Model_Abstract
                 'label' => 'Discontinued',
                 'order' => 3,
             ],
-        ],
-        'category_id' => [
+        ]],
+        'category_id' => ['enum' => [
             1 => [
                 'constant' => 'CATEGORY_ELECTRONICS',
                 'label' => 'Electronics',
@@ -124,7 +116,7 @@ class Demo_Product_Model extends Rsx_Model_Abstract
                 'label' => 'Food & Beverage',
                 'order' => 4,
             ],
-        ],
+        ]],
     ];
 
     /**

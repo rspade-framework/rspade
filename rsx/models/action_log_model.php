@@ -22,20 +22,20 @@ use Rsx\Models\Action_Log_Related_Model;
  * Table: action_logs
  *
  * @property int $actor_id
- * @property int $actor_type
+ * @property string $actor_type type ref: a model class name, stored as a type-ref id
  * @property int $audit_session_id
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property int $id
- * @property array $metadata
+ * @property string $metadata json
  * @property int $site_id
  * @property int $subject_id
- * @property int $subject_type
- * @property int $type_id
+ * @property string $subject_type type ref: a model class name, stored as a type-ref id
+ * @property int $type_id enum: TYPE_CLIENT_CREATED, TYPE_CLIENT_UPDATED, TYPE_CLIENT_DELETED, TYPE_CONTACT_CREATED, TYPE_CONTACT_UPDATED and 14 more (also $type_id__label and the other $type_id__* properties)
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  *
  * @property-read string $type_id__label
  * @property-read string $type_id__constant
@@ -90,14 +90,10 @@ class Action_Log_Model extends Rsx_Site_Model_Abstract
     protected $table = 'action_logs';
     protected $fillable = []; // No mass assignment - always explicit
 
-    /**
-     * Polymorphic type reference columns
-     * actor_type and subject_type store integer IDs in database but expose class name strings
-     */
-    protected static $type_ref_columns = ['actor_type', 'subject_type'];
-
-    public static $enums = [
-        'type_id' => [
+    public static $columns = [
+        'actor_type' => ['type_ref' => true],
+        'subject_type' => ['type_ref' => true],
+        'type_id' => ['enum' => [
             // Client actions (1-9)
             1 => [
                 'constant' => 'TYPE_CLIENT_CREATED',
@@ -205,11 +201,11 @@ class Action_Log_Model extends Rsx_Site_Model_Abstract
                 'label' => 'API Key Revoked',
                 'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::api_key_revoked',
             ],
-        ],
+        ]],
     ];
 
     /**
-     * DERIVED PROPERTIES - computed values that must reach JavaScript.
+     * APPENDED PROPERTIES - computed values that must reach JavaScript.
      *
      * $appends is the route: Eloquent serializes each name through its getXAttribute()
      * accessor inside parent::toArray(), which Rsx_Model_Abstract::toArray() calls first, so
@@ -362,7 +358,7 @@ class Action_Log_Model extends Rsx_Site_Model_Abstract
             return false;
         }
 
-        // No hand-added keys: render, actor_display and subject_display are declared derived
+        // No hand-added keys: render, actor_display and subject_display are declared appended
         // properties ($appends above), so toArray() already carries them.
         return $log->toArray();
     }

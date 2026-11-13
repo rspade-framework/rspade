@@ -2,7 +2,7 @@
  * Wysiwyg_Input - WYSIWYG editor widget using Quill.
  *
  * Edits a Rich_Text value and nothing else. ACCEPTS names the type, so wiring this widget
- * to a column whose $text_types entry is not Rich_Text is refused at the moment a value
+ * to a column whose text_type is not Rich_Text is refused at the moment a value
  * arrives, rather than discovered when someone reads the rendered page.
  *
  * val() gets and sets a Rich_Text INSTANCE, never a string. Everything a caller would

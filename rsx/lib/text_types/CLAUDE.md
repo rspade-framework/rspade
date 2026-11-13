@@ -26,9 +26,9 @@ Declaring the type on the model moves that knowledge to one place and lets the v
 it:
 
 ```php
-public static $text_types = [
-    'description' => Rich_Text::class,
-    'notes' => Raw_Text::class,
+public static $columns = [
+    'description' => ['text_type' => Rich_Text::class],
+    'notes' => ['text_type' => Raw_Text::class],
 ];
 ```
 
@@ -39,7 +39,7 @@ ordinary string, exactly as before. Declaration is opt-in.
 
 ## HOW IT IS USED
 
-**Declared on the model**, beside `$enums`. `Project_Model` and `Client_Model` are the
+**Declared on the model**, as a `text_type` entry of its `$columns` (skill `rspade:models`). `Project_Model` and `Client_Model` are the
 worked examples. Every `description` column in this application holds `Rich_Text`:
 `Project_Model`, `Task_Model` and `Demo_Product_Model`. The columns that were converted
 from plain text were re-encoded first, by

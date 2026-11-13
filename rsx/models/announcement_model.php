@@ -49,14 +49,14 @@ use Rsx\Models\Portal_Membership_Model;
  * @property int $client_id
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property int $id
  * @property string $published_at
  * @property int $site_id
  * @property string $title
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  *
  * @mixin \Eloquent
  */
@@ -70,10 +70,8 @@ class Announcement_Model extends Rsx_Site_Model_Abstract
     protected $table = 'announcements';
     protected $fillable = []; // No mass assignment - always explicit
 
-    public static $enums = [];
-
     /**
-     * DERIVED PROPERTY - a computed value that must reach JavaScript.
+     * APPENDED PROPERTY - a computed value that must reach JavaScript.
      *
      * $appends is the route: Eloquent serializes the name through its getXAttribute()
      * accessor inside parent::toArray(), which Rsx_Model_Abstract::toArray() calls first, so
@@ -205,7 +203,7 @@ class Announcement_Model extends Rsx_Site_Model_Abstract
             return false;
         }
 
-        // No hand-added keys: is_published is a declared derived property ($appends above),
+        // No hand-added keys: is_published is a declared appended property ($appends above),
         // so toArray() already carries it.
         return $announcement->toArray();
     }

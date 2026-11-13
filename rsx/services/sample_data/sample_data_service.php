@@ -216,7 +216,7 @@ class Sample_Data_Service extends Rsx_Service_Abstract
         }
 
         foreach ($data['client_tasks'] ?? [] as $task_data) {
-            static::__seed_task($task_data, $site_id, 'Client_Model', $client->id, null, $owner, $counts);
+            static::__seed_task($task_data, $site_id, 'Client_Model', $client->id, $owner, $counts);
         }
 
         foreach ($data['request_threads'] ?? [] as $thread_data) {
@@ -272,7 +272,7 @@ class Sample_Data_Service extends Rsx_Service_Abstract
         $assigned->save();
 
         foreach ($data['tasks'] as $task_data) {
-            static::__seed_task($task_data, $client->site_id, 'Project_Model', $project->id, $project->id, $owner, $counts);
+            static::__seed_task($task_data, $client->site_id, 'Project_Model', $project->id, $owner, $counts);
         }
 
         foreach ($data['subprojects'] ?? [] as $child) {
@@ -282,9 +282,10 @@ class Sample_Data_Service extends Rsx_Service_Abstract
 
     /**
      * A task under $parent_type/$parent_id (null for an unattached task), then its subtasks
-     * under it - a task-of-task derives its project through the chain.
+     * under it. Its project_id is derived by the model from the parent chain; no seeded task
+     * chooses a project of its own (direct_project_id).
      */
-    private static function __seed_task(array $data, int $site_id, ?string $parent_type, ?int $parent_id, ?int $project_id, User_Model $owner, array &$counts): Task_Model
+    private static function __seed_task(array $data, int $site_id, ?string $parent_type, ?int $parent_id, User_Model $owner, array &$counts): Task_Model
     {
         $task = new Task_Model();
         $task->site_id = $site_id;
@@ -300,7 +301,6 @@ class Sample_Data_Service extends Rsx_Service_Abstract
         }
         $task->assigned_to_user_id = $owner->id;
         $task->hour_estimate = (string) $data['hours'];
-        $task->project_id = $project_id;
         $task->save();
         Action_Log::record(Action_Log_Model::TYPE_TASK_CREATED, $task);
         $counts['tasks']++;
@@ -316,7 +316,7 @@ class Sample_Data_Service extends Rsx_Service_Abstract
         }
 
         foreach ($data['subtasks'] ?? [] as $child) {
-            static::__seed_task($child, $site_id, 'Task_Model', $task->id, $task->resolve_chain_project_id(), $owner, $counts);
+            static::__seed_task($child, $site_id, 'Task_Model', $task->id, $owner, $counts);
         }
 
         return $task;
@@ -385,7 +385,7 @@ class Sample_Data_Service extends Rsx_Service_Abstract
     {
         foreach ($tasks as $data) {
             $is_personal = ($data['parent'] ?? null) === 'owner';
-            static::__seed_task($data, $site_id, $is_personal ? 'User_Model' : null, $is_personal ? $owner->id : null, null, $owner, $counts);
+            static::__seed_task($data, $site_id, $is_personal ? 'User_Model' : null, $is_personal ? $owner->id : null, $owner, $counts);
         }
     }
 

@@ -8,7 +8,7 @@ $label - explicit label override (skips the model lookup) [optional]
 $badge - explicit badge class override, e.g. "bg-success" [optional]
 
 Renders ONE filled, Bootstrap-colored status pill from the model's enum
-`badge`/`label` mapping (the same convention `Model::$enums` declares). Pass
+`badge`/`label` mapping (the same convention a model's enum columns declare). Pass
 $label + $badge directly when the caller already has them precomputed (e.g. a
 row payload that shipped `status__label` / `status__badge`).
 

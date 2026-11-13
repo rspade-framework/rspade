@@ -40,7 +40,7 @@ a `GENUINE DEPENDENCY` comment - keep the comment when copying the pattern.
 
 ## HOW TO CUSTOMIZE
 
-- **A new party kind**: a `TYPE_*` in the model's `$enums`, a detail model + table
+- **A new party kind**: a `TYPE_*` in the model's `type_id` enum (`$columns`), a detail model + table
   (`Rsx_Detail_Table::create(...)` in a migration under `rsx/resource/migrations/`), its
   `$detail_tables` entry, then the branch in `save()`'s detail write, `__validate()`,
   `__name_sources()` / `__compose_name()`, the edit form, the view and the New menu.

@@ -51,11 +51,24 @@ clients, products, documents - are the sample-data seeder's (`rsx/services/sampl
 `php artisan rsx_app:seed`), which an operator opts into and which only ever fills an empty
 site.
 
+## A derived column is recomputed by queueing its table
+
+A model's derived columns (`$columns` `derived`, e.g. `tasks.project_id`) are computed by the
+model, and a model never writes inside a migration (`save()`, `delete()` and a bulk
+`update()` throw while `up()` runs). A migration that adds or rewrites a column a derived
+value reads ends with `\App\RSpade\Core\Database\Rsx_Rederive::enqueue('<table>')` - the
+table NAME, never a model class - and the last step of the same `migrate` recomputes every
+record with the model's own derive method (`Rederiving cached values for <table>...`).
+`2026_11_13_063004_add_direct_project_id_to_tasks.php` is the worked example: raw SQL adds
+and fills `direct_project_id`, then queues `tasks`. `php artisan rsx:derived:check <table>`
+reports any drift afterwards.
+
 ## The one exception
 
-Data seeding that genuinely needs model BEHAVIOUR raw SQL cannot reproduce - a file
-pipeline, an encryption cast, a factory with side effects. That migration is knowingly
-coupled to code that may be deleted, and says so in its docblock:
+A migration that genuinely needs model BEHAVIOUR raw SQL cannot reproduce - reading
+through an encryption cast, say. It may READ through the model; it never writes through one
+(that throws inside `up()` regardless). That migration is knowingly coupled to code that may
+be deleted, and says so in its docblock:
 
 ```php
 /**

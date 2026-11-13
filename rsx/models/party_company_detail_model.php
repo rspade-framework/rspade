@@ -15,7 +15,7 @@ use Rsx\Models\Party_Model;
  *
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property int $employee_count
  * @property int $id
  * @property string $industry
@@ -24,7 +24,7 @@ use Rsx\Models\Party_Model;
  * @property string $tax_identifier
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  *
  * @mixin \Eloquent
  */
@@ -32,8 +32,6 @@ class Party_Company_Detail_Model extends Rsx_Detail_Model_Abstract
           {
     protected $table = 'party_company_details';
     protected $fillable = [];
-
-    public static $enums = [];
 
     protected static $parent_model = Party_Model::class;
 

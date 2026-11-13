@@ -8,6 +8,8 @@
 namespace Rsx\Tests;
 
 use Illuminate\Http\Request;
+use App\RSpade\Core\Api\Api_Catalog;
+use App\RSpade\Core\Api\Api_Param_Validator;
 use App\RSpade\Core\Models\Site_Model;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
@@ -22,7 +24,9 @@ use Rsx\Models\Task_Model;
  * POST /api/v1/tasks/:id/update) runs the staff save's rules and write: Task_Model::value_errors()
  * refuses the same values with the same messages on both paths, a parent of another site or
  * a deleted one is refused, the derived project follows the parent chain, and an update
- * writes only the fields it sent.
+ * writes only the fields it sent. The project a write sends is direct_project_id; the
+ * derived project_id is not a write parameter, so the dispatcher's parameter check refuses
+ * it as unknown.
  */
 class Task_Api_Write_Test extends Rsx_Test_Abstract
 {
@@ -162,9 +166,9 @@ class Task_Api_Write_Test extends Rsx_Test_Abstract
             'the staff save refuses another site\'s project as parent'
         );
         static::__assert_api_field_error(
-            static::__api_create(['project_id' => (int) $foreign->id]),
-            'project_id',
-            'another site\'s project is not a project_id'
+            static::__api_create(['direct_project_id' => (int) $foreign->id]),
+            'direct_project_id',
+            'another site\'s project is not a direct_project_id'
         );
 
         $deleted = static::__json(static::__api_create([]))['id'];
@@ -185,6 +189,55 @@ class Task_Api_Write_Test extends Rsx_Test_Abstract
             'taskable_type',
             'a parent id without its type is refused'
         );
+    }
+
+    public static function test_project_id_is_not_a_write_parameter()
+    {
+        foreach (['/api/v1/tasks/create', '/api/v1/tasks/:id/update'] as $pattern) {
+            $specs = Api_Catalog::params_for_pattern($pattern);
+            static::__assert_not_empty($specs, "{$pattern} declares its parameters");
+
+            $raw = ['id' => 1, 'title' => 'Api task', 'project_id' => 4];
+            if ($pattern === '/api/v1/tasks/create') {
+                unset($raw['id']);
+            }
+
+            $result = Api_Param_Validator::validate($specs, $raw);
+            static::__assert_false($result['valid'], "{$pattern}: a write sending project_id is refused");
+            static::__assert_equals('Unknown parameter', $result['fields']['project_id'] ?? null, "{$pattern}: project_id is named");
+
+            unset($raw['project_id']);
+            $raw['direct_project_id'] = 4;
+            static::__assert_true(Api_Param_Validator::validate($specs, $raw)['valid'], "{$pattern}: direct_project_id is accepted");
+        }
+
+        $list = Api_Param_Validator::validate(Api_Catalog::params_for_pattern('/api/v1/tasks'), ['project_id' => 4]);
+        static::__assert_true($list['valid'], 'the list still filters on project_id');
+    }
+
+    public static function test_direct_project_id_is_the_project_until_a_chain_reaches_one()
+    {
+        $mine = static::__project();
+        $response = static::__api_create(['direct_project_id' => (int) $mine->id]);
+        $body = static::__json($response);
+
+        static::__assert_equals((int) $mine->id, (int) $body['project_id'], 'an unparented task\'s project is its direct project');
+        static::__assert_equals((int) $mine->id, (int) $body['direct_project_id'], 'the response carries direct_project_id');
+
+        $chain = static::__project();
+        $updated = Tasks_Api_Controller::update(new Request(), [
+            'id' => $body['id'],
+            'taskable_type' => 'Project_Model',
+            'taskable_id' => (int) $chain->id,
+        ]);
+        static::__assert_equals((int) $chain->id, (int) $updated->project_id, 'under a project the chain wins');
+        static::__assert_equals((int) $mine->id, (int) $updated->direct_project_id, 'the direct project is kept');
+
+        $cleared = Tasks_Api_Controller::update(new Request(), ['id' => $body['id'], 'taskable_type' => '']);
+        static::__assert_equals((int) $mine->id, (int) $cleared->project_id, 'removing the parent brings the direct project back');
+
+        $none = Tasks_Api_Controller::update(new Request(), ['id' => $body['id'], 'direct_project_id' => 0]);
+        static::__assert_null($none->project_id, '0 clears the direct project');
     }
 
     public static function test_update_writes_only_the_fields_sent()

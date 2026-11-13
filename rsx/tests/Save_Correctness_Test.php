@@ -156,7 +156,7 @@ class Save_Correctness_Test extends Rsx_Test_Abstract
         $task = static::__task([
             'taskable_type' => 'Client_Model',
             'taskable_id' => $client->id,
-            'project_id' => $project->id,
+            'direct_project_id' => $project->id,
         ]);
         $client->delete();
         $project->delete();
@@ -164,7 +164,7 @@ class Save_Correctness_Test extends Rsx_Test_Abstract
         $result = Frontend_Tasks_Controller::save(new Request(), static::__edit($task, [
             'title' => 'Renamed',
             'taskable' => ['type' => 'Client_Model', 'id' => $client->id],
-            'project_id' => $project->id,
+            'direct_project_id' => $project->id,
         ], ['title']));
 
         static::__assert_array_has_key('id', $result, 'unchanged references to deleted rows do not block the save');

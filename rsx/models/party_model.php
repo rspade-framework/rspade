@@ -22,20 +22,20 @@ use Rsx\Models\Party_Person_Detail_Model;
  *
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property string $deleted_at
  * @property int $deleted_by_id
- * @property int $deleted_by_type
+ * @property string $deleted_by_type type ref: a model class name, stored as a type-ref id
  * @property string $email
  * @property int $id
  * @property string $name
  * @property string $notes
  * @property string $phone
  * @property int $site_id
- * @property int $type_id
+ * @property int $type_id enum: TYPE_PERSON, TYPE_COMPANY, TYPE_GROUP (also $type_id__label and the other $type_id__* properties)
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  * @property string $date_of_birth (detail: party_person_details)
  * @property string $first_name (detail: party_person_details)
  * @property string $last_name (detail: party_person_details)
@@ -92,12 +92,12 @@ class Party_Model extends Rsx_Site_Model_Abstract
     /** Edited through Form_Edit, which reads what another editor changed from here. */
     public static $revisions = true;
 
-    public static $enums = [
-        'type_id' => [
+    public static $columns = [
+        'type_id' => ['enum' => [
             1 => ['constant' => 'TYPE_PERSON', 'label' => 'Person', 'badge' => 'bg-primary'],
             2 => ['constant' => 'TYPE_COMPANY', 'label' => 'Company', 'badge' => 'bg-success'],
             3 => ['constant' => 'TYPE_GROUP', 'label' => 'Group', 'badge' => 'bg-secondary'],
-        ],
+        ]],
     ];
 
     public static $detail_tables = [
@@ -109,12 +109,12 @@ class Party_Model extends Rsx_Site_Model_Abstract
     ];
 
     /**
-     * DERIVED PROPERTY - a computed value that must reach JavaScript.
+     * APPENDED PROPERTY - a computed value that must reach JavaScript.
      *
      * $appends is the route: Eloquent serializes each name through its getXAttribute()
      * accessor inside parent::toArray(), which Rsx_Model_Abstract::toArray() calls first, so
      * the value rides every payload this model produces - fetch(), a relationship, a list -
-     * and the generated Base_Party_Model.js declares it as a derived property. Hand-adding the
+     * and the generated Base_Party_Model.js declares it as an appended property. Hand-adding the
      * key inside fetch() would put it on exactly one payload and on none of the others.
      *
      * @var array
@@ -157,7 +157,7 @@ class Party_Model extends Rsx_Site_Model_Abstract
             return false;
         }
 
-        // No hand-added keys: party_id_formatted is a declared derived property ($appends
+        // No hand-added keys: party_id_formatted is a declared appended property ($appends
         // above), so toArray() already carries it.
         return $party->toArray();
     }

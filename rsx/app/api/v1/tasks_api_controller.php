@@ -26,9 +26,14 @@ use Rsx\Models\Task_Model;
  * shape: a category nothing else writes to.
  *
  * Create and update run the staff save's own rules and write: Task_Model::value_errors()
- * checks every value (the parent, project and assignee resolved through the site scope), and
- * Task_Model::save_edit() writes it inside Form_Edit::run() - changed fields only, under a
- * row lock, with the derived project_id and its cascade to descendant tasks.
+ * checks every value (the parent, direct project and assignee resolved through the site
+ * scope), and Task_Model::save_edit() writes it inside Form_Edit::run() - changed fields
+ * only, under a row lock.
+ *
+ * THE PROJECT. A task's `project_id` is derived and never written: it is the project the
+ * parent chain reaches, otherwise `direct_project_id`. A write sends `direct_project_id`;
+ * `project_id` is not a write parameter, so sending it is a 422 "Unknown parameter". Every
+ * response carries both columns, and the list filters on `project_id`.
  *
  * All endpoints operate within the authenticated key's site. The Bearer key establishes a
  * headless Session identity, so the global site scope filters every read automatically -
@@ -68,6 +73,8 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
      *       "priority": 2,
      *       "priority__label": "Medium",
      *       "due_date": "2026-09-04",
+     *       "project_id": 4,
+     *       "direct_project_id": null,
      *       "__MODEL": "Task_Model"
      *     }
      *   ],
@@ -78,7 +85,7 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
     #[Api_Param('page', type: 'int', default: 1, description: 'Page number (1-based)')]
     #[Api_Param('per_page', type: 'int', default: 20, description: 'Results per page (max 100)')]
     #[Api_Param('status', type: 'int', description: 'Filter by status id (1 Pending, 2 In Progress, 3 Completed, 4 Cancelled)')]
-    #[Api_Param('project_id', type: 'int', description: 'Filter to one project')]
+    #[Api_Param('project_id', type: 'int', description: 'Filter to one project (the derived project_id)')]
     public static function list(Request $request, array $params = [])
     {
         $page = max(1, (int) $params['page']);
@@ -131,6 +138,10 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
      *   "priority": 2,
      *   "priority__label": "Medium",
      *   "due_date": "2026-09-04",
+     *   "taskable_type": "Project_Model",
+     *   "taskable_id": 4,
+     *   "project_id": 4,
+     *   "direct_project_id": null,
      *   "assigned_to_user_id": 3,
      *   "__MODEL": "Task_Model"
      * }
@@ -153,10 +164,12 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
      *
      * Requires a non-blank title. Every other field is optional: a blank status is Pending
      * and a blank priority Medium. The parent is the pair taskable_type (Task_Model,
-     * Project_Model, Client_Model or User_Model) + taskable_id; it, the project and the
-     * assignee must each name a live record of the key's site. When the parent chain reaches
-     * a project, project_id is that project and a submitted project_id is ignored. A value
-     * the task cannot hold is a 422 naming the field (a parent problem is named `taskable`).
+     * Project_Model, Client_Model or User_Model) + taskable_id; it, direct_project_id and the
+     * assignee must each name a live record of the key's site. The task's project_id is
+     * derived: the project the parent chain reaches, otherwise direct_project_id (stored
+     * either way, and used once the chain reaches no project). project_id itself is not a
+     * parameter. A value the task cannot hold is a 422 naming the field (a parent problem is
+     * named `taskable`).
      *
      * `description` is a declared rich-text column: a plain string is stored as plain text;
      * to send markup, JSON-encode the value's envelope into the string.
@@ -175,6 +188,7 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
      *   "taskable_type": "Project_Model",
      *   "taskable_id": 4,
      *   "project_id": 4,
+     *   "direct_project_id": null,
      *   "assigned_to_user_id": 3,
      *   "__MODEL": "Task_Model"
      * }
@@ -190,7 +204,7 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
     #[Api_Param('completed_date', type: 'string', description: 'Completed date, YYYY-MM-DD')]
     #[Api_Param('hour_estimate', type: 'string', description: 'Estimated hours, a number of zero or more')]
     #[Api_Param('assigned_to_user_id', type: 'int', description: 'Assigned user id')]
-    #[Api_Param('project_id', type: 'int', description: 'Project id (ignored when the parent chain reaches a project)')]
+    #[Api_Param('direct_project_id', type: 'int', description: 'Project chosen for the task; its project_id while the parent chain reaches no project')]
     #[Api_Param('taskable_type', type: 'string', description: 'Parent type: Task_Model, Project_Model, Client_Model or User_Model')]
     #[Api_Param('taskable_id', type: 'int', description: 'Parent id, required with taskable_type')]
     #[Api_Param('notes', type: 'string', description: 'Internal notes')]
@@ -220,7 +234,7 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
      * Applies only the fields present in the request; omitted fields are left unchanged.
      * The value rules of create apply to every field sent, and a title sent must be
      * non-blank. Send a blank date or hour_estimate, or 0 for assigned_to_user_id or
-     * project_id, to clear it. The parent is changed by sending taskable_type with
+     * direct_project_id, to clear it. The parent is changed by sending taskable_type with
      * taskable_id, and removed by sending a blank taskable_type. A reference the task already
      * holds is accepted as it stands, even when its record has since been deleted.
      *
@@ -237,6 +251,7 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
      *   "taskable_type": "Project_Model",
      *   "taskable_id": 4,
      *   "project_id": 4,
+     *   "direct_project_id": null,
      *   "assigned_to_user_id": 3,
      *   "__MODEL": "Task_Model"
      * }
@@ -253,7 +268,7 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
     #[Api_Param('completed_date', type: 'string', description: 'Completed date, YYYY-MM-DD; blank clears')]
     #[Api_Param('hour_estimate', type: 'string', description: 'Estimated hours, a number of zero or more; blank clears')]
     #[Api_Param('assigned_to_user_id', type: 'int', description: 'Assigned user id; 0 clears')]
-    #[Api_Param('project_id', type: 'int', description: 'Project id; 0 clears (ignored when the parent chain reaches a project)')]
+    #[Api_Param('direct_project_id', type: 'int', description: 'Project chosen for the task; its project_id while the parent chain reaches no project; 0 clears')]
     #[Api_Param('taskable_type', type: 'string', description: 'Parent type: Task_Model, Project_Model, Client_Model or User_Model; blank removes the parent')]
     #[Api_Param('taskable_id', type: 'int', description: 'Parent id, sent with taskable_type')]
     #[Api_Param('notes', type: 'string', description: 'Internal notes')]

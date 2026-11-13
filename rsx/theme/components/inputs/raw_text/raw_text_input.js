@@ -2,7 +2,7 @@
  * Raw_Text_Input - textarea widget for a Raw_Text column.
  *
  * val() gets and sets a Raw_Text INSTANCE, never a string. ACCEPTS names the type, so a
- * column whose $text_types entry is something else - or a plain varchar with no type at
+ * column whose text_type is something else - or a plain varchar with no type at
  * all - cannot be wired here.
  *
  * There is no $max_length. A TEXT column has no varchar ceiling for

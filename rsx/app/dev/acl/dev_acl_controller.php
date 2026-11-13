@@ -48,7 +48,7 @@ class Dev_Acl_Controller extends Rsx_Controller_Abstract
 
         // Get role definitions for display
         $roles = [];
-        foreach (User_Model::$enums['role_id'] as $role_id => $role_def) {
+        foreach (User_Model::enum_values('role_id') as $role_id => $role_def) {
             $roles[$role_id] = [
                 'id' => $role_id,
                 'constant' => $role_def['constant'],

@@ -35,10 +35,10 @@ use Rsx\Models\Portal_Request_Thread_Model;
  * Table: portal_request_events
  *
  * @property int $actor_id
- * @property int $actor_type
+ * @property string $actor_type type ref: a model class name, stored as a type-ref id
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property int $from_status
  * @property int $id
  * @property int $site_id
@@ -46,7 +46,7 @@ use Rsx\Models\Portal_Request_Thread_Model;
  * @property int $to_status
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  *
  * @mixin \Eloquent
  */
@@ -68,9 +68,9 @@ class Portal_Request_Event_Model extends Rsx_Site_Model_Abstract
 
     protected $table = 'portal_request_events';
     protected $fillable = [];
-    public static $enums = []; // no enum columns (from/to_status reference the thread enum; actor is a type-ref)
-
-    protected static $type_ref_columns = ['actor_type'];
+    public static $columns = [
+        'actor_type' => ['type_ref' => true],
+    ];
 
     /** Audience-aware label for the status this event moved TO. */
     public function to_status_label(bool $is_portal): string
@@ -86,7 +86,7 @@ class Portal_Request_Event_Model extends Rsx_Site_Model_Abstract
 
     private function _status_label(int $status_id, bool $is_portal): string
     {
-        $enum = Portal_Request_Thread_Model::$enums['status_id'][$status_id] ?? null;
+        $enum = Portal_Request_Thread_Model::enum_values('status_id')[$status_id] ?? null;
         if (!$enum) {
             return 'Unknown';
         }

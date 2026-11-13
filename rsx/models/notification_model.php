@@ -24,18 +24,18 @@ use App\RSpade\Core\Session\Session;
  *
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property int $entity_id
- * @property int $entity_type
+ * @property string $entity_type type ref: a model class name, stored as a type-ref id
  * @property string $expires_at
  * @property int $id
- * @property array $metadata
+ * @property string $metadata json
  * @property string $read_at
  * @property int $site_id
- * @property int $type_id
+ * @property int $type_id enum: TYPE_CLIENT_CREATED, TYPE_CONTACT_CREATED, TYPE_PROJECT_CREATED, TYPE_TASK_ASSIGNED (also $type_id__label and the other $type_id__* properties)
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  * @property int $user_id
  *
  * @property-read string $type_id__label
@@ -76,14 +76,9 @@ class Notification_Model extends Rsx_Site_Model_Abstract
     protected $table = 'notifications';
     protected $fillable = []; // No mass assignment - always explicit
 
-    /**
-     * Polymorphic type reference columns
-     * entity_type stores integer ID in database but exposes class name string
-     */
-    protected static $type_ref_columns = ['entity_type'];
-
-    public static $enums = [
-        'type_id' => [
+    public static $columns = [
+        'entity_type' => ['type_ref' => true],
+        'type_id' => ['enum' => [
             // Client notifications (1-9)
             1 => [
                 'constant' => 'TYPE_CLIENT_CREATED',
@@ -108,11 +103,11 @@ class Notification_Model extends Rsx_Site_Model_Abstract
                 'label' => 'Task Assigned',
                 'renderer' => 'Rsx\\Lib\\Notification\\Notification_Renderer::task_assigned',
             ],
-        ],
+        ]],
     ];
 
     /**
-     * DERIVED PROPERTIES - computed values that must reach JavaScript.
+     * APPENDED PROPERTIES - computed values that must reach JavaScript.
      *
      * $appends is the route: Eloquent serializes each name through its getXAttribute()
      * accessor inside parent::toArray(), which Rsx_Model_Abstract::toArray() calls first, so
@@ -265,7 +260,7 @@ class Notification_Model extends Rsx_Site_Model_Abstract
             return false;
         }
 
-        // No hand-added keys: render and is_read are declared derived properties ($appends
+        // No hand-added keys: render and is_read are declared appended properties ($appends
         // above), so toArray() already carries them.
         return $notification->toArray();
     }

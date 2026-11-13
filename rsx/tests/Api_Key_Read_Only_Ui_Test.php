@@ -159,7 +159,7 @@ class Api_Key_Read_Only_Ui_Test extends Rsx_Test_Abstract
     // WHAT THE SCREEN SHOWS
     // ============================================================================
 
-    public static function test_the_grid_payload_carries_the_flag_and_its_label()
+    public static function test_the_grid_payload_carries_the_flag()
     {
         static::__enable_api_access();
 
@@ -180,10 +180,10 @@ class Api_Key_Read_Only_Ui_Test extends Rsx_Test_Abstract
 
         static::__assert_not_null($row, 'The new key is in the grid');
         static::__assert_true($row['read_only'], 'The row carries the flag');
-        static::__assert_equals('Read-only', $row['access_label'], 'and the Access column label');
+        static::__assert_false(array_key_exists('access_label', $row), 'the Access column label is rendered from the flag, not sent');
     }
 
-    public static function test_the_grid_labels_a_read_write_key()
+    public static function test_the_grid_reports_a_read_write_key()
     {
         static::__enable_api_access();
 
@@ -194,7 +194,6 @@ class Api_Key_Read_Only_Ui_Test extends Rsx_Test_Abstract
         foreach ($grid['records'] as $record) {
             if ((int) $record['id'] === (int) $created['id']) {
                 static::__assert_false($record['read_only']);
-                static::__assert_equals('Read + write', $record['access_label']);
             }
         }
     }

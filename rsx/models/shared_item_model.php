@@ -30,18 +30,18 @@ use Rsx\Portal_Permission;
  * @property int $contact_id
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property string $expires_at
  * @property int $id
  * @property int $item_id
- * @property int $item_type
+ * @property string $item_type type ref: a model class name, stored as a type-ref id
  * @property string $message
  * @property int $shared_by
  * @property int $site_id
- * @property string $token
+ * @property string $token never exported to the browser
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  *
  * @mixin \Eloquent
  */
@@ -75,16 +75,13 @@ class Shared_Item_Model extends Rsx_Site_Model_Abstract
     protected $fillable = [];
 
     /**
-     * Columns toArray() never sends to the browser (portal_fetch() output included). token
-     * is a bearer credential: whoever holds it opens the shared item.
-     *
-     * @var string[]
+     * token is a bearer credential: whoever holds it opens the shared item, so it never leaves
+     * the server in a payload (portal_fetch() output included).
      */
-    public static $neverExport = ['token'];
-
-    protected static $type_ref_columns = ['item_type'];
-
-    public static $enums = [];
+    public static $columns = [
+        'token' => ['never_export' => true],
+        'item_type' => ['type_ref' => true],
+    ];
 
     /**
      * Generate a unique secure token

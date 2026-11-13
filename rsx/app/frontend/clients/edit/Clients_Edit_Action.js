@@ -42,7 +42,7 @@ class Clients_Edit_Action extends Spa_Action {
             preferred_contact_method: 'email',
             newsletter_opt_in: '0',
             // A declared text-type column: its input edits a value object, so the empty
-            // is null and not ''. See Project_Model::$text_types.
+            // is null and not ''. See Project_Model's $columns.
             notes: null,
             tags: [],
         };

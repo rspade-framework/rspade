@@ -31,7 +31,7 @@ use Rsx\Portal_Permission;
  * CLIENT-LEVEL audience: every member of the thread's client sees and (collaborators)
  * participate. Portal read gate = membership (Portal_Authorizable -> portal_can_read).
  *
- * Status (see $enums). Only RESPONSE_SUBMITTED differs by audience - staff see it as
+ * Status (see $columns). Only RESPONSE_SUBMITTED differs by audience - staff see it as
  * "Needs Review" via status_label(false). CLOSED is the only "closed" group; everything
  * else (incl. APPROVED) is "active". A portal member posting on a non-closed thread auto
  * -transitions it to RESPONSE_SUBMITTED; staff set NEEDS_MORE_INFO / APPROVED / CLOSED.
@@ -57,15 +57,15 @@ use Rsx\Portal_Permission;
  * @property int $client_id
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property int $id
  * @property string $last_activity_at
  * @property int $site_id
- * @property int $status_id
+ * @property int $status_id enum: STATUS_NEW_REQUEST, STATUS_NEEDS_MORE_INFO, STATUS_RESPONSE_SUBMITTED, STATUS_APPROVED, STATUS_CLOSED (also $status_id__label and the other $status_id__* properties)
  * @property string $title
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  *
  * @property-read string $status_id__label
  * @property-read string $status_id__constant
@@ -136,15 +136,15 @@ class Portal_Request_Thread_Model extends Rsx_Site_Model_Abstract
     const NOTIFICATION_TYPE_STATUS = 'request_thread_status';   // firm -> client: status changed
     const NOTIFICATION_TYPE_DECISION = 'request_thread_decision'; // firm -> client: a document was accepted/rejected
 
-    public static $enums = [
-        'status_id' => [
+    public static $columns = [
+        'status_id' => ['enum' => [
             1 => ['constant' => 'STATUS_NEW_REQUEST', 'label' => 'New Request', 'badge' => 'bg-secondary', 'order' => 1],
             2 => ['constant' => 'STATUS_NEEDS_MORE_INFO', 'label' => 'Needs More Info', 'badge' => 'bg-warning text-dark', 'order' => 2],
             // staff_label: staff see RESPONSE_SUBMITTED as "Needs Review" (the action they must take).
             3 => ['constant' => 'STATUS_RESPONSE_SUBMITTED', 'label' => 'Response Submitted', 'staff_label' => 'Needs Review', 'badge' => 'bg-info text-dark', 'order' => 3],
             4 => ['constant' => 'STATUS_APPROVED', 'label' => 'Approved', 'badge' => 'bg-success', 'order' => 4],
             5 => ['constant' => 'STATUS_CLOSED', 'label' => 'Closed', 'badge' => 'bg-dark', 'order' => 5],
-        ],
+        ]],
     ];
 
     /**
@@ -153,7 +153,7 @@ class Portal_Request_Thread_Model extends Rsx_Site_Model_Abstract
      */
     public function status_label(bool $is_portal): string
     {
-        $enum = static::$enums['status_id'][$this->status_id] ?? null;
+        $enum = static::enum_values('status_id')[$this->status_id] ?? null;
         if (!$enum) {
             return 'Unknown';
         }

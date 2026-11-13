@@ -26,10 +26,10 @@ use Rsx\Models\Shared_Item_Model;
  * @property string $company_size
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property string $deleted_at
  * @property int $deleted_by_id
- * @property int $deleted_by_type
+ * @property string $deleted_by_type type ref: a model class name, stored as a type-ref id
  * @property string $email
  * @property int $established_year
  * @property string $facebook_url
@@ -39,24 +39,24 @@ use Rsx\Models\Shared_Item_Model;
  * @property string $instagram_handle
  * @property string $linkedin_url
  * @property string $name
- * @property int $newsletter_opt_in
- * @property string $notes
+ * @property bool $newsletter_opt_in
+ * @property \Rsx\Lib\TextTypes\RawText\Raw_Text $notes text type: a value object, filtered on write
  * @property int $owner_user_id
  * @property string $phone
  * @property string $phone_secondary
- * @property int $portal_enabled
+ * @property bool $portal_enabled
  * @property string $portal_last_activity_at
  * @property string $preferred_contact_method
- * @property int $priority
+ * @property int $priority enum: PRIORITY_LOW, PRIORITY_MEDIUM, PRIORITY_HIGH, PRIORITY_URGENT (also $priority__label and the other $priority__* properties)
  * @property string $revenue_range
  * @property int $site_id
  * @property string $state
- * @property int $status_id
- * @property array $tags
+ * @property int $status_id enum: STATUS_ACTIVE, STATUS_INACTIVE, STATUS_PROSPECT, STATUS_ARCHIVED (also $status_id__label and the other $status_id__* properties)
+ * @property string $tags json
  * @property string $twitter_handle
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  * @property string $website
  * @property string $zip
  *
@@ -121,18 +121,28 @@ class Client_Model extends Rsx_Site_Model_Abstract
     protected $fillable = []; // No mass assignment - always explicit
 
     /**
-     * DECLARED TEXT TYPES - see Project_Model::$text_types for the reasoning.
+     * Column declarations (see rsx:man model; Project_Model states the text-type reasoning).
      *
-     * `notes` is a plain textarea. Declaring it Raw_Text rather than leaving it
-     * undeclared is a statement of intent: it pins the editor (a rich-text widget on
-     * either column is now refused), it routes display through the type's printer, and it
-     * means the day `notes` becomes Rich_Text the change is one line here plus a migration
-     * that re-encodes the column - not an audit of every place either value is printed.
-     *
-     * @var array
+     * `notes` is a plain textarea. Declaring it Raw_Text rather than leaving it undeclared is a
+     * statement of intent: it pins the editor (a rich-text widget on the column is refused), it
+     * routes display through the type's printer, and it means the day `notes` becomes Rich_Text
+     * the change is one line here plus a migration that re-encodes the column - not an audit of
+     * every place the value is printed.
      */
-    public static $text_types = [
-        'notes' => Raw_Text::class,
+    public static $columns = [
+        'notes' => ['text_type' => Raw_Text::class],
+        'priority' => ['enum' => [
+            1 => ['constant' => 'PRIORITY_LOW', 'label' => 'Low', 'badge' => 'bg-secondary'],
+            2 => ['constant' => 'PRIORITY_MEDIUM', 'label' => 'Medium', 'badge' => 'bg-primary'],
+            3 => ['constant' => 'PRIORITY_HIGH', 'label' => 'High', 'badge' => 'bg-warning'],
+            4 => ['constant' => 'PRIORITY_URGENT', 'label' => 'Urgent', 'badge' => 'bg-danger'],
+        ]],
+        'status_id' => ['enum' => [
+            1 => ['constant' => 'STATUS_ACTIVE', 'label' => 'Active', 'badge' => 'bg-success'],
+            2 => ['constant' => 'STATUS_INACTIVE', 'label' => 'Inactive', 'badge' => 'bg-secondary'],
+            3 => ['constant' => 'STATUS_PROSPECT', 'label' => 'Prospect', 'badge' => 'bg-info'],
+            4 => ['constant' => 'STATUS_ARCHIVED', 'label' => 'Archived', 'badge' => 'bg-warning'],
+        ]],
     ];
 
     // Realtime: this model publishes a Model_Changed_Topic notification on save/delete
@@ -147,25 +157,10 @@ class Client_Model extends Rsx_Site_Model_Abstract
      */
     public static $revisions = true;
 
-    public static $enums = [
-        'priority' => [
-            1 => ['constant' => 'PRIORITY_LOW', 'label' => 'Low', 'badge' => 'bg-secondary'],
-            2 => ['constant' => 'PRIORITY_MEDIUM', 'label' => 'Medium', 'badge' => 'bg-primary'],
-            3 => ['constant' => 'PRIORITY_HIGH', 'label' => 'High', 'badge' => 'bg-warning'],
-            4 => ['constant' => 'PRIORITY_URGENT', 'label' => 'Urgent', 'badge' => 'bg-danger'],
-        ],
-        'status_id' => [
-            1 => ['constant' => 'STATUS_ACTIVE', 'label' => 'Active', 'badge' => 'bg-success'],
-            2 => ['constant' => 'STATUS_INACTIVE', 'label' => 'Inactive', 'badge' => 'bg-secondary'],
-            3 => ['constant' => 'STATUS_PROSPECT', 'label' => 'Prospect', 'badge' => 'bg-info'],
-            4 => ['constant' => 'STATUS_ARCHIVED', 'label' => 'Archived', 'badge' => 'bg-warning'],
-        ],
-    ];
-
     // Enum constants (auto-generated by rsx:constants:regenerate)
 
     /**
-     * DERIVED PROPERTIES - computed values that must reach JavaScript.
+     * APPENDED PROPERTIES - computed values that must reach JavaScript.
      *
      * $appends is the route: Eloquent serializes each name through its getXAttribute()
      * accessor inside parent::toArray(), which Rsx_Model_Abstract::toArray() calls first, so
@@ -526,7 +521,7 @@ class Client_Model extends Rsx_Site_Model_Abstract
         $data['tags'] = $this->tags_array();
 
         // region_name, country_name, client_id_formatted and portal_member_count are declared
-        // derived properties ($appends above), so toArray() already carried them.
+        // appended properties ($appends above), so toArray() already carried them.
 
         // Authorship for the view page's <Record_Author> widget. Resolved server-side
         // (the name may belong to a soft-deleted actor, and the profile URL is gated by

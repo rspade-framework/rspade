@@ -18,30 +18,30 @@ use Rsx\Models\Task_Model;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: projects
  *
- * @property float $budget
+ * @property string $budget decimal
  * @property int $client_department_id
  * @property int $client_id
  * @property string $completed_date
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property string $deleted_at
  * @property int $deleted_by_id
- * @property int $deleted_by_type
- * @property string $description
+ * @property string $deleted_by_type type ref: a model class name, stored as a type-ref id
+ * @property \Rsx\Lib\TextTypes\RichText\Rich_Text $description text type: a value object, filtered on write
  * @property string $due_date
  * @property int $id
  * @property string $name
- * @property string $notes
+ * @property \Rsx\Lib\TextTypes\RawText\Raw_Text $notes text type: a value object, filtered on write
  * @property int $owner_user_id
  * @property int $parent_project_id
- * @property int $priority
+ * @property int $priority enum: PRIORITY_LOW, PRIORITY_MEDIUM, PRIORITY_HIGH, PRIORITY_URGENT (also $priority__label and the other $priority__* properties)
  * @property int $site_id
  * @property string $start_date
- * @property int $status
+ * @property int $status enum: STATUS_PLANNING, STATUS_ACTIVE, STATUS_ON_HOLD, STATUS_COMPLETED, STATUS_CANCELLED (also $status__label and the other $status__* properties)
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  *
  * @property-read string $status__label
  * @property-read string $status__constant
@@ -109,45 +109,37 @@ class Project_Model extends Rsx_Site_Model_Abstract
     const BUDGET_PRECISION = 15;
     const BUDGET_SCALE = 2;
 
-    public static $enums = [
-        'status' => [
+    /**
+     * Column declarations (see rsx:man model).
+     *
+     * TEXT TYPES - `description` is authored in a WYSIWYG and holds HTML; `notes` is a plain
+     * textarea. Declared, that difference is no longer something each template, endpoint and
+     * export has to remember - misremembering it was either a broken render or an XSS. The value
+     * carries its own encoding: it is filtered by its type on write, rendered by its type's
+     * component on a live page, rendered by to_html() into a server-generated document, and
+     * reduced by to_plain_text() for a CSV cell or a search index. A TEXT column with no
+     * text_type entry is an ordinary string; declaration is opt-in.
+     */
+    public static $columns = [
+        'status' => ['enum' => [
             1 => ['constant' => 'STATUS_PLANNING', 'label' => 'Planning', 'badge' => 'bg-info'],
             2 => ['constant' => 'STATUS_ACTIVE', 'label' => 'Active', 'badge' => 'bg-success'],
             3 => ['constant' => 'STATUS_ON_HOLD', 'label' => 'On Hold', 'badge' => 'bg-warning'],
             4 => ['constant' => 'STATUS_COMPLETED', 'label' => 'Completed', 'badge' => 'bg-primary'],
             5 => ['constant' => 'STATUS_CANCELLED', 'label' => 'Cancelled', 'badge' => 'bg-secondary'],
-        ],
-        'priority' => [
+        ]],
+        'priority' => ['enum' => [
             1 => ['constant' => 'PRIORITY_LOW', 'label' => 'Low', 'badge' => 'bg-secondary'],
             2 => ['constant' => 'PRIORITY_MEDIUM', 'label' => 'Medium', 'badge' => 'bg-primary'],
             3 => ['constant' => 'PRIORITY_HIGH', 'label' => 'High', 'badge' => 'bg-warning'],
             4 => ['constant' => 'PRIORITY_URGENT', 'label' => 'Urgent', 'badge' => 'bg-danger'],
-        ],
+        ]],
+        'description' => ['text_type' => Rich_Text::class],
+        'notes' => ['text_type' => Raw_Text::class],
     ];
 
     /**
-     * DECLARED TEXT TYPES - what kind of string each TEXT column actually holds.
-     *
-     * `description` is authored in a WYSIWYG and holds HTML; `notes` is a plain textarea.
-     * Before this declaration existed, that difference lived in the head of whoever wrote
-     * each template, endpoint and export - and the cost of misremembering it was either a
-     * broken render or an XSS. Now the value carries its own encoding: it is filtered by
-     * its type on write, rendered by its type's component on a live page, rendered by
-     * to_html() into a server-generated document, and reduced by to_plain_text() for a CSV cell
-     * or a search index.
-     *
-     * A TEXT column NOT listed here is still an ordinary string with today's behaviour.
-     * Declaration is opt-in.
-     *
-     * @var array
-     */
-    public static $text_types = [
-        'description' => Rich_Text::class,
-        'notes' => Raw_Text::class,
-    ];
-
-    /**
-     * DERIVED PROPERTIES - computed values that must reach JavaScript.
+     * APPENDED PROPERTIES - computed values that must reach JavaScript.
      *
      * $appends is the route: Eloquent serializes each name through its getXAttribute()
      * accessor inside parent::toArray(), which Rsx_Model_Abstract::toArray() calls first, so
@@ -357,7 +349,7 @@ class Project_Model extends Rsx_Site_Model_Abstract
             return false;
         }
 
-        // No hand-added keys: project_id_formatted and budget_formatted are declared derived
+        // No hand-added keys: project_id_formatted and budget_formatted are declared appended
         // properties ($appends above), so toArray() already carries them.
         return $project->toArray();
     }

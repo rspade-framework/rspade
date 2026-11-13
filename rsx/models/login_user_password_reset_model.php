@@ -30,14 +30,14 @@ use Rsx\Lib\PasswordReset\Password_Reset_Token;
  *
  * @property string $created_at
  * @property int $created_by_id
- * @property int $created_by_type
+ * @property string $created_by_type type ref: a model class name, stored as a type-ref id
  * @property string $expires_at
  * @property int $id
  * @property int $login_user_id
- * @property string $token_hash
+ * @property string $token_hash never exported to the browser
  * @property string $updated_at
  * @property int $updated_by_id
- * @property int $updated_by_type
+ * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
  * @property string $used_at
  *
  * @mixin \Eloquent
@@ -55,14 +55,12 @@ class Login_User_Password_Reset_Model extends Rsx_Model_Abstract
 
     /**
      * token_hash is a digest of a bearer link's secret; it has no client-side reader.
-     *
-     * @var string[]
      */
-    public static $neverExport = ['token_hash'];
+    public static $columns = [
+        'token_hash' => ['never_export' => true],
+    ];
 
     protected $table = 'login_user_password_resets';
-
-    public static $enums = [];
 
     protected static function _password_reset_owner_column(): string
     {

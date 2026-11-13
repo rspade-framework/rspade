@@ -72,7 +72,7 @@ surface with a different audience: every staff member who may read the record.
 
 ## HOW TO CUSTOMIZE
 
-- **Add an entry type**: a `TYPE_*` constant and `$enums` row on `Action_Log_Model`
+- **Add an entry type**: a `TYPE_*` constant and `type_id` enum value in `Action_Log_Model`'s `$columns`
   (`rsx:constants:regenerate` afterwards), a renderer method here, and an icon bucket in
   `Activity_Feed.decorate()` AND its server twin `Frontend_Dashboard_Controller::_activity_icon()`
   — buckets are `Math.floor(type_id / 10)`, so a new entity takes the next free ten (60 next).
