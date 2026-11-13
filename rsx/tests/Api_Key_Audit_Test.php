@@ -27,7 +27,8 @@ use Rsx\Models\Action_Log_Model;
 
 /**
  * EVERY API KEY CREATED OR ENDED ON AN ACCOUNT IS ONE AUDIT ROW AND ONE SECURITY NOTICE TO ITS
- * HOLDER - except a key rsx:api:key:temp mints for a script run.
+ * HOLDER - except a key rsx:api:key:temp mints for a script run, and an /apidocs tester key
+ * (bound to the browser session that minted it).
  *
  * Each path is driven through the code a person uses (the Settings screen, User Management, the
  * commands) and followed to its end: the framework's api_key.created / api_key.revoked reaches
@@ -290,6 +291,27 @@ class Api_Key_Audit_Test extends Rsx_Test_Abstract
         Artisan::call('rsx:api:key:temp', ['--user' => (string) $user->id, '--json' => true]);
         $key_id = (int) json_decode(Artisan::output(), true)['data']['api_key']['id'];
         Artisan::call('rsx:api:key:delete', ['id' => (string) $key_id, '--force' => true, '--json' => true]);
+
+        static::__assert_count(0, static::__run_queued($after), 'no audit run');
+        static::__assert_count(0, static::__rows($user));
+        static::__assert_count(0, static::__notices_to($user->email));
+    }
+
+    /**
+     * aka-04b: an /apidocs tester key records nothing and mails nothing, minted or revoked -
+     * it is bound to the browser session that minted it, so there is nothing to warn about.
+     */
+    public static function test_a_tester_key_is_skipped()
+    {
+        $user = static::__member();
+        static::__as_signed_in_browser((int) $user->id);
+        $after = static::__last_run_id();
+
+        // What the console's mint call does for the signed-in browser.
+        $key = Api_Key_Model::generate_tester_key((int) $user->id, (int) Session::get_session_id(), now()->addHour())['model'];
+        static::__assert_true($key->is_tester_key(), 'bound to the minting browser');
+
+        $key->revoke();
 
         static::__assert_count(0, static::__run_queued($after), 'no audit run');
         static::__assert_count(0, static::__rows($user));

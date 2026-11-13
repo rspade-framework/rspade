@@ -22,7 +22,7 @@ use Rsx\Models\Action_Log_Model;
  * Api_Key_Audit_Service - records an API key being created or ended, and tells its holder.
  *
  * Dispatched ONLY by Api_Key_Event_Handlers, once per framework api_key.created /
- * api_key.revoked event for a key that is not temporary; never from anywhere else, so every path
+ * api_key.revoked event for a key that is neither temporary nor an /apidocs tester key; never from anywhere else, so every path
  * is recorded the same way. The run executes as nobody: who acted, from where, and what the key
  * was travel in its params, exactly as the event reported them.
  */

@@ -157,7 +157,8 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   who did it, with the address, and one `Api_Key_Notice_Email` to the holder, followed through
   the framework event, `Api_Key_Event_Handlers` and the queued `Api_Key_Audit_Service` run; an
   administrator's revoke is on both histories; purging an already revoked key records nothing;
-  `rsx:api:key:temp` records and mails nothing; a rolled-back mint queues nothing; the notice
+  `rsx:api:key:temp` and an /apidocs tester key (`generate_tester_key()`) record and mail
+  nothing; a rolled-back mint queues nothing; the notice
   reaches an address that opted out and one on the site block list (SECURITY), and carries
   "If this wasn't you, contact an administrator." with no unsubscribe or notification
   wording. It COMMITS, like `Password_Audit_Test`), `Portal_Change_Password_Test` (portal Change Password: every field rule answered at once, a

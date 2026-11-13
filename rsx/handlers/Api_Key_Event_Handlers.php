@@ -14,9 +14,14 @@ use App\RSpade\Core\Time\Rsx_Time;
  * Management, the /apidocs tester, the command line - with {api_key, user, actor,
  * audit_session_id, ip_address} (and {how}: revoked | deleted, on api_key.revoked).
  *
- * A key minted by rsx:api:key:temp (api_key->is_temporary) is skipped: it is a credential a
- * script mints for itself for one run, by somebody holding a shell, and announcing every such
- * run would bury the notices that matter.
+ * Two kinds of key are skipped, and announce nothing:
+ *   - a key minted by rsx:api:key:temp (api_key->is_temporary): a credential a script mints for
+ *     itself for one run, by somebody holding a shell, and announcing every such run would bury
+ *     the notices that matter;
+ *   - an /apidocs tester key (api_key->is_tester_key()): it is bound to the browser session
+ *     that minted it and works only through that console while it is signed in as the key's
+ *     user, so a hijacked key gains nothing that session does not already have - there is
+ *     nothing for a notice to warn about.
  *
  * Every other event is one Api_Key_Audit_Service::record_api_key_event run: an action-log row
  * on the holder's site and the SECURITY notice email to the holder. It is a task because this
@@ -48,7 +53,7 @@ class Api_Key_Event_Handlers
     {
         $api_key = $data['api_key'];
 
-        if ((bool) $api_key->is_temporary) {
+        if ((bool) $api_key->is_temporary || $api_key->is_tester_key()) {
             return;
         }
 

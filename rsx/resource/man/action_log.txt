@@ -140,7 +140,10 @@ ACTION TYPES
         Api_Key_Audit_Service::record_api_key_event, dispatched by
         rsx/handlers/Api_Key_Event_Handlers from the framework's
         api_key.created / api_key.revoked (rsx:man external_api, KEY
-        EVENTS) for every key that is not temporary:
+        EVENTS) for every key that is neither a CLI temporary key
+        (is_temporary) nor an /apidocs tester key (is_tester_key(), bound to
+        the browser session that minted it - rsx:man external_api, TESTER
+        KEYS):
 
         - One row on the holder's site (a key belongs to one membership).
         - Subject: the holder's membership (User_Model). Actor: whoever

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use App\RSpade\Core\Api\Api_Key_Model;
 use App\RSpade\Core\Api\Api_Scopes;
 use App\RSpade\Core\Session\Session;
+use App\RSpade\Core\Time\Rsx_Time;
 use Rsx\Theme\Components\Datagrid\DataGrid_Abstract;
 
 /**
@@ -112,54 +113,59 @@ class Api_Keys_DataGrid extends DataGrid_Abstract
     }
 
     /**
-     * Transform records to add computed fields
+     * Each row as PLAIN FIELDS - exactly what the list renders, and nothing else.
+     *
+     * The grid's query is an Api_Key_Model query, and a model row serialized as it stands
+     * arrives in the browser as a model record (__MODEL: Api_Key_Model), which the browser
+     * refuses: Api_Key_Model is a framework system model with no JS class in this bundle, and
+     * the page needs fields, not the record. So every row is rebuilt from scratch here - an
+     * allowlist, never the row minus some columns - which is also what keeps key_hash
+     * (never exported by the model either) and the scope text off the wire. The scopes are
+     * fetched by the view modal (get_key_scopes), which is also where the endpoint list is
+     * resolved, so they do not ride along on every row of every page.
      *
      * @param array $records Raw records from database
      * @param array $params Request parameters
-     * @return array Transformed records
+     * @return array The rows, as {id, name, key_prefix, read_only, is_scoped, scope_summary,
+     *               status, created_at, last_used_at}
      */
     protected static function transform_records(array $records, array $params): array
     {
-        foreach ($records as &$record) {
-            // Security: Remove sensitive fields from response
-            unset($record['key_hash']);
+        $rows = [];
 
+        foreach ($records as $record) {
             // Scoping in one column: unrestricted, or how many scopes narrow the key. The
             // COUNT and not the scopes - a table cell is not where anyone reads a scope set,
-            // and the question a listing answers is whether the key is narrowed at all. The
-            // scopes themselves are one click away, in the view modal.
-            // ACCESS is a separate column from Scope because it answers a separate
-            // question: Access is which VERBS the key may use, Scope is which PATHS it may
-            // reach. A read-only key is refused before its scopes are ever consulted.
-            $record['read_only'] = (bool) ($record['read_only'] ?? false);
-            $record['access_label'] = $record['read_only'] ? 'Read-only' : 'Read + write';
-
+            // and the question a listing answers is whether the key is narrowed at all.
+            // ACCESS (read_only) is a separate column because it answers a separate question:
+            // which VERBS the key may use, where Scope is which PATHS it may reach.
             $scopes = $record['scopes'] ?? null;
-            $record['is_scoped'] = !Api_Scopes::is_unrestricted($scopes);
-            $scope_count = $record['is_scoped'] ? Api_Scopes::count_scopes((string) $scopes) : 0;
-            $record['scope_summary'] = $record['is_scoped']
-                ? $scope_count . ' scope' . ($scope_count === 1 ? '' : 's')
-                : 'Unrestricted';
+            $is_scoped = !Api_Scopes::is_unrestricted($scopes);
+            $scope_count = $is_scoped ? Api_Scopes::count_scopes((string) $scopes) : 0;
 
-            // The scope text itself is fetched by the view modal (get_key_scopes), which is
-            // also where the endpoint list is resolved - so it does not ride along on every
-            // row of every page.
-            unset($record['scopes']);
-
-            // Format last_used_at for display
-            // Add status label
             if ($record['is_revoked']) {
-                $record['status'] = 'revoked';
-                $record['status_label'] = 'Revoked';
-            } elseif ($record['expires_at'] && \Carbon\Carbon::parse($record['expires_at'])->isPast()) {
-                $record['status'] = 'expired';
-                $record['status_label'] = 'Expired';
+                $status = 'revoked';
+            } elseif ($record['expires_at'] && Rsx_Time::parse($record['expires_at'])->isPast()) {
+                $status = 'expired';
             } else {
-                $record['status'] = 'active';
-                $record['status_label'] = 'Active';
+                $status = 'active';
             }
+
+            $rows[] = [
+                'id' => (int) $record['id'],
+                'name' => (string) $record['name'],
+                'key_prefix' => (string) $record['key_prefix'],
+                'read_only' => (bool) $record['read_only'],
+                'is_scoped' => $is_scoped,
+                'scope_summary' => $is_scoped
+                    ? $scope_count . ' scope' . ($scope_count === 1 ? '' : 's')
+                    : 'Unrestricted',
+                'status' => $status,
+                'created_at' => Rsx_Time::to_iso($record['created_at']),
+                'last_used_at' => Rsx_Time::to_iso($record['last_used_at']),
+            ];
         }
 
-        return $records;
+        return $rows;
     }
 }

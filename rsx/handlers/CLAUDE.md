@@ -46,7 +46,9 @@ manifest from its `#[OnEvent]` attributes. There is no registration step.
   is minted or a LIVE key is revoked or deleted, whatever wrote it (Settings > API Keys, User
   Management, the `/apidocs` tester, the commands), with `{api_key, user, actor,
   audit_session_id, ip_address}` (+ `how`). A key with `is_temporary` (minted by
-  `rsx:api:key:temp` for a script run) is skipped. Every other event dispatches one
+  `rsx:api:key:temp` for a script run) is skipped, and so is an `/apidocs` tester key
+  (`is_tester_key()`: bound to the browser session that minted it, so a hijacked copy gains
+  nothing that session lacks and a notice would warn of nothing). Every other event dispatches one
   `Api_Key_Audit_Service::record_api_key_event` run carrying the key's facts (a deleted key's
   row is gone by then): the handler may run under another site's lock or none, so the write
   is a task's.

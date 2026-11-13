@@ -46,7 +46,7 @@ the administrator; null from the command line). Both renderers PRINT the address
 (`... reset their password from an emailed link from 203.0.113.7`). `TYPE_API_KEY_CREATED` and
 `TYPE_API_KEY_REVOKED` are written by ONE place too, `Api_Key_Audit_Service::record_api_key_event`
 (dispatched by `rsx/handlers/Api_Key_Event_Handlers` from the framework's `api_key.created` /
-`api_key.revoked`, never for a temporary key): one row on the holder's site, the subject the
+`api_key.revoked`, never for a CLI temporary key or an `/apidocs` tester key): one row on the holder's site, the subject the
 holder's membership, the actor whoever minted or ended the key (null from the command line),
 the metadata the key's facts (`api_key_id`, `name`, `key_prefix`, `read_only`, `scopes`,
 `expires_at`, and `how` - `revoked` | `deleted` - on a revocation), since the key may be deleted

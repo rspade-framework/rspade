@@ -11,8 +11,9 @@ use App\RSpade\Lib\Messaging\Mail\Rsx_Email_Abstract;
 /**
  * Api_Key_Notice_Email - "an API key was created on your account" / "... was revoked", to the
  * holder's own sign-in address. Sent by Api_Key_Audit_Service from the framework's
- * api_key.created / api_key.revoked events (Api_Key_Event_Handlers) for every key that is not
- * temporary, whoever acted: the holder, an administrator, or the command line.
+ * api_key.created / api_key.revoked events (Api_Key_Event_Handlers) for every key that is
+ * neither a CLI temporary key nor an /apidocs tester key (usable only from the browser session
+ * that minted it, so there is nothing to warn about), whoever acted: the holder, an administrator, or the command line.
  *
  * It names the key, says when, by whom and from which address (with the address's location,
  * resolved here as the message is composed - rsx:man geo_ip, rule 1 - and the DB-IP credit
