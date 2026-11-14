@@ -16,6 +16,20 @@ docs live in framework core (`App\RSpade\Core\Api`).
   The project a write sends is `direct_project_id`; `project_id` is derived (the project the
   parent chain reaches, else `direct_project_id`), so it is not a write parameter and sending
   it is a 422 "Unknown parameter". Responses carry both; the list filters on `project_id`.
+  `description` (a `Rich_Text` column) reads as its HTML string and is written through
+  `Rich_Text::from_untrusted_encoded()`, so a client that sends back what it read stores the
+  same value.
+- `v1/projects_api_controller.php` - project list/get/create/update (no delete, no contact or
+  user links) (`Projects_Api_Controller`), the worked example of MONEY on the API. Create and
+  update run the staff save's rules and write - `Project_Model::value_errors()` and
+  `Project_Model::save_edit()` inside `Form_Edit::run()`. `budget` reads as `"27000.00"` (null
+  for none) and is written through `#[Api_Param('budget', type: 'money', column:
+  'Project_Model.budget')]`: `"12.345"`, text that is not an amount, an envelope object and an
+  amount beyond the DECIMAL(15,2) column are 422s on `budget` before the endpoint runs; blank
+  or null clears it; a negative amount is the model's "Budget must be zero or more.". `get`
+  adds two computed amounts as plain strings: `subprojects_budget` (`sum_money('budget')` over
+  the direct subprojects) and `unallocated_budget` (the budget less that total; null without a
+  budget).
 
 The framework serves `GET /api/vN/me`, the file endpoints and `GET /api/vN/openapi.json`
 (this API's OpenAPI 3.1 description, readable by any key with API access) at every version
@@ -72,7 +86,7 @@ passes them as `$params`; an undeclared parameter is rejected 422.
 `required: true` means only that the key is PRESENT - `''` passes it - so an endpoint refuses
 a blank required string itself. Value rules beyond the declared type (column lengths, enum
 membership, URL schemes) are the same ones the staff form runs - `Client_Model::value_errors()`,
-`Contact_Model::value_errors()`, `Task_Model::value_errors()`, `Field_Checks` - answered as `Rsx_Api::validation_error()` 422
+`Contact_Model::value_errors()`, `Task_Model::value_errors()`, `Project_Model::value_errors()`, `Field_Checks` - answered as `Rsx_Api::validation_error()` 422
 naming the field, never left to a database exception.
 
 ```php
@@ -88,9 +102,11 @@ public static function get(Request $request, array $params = [])
 }
 ```
 
-`#[Api_Param]` args: `name`, `type` (`string|int|float|bool`, plus `file` for a
-multipart upload part - array/json is still backlogged), `required`, `default`,
-`description`, `example`. `required: true` cannot combine with a `default`. A `file` param
+`#[Api_Param]` args: `name`, `type` (`string|int|float|bool`, `money` for an amount - a
+decimal string, answered as an `Rsx_Money` - plus `file` for a multipart upload part -
+array/json is still backlogged), `required`, `default`,
+`description`, `example`, and on a `money` param `column: 'Model_Name.column'` (a literal; the
+amount is refused beyond that column's `money_limit()`). `required: true` cannot combine with a `default`. A `file` param
 is POST-only, can never be a `:token`, and can never carry a default (all three are
 manifest-scan failures).
 Every `:token` in the pattern needs a matching param. Do NOT use another class's
@@ -160,6 +176,18 @@ else (null, a bare list, a scalar, a collection) as a 500 naming the endpoint. R
   `error($code, $msg, $status, $fields)`.
 - `Rsx_Api::document($array)` - ONLY for a standard-shaped document (a JSON Schema; the
   framework's OpenAPI route uses it): the object exactly as given, never stamped.
+
+**Values are plain.** A money column is the decimal string `"7708.80"` and a text-type column
+its stored string (`Rich_Text`: HTML) - the `{__MONEY}` / `{__TEXT}` envelopes are the
+browser's Ajax form and never appear here; the dispatcher makes every value plain, so an
+endpoint returns the model as it is. A text WRITE names its door: assign the string bare for a
+field documented as text (`notes` here, `Raw_Text`, where both doors are the same), or pass it
+through `Type::from_untrusted_encoded()` for a field the API reads as its encoding
+(`description` in the tasks API). A `money` param reaches the endpoint as an `Rsx_Money`;
+one stored in a money column declares `column: 'Model_Name.column'`, so an amount the column
+cannot hold is the field's 422 before the endpoint runs (`budget` in the projects API). A
+computed amount (a `sum_money()` total, an `Rsx_Money` result) is placed in the answer as it
+is and reads as the same plain string.
 
 Errors are `{"error":{"code","message","fields"?}}`. The dispatcher adds `_duration_ms` and
 `_completed_at` (and an echoed `_request_ref`) to the top level of every answer - never set

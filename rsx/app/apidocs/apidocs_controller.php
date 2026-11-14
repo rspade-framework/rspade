@@ -96,6 +96,12 @@ class Apidocs_Controller extends Rsx_Controller_Abstract
                     {"error": {"code": "validation", "message": "...", "fields": {"email": "..."}}}
                     ```
 
+                    **Values are plain.** An amount of money is a decimal string with two places
+                    (`"7708.80"`), returned and accepted that way - never a JSON number for a
+                    stored amount; an amount larger than its field holds is a validation error
+                    on that field. Rich text is its HTML string; send back the string you read and
+                    the stored value does not change.
+
                     **Retrying a write safely.** Name a write with `_request_ref` (a string unique per
                     request you mean). A retry with the same reference is answered from the original
                     request instead of running again (`_replayed: true`).

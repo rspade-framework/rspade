@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Seventy-four test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Seventy-five test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -239,7 +239,17 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   site (or a deleted parent) is refused, the derived project follows the parent and cascades,
   `direct_project_id` is the project until a chain reaches one and returns when it is removed,
   `project_id` is refused by the parameter check as an unknown write parameter, an update
-  writes only the fields sent, another site's task is not found.
+  writes only the fields sent, another site's task is not found; over real dispatch
+  `description` reads as its HTML string (no `{__TEXT}` envelope) and a read sent back stores
+  the same value.
+  `Project_Api_Test` — the projects API, the template's money example, over real dispatch: a
+  budget reads as `"1234.50"` and the computed `subprojects_budget` / `unallocated_budget` as
+  plain strings (`"0.00"` / null with no subprojects or budget), no list or record body carries
+  `__MONEY`; `"1234.5"` stores 1234.50, a JSON int is whole units, the column's maximum saves,
+  null and blank clear it; `12.345`, unparseable text, an envelope object, an amount larger
+  than the column and a negative amount are 422s on `budget` writing nothing; the API and the
+  staff save refuse the same values with the same messages (`Project_Model::value_errors()`);
+  an update writes only the fields sent.
 - **Document sharing**: `Portal_Share_Link_Test` — sharing a document mints the invitation and
   sends nothing until the send step, which emails the share and the invitation once; the
   share link answers by who follows it (documents page, sign-in with a notice, accept-invite,
@@ -335,7 +345,8 @@ reaching it fails naming the condition.
 - `project_budget_round_trip.js` — a project's budget through the real edit form: `1,234.5`
   typed into `Money_Input` is stored as 1234.50, printed `$1,234.50` on the view and loaded
   back as `1234.50`; a blank saves no budget; `12.345` stays in the box as typed with the
-  field error under it and nothing saved. Uses project 1 and restores its budget.
+  field error under it and nothing saved; `Project_Model.money_limit('budget')` in the page is
+  the column's limit, `9999999999999.99`. Uses project 1 and restores its budget.
 
 - `sidebar_trail_root.js` — `Sidebar_Nav.follow_trail()`: a contact opened through a
   breadcrumb origin from its client (declared at run time on `Contacts_View_Action`; the

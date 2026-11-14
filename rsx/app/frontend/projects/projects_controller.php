@@ -8,10 +8,8 @@
 namespace Rsx\App\Frontend\Projects;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
-use App\RSpade\Core\Database\Money\Rsx_Money_Exception;
 use App\RSpade\Core\Forms\Form_Edit;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Response\Error_Response;
@@ -20,9 +18,7 @@ use App\RSpade\Core\Task\Task;
 use App\RSpade\Core\Time\Rsx_Date;
 use Rsx\App\Frontend\Projects\List\Projects_DataGrid;
 use Rsx\Lib\ActionLog\Action_Log;
-use Rsx\Lib\FieldChecks\Field_Checks;
 use Rsx\Models\Action_Log_Model;
-use Rsx\Models\Client_Model;
 use Rsx\Models\Contact_Model;
 use Rsx\Models\Project_Contact_Model;
 use Rsx\Models\Project_Model;
@@ -157,123 +153,26 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
             $project = new Project_Model();
         }
 
-        // Validate required fields
-        $errors = [];
-
-        if (!isset($params['name']) || !is_string($params['name']) || trim($params['name']) === '') {
-            $errors['name'] = 'Project name is required';
-        }
-
-        $errors += Field_Checks::length_errors(Project_Model::class, $params, ['name' => 'Project name']);
-
-        foreach (['status' => 'status', 'priority' => 'priority'] as $field => $noun) {
-            if (!empty($params[$field]) && !Field_Checks::is_enum_value(Project_Model::class, $field, $params[$field])) {
-                $errors[$field] = "Choose a {$noun} from the list";
-            }
-        }
-
-        foreach (['start_date' => 'Start date', 'due_date' => 'Due date'] as $field => $label) {
-            if (!empty($params[$field]) && !Rsx_Date::is_date($params[$field])) {
-                $errors[$field] = "{$label} must be a date (YYYY-MM-DD)";
-            }
-        }
-
-        // Budget: a money column. money_from_submitted() reads what the person typed
-        // ("$1,234.50", "1234.5", "(5.00)") as an exact Rsx_Money, a blank as null - no
-        // budget, never zero - and refuses anything else with a message worded for the person
-        // (not an amount, more than two decimal places, larger than the budget column can
-        // hold). That refusal is a field error; any other exception is a coding error and is
-        // left to fail loud.
-        $budget = null;
-        try {
-            $budget = Project_Model::money_from_submitted('budget', $params['budget'] ?? null);
-        } catch (Rsx_Money_Exception $e) {
-            if (!$e->is_input_problem()) {
-                throw $e;
-            }
-            $errors['budget'] = $e->getMessage();
-        }
-        if ($budget !== null && $budget->is_negative()) {
-            $errors['budget'] = 'Budget must be zero or more.';
-        }
-
-        // A pivot list is a list of record ids; anything else ("abc", 0, a nested array) is
-        // a field error, never an id 0 that fails a foreign key.
-        foreach (['contacts' => 'contacts', 'assigned_users' => 'users'] as $field => $noun) {
-            if (array_key_exists($field, $params) && static::__id_list($params[$field]) === null) {
-                $errors[$field] = "One of the selected {$noun} does not exist";
-            }
-        }
-
-        $client_id = !empty($params['client_id']) ? (int) $params['client_id'] : null;
-        if (!$client_id) {
-            $errors['client_id'] = 'Client is required';
-        } elseif (!static::__holds($project, 'client_id', $client_id) && !Client_Model::find($client_id)) {
-            // The site-scoped find is the tenant check: an id from another site misses.
-            $errors['client_id'] = 'The selected client does not exist';
-        }
-
-        $parent_id = !empty($params['parent_project_id']) ? (int) $params['parent_project_id'] : null;
-        if ($parent_id && !static::__holds($project, 'parent_project_id', $parent_id) && !Project_Model::find($parent_id)) {
-            $errors['parent_project_id'] = 'The selected parent project does not exist';
-        }
-
-        // Every pivot id must name a record of this site - or be one the project already links.
-        $linked_contacts = $project->exists ? Project_Contact_Model::contact_ids_for_project((int) $project->id) : [];
-        $linked_users = $project->exists ? Project_User_Model::user_ids_for_project((int) $project->id) : [];
-
-        if (array_key_exists('contacts', $params) && !isset($errors['contacts'])
-            && !static::__all_on_site(Contact_Model::class, array_diff(static::__id_list($params['contacts']), $linked_contacts))) {
-            $errors['contacts'] = 'One of the selected contacts does not exist';
-        }
-
-        if (array_key_exists('assigned_users', $params) && !isset($errors['assigned_users'])
-            && !static::__all_on_site(User_Model::class, array_diff(static::__id_list($params['assigned_users']), $linked_users))) {
-            $errors['assigned_users'] = 'One of the selected users does not exist';
-        }
+        // The model's value rules, shared with the external API. A staff save always
+        // carries a name and a client: an absent one is checked as a blank one.
+        $errors = Project_Model::value_errors($params + ['name' => null, 'client_id' => null], $project);
 
         if (!empty($errors)) {
             return response_form_error('Please correct the errors below.', $errors);
         }
 
-        // parent_project_id (self-referencing hierarchy). Cycle guard: a project cannot be
-        // parented to itself OR to one of its own descendants (which would form a loop). The
-        // forbidden set = the project + its whole subtree (self_and_descendant_ids). New
-        // projects have no subtree, so any existing project is a valid parent.
-        $parent_project_id = !empty($params['parent_project_id']) ? (int) $params['parent_project_id'] : null;
-        if ($parent_project_id && $project_id) {
-            $forbidden = Project_Model::self_and_descendant_ids((int) $project_id);
-            if (in_array($parent_project_id, $forbidden, true)) {
-                return response_form_error('Please correct the errors below.', [
-                    'parent_project_id' => 'A project cannot be its own parent or a descendant of itself',
-                ]);
-            }
-        }
-
-        // Normalize pivot inputs (arrays of ids). Absent key = leave the pivot untouched;
-        // present (even empty) = replace the set.
+        // Pivot inputs (arrays of ids). Absent key = leave the pivot untouched; present (even
+        // empty) = replace the set.
         $contacts_provided = array_key_exists('contacts', $params);
         $users_provided = array_key_exists('assigned_users', $params);
-        $contact_ids = $contacts_provided ? static::__id_list($params['contacts']) : [];
-        $user_ids = $users_provided ? static::__id_list($params['assigned_users']) : [];
+        $contact_ids = $contacts_provided ? Project_Model::read_id_list($params['contacts']) : [];
+        $user_ids = $users_provided ? Project_Model::read_id_list($params['assigned_users']) : [];
 
         return Form_Edit::run($project, $params, function (Form_Edit $edit) use (
-            $project, $project_id, $params, $parent_project_id, $budget,
+            $project, $project_id, $params,
             $contacts_provided, $users_provided, $contact_ids, $user_ids
         ) {
-            // Set all fields explicitly
-            $edit->set('name', $params['name']);
-            $edit->set('description', $params['description'] ?? null);
-            $edit->set('client_id', (int)$params['client_id']);
-            $edit->set('parent_project_id', $parent_project_id);
-            $edit->set('status', !empty($params['status']) ? (int)$params['status'] : Project_Model::STATUS_ACTIVE);
-            $edit->set('priority', !empty($params['priority']) ? (int)$params['priority'] : Project_Model::PRIORITY_MEDIUM);
-            $edit->set('start_date', !empty($params['start_date']) ? $params['start_date'] : null);
-            $edit->set('due_date', !empty($params['due_date']) ? $params['due_date'] : null);
-            $edit->set('budget', $budget);
-            $edit->set('notes', $params['notes'] ?? null);
-
-            $project->save();
+            $project->save_edit($edit, $params);
 
             if ($contacts_provided && $edit->changed('contacts')) {
                 static::__sync_pivot(Project_Contact_Model::class, 'contact_id', $project, $contact_ids);
@@ -599,61 +498,5 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
             'filename' => 'projects_export_' . Rsx_Date::today() . '.csv',
             'count' => count($rows),
         ];
-    }
-
-    /** Does the stored record already hold $id in $column? Such a reference is not re-validated. */
-    private static function __holds(Project_Model $project, string $column, int $id): bool
-    {
-        return $project->exists && (int) $project->{$column} === $id;
-    }
-
-    /**
-     * Does every id name a record of the current site? The model's site scope does the
-     * tenant check: an id from another site (or one that does not exist) is not counted.
-     *
-     * @param string $model_class A site-scoped model class.
-     * @param array $ids Submitted ids.
-     * @return bool
-     */
-    /**
-     * A submitted pivot list as distinct positive record ids, or null when any entry is not
-     * one. An absent or empty list is an empty set.
-     *
-     * @param mixed $value
-     * @return array<int>|null
-     */
-    private static function __id_list($value): ?array
-    {
-        if ($value === null || $value === '') {
-            return [];
-        }
-
-        if (!is_array($value)) {
-            $value = [$value];
-        }
-
-        $ids = [];
-        foreach ($value as $entry) {
-            if (is_int($entry) && $entry > 0) {
-                $ids[] = $entry;
-            } elseif (is_string($entry) && ctype_digit($entry) && (int) $entry > 0) {
-                $ids[] = (int) $entry;
-            } else {
-                return null;
-            }
-        }
-
-        return array_values(array_unique($ids));
-    }
-
-    private static function __all_on_site(string $model_class, array $ids): bool
-    {
-        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
-
-        if (empty($ids)) {
-            return true;
-        }
-
-        return $model_class::whereIn('id', $ids)->count() === count($ids);
     }
 }

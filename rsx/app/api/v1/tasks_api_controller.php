@@ -11,6 +11,7 @@ use App\RSpade\Core\Forms\Form_Edit;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Time\Rsx_Time;
 use Rsx\Lib\ActionLog\Action_Log;
+use Rsx\Lib\TextTypes\RichText\Rich_Text;
 use Rsx\Models\Action_Log_Model;
 use Rsx\Models\Task_Model;
 
@@ -34,6 +35,13 @@ use Rsx\Models\Task_Model;
  * parent chain reaches, otherwise `direct_project_id`. A write sends `direct_project_id`;
  * `project_id` is not a write parameter, so sending it is a 422 "Unknown parameter". Every
  * response carries both columns, and the list filters on `project_id`.
+ *
+ * THE DESCRIPTION. `description` is a Rich_Text column: HTML a WYSIWYG authored. The API
+ * carries plain values, so a read answers it as its HTML string, and a write takes HTML in a
+ * plain string param and passes it through Rich_Text::from_untrusted_encoded() - the type's
+ * filter (HTMLPurifier) runs, exactly as for the staff editor. A client that reads a task and
+ * sends `description` back unchanged stores the same value. Text meant literally ("a < b")
+ * is sent as HTML text, escaped by the client.
  *
  * All endpoints operate within the authenticated key's site. The Bearer key establishes a
  * headless Session identity, so the global site scope filters every read automatically -
@@ -122,17 +130,14 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
      * Get a single task.
      *
      * Returns the full task record. A soft-deleted or cross-site id is not found.
-     *
-     * `description` is a declared TEXT column, so it travels as the value's envelope -
-     * the same shape a page receives - and is never flattened into a bare string for a
-     * client's convenience. A client that wants plain text renders it from `raw`.
+     * `description` is the task's rich text as an HTML string.
      *
      * @api-response
      * {
      *   "id": 12,
      *   "site_id": 1,
      *   "title": "Draft the statement of work",
-     *   "description": { "__TEXT": "Rich_Text", "raw": "<p>Include the payment schedule.</p>", "empty": false },
+     *   "description": "<p>Include the payment schedule.</p>",
      *   "status": 1,
      *   "status__label": "Pending",
      *   "priority": 2,
@@ -171,15 +176,15 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
      * parameter. A value the task cannot hold is a 422 naming the field (a parent problem is
      * named `taskable`).
      *
-     * `description` is a declared rich-text column: a plain string is stored as plain text;
-     * to send markup, JSON-encode the value's envelope into the string.
+     * `description` is HTML: it is sanitized (the staff editor's allow-list) and stored, and a
+     * description read from a task is sent back as it was read.
      *
      * @api-response
      * {
      *   "id": 57,
      *   "site_id": 1,
      *   "title": "Draft the statement of work",
-     *   "description": { "__TEXT": "Rich_Text", "raw": "<p>Include the payment schedule.</p>", "empty": false },
+     *   "description": "<p>Include the payment schedule.</p>",
      *   "status": 1,
      *   "status__label": "Pending",
      *   "priority": 3,
@@ -197,7 +202,7 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
     #[Writer]
     #[Api_Endpoint('/api/v1/tasks/create', methods: ['POST'])]
     #[Api_Param('title', type: 'string', required: true, description: 'Title')]
-    #[Api_Param('description', type: 'string', description: 'Description (plain text, or the rich-text envelope JSON-encoded)')]
+    #[Api_Param('description', type: 'string', description: 'Description, HTML (sanitized on save); send back the string a read returned to keep it unchanged')]
     #[Api_Param('status', type: 'int', description: 'Status id (1 Pending, 2 In Progress, 3 Completed, 4 Cancelled); default Pending')]
     #[Api_Param('priority', type: 'int', description: 'Priority id (1 Low, 2 Medium, 3 High, 4 Urgent); default Medium')]
     #[Api_Param('due_date', type: 'string', description: 'Due date, YYYY-MM-DD')]
@@ -261,7 +266,7 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
     #[Api_Endpoint('/api/v1/tasks/:id/update', methods: ['POST'])]
     #[Api_Param('id', type: 'int', required: true, description: 'Task ID')]
     #[Api_Param('title', type: 'string', description: 'Title')]
-    #[Api_Param('description', type: 'string', description: 'Description (plain text, or the rich-text envelope JSON-encoded)')]
+    #[Api_Param('description', type: 'string', description: 'Description, HTML (sanitized on save); send back the string a read returned to keep it unchanged')]
     #[Api_Param('status', type: 'int', description: 'Status id (1 Pending, 2 In Progress, 3 Completed, 4 Cancelled)')]
     #[Api_Param('priority', type: 'int', description: 'Priority id (1 Low, 2 Medium, 3 High, 4 Urgent)')]
     #[Api_Param('due_date', type: 'string', description: 'Due date, YYYY-MM-DD; blank clears')]
@@ -322,6 +327,13 @@ class Tasks_Api_Controller extends Rsx_Api_Controller_Abstract
     {
         $values = $params;
         unset($values['id'], $values['taskable_type'], $values['taskable_id']);
+
+        // The API's door for the rich-text column: the string IS the HTML, so it is passed
+        // through the type's filter as encoded content. Assigned bare it would be plain
+        // text, and a description read and sent back would be stored as visible tags.
+        if (isset($values['description'])) {
+            $values['description'] = Rich_Text::from_untrusted_encoded($values['description']);
+        }
 
         if (array_key_exists('taskable_type', $params) || array_key_exists('taskable_id', $params)) {
             $type = $params['taskable_type'] ?? null;

@@ -4,7 +4,11 @@ namespace Rsx\Models;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
+use App\RSpade\Core\Database\Money\Rsx_Money_Exception;
+use App\RSpade\Core\Forms\Form_Edit;
 use App\RSpade\Core\Models\User_Model;
+use App\RSpade\Core\Time\Rsx_Date;
+use Rsx\Lib\FieldChecks\Field_Checks;
 use Rsx\Lib\TextTypes\RawText\Raw_Text;
 use Rsx\Lib\TextTypes\RichText\Rich_Text;
 use Rsx\Models\Client_Department_Model;
@@ -283,6 +287,211 @@ class Project_Model extends Rsx_Site_Model_Abstract
         }
 
         return array_keys($ids);
+    }
+
+    // =========================================================================
+    // VALUE RULES AND THE WRITE - shared by every surface that saves a project (the staff
+    // save, the external API's create/update).
+    // =========================================================================
+
+    /**
+     * Answers [field => message] for every submitted value a project cannot hold; empty when
+     * all of them can. Checks only the keys $values carries, so an API update that sends a
+     * few fields is checked on those few. A caller that requires a field (the name and the
+     * client, on a staff save or an API create) makes sure the key is present.
+     *
+     *   - name, when present, is non-blank text that fits Project_Model::field_length('name')
+     *   - status and priority, when not blank, are declared enum ids
+     *   - start_date and due_date, when not blank, are YYYY-MM-DD dates
+     *   - budget is read by money_from_submitted('budget', ...): what a person typed or an
+     *     Rsx_Money, blank is no budget; not an amount, a third decimal place or an amount
+     *     beyond the column is refused with the exception's own message, and a negative
+     *     amount with "Budget must be zero or more."
+     *   - contacts and assigned_users, when present, are lists of record ids of this site
+     *   - client_id, when present, names a live client of this site (blank: "Client is
+     *     required"); parent_project_id, when not blank, a live project of this site that is
+     *     neither this project nor one of its descendants
+     *
+     * A reference $project already holds (client, parent, a linked contact or user) is
+     * accepted as it stands, so a project whose referent was since deleted still saves; a
+     * reference the submission adds or changes must name a live record. Every reference is
+     * resolved through a site-scoped query, so an id from another site misses exactly as a
+     * missing one does.
+     *
+     * @param array $values Submitted values keyed by field name
+     * @param Project_Model|null $project The project being edited; null (or unsaved) for a new one
+     * @return array<string, string>
+     */
+    public static function value_errors(array $values, ?Project_Model $project = null): array
+    {
+        $errors = [];
+        $existing = $project && $project->exists ? $project : null;
+
+        if (array_key_exists('name', $values)
+            && (!is_string($values['name']) || trim($values['name']) === '')) {
+            $errors['name'] = 'Project name is required';
+        }
+
+        $errors += Field_Checks::length_errors(static::class, $values, ['name' => 'Project name']);
+
+        foreach (['status' => 'status', 'priority' => 'priority'] as $field => $noun) {
+            if (!empty($values[$field]) && !Field_Checks::is_enum_value(static::class, $field, $values[$field])) {
+                $errors[$field] = "Choose a {$noun} from the list";
+            }
+        }
+
+        foreach (['start_date' => 'Start date', 'due_date' => 'Due date'] as $field => $label) {
+            if (!empty($values[$field]) && !Rsx_Date::is_date($values[$field])) {
+                $errors[$field] = "{$label} must be a date (YYYY-MM-DD)";
+            }
+        }
+
+        // Budget: a money column. A refusal whose is_input_problem() is true is the field
+        // error; any other exception is a coding error and is left to fail loud.
+        if (array_key_exists('budget', $values)) {
+            try {
+                $budget = static::money_from_submitted('budget', $values['budget']);
+                if ($budget !== null && $budget->is_negative()) {
+                    $errors['budget'] = 'Budget must be zero or more.';
+                }
+            } catch (Rsx_Money_Exception $e) {
+                if (!$e->is_input_problem()) {
+                    throw $e;
+                }
+                $errors['budget'] = $e->getMessage();
+            }
+        }
+
+        // A pivot list is a list of record ids; anything else ("abc", 0, a nested array) is
+        // a field error, never an id 0 that fails a foreign key.
+        foreach (['contacts' => 'contacts', 'assigned_users' => 'users'] as $field => $noun) {
+            if (array_key_exists($field, $values) && static::read_id_list($values[$field]) === null) {
+                $errors[$field] = "One of the selected {$noun} does not exist";
+            }
+        }
+
+        if (array_key_exists('client_id', $values)) {
+            $client_id = !empty($values['client_id']) ? (int) $values['client_id'] : null;
+            if (!$client_id) {
+                $errors['client_id'] = 'Client is required';
+            } elseif (!static::__holds($existing, 'client_id', $client_id) && !Client_Model::find($client_id)) {
+                $errors['client_id'] = 'The selected client does not exist';
+            }
+        }
+
+        $parent_id = !empty($values['parent_project_id']) ? (int) $values['parent_project_id'] : null;
+        if ($parent_id && !static::__holds($existing, 'parent_project_id', $parent_id) && !static::find($parent_id)) {
+            $errors['parent_project_id'] = 'The selected parent project does not exist';
+        }
+
+        // Every pivot id must name a record of this site - or be one the project already links.
+        $linked_contacts = $existing ? Project_Contact_Model::contact_ids_for_project((int) $existing->id) : [];
+        $linked_users = $existing ? Project_User_Model::user_ids_for_project((int) $existing->id) : [];
+
+        if (array_key_exists('contacts', $values) && !isset($errors['contacts'])
+            && !static::__all_on_site(Contact_Model::class, array_diff(static::read_id_list($values['contacts']), $linked_contacts))) {
+            $errors['contacts'] = 'One of the selected contacts does not exist';
+        }
+
+        if (array_key_exists('assigned_users', $values) && !isset($errors['assigned_users'])
+            && !static::__all_on_site(User_Model::class, array_diff(static::read_id_list($values['assigned_users']), $linked_users))) {
+            $errors['assigned_users'] = 'One of the selected users does not exist';
+        }
+
+        // Cycle guard: a project cannot be parented to itself OR to one of its own descendants
+        // (which would form a loop) - the forbidden set is its whole subtree. A new project
+        // has no subtree, so any existing project is a valid parent.
+        if (!$errors && $existing && $parent_id
+            && in_array($parent_id, static::self_and_descendant_ids((int) $existing->id), true)) {
+            $errors['parent_project_id'] = 'A project cannot be its own parent or a descendant of itself';
+        }
+
+        return $errors;
+    }
+
+    /**
+     * Write submitted values onto this project through a Form_Edit and save it. Run inside
+     * Form_Edit::run() after value_errors() found nothing: a new project is written whole, an
+     * existing one only on the fields the submission changed.
+     *
+     * A blank status is Active and a blank priority Medium; a blank date, parent or budget is
+     * none. The budget is read again by money_from_submitted(), so Form_Edit compares the
+     * exact amount and a figure re-typed differently ("1234.5" for 1234.50) writes nothing.
+     * The contact and user links are the caller's: they are not columns of this record.
+     *
+     * @param Form_Edit $edit The edit Form_Edit::run() handed its callback
+     * @param array $values Submitted values keyed by field name
+     */
+    public function save_edit(Form_Edit $edit, array $values): void
+    {
+        $edit->set('name', $values['name'] ?? null);
+        $edit->set('description', $values['description'] ?? null);
+        $edit->set('client_id', !empty($values['client_id']) ? (int) $values['client_id'] : null);
+        $edit->set('parent_project_id', !empty($values['parent_project_id']) ? (int) $values['parent_project_id'] : null);
+        $edit->set('status', !empty($values['status']) ? (int) $values['status'] : self::STATUS_ACTIVE);
+        $edit->set('priority', !empty($values['priority']) ? (int) $values['priority'] : self::PRIORITY_MEDIUM);
+        $edit->set('start_date', !empty($values['start_date']) ? $values['start_date'] : null);
+        $edit->set('due_date', !empty($values['due_date']) ? $values['due_date'] : null);
+        $edit->set('budget', static::money_from_submitted('budget', $values['budget'] ?? null));
+        $edit->set('notes', $values['notes'] ?? null);
+
+        $this->save();
+    }
+
+    /**
+     * A submitted contact or user list as distinct positive record ids, or null when any
+     * entry is not one. An absent or empty list is an empty set.
+     *
+     * @param mixed $value
+     * @return array<int>|null
+     */
+    public static function read_id_list($value): ?array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        if (!is_array($value)) {
+            $value = [$value];
+        }
+
+        $ids = [];
+        foreach ($value as $entry) {
+            if (is_int($entry) && $entry > 0) {
+                $ids[] = $entry;
+            } elseif (is_string($entry) && ctype_digit($entry) && (int) $entry > 0) {
+                $ids[] = (int) $entry;
+            } else {
+                return null;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /** Does the stored record already hold $id in $column? Such a reference is not re-validated. */
+    private static function __holds(?Project_Model $project, string $column, int $id): bool
+    {
+        return $project !== null && (int) $project->{$column} === $id;
+    }
+
+    /**
+     * Does every id name a record of the current site? The model's site scope does the
+     * tenant check: an id from another site (or one that does not exist) is not counted.
+     *
+     * @param string $model_class A site-scoped model class
+     * @param array $ids Submitted ids
+     * @return bool
+     */
+    private static function __all_on_site(string $model_class, array $ids): bool
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+
+        if (empty($ids)) {
+            return true;
+        }
+
+        return $model_class::whereIn('id', $ids)->count() === count($ids);
     }
 
     /**

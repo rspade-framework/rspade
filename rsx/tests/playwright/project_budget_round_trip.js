@@ -8,6 +8,8 @@
  *   3. REFUSED. "12.345" is submitted as typed and comes back as the field error under the
  *      budget input ("An amount of money has at most two decimal places."), the form stays
  *      open, and nothing is saved.
+ *   4. THE LIMIT. Project_Model.money_limit('budget') answers the DECIMAL(15,2) column's
+ *      limit as an Rsx_Money, 9999999999999.99, from the page's field-length script.
  *
  * Runs against the developer database on project 1 and puts its budget back afterwards.
  * Exit 0 on pass, 1 on any failure.
@@ -136,6 +138,17 @@ async function save_and_land_on_view(page) {
         }
 
         original = await stored_budget(page);
+
+        // --- 4. THE LIMIT ---
+        const limit = await page.evaluate(() => {
+            const value = Project_Model.money_limit('budget');
+            return value instanceof Rsx_Money ? value.to_decimal() : null;
+        });
+        if (limit === '9999999999999.99') {
+            pass('Project_Model.money_limit(\'budget\') is the column\'s limit');
+        } else {
+            fail('Project_Model.money_limit(\'budget\') answered ' + limit);
+        }
 
         // --- 1. SAVE AND PRINT ---
         await type_budget(page, '1,234.5');

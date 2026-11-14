@@ -109,13 +109,16 @@ the grouping is for readers only):
   hand-added on purpose — it resolves a realm-gated profile URL for one viewer, which a
   list payload must not ask per row.
 - **A model written from more than one surface owns its value rules**:
-  `Client_Model::value_errors()`, `Contact_Model::value_errors()` and
-  `Task_Model::value_errors()` answer `[field => message]` for every submitted value the
-  record cannot hold (lengths from `field_length()`, enum membership, formats, and for a task
-  its site-scoped references and parent cycle; built on `rsx/lib/field_checks/`), and both the
-  staff save and the external API run them, so the two can never disagree. A task's write is
-  shared too: `Task_Model::save_edit()` (fields, parent pair, `direct_project_id` when sent),
-  called inside `Form_Edit::run()` by both, each passing `fields: Task_Model::EDIT_FIELDS`.
+  `Client_Model::value_errors()`, `Contact_Model::value_errors()`,
+  `Task_Model::value_errors()` and `Project_Model::value_errors()` answer `[field => message]`
+  for every submitted value the record cannot hold (lengths from `field_length()`, enum
+  membership, formats, and for a task or a project its site-scoped references and parent
+  cycle, for a project its budget through `money_from_submitted()`; built on
+  `rsx/lib/field_checks/`), and both the staff save and the external API run them, so the two
+  can never disagree. A task's and a project's write is shared too: `Task_Model::save_edit()`
+  (fields, parent pair, `direct_project_id` when sent), called inside `Form_Edit::run()` by
+  both, each passing `fields: Task_Model::EDIT_FIELDS`; `Project_Model::save_edit()` (the ten
+  columns; the staff save syncs the contact and user links itself).
 - **Derived columns**: `Task_Model::$project_id` is the one here - declared
   `['derived' => 'derive_project_id', 'from' => ['taskable_type', 'taskable_id', 'direct_project_id']]`,
   computed by the framework's `save()` and never assigned (an assignment, a `Form_Edit::set()`

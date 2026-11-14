@@ -9,8 +9,12 @@ namespace Rsx\Tests;
 
 use Illuminate\Http\Request;
 use App\RSpade\Core\Api\Api_Catalog;
+use App\RSpade\Core\Api\Api_Key_Model;
 use App\RSpade\Core\Api\Api_Param_Validator;
+use App\RSpade\Core\Dispatch\Rsx_Front_Controller;
+use App\RSpade\Core\Dispatch\Rsx_Request_Channel;
 use App\RSpade\Core\Models\Site_Model;
+use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
 use Rsx\App\Api\V1\Tasks_Api_Controller;
@@ -26,7 +30,8 @@ use Rsx\Models\Task_Model;
  * a deleted one is refused, the derived project follows the parent chain, and an update
  * writes only the fields it sent. The project a write sends is direct_project_id; the
  * derived project_id is not a write parameter, so the dispatcher's parameter check refuses
- * it as unknown.
+ * it as unknown. Over the real dispatch the API carries plain values: `description` (a Rich_Text
+ * column) reads as its HTML string, and the string read, sent back, stores the same value.
  */
 class Task_Api_Write_Test extends Rsx_Test_Abstract
 {
@@ -40,6 +45,8 @@ class Task_Api_Write_Test extends Rsx_Test_Abstract
 
     public static function teardown(): void
     {
+        app()->instance('request', Request::create('/'));
+        Rsx_Request_Channel::reset();
         static::__reset_session();
     }
 
@@ -106,7 +113,7 @@ class Task_Api_Write_Test extends Rsx_Test_Abstract
 
         $response = static::__api_create([
             'title' => 'Draft the statement of work',
-            'description' => 'Plain <text> & more',
+            'description' => '<p>Include the <strong>payment</strong> schedule.</p><script>x()</script>',
             'priority' => Task_Model::PRIORITY_HIGH,
             'due_date' => '2026-09-04',
             'hour_estimate' => '2.5',
@@ -125,7 +132,11 @@ class Task_Api_Write_Test extends Rsx_Test_Abstract
         static::__assert_equals('Project_Model', $task->taskable_type, 'the parent type is stored');
         static::__assert_equals((int) $project->id, (int) $task->project_id, 'project_id is derived from the parent chain');
         static::__assert_equals(2.5, (float) $task->hour_estimate, 'the hour estimate is stored');
-        static::__assert_equals('Plain <text> & more', $task->description->to_plain_text(), 'a plain-string description is stored as plain text');
+        static::__assert_equals(
+            '<p>Include the <strong>payment</strong> schedule.</p>',
+            $task->description->to_storage(),
+            'description is HTML: sanitized through the type\'s filter and stored as markup'
+        );
     }
 
     public static function test_create_refuses_bad_values_like_the_staff_save()
@@ -302,5 +313,62 @@ class Task_Api_Write_Test extends Rsx_Test_Abstract
         $response = Tasks_Api_Controller::update(new Request(), ['id' => (int) $task->id, 'title' => 'Hijacked']);
 
         static::__assert_equals(404, $response->getStatusCode(), 'another site\'s task is not found');
+    }
+
+    /**
+     * The round trip over real HTTP dispatch: GET answers `description` as the HTML string -
+     * no {__TEXT} envelope anywhere in the body - and an update sending that string back
+     * leaves the stored value byte for byte as it was.
+     */
+    public static function test_description_reads_as_a_string_and_round_trips_unchanged()
+    {
+        $key = static::__api_key();
+        $html = '<p>Include the <strong>payment</strong> schedule.</p><ul><li>Deposit</li></ul>';
+
+        $created = static::__api($key, 'POST', '/api/v1/tasks/create', ['title' => 'Round trip ' . uniqid(), 'description' => $html]);
+        static::__assert_equals(201, $created['status'], $created['raw']);
+        $id = (int) $created['body']['id'];
+        $stored = Task_Model::find($id)->description->to_storage();
+
+        $read = static::__api($key, 'GET', "/api/v1/tasks/{$id}");
+        static::__assert_equals(200, $read['status'], $read['raw']);
+        static::__assert_false(str_contains($read['raw'], '__TEXT'), 'no text envelope in the body: ' . $read['raw']);
+        static::__assert_equals($stored, $read['body']['description'], 'description is the stored HTML string');
+
+        $updated = static::__api($key, 'POST', "/api/v1/tasks/{$id}/update", ['description' => $read['body']['description']]);
+        static::__assert_equals(200, $updated['status'], $updated['raw']);
+        static::__assert_equals($stored, $updated['body']['description'], 'the answer carries the same string');
+        static::__assert_equals($stored, Task_Model::find($id)->description->to_storage(), 'the stored value is unchanged');
+    }
+
+    private static function __api_key(): string
+    {
+        $user = User_Model::find(1);
+        $user->is_api_access_enabled = 1;
+        $user->save();
+        static::grant_every_permission(1);
+
+        return Api_Key_Model::generate(1, 'Task API round trip (test)')['key'];
+    }
+
+    /** One request through the front controller: [status, body (decoded), raw]. */
+    private static function __api(string $key, string $method, string $path, array $body = []): array
+    {
+        $request = Request::create($path, $method, [], [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer ' . $key,
+            'REMOTE_ADDR' => '127.0.0.1',
+            'CONTENT_TYPE' => 'application/json',
+        ], $method === 'POST' ? json_encode($body) : null);
+        app()->instance('request', $request);
+
+        $response = Rsx_Front_Controller::handle($request);
+
+        // The front controller ended the API identity: act as the baseline user again.
+        static::__acting_as_site(self::SITE_ID);
+        static::__acting_as_user(1);
+
+        $raw = (string) $response->getContent();
+
+        return ['status' => $response->getStatusCode(), 'body' => json_decode($raw, true) ?? [], 'raw' => $raw];
     }
 }

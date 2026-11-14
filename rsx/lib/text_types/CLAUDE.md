@@ -46,10 +46,13 @@ from plain text were re-encoded first, by
 `rsx/resource/migrations/2026_09_15_052838_convert_description_columns_to_rich_text.php` -
 the worked example of the two-act rule below.
 
-**Read and written like any other column.** An endpoint still writes
+**Read and written like any other column.** An Ajax endpoint still writes
 `$project->description = $params['description'];` — the value arrives already typed
-(rehydrated at the Ajax boundary, or from a JSON-encoded envelope in an `/api/vN` string
-param) and is filtered by the type on assignment. A BARE STRING is plain text: the type's
+(rehydrated at the Ajax boundary) and is filtered by the type on assignment. The external API
+carries the stored string instead (HTML for `Rich_Text`), so an API endpoint writing a
+`Rich_Text` column passes its string param through `Rich_Text::from_untrusted_encoded()` - the
+door `rsx/app/api/v1/tasks_api_controller.php` uses for `description`, which lets a client send
+back what it read unchanged. A BARE STRING is plain text: the type's
 `encode_plain_text()` converts it and `sanitize_encoded()` runs on the result, so a seed, an import or
 a plain API param stores what was typed. Encoded content from server code is assigned as
 `Rich_Text::from_untrusted_encoded($html)`. No endpoint in this application calls a sanitizer.
