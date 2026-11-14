@@ -21,7 +21,7 @@ use Rsx\Lib\TextTypes\RichText\Rich_Text;
  * @property \Rsx\Lib\TextTypes\RichText\Rich_Text $description text type: a value object, filtered on write
  * @property int $id
  * @property string $name
- * @property string $price decimal
+ * @property \App\RSpade\Core\Database\Money\Rsx_Money $price money: a value object, two decimal places, never a float
  * @property int $status_id enum: STATUS_AVAILABLE, STATUS_OUT_OF_STOCK, STATUS_DISCONTINUED (also $status_id__label and the other $status_id__* properties)
  * @property string $updated_at
  * @property int $updated_by_id
@@ -75,9 +75,12 @@ class Demo_Product_Model extends Rsx_Model_Abstract
      * `description` is authored in a WYSIWYG and holds HTML, so its text_type makes the value
      * carry its own encoding instead of every template, endpoint and export remembering it -
      * the same decision Project_Model makes, and states in full, for the same kind of column.
+     *
+     * `price` is money: it reads as an Rsx_Money, never a float (rsx:man money).
      */
     public static $columns = [
         'description' => ['text_type' => Rich_Text::class],
+        'price' => ['money' => true],
         'status_id' => ['enum' => [
             1 => [
                 'constant' => 'STATUS_AVAILABLE',

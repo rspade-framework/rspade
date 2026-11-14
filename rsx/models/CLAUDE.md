@@ -99,8 +99,8 @@ the grouping is for readers only):
   body is security plus a bare `toArray()`. The declarations are `party_model.php`
   (`party_id_formatted`), `client_model.php` (`country_name`, `client_id_formatted`,
   `region_name`, `portal_member_count`), `contact_model.php` (`contact_id_formatted`,
-  `full_name`, `portal_user_id`), `project_model.php` (`project_id_formatted`,
-  `budget_formatted`), `action_log_model.php` (`render`, `actor_display`,
+  `full_name`, `portal_user_id`), `project_model.php` (`project_id_formatted`),
+  `action_log_model.php` (`render`, `actor_display`,
   `subject_display`), `notification_model.php` (`render`, `is_read`)
   and `announcement_model.php` (`is_published`). A derivation that READS A ROW
   (`portal_user_id`, `portal_member_count`, `country_name`, `region_name`) says so in its docblock: it is
@@ -133,8 +133,9 @@ the grouping is for readers only):
 - **Mark growth**: `public static $unbounded = true;` on any model whose row count
   grows with customer activity. `DB-UNBOUNDED-01` lints against it.
 - **Every column's kind is declared in `public static $columns`** (skill `rspade:models`,
-  `rsx:man model`, COLUMN DECLARATIONS): `enum`, `text_type`, `type_ref`, `never_export`,
-  `revision_exclude`, `derived` + `from`. A model with nothing to declare declares nothing.
+  `rsx:man model`, COLUMN DECLARATIONS): `enum`, `text_type`, `type_ref`, `money`,
+  `never_export`, `revision_exclude`, `derived` + `from`. A model with nothing to declare
+  declares nothing - except a DECIMAL, FLOAT or DOUBLE column, which is always declared (MODEL-DECIMAL-01).
   Read a declaration through the accessors (`enum_values('col')`, ...), never `::$columns`.
 - **Enums** are BIGINT columns with an `enum` entry in `$columns`. `migrate` regenerates
   the constants and the `_AUTO_GENERATED_` header in development; run
@@ -148,6 +149,17 @@ the grouping is for readers only):
   `Demo_Product_Model` — and `Project_Model::$notes` is the `Raw_Text` one. An
   undeclared TEXT column is an ordinary string; declaration is opt-in. Use `is_empty()` on such a column, never `=== ''` — a
   value object is never identical to a string, so the comparison is permanently false.
+- **Money**: a DECIMAL(p,2) column holding an amount is declared `['money' => true]` and
+  reads as an `Rsx_Money` (exact to the cent, never a float), null when the column is NULL;
+  a DECIMAL holding anything else is declared `[]`. Here `Project_Model::$budget` and
+  `Demo_Product_Model::$price` are money and `Task_Model::$hour_estimate` (hours) is
+  declared not money. Assign an `Rsx_Money` or a decimal string (`'29.99'`) - a float
+  throws, and an amount beyond what the column can hold (`Model::money_limit('col')`) throws
+  before the database sees it; an endpoint reads typed input with
+  `Model::money_from_submitted('col', $value)`, which refuses both as field errors. Ask "is there
+  an amount" with `!== null` (an object is always truthy) and compare with `equals()` /
+  `less_than()`, never `==` / `<` (MODEL-MONEY-02); total a column with `sum_money('col')`.
+  The projects feature is the worked example (`rsx/app/frontend/projects/CLAUDE.md`).
 
 ## Pointers
 

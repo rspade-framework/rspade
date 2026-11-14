@@ -27,12 +27,12 @@ use Rsx\Models\Task_Model;
  *   - an over-long name or title (the model's field_length())
  *   - a date that is not a real "YYYY-MM-DD"
  *   - a status or priority that is not declared
- *   - a budget that is not an exact non-negative amount; a budget of 0 is stored as 0.00
+ *   - a budget that is not an amount of money, has more than two decimal places or is
+ *     negative, each with its own message; a budget of 0 is stored as 0.00
  *   - a pivot list entry that is not a record id ("abc", 0)
  *   - a party email that is not an address, an employee count that is not a whole number
  *
- * Plus the Field_Checks rules those saves share: http(s)-only web addresses and exact
- * decimal amounts.
+ * Plus the Field_Checks rule those saves share: http(s)-only web addresses.
  */
 class Crud_Validation_Test extends Rsx_Test_Abstract
 {
@@ -51,6 +51,12 @@ class Crud_Validation_Test extends Rsx_Test_Abstract
     {
         static::__assert_instance_of(Error_Response::class, $result, $message);
         static::__assert_array_has_key($field, $result->get_metadata(), "{$message} (on {$field})");
+    }
+
+    private static function __assert_field_message($result, string $field, string $expected, string $message): void
+    {
+        static::__assert_field_error($result, $field, $message);
+        static::__assert_equals($expected, $result->get_metadata()[$field], "{$message} (the message)");
     }
 
     // ---------------------------------------------------------------------
@@ -76,9 +82,9 @@ class Crud_Validation_Test extends Rsx_Test_Abstract
         static::__assert_field_error(static::__save_project(['due_date' => 'tomorrow']), 'due_date', 'a non-date is refused');
         static::__assert_field_error(static::__save_project(['status' => '99']), 'status', 'an undeclared status is refused');
         static::__assert_field_error(static::__save_project(['priority' => '99']), 'priority', 'an undeclared priority is refused');
-        static::__assert_field_error(static::__save_project(['budget' => 'lots']), 'budget', 'a non-amount budget is refused');
-        static::__assert_field_error(static::__save_project(['budget' => '-5']), 'budget', 'a negative budget is refused');
-        static::__assert_field_error(static::__save_project(['budget' => '1.234']), 'budget', 'a third decimal place is refused');
+        static::__assert_field_message(static::__save_project(['budget' => 'lots']), 'budget', 'This is not an amount of money.', 'a non-amount budget is refused');
+        static::__assert_field_message(static::__save_project(['budget' => '-5']), 'budget', 'Budget must be zero or more.', 'a negative budget is refused');
+        static::__assert_field_message(static::__save_project(['budget' => '1.234']), 'budget', 'An amount of money has at most two decimal places.', 'a third decimal place is refused');
         static::__assert_field_error(static::__save_project(['contacts' => ['abc']]), 'contacts', 'a non-id contact is a field error');
         static::__assert_field_error(static::__save_project(['assigned_users' => ['0']]), 'assigned_users', 'a zero user id is a field error');
     }
@@ -90,7 +96,7 @@ class Crud_Validation_Test extends Rsx_Test_Abstract
         static::__assert_array_has_key('project_id', $result, 'the save succeeds');
 
         $project = Project_Model::find($result['project_id']);
-        static::__assert_equals('0.00', (string) $project->budget, 'zero is a budget, not an empty one');
+        static::__assert_equals('0.00', $project->budget->to_decimal(), 'zero is a budget, not an empty one');
         static::__assert_equals('2026-03-01', $project->start_date);
     }
 
@@ -99,7 +105,7 @@ class Crud_Validation_Test extends Rsx_Test_Abstract
         $result = static::__save_project(['budget' => '1234567890123.45']);
 
         static::__assert_array_has_key('project_id', $result, 'the save succeeds');
-        static::__assert_equals('1234567890123.45', (string) Project_Model::find($result['project_id'])->budget);
+        static::__assert_equals('1234567890123.45', Project_Model::find($result['project_id'])->budget->to_decimal());
     }
 
     // ---------------------------------------------------------------------
@@ -185,17 +191,5 @@ class Crud_Validation_Test extends Rsx_Test_Abstract
 
         static::__assert_equals('example.com', Field_Checks::website_short_url('https://example.com/'));
         static::__assert_null(Field_Checks::website_short_url('ftp://example.com'), 'another scheme is not a short URL');
-    }
-
-    public static function test_decimal_amounts_are_exact()
-    {
-        static::__assert_equals('0.00', Field_Checks::decimal_amount('0', 15, 2));
-        static::__assert_equals('12.50', Field_Checks::decimal_amount('12.5', 15, 2));
-        static::__assert_equals('12.50', Field_Checks::decimal_amount('12.500', 15, 2), 'trailing zeros beyond the scale are not precision');
-        static::__assert_equals('7.00', Field_Checks::decimal_amount(7, 15, 2));
-        static::__assert_null(Field_Checks::decimal_amount('1.005', 15, 2), 'a third decimal place is refused, not rounded');
-        static::__assert_null(Field_Checks::decimal_amount('10000000000000', 15, 2), 'more integer digits than the column holds');
-        static::__assert_null(Field_Checks::decimal_amount(1.5, 15, 2), 'a float is never an amount');
-        static::__assert_null(Field_Checks::decimal_amount('1e3', 15, 2), 'exponent notation refused');
     }
 }

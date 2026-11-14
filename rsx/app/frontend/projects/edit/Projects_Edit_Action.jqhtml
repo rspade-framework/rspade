@@ -116,8 +116,14 @@
                                 </Form_Field>
                             </div>
                         </div>
+                        <%--
+                        `budget` is a money column, so its editor is the framework's
+                        Money_Input: the value is an Rsx_Money (or null), typing is not
+                        filtered, and text that is not an amount is submitted as typed for
+                        the save endpoint to refuse as a field error.
+                        --%>
                         <Form_Field $label="Budget">
-                            <Text_Input $name="budget" $type="number" $placeholder="0.00" $max_length=-1 />
+                            <Money_Input $name="budget" $placeholder="0.00" />
                         </Form_Field>
                     </Section>
 

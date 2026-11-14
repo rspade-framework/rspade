@@ -371,12 +371,12 @@ class Modal {
      * @private
      */
     static _init() {
-        if (this._initialized) return;
-        this._initialized = true;
+        if (Modal._initialized) return;
+        Modal._initialized = true;
 
         // Create shared backdrop element
-        this._backdrop = $('<div class="modal-backdrop fade"></div>');
-        $('body').append(this._backdrop);
+        Modal._backdrop = $('<div class="modal-backdrop fade"></div>');
+        $('body').append(Modal._backdrop);
     }
 
     /**
@@ -414,27 +414,27 @@ class Modal {
      */
     static _lock_body_scroll() {
         // Cancel any pending unlock timeout
-        if (this._unlock_timeout) {
-            clearTimeout(this._unlock_timeout);
-            this._unlock_timeout = null;
+        if (Modal._unlock_timeout) {
+            clearTimeout(Modal._unlock_timeout);
+            Modal._unlock_timeout = null;
         }
 
         // Only lock scroll if we haven't already saved state (first modal)
         // This is the true indicator - not backdrop visibility which can be transitional
-        if (this._original_body_overflow === null) {
+        if (Modal._original_body_overflow === null) {
             const $body = $('body');
 
             // Store original values
-            this._original_body_overflow = $body.css('overflow');
-            this._original_body_padding = $body.css('padding-right');
+            Modal._original_body_overflow = $body.css('overflow');
+            Modal._original_body_padding = $body.css('padding-right');
 
             // Check if body currently has vertical scroll
             const has_scrollbar = document.body.scrollHeight > window.innerHeight;
 
             // If there's a scrollbar, add padding to compensate for its removal
             if (has_scrollbar) {
-                const scrollbar_width = this._get_scrollbar_width();
-                const current_padding = int(this._original_body_padding) || 0;
+                const scrollbar_width = Modal._get_scrollbar_width();
+                const current_padding = int(Modal._original_body_padding) || 0;
                 $body.css('padding-right', current_padding + scrollbar_width + 'px');
             }
 
@@ -450,12 +450,12 @@ class Modal {
      */
     static _unlock_body_scroll() {
         // Clear any existing timeout
-        if (this._unlock_timeout) {
-            clearTimeout(this._unlock_timeout);
+        if (Modal._unlock_timeout) {
+            clearTimeout(Modal._unlock_timeout);
         }
 
         // Minimal delay before unlocking
-        this._unlock_timeout = setTimeout(() => {
+        Modal._unlock_timeout = setTimeout(() => {
             // Double-check no modal is currently open and queue is empty
             if (!this._current && this._queue.length === 0) {
                 const $body = $('body');
@@ -481,11 +481,11 @@ class Modal {
      * @private
      */
     static async _show_backdrop() {
-        if (!this._backdrop.hasClass('show')) {
+        if (!Modal._backdrop.hasClass('show')) {
             // Lock body scroll before showing backdrop
-            this._lock_body_scroll();
+            Modal._lock_body_scroll();
 
-            this._backdrop.css('display', 'block').addClass('show');
+            Modal._backdrop.css('display', 'block').addClass('show');
             // No delay - return immediately
         }
     }
@@ -495,10 +495,10 @@ class Modal {
      * @private
      */
     static async _hide_backdrop() {
-        this._backdrop.removeClass('show').css('display', 'none');
+        Modal._backdrop.removeClass('show').css('display', 'none');
 
         // Unlock body scroll after backdrop is hidden
-        this._unlock_body_scroll();
+        Modal._unlock_body_scroll();
     }
 
     /**
@@ -547,28 +547,28 @@ class Modal {
      * @private
      */
     static async _process_queue() {
-        if (this._queue.length === 0) {
-            this._current = null;
+        if (Modal._queue.length === 0) {
+            Modal._current = null;
             // Hide backdrop when queue is empty
-            await this._hide_backdrop();
+            await Modal._hide_backdrop();
             return;
         }
 
-        const { options, resolve } = this._queue.shift();
+        const { options, resolve } = Modal._queue.shift();
 
         // Ensure initialized
-        this._init();
+        Modal._init();
 
         // Show backdrop if not already visible (instant - no delay between modals)
-        const backdrop_visible = this._backdrop.hasClass('show');
+        const backdrop_visible = Modal._backdrop.hasClass('show');
         if (!backdrop_visible) {
-            await this._show_backdrop();
+            await Modal._show_backdrop();
         }
         // No delay between sequential modals - immediate transition
 
         // Create modal instance
-        const modal_instance = await this._create_modal();
-        this._current = modal_instance;
+        const modal_instance = await Modal._create_modal();
+        Modal._current = modal_instance;
 
         // Trigger modal open event
         Rsx.trigger('modal_open', { modal: modal_instance, options });
@@ -578,14 +578,14 @@ class Modal {
         // 2. More than 1 second since last modal closed
         const viewport_width = $(window).width();
         const is_desktop = viewport_width >= 1000;
-        const time_since_last_close = Date.now() - this._last_close_timestamp;
+        const time_since_last_close = Date.now() - Modal._last_close_timestamp;
         const should_animate = is_desktop && time_since_last_close > 1000;
 
         // Show modal and wait for result (modal won't create its own backdrop)
         const result = await modal_instance.show(options, { skip_backdrop: true, animate: should_animate });
 
         // Record close timestamp BEFORE resolving (ensures it's set before next modal can start)
-        this._last_close_timestamp = Date.now();
+        Modal._last_close_timestamp = Date.now();
 
         // Trigger modal close event before resolving
         Rsx.trigger('modal_close', { modal: modal_instance, result });
@@ -594,8 +594,8 @@ class Modal {
         resolve(result);
 
         // Clear current and process next
-        this._current = null;
-        this._process_queue();
+        Modal._current = null;
+        Modal._process_queue();
     }
 
     // ================================================================================
@@ -607,7 +607,7 @@ class Modal {
      * @returns {boolean}
      */
     static is_open() {
-        return this._current !== null;
+        return Modal._current !== null;
     }
 
     /**
@@ -615,7 +615,7 @@ class Modal {
      * @returns {Rsx_Modal|null}
      */
     static get_current() {
-        return this._current;
+        return Modal._current;
     }
 
     /**
@@ -623,8 +623,8 @@ class Modal {
      * @returns {Promise<void>}
      */
     static async close() {
-        if (this._current) {
-            await this._current.close(false);
+        if (Modal._current) {
+            await Modal._current.close(false);
         }
     }
 
@@ -648,7 +648,7 @@ class Modal {
             message = body;
         }
 
-        await this._show_modal({
+        await Modal._show_modal({
             title: title,
             body: message,
             buttons: [
@@ -681,7 +681,7 @@ class Modal {
             message = body;
         }
 
-        const result = await this._show_modal({
+        const result = await Modal._show_modal({
             title: title,
             body: message,
             buttons: [
@@ -740,14 +740,15 @@ class Modal {
         // Also clear validation error when user starts typing
         if (!allow_empty) {
             $input.on('input', function () {
-                const val = $(this).val();
+                const $element = $(this);
+                const val = $element.val();
                 // If input is only whitespace, clear it
                 if (val.length > 0 && val.trim() === '') {
-                    $(this).val('');
+                    $element.val('');
                 }
                 // Clear validation error when user types valid content
                 if (val.trim() !== '') {
-                    $(this).removeClass('is-invalid');
+                    $element.removeClass('is-invalid');
                 }
             });
         }
@@ -769,7 +770,7 @@ class Modal {
         }
         $body.append($error_feedback);
 
-        const result = await this._show_modal({
+        const result = await Modal._show_modal({
             title: title,
             body: $body,
             buttons: [
@@ -867,7 +868,7 @@ class Modal {
         const $error_feedback = $('<div class="invalid-feedback"></div>');
         $body.append($error_feedback);
 
-        const result = await this._show_modal({
+        const result = await Modal._show_modal({
             title: title,
             body: $body,
             buttons: [
@@ -944,7 +945,7 @@ class Modal {
             )
         );
 
-        await this._show_modal({
+        await Modal._show_modal({
             title: title,
             body: $body,
             buttons: [
@@ -983,7 +984,7 @@ class Modal {
 
         const final_options = Object.assign({}, defaults, options);
 
-        return await this._show_modal(final_options);
+        return await Modal._show_modal(final_options);
     }
 
     /**
@@ -1117,7 +1118,7 @@ class Modal {
             },
         ];
 
-        return await this._show_modal({
+        return await Modal._show_modal({
             title: final_options.title,
             body: $body_content,
             buttons: buttons,
@@ -1158,7 +1159,7 @@ class Modal {
         }
 
         // Don't wait for this promise - it never resolves until closed manually
-        this._show_modal({
+        Modal._show_modal({
             title: title,
             body: message,
             buttons: [], // No buttons
@@ -1177,7 +1178,7 @@ class Modal {
      */
     static async custom(options) {
         // Alias for show() - same functionality
-        return await this.show(options);
+        return await Modal.show(options);
     }
 
     // ================================================================================
@@ -1215,7 +1216,7 @@ class Modal {
             }
         }
 
-        await this._show_modal({
+        await Modal._show_modal({
             title: title,
             body: message,
             icon: 'exclamation-circle',

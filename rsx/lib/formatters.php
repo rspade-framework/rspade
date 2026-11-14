@@ -5,10 +5,6 @@ namespace Rsx\Lib;
 use libphonenumber\PhoneNumberUtil;
 use libphonenumber\PhoneNumberFormat;
 use libphonenumber\NumberParseException;
-use Brick\Money\Money;
-use Brick\Money\Context\CustomContext;
-use Brick\Math\RoundingMode;
-use Brick\Math\Exception\MathException;
 
 /**
  * String formatting utilities
@@ -18,7 +14,6 @@ use Brick\Math\Exception\MathException;
  *
  * Usage:
  *   $formatted_phone = Formatters::phone($input);
- *   $formatted_currency = Formatters::currency($amount);
  */
 class Formatters
 {
@@ -151,109 +146,6 @@ class Formatters
         }
 
         return $digits;
-    }
-
-    /**
-     * Format a currency amount
-     *
-     * Behavior matches Currency_Input component:
-     * - Adds thousands separators (commas)
-     * - Optional currency symbol (default: hidden)
-     * - Optional decimal places (default: hidden)
-     *
-     * The rounding is done by brick/money rather than by number_format(), so the
-     * amount is carried as an exact decimal from end to end: a value that does not
-     * survive a float (a bare integer past 2^53, a string amount with more digits
-     * than a double holds) formats to the digits it was given instead of to the
-     * nearest representable double. The rounding mode is stated rather than
-     * inherited - HalfUp, i.e. half away from zero, which is what number_format
-     * did and what an invoice line expects.
-     *
-     * Presentation stays this application's decision: $symbol is prefixed verbatim
-     * and the group separator is a comma. Money::formatTo($locale) is the other
-     * option and renders a locale's own placement and separators - use it when the
-     * app is genuinely multi-locale, not to reproduce this format.
-     *
-     * @param float|string|null $amount Amount to format
-     * @param bool $show_symbol Show currency symbol (default: false)
-     * @param bool $allow_decimals Show decimal places (default: false)
-     * @param string $symbol Currency symbol to use (default: '$')
-     * @param string $currency ISO 4217 code the amount is denominated in (default: 'USD')
-     * @return string Formatted currency string
-     *
-     * @example
-     * Formatters::currency(1234567)                                    // "1,234,567"
-     * Formatters::currency(1234567, show_symbol: true)                 // "$1,234,567"
-     * Formatters::currency(1234567, allow_decimals: true)              // "1,234,567.00"
-     * Formatters::currency(1234567.89, show_symbol: true, allow_decimals: true)  // "$1,234,567.89"
-     * Formatters::currency(1234567, show_symbol: true, symbol: '€')   // "€1,234,567"
-     */
-    public static function currency(
-        $amount,
-        bool $show_symbol = false,
-        bool $allow_decimals = false,
-        string $symbol = '$',
-        string $currency = 'USD'
-    ): string {
-        if ($amount === null || $amount === '') {
-            return '';
-        }
-
-        // Decimal places asked for. CustomContext carries it into the Money, so the
-        // rounding happens once, inside the money type, at the scale being displayed.
-        $decimals = $allow_decimals ? 2 : 0;
-
-        // A non-numeric amount is not an error here - this is a display formatter, and
-        // it renders a zero exactly as it always has.
-        $numeric_amount = is_numeric($amount) ? (string)$amount : '0';
-
-        try {
-            $money = Money::of($numeric_amount, $currency, new CustomContext($decimals), RoundingMode::HalfUp);
-        } catch (MathException $e) {
-            // Reachable only for input is_numeric() accepted and BigDecimal will not
-            // (hexadecimal-ish and INF/NAN spellings). Same zero as above.
-            $money = Money::of('0', $currency, new CustomContext($decimals), RoundingMode::HalfUp);
-        }
-
-        $formatted = self::_group_decimal_string((string)$money->getAmount());
-
-        // Add currency symbol if enabled
-        if ($show_symbol) {
-            $formatted = $symbol . $formatted;
-        }
-
-        return $formatted;
-    }
-
-    /**
-     * Insert thousands separators into a plain decimal string.
-     *
-     * Takes "-1234567.89" to "-1,234,567.89". String in, string out - the digits are
-     * never routed through a float, which is the whole point of formatting the money
-     * amount rather than a cast of it.
-     *
-     * @param string $decimal Decimal string as produced by BigDecimal::__toString()
-     * @return string
-     * @private
-     */
-    private static function _group_decimal_string(string $decimal): string
-    {
-        $sign = '';
-
-        if (str_starts_with($decimal, '-')) {
-            $sign = '-';
-            $decimal = substr($decimal, 1);
-        }
-
-        $fraction = '';
-        $dot = strpos($decimal, '.');
-
-        if ($dot !== false) {
-            $fraction = substr($decimal, $dot);
-            $decimal = substr($decimal, 0, $dot);
-        }
-
-        return $sign . strrev(implode(',', str_split(strrev($decimal), 3))) . $fraction;
     }
 
     /**

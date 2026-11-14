@@ -78,7 +78,7 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
     {
         $product = new Demo_Product_Model();
         $product->name = static::__unique('TextType product');
-        $product->price = 1.00;
+        $product->price = '1.00';
         $product->status_id = Demo_Product_Model::STATUS_AVAILABLE;
         $product->category_id = Demo_Product_Model::CATEGORY_BOOKS;
         $product->save();

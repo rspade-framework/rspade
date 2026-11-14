@@ -23,6 +23,9 @@ class Projects_View_Action extends Spa_Action {
         };
         this.data.tasks = [];
         this.data.subprojects = [];
+        // The subprojects' budget total, an Rsx_Money summed by the database (null until it
+        // arrives, or when that call failed).
+        this.data.subprojects_budget = null;
         this.data.contacts = [];
         this.data.assigned_users = [];
         this.data.activity = [];
@@ -48,13 +51,14 @@ class Projects_View_Action extends Spa_Action {
             const [project, tasks_result, subprojects_result, people_result, activity_result] = await Promise.all([
                 Project_Model.fetch(this.args.id),
                 Frontend_Projects_Controller.project_tasks({id: this.args.id}).catch(() => ({tasks: []})),
-                Frontend_Projects_Controller.project_subprojects({id: this.args.id}).catch(() => ({subprojects: []})),
+                Frontend_Projects_Controller.project_subprojects({id: this.args.id}).catch(() => ({subprojects: [], subprojects_budget: null})),
                 Frontend_Projects_Controller.project_people({id: this.args.id}).catch(() => ({contacts: [], users: []})),
                 Activity_Feed.can_view() ? Frontend_Projects_Controller.project_activity({id: this.args.id}).catch(() => ({activity: []})) : {activity: []},
             ]);
             this.data.project = project;
             this.data.tasks = tasks_result.tasks;
             this.data.subprojects = subprojects_result.subprojects;
+            this.data.subprojects_budget = subprojects_result.subprojects_budget;
             this.data.contacts = people_result.contacts;
             this.data.assigned_users = people_result.users;
             // Decorate each activity entry with its Feed_Row icon/variant (shared map).

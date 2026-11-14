@@ -21,6 +21,13 @@
         const _project = this.data.project;
         const _tasks = this.data.tasks;
         const _subprojects = this.data.subprojects;
+        const _subprojects_budget = this.data.subprojects_budget;
+        // Money arithmetic: what this project's budget leaves after its subprojects' budgets.
+        // Negative means over-allocated. Only when the project has a budget - `!== null`,
+        // because an Rsx_Money is an object and an object is always truthy.
+        const _unallocated = (_project.budget !== null && _subprojects_budget !== null)
+            ? _project.budget.subtract(_subprojects_budget)
+            : null;
         const _contacts = this.data.contacts;
         const _assigned_users = this.data.assigned_users;
         const _activity = this.data.activity; const _can_view_activity = Activity_Feed.can_view();
@@ -81,7 +88,7 @@
                         </Section>
                         <% } %>
 
-                        <% if (_project.start_date || _project.due_date || _project.budget) { %>
+                        <% if (_project.start_date || _project.due_date || _project.budget !== null) { %>
                         <Section $title="Timeline & Budget">
                             <View_Fields>
                                 <View_Field $label="Start Date">
@@ -91,7 +98,7 @@
                                     <% if (_project.due_date) { %><%= Rsx_Date.format(_project.due_date) %><% } else { %><Empty_Value /><% } %>
                                 </View_Field>
                                 <View_Field $label="Budget">
-                                    <% if (_project.budget) { %><%= _project.budget_formatted %><% } else { %><Empty_Value /><% } %>
+                                    <% if (_project.budget !== null) { %><%= _project.budget %><% } else { %><Empty_Value /><% } %>
                                 </View_Field>
                             </View_Fields>
                         </Section>
@@ -180,7 +187,7 @@
                                 <% } else { %>
                                     <Record_Table>
                                         <thead>
-                                            <tr><th>Name</th><th>Status</th><th>Priority</th><th>Due Date</th></tr>
+                                            <tr><th>Name</th><th>Status</th><th>Priority</th><th>Due Date</th><th>Budget</th></tr>
                                         </thead>
                                         <tbody>
                                             <% for (const sub of _subprojects) { %>
@@ -198,9 +205,26 @@
                                                 <td>
                                                     <% if (sub.due_date) { %><%= Rsx_Date.format(sub.due_date) %><% } else { %><Empty_Value /><% } %>
                                                 </td>
+                                                <td>
+                                                    <% if (sub.budget !== null) { %><%= sub.budget %><% } else { %><Empty_Value /><% } %>
+                                                </td>
                                             </tr>
                                             <% } %>
                                         </tbody>
+                                        <% if (_subprojects_budget !== null) { %>
+                                        <tfoot>
+                                            <tr>
+                                                <th colspan="4">Total budget</th>
+                                                <td><%= _subprojects_budget %></td>
+                                            </tr>
+                                            <% if (_unallocated !== null) { %>
+                                            <tr>
+                                                <th colspan="4">Unallocated</th>
+                                                <td><Money_Display $value=_unallocated $negative_red=true /></td>
+                                            </tr>
+                                            <% } %>
+                                        </tfoot>
+                                        <% } %>
                                     </Record_Table>
                                 <% } %>
                             </Slot:body>

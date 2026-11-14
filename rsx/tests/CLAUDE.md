@@ -2,13 +2,13 @@
 
 ## WHAT IS HERE
 
-Seventy-three test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Seventy-four test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
 - **The reference**: `Example_Test` — the runnable template for the assertion API,
   `__assert_throws` and `__acting_as_site`.
-- **App libraries**: `Formatters_Test` (phone and currency, transactions off),
+- **App libraries**: `Formatters_Test` (phone, transactions off),
   `Analytics_Test` (the external-resource example ships inert).
 - **Domain models**: `Party_Test` (class-table inheritance end to end, a Group rename, and
   an edit validated against the STORED type),
@@ -44,8 +44,17 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   API: lengths, status and contact-method vocabularies, the year, http(s)-only links, tag
   shape, a blank API name), `Contact_Validation_Test` (staff save and API: lengths, secondary
   email, priority, blank API names), `Crud_Validation_Test` (projects, tasks and parties:
-  lengths, ISO dates, enums, an exact budget with 0 stored as 0.00, pivot ids that are not
-  ids; plus the shared `Field_Checks` URL and decimal rules).
+  lengths, ISO dates, enums, a budget refused with its own message when it is not an amount,
+  has a third decimal place or is negative, 0 stored as 0.00, pivot ids that are not ids;
+  plus the shared `Field_Checks` URL rule).
+- **Money**: `Project_Budget_Test` — a project's budget, the template's money column, through
+  the save endpoint: a typed `$1,234.50` stored as 1234.50, a blank as NULL, `12.345` /
+  `(5.00)` / `12,34` and an amount larger than the DECIMAL(15,2) column holds refused as
+  field errors on `budget` writing nothing (the column's maximum saves), the same amount
+  re-saved typed differently writing nothing (no revision, `updated_at` unmoved); the
+  subprojects endpoint's per-row budgets and `sum_money()` total ($0.00 for none) and the
+  view's Unallocated figure, negative when over-allocated; the CSV cell is the exact decimal;
+  a float, or an amount larger than the column holds, assigned to the column throws.
 - **Error pages**: `App_Error_Pages_Test` — this application's `/error/` declarations actually
   answer: an unmatched staff URL and a gate denial render `Errors_Layout` with 404 and 403,
   a foreign-origin form POST renders the 419 page, a portal failure renders
@@ -294,7 +303,12 @@ node rsx/tests/playwright/modal_enter_accepts.js
 ```
 
 Each mints its own dev-auth headers through `system/bin/dev-auth.js`, exits 0 on pass and 1
-on failure, and prints `PASS:`/`FAIL:` lines.
+on failure, and prints `PASS:`/`FAIL:` lines. A script opens its page with
+`goto(..., {waitUntil: 'commit'})` and then `await_spa_ready()`: a bounded POLL for the
+SPA's boot, each probe its own `page.evaluate`, so a document still loading under the wait
+is "not yet" - one long-lived evaluate or `waitForFunction()` dies with "Execution context
+was destroyed". Its bound is `WAIT_MS`, 100 times what the event takes on an idle box, and
+reaching it fails naming the condition.
 
 - `modal_enter_accepts.js` — Enter activates the open dialog's `default: true` button.
   Covers the four cases the behavior has to get right: a simple dialog answers, a
@@ -317,6 +331,11 @@ on failure, and prints `PASS:`/`FAIL:` lines.
   dropping markup it did not author. Waits on the async mounts and the form's populate
   rather than sampling early, because a sleep would be flaky in exactly the direction that
   hides a regression.
+
+- `project_budget_round_trip.js` — a project's budget through the real edit form: `1,234.5`
+  typed into `Money_Input` is stored as 1234.50, printed `$1,234.50` on the view and loaded
+  back as `1234.50`; a blank saves no budget; `12.345` stays in the box as typed with the
+  field error under it and nothing saved. Uses project 1 and restores its budget.
 
 - `sidebar_trail_root.js` — `Sidebar_Nav.follow_trail()`: a contact opened through a
   breadcrumb origin from its client (declared at run time on `Contacts_View_Action`; the

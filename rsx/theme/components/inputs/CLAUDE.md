@@ -6,8 +6,7 @@ One subdirectory per input family; every input extends the framework's
 `Form_Input_Abstract` and owns exactly one named value.
 
 - `text/` — `Text_Input` (the `$max_length` rule below is its), plus the subclasses
-  `Phone_Text_Input` (libphonenumber, E.164), `Currency_Input` (`$decimals` default 2,
-  `$prefix` default `'$'`, `$commas` default true) and `Time_Entry_Input` (hours, with
+  `Phone_Text_Input` (libphonenumber, E.164) and `Time_Entry_Input` (hours, with
   minutes accepted after a colon) — see NUMERIC INPUTS below;
   `phone_libphonenumber_bundle.php` declares the phone vendor bundle.
 - `select/` — `Select_Input` (TomSelect) and its own SCSS, `Select_Ajax_Input`,
@@ -41,24 +40,31 @@ forwards the same two. Which token and id a credential field gets is the page's 
 
 ## NUMERIC INPUTS
 
-A field that holds a number invokes the framework's jQuery filter and configures it; it
+**An amount of money is not a number field here.** A money column (`'money' => true` in the
+model's `$columns`) is edited by the framework's `Money_Input`, which every bundle carries:
+its value is an `Rsx_Money`, null for an empty box, or the typed text when that does not
+parse - so the endpoint's `Model::money_from_submitted('col', $value)` refuses it with its own message.
+Typing is never filtered. The project form is the worked example
+(`<Money_Input $name="budget" />`, seeded with null or the `Rsx_Money`, never `''`; no
+`$max_length`). `rsx:man money`.
+
+A field that holds any other number invokes the framework's jQuery filter and configures it; it
 never filters digits itself:
 
 ```javascript
-this.$sid('input').rsx_numeric({decimals: 2, commas: true, prefix: '$'});
+this.$sid('input').rsx_numeric({time: true});
 ```
 
 The filter accepts digits and, when `decimals` allows it, one `.`; it writes the separators
 and the prefix inline as the user types; and it leaves `.val()` answering the RAW number
 both ways, through a `$.valHooks.text` entry. So the component inherits
-`Text_Input._get_value()` / `_set_value()` and declares nothing of its own -
-`Currency_Input` is the whole worked example, and its class body is the call.
+`Text_Input._get_value()` / `_set_value()` and declares nothing of its own.
 
-A field holding HOURS passes `time: true` instead, which accepts a colon and converts it
-to decimal hours - `1:30` becomes `1.5`, `:90` becomes `1.5`, `1:20` becomes `1.33` - at
-the getter, the setter and blur, leaving the colon form as typed while the field is
-focused. `decimals` is forced to 2 there, so `Time_Entry_Input` takes no `$decimals` and
-its class body is the single call, exactly like `Currency_Input`'s.
+A field holding HOURS passes `time: true`, which accepts a colon and converts it to decimal
+hours - `1:30` becomes `1.5`, `:90` becomes `1.5`, `1:20` becomes `1.33` - at the getter,
+the setter and blur, leaving the colon form as typed while the field is focused. `decimals`
+is forced to 2 there, so `Time_Entry_Input` takes no `$decimals`; it is the worked example,
+and its class body is the single call above.
 
 The framework's `Code_Input` (a one-time code, one digit per box - core, not in this
 directory) is deliberately not one of these: a code is a string of digits rather than a
@@ -100,8 +106,8 @@ Which component edits which type is declared by the type itself (`static EDITOR`
   BEM prefix. A third-party widget's own markup is restyled globally instead:
   `rsx/theme/tom_select.scss` is the worked example — a prebuilt stylesheet re-pointed
   rule by rule onto the theme's runtime colour tokens.
-- **A variant is a subclass, not a fork.** `Phone_Text_Input`, `Currency_Input` and
-  `Time_Entry_Input` extend `Text_Input`; copying the file is how two inputs drift apart.
+- **A variant is a subclass, not a fork.** `Phone_Text_Input` and `Time_Entry_Input`
+  extend `Text_Input`; copying the file is how two inputs drift apart.
 - **Never implement `val()`**, never add a client-side required/format/length check, and
   never rename the `$name` flow — the input stamps `data-name`, `Form_Field` reads it.
 - A vendor library an input needs is declared in a `*_bundle.php` beside it, never
@@ -288,8 +294,7 @@ changes it:
   the state it was given in `_wanted` and reports that, whether or not the current country's
   list can show it.
 - **A filter or library goes on BEFORE `_mark_ready()`**, so the buffered value passes
-  through it: `Currency_Input` and `Time_Entry_Input` call `rsx_numeric()` before
-  `super.on_ready()`.
+  through it: `Time_Entry_Input` calls `rsx_numeric()` before `super.on_ready()`.
 - **Inside an input, a USER-driven write is `_set_value()` + `_notify_input()`, never
   `this.val()`.** `val()` is the programmatic door: it makes the written value the new
   unchanged state, so an upload or a removal written through it reads as no change at all
@@ -394,7 +399,7 @@ class Select_Ajax_Input extends Select_Input {
 - `-1`: Unlimited (no maxlength applied)
 - Undefined: Console error with guidance
 
-**Subclasses are exempt.** Components extending `Text_Input` (like `Phone_Text_Input`, `Currency_Input`, `Time_Entry_Input`) bypass this check since they have intrinsic limits.
+**Subclasses are exempt.** Components extending `Text_Input` (like `Phone_Text_Input`, `Time_Entry_Input`) bypass this check since they have intrinsic limits.
 
 `field_length()` answers from the live database schema (the page's field-length script):
 ```javascript

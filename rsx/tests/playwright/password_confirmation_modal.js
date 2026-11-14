@@ -26,20 +26,44 @@ const BASE_URL = 'http://localhost';
 const ROUTE = '/frontend/settings/password_security';
 const USER_ID = 1;
 
+// A bounded poll for an event that takes about two seconds on an idle box: 100x that, and
+// expiry fails the run naming the condition it was waiting for.
+const WAIT_MS = 180000;
+
 function fail(msg) {
     console.log('FAIL: Password confirmation dialog - ' + msg);
     process.exitCode = 1;
 }
 
+/**
+ * Wait until the page's SPA has finished booting (Rsx '_debug_ready'). A bounded POLL, each
+ * probe its own evaluate: the document the goto committed can still be replaced while it loads
+ * ("Execution context was destroyed"), and a probe that dies with it, or runs before the
+ * bundle defines Rsx, counts as "not yet". Rsx.on() calls back at once for an event already
+ * triggered, so a probe answers immediately either way.
+ */
 async function await_spa_ready(page) {
-    await page.evaluate(() => new Promise((resolve) => {
-        if (typeof Rsx !== 'undefined' && Rsx.on) {
-            Rsx.on('_debug_ready', () => resolve());
-            setTimeout(resolve, 15000);
-        } else {
-            setTimeout(resolve, 3000);
+    const deadline = Date.now() + WAIT_MS;
+    let last_error = null;
+    for (;;) {
+        try {
+            const ready = await page.evaluate(() => new Promise((resolve) => {
+                Rsx.on('_debug_ready', () => resolve(true));
+                resolve(false);
+            }));
+            if (ready) {
+                return;
+            }
+            last_error = null;
+        } catch (e) {
+            last_error = e;
         }
-    }));
+        if (Date.now() >= deadline) {
+            throw new Error('never reached: the page finished booting (Rsx _debug_ready)'
+                + (last_error ? ' (last probe: ' + last_error.message.split('\n')[0] + ')' : ''));
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+    }
 }
 
 /** Start require() without awaiting it; its answer lands in window.__confirm_result. */

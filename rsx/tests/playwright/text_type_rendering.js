@@ -27,28 +27,44 @@ const USER_ID = 1;
 const EDIT_ROUTE = '/projects/edit/1';
 const VIEW_ROUTE = '/projects/view/1';
 
+// A bounded poll for an event that takes about two seconds on an idle box: 100x that, and
+// expiry fails the run naming the condition it was waiting for.
+const WAIT_MS = 180000;
+
 function fail(msg) {
     console.log('FAIL: text type rendering - ' + msg);
     process.exitCode = 1;
 }
 
+/**
+ * Wait until the page's SPA has finished booting (Rsx '_debug_ready'). A bounded POLL, each
+ * probe its own evaluate: the document the goto committed can still be replaced while it loads
+ * ("Execution context was destroyed"), and a probe that dies with it, or runs before the
+ * bundle defines Rsx, counts as "not yet". Rsx.on() calls back at once for an event already
+ * triggered, so a probe answers immediately either way.
+ */
 async function await_spa_ready(page) {
-    // Bundle classes are NOT on window - they live in the bundle's own scope and are
-    // reached through the manifest registry, which is the same door application code uses.
-    await page.waitForFunction(
-        () => typeof Manifest !== 'undefined' && !!Manifest.get_class_by_name('Project_Model'),
-        { timeout: 20000 }
-    );
-
-    await page.evaluate(() => new Promise((resolve) => {
-        if (typeof Rsx !== 'undefined' && Rsx.on) {
-            Rsx.on('_debug_ready', () => resolve());
-            setTimeout(resolve, 15000);
-        } else {
-            setTimeout(resolve, 3000);
+    const deadline = Date.now() + WAIT_MS;
+    let last_error = null;
+    for (;;) {
+        try {
+            const ready = await page.evaluate(() => new Promise((resolve) => {
+                Rsx.on('_debug_ready', () => resolve(true));
+                resolve(false);
+            }));
+            if (ready) {
+                return;
+            }
+            last_error = null;
+        } catch (e) {
+            last_error = e;
         }
-    }));
-
+        if (Date.now() >= deadline) {
+            throw new Error('never reached: the page finished booting (Rsx _debug_ready)'
+                + (last_error ? ' (last probe: ' + last_error.message.split('\n')[0] + ')' : ''));
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+    }
 }
 
 (async () => {
@@ -113,8 +129,12 @@ async function await_spa_ready(page) {
             const Raw_Text = Manifest.get_class_by_name('Raw_Text');
             const Frontend_Projects_Controller = Manifest.get_class_by_name('Frontend_Projects_Controller');
 
+            // An edit says what it was edited from and which fields it changes, as an
+            // <Rsx_Form> does (Form_Edit writes only the fields named in _changed).
             const before = await Project_Model.fetch(1);
             await Frontend_Projects_Controller.save({
+                _loaded_updated_at: before.updated_at,
+                _changed: ['description', 'notes'],
                 id: 1,
                 name: before.name,
                 client_id: before.client_id,
@@ -199,8 +219,12 @@ async function await_spa_ready(page) {
 
             // Save the record back UNTOUCHED. Anything the editor cannot represent is lost
             // here, and lost silently - which is exactly the failure being guarded against.
+            // Both text fields are named as changed, so the editors' values are written to
+            // storage - an edit naming nothing would write nothing and prove nothing.
             const record = await Project_Model.fetch(1);
             await Frontend_Projects_Controller.save({
+                _loaded_updated_at: record.updated_at,
+                _changed: ['description', 'notes'],
                 id: 1,
                 name: record.name,
                 client_id: record.client_id,

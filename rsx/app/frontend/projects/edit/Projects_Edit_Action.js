@@ -23,9 +23,10 @@ class Projects_Edit_Action extends Spa_Action {
         this.data.from_client = !!this.args.client_id;
 
         // Form data stub - provide empty strings for all fields to avoid undefined.
-        // EXCEPT the declared text-type columns (description, notes): their inputs edit a
-        // value object, and '' is a string. null is the right empty for them - it is what
-        // the column holds when it has no content, and every input handles it.
+        // EXCEPT the value-object columns - the declared text types (description, notes) and
+        // the money column (budget): their inputs edit a value object, and '' is a string.
+        // null is the right empty for them - it is what the column holds when it has no
+        // value, and every such input handles it.
         this.data.form_data = {
             name: '',
             description: null,
@@ -36,7 +37,7 @@ class Projects_Edit_Action extends Spa_Action {
             priority: Project_Model.PRIORITY_MEDIUM,
             start_date: '',
             due_date: '',
-            budget: '',
+            budget: null,
             notes: null,
             contacts: [],
             assigned_users: [],
@@ -65,9 +66,9 @@ class Projects_Edit_Action extends Spa_Action {
                     updated_at: project.updated_at,
                     id: project.id,
                     name: project.name || '',
-                    // No `|| ''` on the text-type columns: the value is an object, and
-                    // coercing an absent one to a string would hand the editor something
-                    // it refuses. null passes through as null.
+                    // No `|| ''` on the value-object columns (description, budget, notes):
+                    // the value is an object, and coercing an absent one to a string would
+                    // hand the editor something it refuses. null passes through as null.
                     description: project.description,
                     client_id: project.client_id || '',
                     parent_project_id: project.parent_project_id || '',
@@ -75,7 +76,7 @@ class Projects_Edit_Action extends Spa_Action {
                     priority: project.priority || Project_Model.PRIORITY_MEDIUM,
                     start_date: project.start_date || '',
                     due_date: project.due_date || '',
-                    budget: project.budget || '',
+                    budget: project.budget,
                     notes: project.notes,
                     contacts: [],
                     assigned_users: [],

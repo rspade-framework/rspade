@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Database\Money\Rsx_Money_Exception;
 use App\RSpade\Core\Forms\Form_Edit;
 use App\RSpade\Core\Models\User_Model;
 use App\RSpade\Core\Response\Error_Response;
@@ -177,15 +178,23 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
             }
         }
 
-        // Budget: blank is no budget; anything else is an exact amount the DECIMAL column
-        // holds - zero included. Never a float.
+        // Budget: a money column. money_from_submitted() reads what the person typed
+        // ("$1,234.50", "1234.5", "(5.00)") as an exact Rsx_Money, a blank as null - no
+        // budget, never zero - and refuses anything else with a message worded for the person
+        // (not an amount, more than two decimal places, larger than the budget column can
+        // hold). That refusal is a field error; any other exception is a coding error and is
+        // left to fail loud.
         $budget = null;
-        $budget_sent = $params['budget'] ?? null;
-        if ($budget_sent !== null && $budget_sent !== '') {
-            $budget = Field_Checks::decimal_amount($budget_sent, Project_Model::BUDGET_PRECISION, Project_Model::BUDGET_SCALE);
-            if ($budget === null) {
-                $errors['budget'] = 'Budget must be an amount of zero or more, with at most two decimal places';
+        try {
+            $budget = Project_Model::money_from_submitted('budget', $params['budget'] ?? null);
+        } catch (Rsx_Money_Exception $e) {
+            if (!$e->is_input_problem()) {
+                throw $e;
             }
+            $errors['budget'] = $e->getMessage();
+        }
+        if ($budget !== null && $budget->is_negative()) {
+            $errors['budget'] = 'Budget must be zero or more.';
         }
 
         // A pivot list is a list of record ids; anything else ("abc", 0, a nested array) is
@@ -292,7 +301,12 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
      * Ajax endpoint: Get subprojects (direct children) of a project.
      *
      * Row shape mirrors the other project-list endpoints (id, name, status/priority label +
-     * badge, due_date) so a Record_Table can render them verbatim.
+     * badge, due_date) so a Record_Table can render them verbatim, plus each row's `budget`
+     * (an Rsx_Money or null: it travels as the {__MONEY} envelope and arrives as an Rsx_Money).
+     *
+     * `subprojects_budget` is the total of those budgets, summed by the database through
+     * sum_money() - exact, an Rsx_Money, and $0.00 when there are no subprojects or none has a
+     * budget (SQL's SUM skips a NULL budget).
      */
     #[Ajax_Endpoint]
     public static function project_subprojects(Request $request, array $params = [])
@@ -319,10 +333,14 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
                 'priority__label' => $sub->priority__label,
                 'priority__badge' => $sub->priority__badge,
                 'due_date' => $sub->due_date,
+                'budget' => $sub->budget,
             ];
         }
 
-        return ['subprojects' => $result];
+        return [
+            'subprojects' => $result,
+            'subprojects_budget' => Project_Model::where('parent_project_id', $project->id)->sum_money('budget'),
+        ];
     }
 
     /**
@@ -554,7 +572,9 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
                 $project->start_date,
                 $project->due_date,
                 $project->completed_date,
-                $project->budget,
+                // A money column reads as an Rsx_Money, which refuses to BE a string; the CSV
+                // cell is its exact machine-readable decimal ("1234.50"), or empty for none.
+                $project->budget?->to_decimal(),
                 $project->created_at,
                 // Both columns have a declared text type, so these are value objects and
                 // not strings, and a value object refuses to BE a string - handing one to

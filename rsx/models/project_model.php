@@ -5,7 +5,6 @@ namespace Rsx\Models;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\RSpade\Core\Database\Models\Rsx_Site_Model_Abstract;
 use App\RSpade\Core\Models\User_Model;
-use Rsx\Lib\Formatters;
 use Rsx\Lib\TextTypes\RawText\Raw_Text;
 use Rsx\Lib\TextTypes\RichText\Rich_Text;
 use Rsx\Models\Client_Department_Model;
@@ -18,7 +17,7 @@ use Rsx\Models\Task_Model;
  * _AUTO_GENERATED_ Database type hints - do not edit manually
  * Table: projects
  *
- * @property string $budget decimal
+ * @property \App\RSpade\Core\Database\Money\Rsx_Money $budget money: a value object, two decimal places, never a float
  * @property int $client_department_id
  * @property int $client_id
  * @property string $completed_date
@@ -103,13 +102,6 @@ class Project_Model extends Rsx_Site_Model_Abstract
     public static $revisions = true;
 
     /**
-     * The shape of the budget column, DECIMAL(15,2): the digits it holds and the digits
-     * after the point. The save endpoint checks a submitted amount against them.
-     */
-    const BUDGET_PRECISION = 15;
-    const BUDGET_SCALE = 2;
-
-    /**
      * Column declarations (see rsx:man model).
      *
      * TEXT TYPES - `description` is authored in a WYSIWYG and holds HTML; `notes` is a plain
@@ -119,6 +111,11 @@ class Project_Model extends Rsx_Site_Model_Abstract
      * component on a live page, rendered by to_html() into a server-generated document, and
      * reduced by to_plain_text() for a CSV cell or a search index. A TEXT column with no
      * text_type entry is an ordinary string; declaration is opt-in.
+     *
+     * MONEY - `budget` is an amount of money, so it reads as an Rsx_Money: exact to the cent,
+     * never a float, printed by `<%= project.budget %>` in a template and totalled with
+     * sum_money('budget'). It is null when the project has no budget, and an object is always
+     * truthy, so "has a budget" is `!== null`, never a truthiness test (rsx:man money).
      */
     public static $columns = [
         'status' => ['enum' => [
@@ -136,6 +133,7 @@ class Project_Model extends Rsx_Site_Model_Abstract
         ]],
         'description' => ['text_type' => Rich_Text::class],
         'notes' => ['text_type' => Raw_Text::class],
+        'budget' => ['money' => true],
     ];
 
     /**
@@ -149,7 +147,7 @@ class Project_Model extends Rsx_Site_Model_Abstract
      *
      * @var array
      */
-    protected $appends = ['project_id_formatted', 'budget_formatted'];
+    protected $appends = ['project_id_formatted'];
 
     /**
      * Get formatted project ID for display
@@ -169,30 +167,6 @@ class Project_Model extends Rsx_Site_Model_Abstract
     public function getProjectIdFormattedAttribute(): string
     {
         return $this->project_id_formatted();
-    }
-
-    /**
-     * Get formatted budget for display
-     *
-     * Through Formatters::currency(), which carries the amount as an exact decimal
-     * (brick/money) instead of casting the DECIMAL column to a float. The column holds
-     * money; nothing in its path to the screen is allowed to round it on the way.
-     *
-     * @return string|null
-     */
-    public function budget_formatted()
-    {
-        return $this->budget ? Formatters::currency($this->budget, show_symbol: true, allow_decimals: true) : null;
-    }
-
-    /**
-     * Accessor for the appended `budget_formatted` property. Delegates - never re-implements.
-     *
-     * @return string|null
-     */
-    public function getBudgetFormattedAttribute()
-    {
-        return $this->budget_formatted();
     }
 
     /**
@@ -349,8 +323,8 @@ class Project_Model extends Rsx_Site_Model_Abstract
             return false;
         }
 
-        // No hand-added keys: project_id_formatted and budget_formatted are declared appended
-        // properties ($appends above), so toArray() already carries them.
+        // No hand-added keys: project_id_formatted is a declared appended property ($appends
+        // above), so toArray() already carries it.
         return $project->toArray();
     }
 }

@@ -1,6 +1,6 @@
 ---
 name: form-components
-description: "Laying out a form from this application's field chrome and inputs - Form_Field ($required, $help, Slot:label), Rsx_Tabs error badges, Text_Input and its $max_length rule, the Select_*_Input family, Tag_List_Input, Wysiwyg_Input, Currency_Input, Time_Entry_Input, Phone_Text_Input and the rest. Use when choosing or adding an input, wiring a date or time field, or on 'requires $max_length' or 'Form_Field_Abstract has no Form_Input_Abstract child'."
+description: "Laying out a form from this application's field chrome and inputs - Form_Field ($required, $help, Slot:label), Rsx_Tabs error badges, Text_Input and its $max_length rule, the Select_*_Input family, Tag_List_Input, Wysiwyg_Input, Money_Input, Time_Entry_Input, Phone_Text_Input and the rest. Use when choosing or adding an input, wiring a date or time field, or on 'requires $max_length' or 'Form_Field_Abstract has no Form_Input_Abstract child'."
 ---
 
 # Form chrome and the input roster
@@ -118,7 +118,6 @@ Every one extends `Form_Input_Abstract` and lives under `rsx/theme/components/in
 | Input | Directory | What it is |
 |---|---|---|
 | `Text_Input` | `text/` | the workhorse: text, `$type="email\|password\|number\|textarea\|date\|time\|datetime-local"`, `$rows` |
-| `Currency_Input` | `text/` | `Text_Input` over the `rsx_numeric()` filter: `$decimals` (2), `$prefix` (`'$'`), `$commas` (true); `.val()` is the raw number |
 | `Time_Entry_Input` | `text/` | `Text_Input` over the same filter in `time` mode: hours, with minutes accepted after a colon (`1:30` -> `1.5`); `.val()` is always decimal hours |
 | `Phone_Text_Input` | `text/` | `Text_Input` with libphonenumber formatting; stores E.164 |
 | `Select_Input` | `select/` | TomSelect-backed single select |
@@ -129,6 +128,7 @@ Every one extends `Form_Input_Abstract` and lives under `rsx/theme/components/in
 | `Checkbox_Multiselect_Input` | `checkbox_multiselect_input/` | a checkbox list; the value is an array of ids |
 | `Tag_List_Input` | `tag_list/` | a list of short strings as ONE value |
 | `Repeater_Simple` | `repeater/` | a list of values built with any other input as the row editor |
+| `Money_Input` | framework core | a money column (`'money' => true`); `.val()` is an `Rsx_Money`, null for an empty box, or the typed text when it does not parse (the endpoint's `Model::money_from_submitted('col', $value)` refuses it as a field error). Seed it with null or the `Rsx_Money`, never `''`; no `$max_length`. Typing is never filtered. `rsx:man money`, skill `rspade:money` |
 | `Code_Input` | framework core | a one-time numeric code, one digit per box (`$length`, `$align="center"`); `rsx:man form_input` |
 | `Wysiwyg_Input` | `wysiwyg/` | Quill rich text. Edits a `Rich_Text` VALUE, not a string |
 | `Raw_Text_Input` | `raw_text/` | textarea editing a `Raw_Text` value |
@@ -137,7 +137,7 @@ Every one extends `Form_Input_Abstract` and lives under `rsx/theme/components/in
 
 **`Text_Input` requires `$max_length`** and throws without it: pass
 `Model.field_length('column')`, a literal number, or `-1` for "no limit". Subclasses
-(`Currency_Input`, `Time_Entry_Input`, `Phone_Text_Input`) are exempt - the check fires only when
+(`Time_Entry_Input`, `Phone_Text_Input`) are exempt - the check fires only when
 `Text_Input` is used directly.
 
 **Every field with no token renders `autocomplete="off"`** (the framework turns on jqhtml's

@@ -134,6 +134,8 @@ class Task_Model extends Rsx_Site_Model_Abstract
      * `project_id` is derived by derive_project_id() from the parent pair and the
      * user-editable `direct_project_id`; it is never assigned (see "The task's project"
      * below).
+     *
+     * `hour_estimate` is a DECIMAL holding hours, not money: the empty entry says so.
      */
     public static $columns = [
         'taskable_type' => ['type_ref' => true],
@@ -151,6 +153,7 @@ class Task_Model extends Rsx_Site_Model_Abstract
             4 => ['constant' => 'PRIORITY_URGENT', 'label' => 'Urgent', 'badge' => 'bg-danger'],
         ]],
         'project_id' => ['derived' => 'derive_project_id', 'from' => ['taskable_type', 'taskable_id', 'direct_project_id']],
+        'hour_estimate' => [],
     ];
 
     /**

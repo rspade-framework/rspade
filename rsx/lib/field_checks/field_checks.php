@@ -6,9 +6,6 @@
 
 namespace Rsx\Lib\FieldChecks;
 
-use Brick\Math\BigDecimal;
-use Brick\Math\Exception\MathException;
-
 /**
  * Field_Checks - the server-side value checks every save endpoint in this application shares.
  *
@@ -25,10 +22,9 @@ use Brick\Math\Exception\MathException;
  *     (javascript:, data:, ftp:, a bare word) is refused before it can reach an <a href>.
  *   - website_short_url(): the client "website" spelling - scheme stripped for storage, and
  *     refused unless it is an http(s) address.
- *   - decimal_amount(): a money or quantity amount as an exact decimal string - never a
- *     float - or null when it is not one the column can hold.
  *
- * A date is checked with Rsx_Date::is_date() directly - the framework already answers it.
+ * A date is checked with Rsx_Date::is_date() directly, and an amount of money with
+ * Model::money_from_submitted('column', $value) - the framework already answers both.
  *
  * Every method answers; none of them writes, and none of them throws for bad INPUT. A
  * column that is not a character column passed to length_errors() is a programming error
@@ -162,54 +158,5 @@ class Field_Checks
         }
 
         return static::is_web_url('http://' . $short) ? $short : null;
-    }
-
-    /**
-     * A submitted amount as the exact decimal string a DECIMAL(precision, scale) column
-     * stores, or null when it is not one.
-     *
-     * Exact all the way: the value is parsed by brick/math (the library under brick/money),
-     * never through a float. Refused: anything that is not a plain decimal number, a negative
-     * amount, more fractional digits than the column keeps, and more integer digits than it
-     * holds. Zero is an amount ("0.00"), not "no value" - a blank submission is the caller's
-     * to treat as null before calling this.
-     *
-     * @param mixed $value Submitted amount
-     * @param int $precision Total digits the column holds
-     * @param int $scale Digits after the point
-     * @return string|null "1234.50", or null when the value is not an amount the column holds
-     */
-    public static function decimal_amount($value, int $precision, int $scale): ?string
-    {
-        if (is_int($value)) {
-            $value = (string) $value;
-        }
-
-        if (!is_string($value) || !preg_match('/^\d+(\.\d+)?$/', trim($value))) {
-            return null;
-        }
-
-        try {
-            $amount = BigDecimal::of(trim($value));
-        } catch (MathException $e) {
-            return null;
-        }
-
-        if ($amount->getScale() > $scale) {
-            $amount = $amount->strippedOfTrailingZeros();
-
-            if ($amount->getScale() > $scale) {
-                return null;
-            }
-        }
-
-        $amount = $amount->toScale($scale);
-        $integer_digits = strlen((string) $amount->getIntegralPart());
-
-        if ($integer_digits > $precision - $scale) {
-            return null;
-        }
-
-        return (string) $amount;
     }
 }
