@@ -22,6 +22,9 @@ use App\RSpade\Core\Database\TextTypes\Rsx_Text_Abstract;
  *
  * A column with no declaration at all is still an ordinary string and still works - this
  * type is what you reach for when you want the column to MEAN something.
+ *
+ * The stored form is plain text, so the type inherits STORES_HTML false and its column is
+ * never named `_html` (`notes`, not `notes_html`): that suffix is for a stored HTML string.
  */
 class Raw_Text extends Rsx_Text_Abstract
 {

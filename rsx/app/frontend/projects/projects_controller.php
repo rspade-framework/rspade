@@ -480,7 +480,7 @@ class Frontend_Projects_Controller extends Rsx_Controller_Abstract
                 // the CSV writer would throw. to_plain_text() is the explicit ask: the markup
                 // and the encoding come off, the content stays. No strip_tags() here, and
                 // nothing to keep in agreement with how the same columns print on a page.
-                $project->description?->to_plain_text(),
+                $project->description_html?->to_plain_text(),
                 $project->notes?->to_plain_text(),
             ];
         }

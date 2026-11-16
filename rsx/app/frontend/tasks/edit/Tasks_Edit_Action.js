@@ -26,9 +26,9 @@ class Tasks_Edit_Action extends Spa_Action {
 
         this.data.form_data = {
             title: '',
-            // `description` is a declared text type: its input edits a value object, and
+            // `description_html` is a declared text type: its input edits a value object, and
             // '' is a string the editor refuses. null is the right empty.
-            description: null,
+            description_html: null,
             status: Task_Model.STATUS_PENDING,
             priority: Task_Model.PRIORITY_MEDIUM,
             due_date: '',
@@ -59,7 +59,7 @@ class Tasks_Edit_Action extends Spa_Action {
                 title: task.title || '',
                 // No `|| ''` on a text-type column: the value is an object, and coercing
                 // an absent one to a string would hand the editor something it refuses.
-                description: task.description,
+                description_html: task.description_html,
                 status: task.status || Task_Model.STATUS_PENDING,
                 priority: task.priority || Task_Model.PRIORITY_MEDIUM,
                 due_date: task.due_date || '',

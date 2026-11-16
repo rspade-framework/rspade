@@ -16,7 +16,7 @@ docs live in framework core (`App\RSpade\Core\Api`).
   The project a write sends is `direct_project_id`; `project_id` is derived (the project the
   parent chain reaches, else `direct_project_id`), so it is not a write parameter and sending
   it is a 422 "Unknown parameter". Responses carry both; the list filters on `project_id`.
-  `description` (a `Rich_Text` column) reads as its HTML string and is written through
+  `description_html` (a `Rich_Text` column) reads as its HTML string and is written through
   `Rich_Text::from_untrusted_encoded()`, so a client that sends back what it read stores the
   same value.
 - `v1/projects_api_controller.php` - project list/get/create/update (no delete, no contact or
@@ -183,7 +183,7 @@ browser's Ajax form and never appear here; the dispatcher makes every value plai
 endpoint returns the model as it is. A text WRITE names its door: assign the string bare for a
 field documented as text (`notes` here, `Raw_Text`, where both doors are the same), or pass it
 through `Type::from_untrusted_encoded()` for a field the API reads as its encoding
-(`description` in the tasks API). A `money` param reaches the endpoint as an `Rsx_Money`;
+(`description_html` in the tasks API). A `money` param reaches the endpoint as an `Rsx_Money`;
 one stored in a money column declares `column: 'Model_Name.column'`, so an amount the column
 cannot hold is the field's 422 before the endpoint runs (`budget` in the projects API). A
 computed amount (a `sum_money()` total, an `Rsx_Money` result) is placed in the answer as it

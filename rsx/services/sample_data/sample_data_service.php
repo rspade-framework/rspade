@@ -241,7 +241,7 @@ class Sample_Data_Service extends Rsx_Service_Abstract
         $project = new Project_Model();
         $project->site_id = $client->site_id;
         $project->name = $data['name'];
-        $project->description = Rich_Text::from_plain_text($data['description']);
+        $project->description_html = Rich_Text::from_plain_text($data['description']);
         $project->client_id = $client->id;
         $project->parent_project_id = $parent?->id;
         $project->status = constant(Project_Model::class . '::STATUS_' . $data['status']);
@@ -290,7 +290,7 @@ class Sample_Data_Service extends Rsx_Service_Abstract
         $task = new Task_Model();
         $task->site_id = $site_id;
         $task->title = $data['title'];
-        $task->description = isset($data['description']) ? Rich_Text::from_plain_text($data['description']) : null;
+        $task->description_html = isset($data['description']) ? Rich_Text::from_plain_text($data['description']) : null;
         $task->taskable_type = $parent_type;
         $task->taskable_id = $parent_id;
         $task->status = constant(Task_Model::class . '::STATUS_' . $data['status']);
@@ -399,7 +399,7 @@ class Sample_Data_Service extends Rsx_Service_Abstract
         foreach ($products as $data) {
             $product = new Demo_Product_Model();
             $product->name = $data['name'];
-            $product->description = Rich_Text::from_plain_text($data['description']);
+            $product->description_html = Rich_Text::from_plain_text($data['description']);
             $product->price = $data['price'];
             $product->status_id = constant(Demo_Product_Model::class . '::STATUS_' . $data['status']);
             $product->category_id = constant(Demo_Product_Model::class . '::CATEGORY_' . $data['category']);

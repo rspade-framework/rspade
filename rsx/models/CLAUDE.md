@@ -147,9 +147,11 @@ the grouping is for readers only):
   TEXT column holds (`Rich_Text`, `Raw_Text` — see `rsx/lib/text_types/CLAUDE.md`). A
   declared column is read as a value object, filtered by its type on write, and printed by
   its type's component instead of by whatever escape the template picked. `Project_Model`
-  and `Client_Model` are the worked examples; every `description` column in this
+  and `Client_Model` are the worked examples; every `description_html` column in this
   application is declared `Rich_Text` — `Project_Model`, `Task_Model` and
-  `Demo_Product_Model` — and `Project_Model::$notes` is the `Raw_Text` one. An
+  `Demo_Product_Model` — and `Project_Model::$notes` is the `Raw_Text` one. A column whose
+  stored value is HTML is named `<thing>_html`; a plain-text one (`notes`) is not
+  (`MODEL-TEXT-HTML-01` checks both directions against the type's `STORES_HTML`). An
   undeclared TEXT column is an ordinary string; declaration is opt-in. Use `is_empty()` on such a column, never `=== ''` — a
   value object is never identical to a string, so the comparison is permanently false.
 - **Money**: a DECIMAL(p,2) column holding an amount is declared `['money' => true]` and

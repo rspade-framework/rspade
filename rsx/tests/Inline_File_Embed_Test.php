@@ -54,7 +54,7 @@ class Inline_File_Embed_Test extends Rsx_Test_Abstract
         $project->client_id = 1;
         $project->status = Project_Model::STATUS_ACTIVE;
         $project->priority = Project_Model::PRIORITY_MEDIUM;
-        $project->description = static::__text_embedding($attachment_ids);
+        $project->description_html = static::__text_embedding($attachment_ids);
         $project->save();
 
         return $project;
@@ -109,7 +109,7 @@ class Inline_File_Embed_Test extends Rsx_Test_Abstract
         static::__assert_equals(File_Attachment_Model::CATEGORY_INLINE_EMBED, $upload->fileable_category, 'in the reserved embed category');
         static::__assert_true(File_Embed_References::is_referenced((int) $upload->id), 'with a reference row');
         static::__assert_equals(
-            [['owner_type' => 'Project_Model', 'owner_id' => (int) $project->id, 'column_name' => 'description']],
+            [['owner_type' => 'Project_Model', 'owner_id' => (int) $project->id, 'column_name' => 'description_html']],
             File_Embed_References::owners_of((int) $upload->id),
             'naming the record and column'
         );
@@ -186,13 +186,32 @@ class Inline_File_Embed_Test extends Rsx_Test_Abstract
         $upload = static::__upload();
         $project = static::__project_embedding([$upload->id]);
 
-        $project->description = Rich_Text::from_untrusted_encoded('<p>No file any more.</p>');
+        $project->description_html = Rich_Text::from_untrusted_encoded('<p>No file any more.</p>');
         $project->save();
 
         $upload = static::__fresh($upload);
         static::__assert_false($upload->trashed(), 'the file is kept - a restored revision still shows it');
         static::__assert_equals((int) $project->id, (int) $upload->fileable_id, 'and so is its owner');
         static::__assert_false(File_Embed_References::is_referenced((int) $upload->id), 'only the reference goes');
+    }
+
+    // A reference recorded under a column's old name (before a rename) is dropped by the record's
+    // next embed sync, which keeps the references under the declared column.
+    public static function test_a_reference_under_a_renamed_columns_old_name_is_dropped_on_the_next_sync()
+    {
+        $upload = static::__upload();
+        $project = static::__project_embedding([$upload->id]);
+        File_Embed_References::sync($project, 'description', [(int) $upload->id]);
+        static::__assert_equals(2, count(File_Embed_References::owners_of((int) $upload->id)), 'the old name and the declared one');
+
+        $project->description_html = static::__text_embedding([$upload->id, $upload->id]);
+        $project->save();
+
+        static::__assert_equals(
+            [['owner_type' => 'Project_Model', 'owner_id' => (int) $project->id, 'column_name' => 'description_html']],
+            File_Embed_References::owners_of((int) $upload->id),
+            'only the declared column is left'
+        );
     }
 
     public static function test_the_same_token_in_a_second_record_adds_a_reference_and_never_moves_ownership()
@@ -232,7 +251,7 @@ class Inline_File_Embed_Test extends Rsx_Test_Abstract
         $project = static::__project_embedding([]);
         $upload = static::__upload();
 
-        Project_Model::where('id', $project->id)->update(['description' => static::__text_embedding([$upload->id])]);
+        Project_Model::where('id', $project->id)->update(['description_html' => static::__text_embedding([$upload->id])]);
 
         static::__assert_equals((int) $project->id, (int) static::__fresh($upload)->fileable_id, 'a bulk update takes the per-record path for a hooked text type');
     }

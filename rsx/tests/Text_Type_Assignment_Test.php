@@ -70,12 +70,12 @@ class Text_Type_Assignment_Test extends Rsx_Test_Abstract
     {
         $project = static::__seed_project();
 
-        $project->description = static::__request_value('Rich_Text', '<p>hello</p>');
+        $project->description_html = static::__request_value('Rich_Text', '<p>hello</p>');
 
         // THE assertion. Before Rsx_Text_Cast disabled object caching this returned the
         // Rsx_Text_Request_Value that was assigned, and assign-then-validate was a lie.
-        static::__assert_instance_of(Rich_Text::class, $project->description, 'read-back is typed by the column');
-        static::__assert_false($project->description->is_empty(), 'and it is the real value, not the wrapper');
+        static::__assert_instance_of(Rich_Text::class, $project->description_html, 'read-back is typed by the column');
+        static::__assert_false($project->description_html->is_empty(), 'and it is the real value, not the wrapper');
     }
 
     public static function test_the_clients_claimed_type_is_ignored_and_the_column_decides()
@@ -84,13 +84,13 @@ class Text_Type_Assignment_Test extends Rsx_Test_Abstract
 
         // A claim naming nothing at all. If the claim were resolved this could not even
         // reach assignment; if it were trusted the column would hold the wrong type.
-        $project->description = static::__request_value('Totally_Fake_Class', '<p>ok</p>');
+        $project->description_html = static::__request_value('Totally_Fake_Class', '<p>ok</p>');
         $project->save();
 
         $reloaded = Project_Model::find($project->id);
 
-        static::__assert_instance_of(Rich_Text::class, $reloaded->description);
-        static::__assert_equals('<p>ok</p>', $reloaded->description->to_storage());
+        static::__assert_instance_of(Rich_Text::class, $reloaded->description_html);
+        static::__assert_equals('<p>ok</p>', $reloaded->description_html->to_storage());
     }
 
     public static function test_the_columns_filter_runs_on_an_encoded_value()
@@ -98,11 +98,11 @@ class Text_Type_Assignment_Test extends Rsx_Test_Abstract
         $project = static::__seed_project();
         $hostile = '<p>hi</p><script>alert(1)</script><img src=x onerror=alert(2)>';
 
-        $project->description = static::__request_value('Rich_Text', $hostile);
-        $via_wrapper = $project->description->to_storage();
+        $project->description_html = static::__request_value('Rich_Text', $hostile);
+        $via_wrapper = $project->description_html->to_storage();
 
-        $project->description = Rich_Text::from_untrusted_encoded($hostile);
-        $via_explicit = $project->description->to_storage();
+        $project->description_html = Rich_Text::from_untrusted_encoded($hostile);
+        $via_explicit = $project->description_html->to_storage();
 
         static::__assert_equals($via_explicit, $via_wrapper, 'the wrapper path and the explicit encoded path are the same filter');
         static::__assert_false(str_contains($via_wrapper, '<script'), 'the script is gone');
@@ -116,16 +116,16 @@ class Text_Type_Assignment_Test extends Rsx_Test_Abstract
         // An import or a plain API param: nothing says this is markup, so it is text. The
         // angle-bracketed address must survive as text instead of being purified away as
         // an unknown tag, and the line break must survive as a break.
-        $project->description = "Contact <john@acme.com>\nre: <b>billing</b>";
+        $project->description_html = "Contact <john@acme.com>\nre: <b>billing</b>";
 
         static::__assert_equals(
             Rich_Text::from_plain_text("Contact <john@acme.com>\nre: <b>billing</b>")->to_storage(),
-            $project->description->to_storage(),
+            $project->description_html->to_storage(),
             'assignment of a bare string is from_plain_text()'
         );
-        static::__assert_true(str_contains($project->description->to_plain_text(), 'Contact <john@acme.com>'), 'the address survives as text');
-        static::__assert_true(str_contains($project->description->to_plain_text(), 're: <b>billing</b>'), 'the tag survives as literal text');
-        static::__assert_true(str_contains($project->description->to_storage(), '<br'), 'the line break survives as a break');
+        static::__assert_true(str_contains($project->description_html->to_plain_text(), 'Contact <john@acme.com>'), 'the address survives as text');
+        static::__assert_true(str_contains($project->description_html->to_plain_text(), 're: <b>billing</b>'), 'the tag survives as literal text');
+        static::__assert_true(str_contains($project->description_html->to_storage(), '<br'), 'the line break survives as a break');
     }
 
     public static function test_a_raw_text_column_keeps_markup_as_literal_text()
@@ -150,7 +150,7 @@ class Text_Type_Assignment_Test extends Rsx_Test_Abstract
         static::__assert_throws(
             \InvalidArgumentException::class,
             function () use ($project) {
-                $project->description = Raw_Text::from_storage('plain');
+                $project->description_html = Raw_Text::from_storage('plain');
             },
             'do not convert'
         );
@@ -159,14 +159,14 @@ class Text_Type_Assignment_Test extends Rsx_Test_Abstract
     public static function test_a_typed_value_refuses_to_be_a_string_so_a_lossy_write_cannot_happen()
     {
         $project = static::__seed_project();
-        $project->description = Rich_Text::from_untrusted_encoded('<p>keep <b>this</b></p>');
+        $project->description_html = Rich_Text::from_untrusted_encoded('<p>keep <b>this</b></p>');
 
         // The write this guards against: concatenation would strip the markup and store
         // something that looks fine. It must throw before it can reach the cast.
         static::__assert_throws(
             \LogicException::class,
             function () use ($project) {
-                $project->description = $project->description . ' appended';
+                $project->description_html = $project->description_html . ' appended';
             },
             'cannot be used as a string'
         );
@@ -179,8 +179,8 @@ class Text_Type_Assignment_Test extends Rsx_Test_Abstract
         // An emptied WYSIWYG: a non-empty string holding an empty document. The wrapper
         // carries the browser's verdict; after assignment the COLUMN'S type answers from
         // the content itself.
-        $project->description = static::__request_value('Rich_Text', '<p><br></p>', true);
+        $project->description_html = static::__request_value('Rich_Text', '<p><br></p>', true);
 
-        static::__assert_true($project->description->is_empty(), 'the typed value knows its own encoding');
+        static::__assert_true($project->description_html->is_empty(), 'the typed value knows its own encoding');
     }
 }

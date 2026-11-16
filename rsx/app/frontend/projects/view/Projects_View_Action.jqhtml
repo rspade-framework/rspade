@@ -70,7 +70,7 @@
                 <Tab_Panels $sid="panels">
                     <Tab_Panel $key="overview">
                         <%--
-                        `description` is declared Rich_Text on Project_Model, so it arrives
+                        `description_html` is declared Rich_Text on Project_Model, so it arrives
                         as a Rich_Text value and prints itself: jqhtml routes the object to
                         the framework's value printer, which mounts the type's own
                         Rich_Text_Display. This template chooses no escaping and names no
@@ -82,9 +82,9 @@
                         an escape nor a sanitize belongs here - the sanitizer ran when the
                         value was written, and the printer owns how it is emitted.
                         --%>
-                        <% if (_project.description && !_project.description.is_empty()) { %>
+                        <% if (_project.description_html && !_project.description_html.is_empty()) { %>
                         <Section $title="Description">
-                            <%= _project.description %>
+                            <%= _project.description_html %>
                         </Section>
                         <% } %>
 

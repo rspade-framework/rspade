@@ -30,7 +30,7 @@ use Rsx\Models\Task_Model;
  * a deleted one is refused, the derived project follows the parent chain, and an update
  * writes only the fields it sent. The project a write sends is direct_project_id; the
  * derived project_id is not a write parameter, so the dispatcher's parameter check refuses
- * it as unknown. Over the real dispatch the API carries plain values: `description` (a Rich_Text
+ * it as unknown. Over the real dispatch the API carries plain values: `description_html` (a Rich_Text
  * column) reads as its HTML string, and the string read, sent back, stores the same value.
  */
 class Task_Api_Write_Test extends Rsx_Test_Abstract
@@ -113,7 +113,7 @@ class Task_Api_Write_Test extends Rsx_Test_Abstract
 
         $response = static::__api_create([
             'title' => 'Draft the statement of work',
-            'description' => '<p>Include the <strong>payment</strong> schedule.</p><script>x()</script>',
+            'description_html' => '<p>Include the <strong>payment</strong> schedule.</p><script>x()</script>',
             'priority' => Task_Model::PRIORITY_HIGH,
             'due_date' => '2026-09-04',
             'hour_estimate' => '2.5',
@@ -134,8 +134,8 @@ class Task_Api_Write_Test extends Rsx_Test_Abstract
         static::__assert_equals(2.5, (float) $task->hour_estimate, 'the hour estimate is stored');
         static::__assert_equals(
             '<p>Include the <strong>payment</strong> schedule.</p>',
-            $task->description->to_storage(),
-            'description is HTML: sanitized through the type\'s filter and stored as markup'
+            $task->description_html->to_storage(),
+            'description_html is HTML: sanitized through the type\'s filter and stored as markup'
         );
     }
 
@@ -316,7 +316,7 @@ class Task_Api_Write_Test extends Rsx_Test_Abstract
     }
 
     /**
-     * The round trip over real HTTP dispatch: GET answers `description` as the HTML string -
+     * The round trip over real HTTP dispatch: GET answers `description_html` as the HTML string -
      * no {__TEXT} envelope anywhere in the body - and an update sending that string back
      * leaves the stored value byte for byte as it was.
      */
@@ -325,20 +325,20 @@ class Task_Api_Write_Test extends Rsx_Test_Abstract
         $key = static::__api_key();
         $html = '<p>Include the <strong>payment</strong> schedule.</p><ul><li>Deposit</li></ul>';
 
-        $created = static::__api($key, 'POST', '/api/v1/tasks/create', ['title' => 'Round trip ' . uniqid(), 'description' => $html]);
+        $created = static::__api($key, 'POST', '/api/v1/tasks/create', ['title' => 'Round trip ' . uniqid(), 'description_html' => $html]);
         static::__assert_equals(201, $created['status'], $created['raw']);
         $id = (int) $created['body']['id'];
-        $stored = Task_Model::find($id)->description->to_storage();
+        $stored = Task_Model::find($id)->description_html->to_storage();
 
         $read = static::__api($key, 'GET', "/api/v1/tasks/{$id}");
         static::__assert_equals(200, $read['status'], $read['raw']);
         static::__assert_false(str_contains($read['raw'], '__TEXT'), 'no text envelope in the body: ' . $read['raw']);
-        static::__assert_equals($stored, $read['body']['description'], 'description is the stored HTML string');
+        static::__assert_equals($stored, $read['body']['description_html'], 'description_html is the stored HTML string');
 
-        $updated = static::__api($key, 'POST', "/api/v1/tasks/{$id}/update", ['description' => $read['body']['description']]);
+        $updated = static::__api($key, 'POST', "/api/v1/tasks/{$id}/update", ['description_html' => $read['body']['description_html']]);
         static::__assert_equals(200, $updated['status'], $updated['raw']);
-        static::__assert_equals($stored, $updated['body']['description'], 'the answer carries the same string');
-        static::__assert_equals($stored, Task_Model::find($id)->description->to_storage(), 'the stored value is unchanged');
+        static::__assert_equals($stored, $updated['body']['description_html'], 'the answer carries the same string');
+        static::__assert_equals($stored, Task_Model::find($id)->description_html->to_storage(), 'the stored value is unchanged');
     }
 
     private static function __api_key(): string

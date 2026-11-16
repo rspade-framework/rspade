@@ -6,7 +6,7 @@ $value - a Rich_Text instance (NOT a string)
 This is the PRINTER component Rich_Text declares, so it is almost never written by
 hand: interpolating the value is enough, and jqhtml mounts this in place.
 
-    <%= this.data.project.description %>
+    <%= this.data.project.description_html %>
 
 The unescaped interpolation below is the one place in the application where raw
 markup enters the DOM, and it is correct HERE and nowhere else: Rich_Text filtered
@@ -25,7 +25,7 @@ A file embedded in the text is stored as a {{#file:N}} token; the component's JS
 one as an Inline_File_Card (rsx/lib/inline_file/).
 
 Usage (only when a printer needs an argument it cannot get by interpolation):
-    <Rich_Text_Display $value=this.data.project.description />
+    <Rich_Text_Display $value=this.data.project.description_html />
 --%>
 <Define:Rich_Text_Display tag="div">
     <%!= sanitize_rich_text_html(this.args.value.to_storage()) %>

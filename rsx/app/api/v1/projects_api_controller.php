@@ -40,7 +40,7 @@ use Rsx\Models\Project_Model;
  * only, under a row lock. The contact and user links the staff form edits are not part of
  * this API.
  *
- * `description` is a Rich_Text column: a read answers its HTML string, a write passes the
+ * `description_html` is a Rich_Text column: a read answers its HTML string, a write passes the
  * string through Rich_Text::from_untrusted_encoded() (the type's sanitizer), so a description
  * read and sent back is stored unchanged. `notes` is plain text, assigned as sent.
  *
@@ -136,7 +136,7 @@ class Projects_Api_Controller extends Rsx_Api_Controller_Abstract
      *   "id": 4,
      *   "site_id": 1,
      *   "name": "Website relaunch",
-     *   "description": "<p>Replace the marketing site.</p>",
+     *   "description_html": "<p>Replace the marketing site.</p>",
      *   "client_id": 2,
      *   "parent_project_id": null,
      *   "status": 2,
@@ -181,7 +181,7 @@ class Projects_Api_Controller extends Rsx_Api_Controller_Abstract
      * `budget`. A parent project must be a live project of the key's site. A value the
      * project cannot hold is a 422 naming the field.
      *
-     * `description` is HTML: it is sanitized (the staff editor's allow-list) and stored, and a
+     * `description_html` is HTML: it is sanitized (the staff editor's allow-list) and stored, and a
      * description read from a project is sent back as it was read.
      *
      * @api-response
@@ -205,7 +205,7 @@ class Projects_Api_Controller extends Rsx_Api_Controller_Abstract
     #[Api_Endpoint('/api/v1/projects/create', methods: ['POST'])]
     #[Api_Param('name', type: 'string', required: true, description: 'Project name')]
     #[Api_Param('client_id', type: 'int', required: true, description: 'Client the project belongs to')]
-    #[Api_Param('description', type: 'string', description: 'Description, HTML (sanitized on save); send back the string a read returned to keep it unchanged')]
+    #[Api_Param('description_html', type: 'string', description: 'Description, HTML (sanitized on save); send back the string a read returned to keep it unchanged')]
     #[Api_Param('parent_project_id', type: 'int', description: 'Parent project id')]
     #[Api_Param('status', type: 'int', description: 'Status id (1 Planning, 2 Active, 3 On Hold, 4 Completed, 5 Cancelled); default Active')]
     #[Api_Param('priority', type: 'int', description: 'Priority id (1 Low, 2 Medium, 3 High, 4 Urgent); default Medium')]
@@ -262,7 +262,7 @@ class Projects_Api_Controller extends Rsx_Api_Controller_Abstract
     #[Api_Param('id', type: 'int', required: true, description: 'Project ID')]
     #[Api_Param('name', type: 'string', description: 'Project name')]
     #[Api_Param('client_id', type: 'int', description: 'Client the project belongs to')]
-    #[Api_Param('description', type: 'string', description: 'Description, HTML (sanitized on save); send back the string a read returned to keep it unchanged')]
+    #[Api_Param('description_html', type: 'string', description: 'Description, HTML (sanitized on save); send back the string a read returned to keep it unchanged')]
     #[Api_Param('parent_project_id', type: 'int', description: 'Parent project id; 0 clears')]
     #[Api_Param('status', type: 'int', description: 'Status id (1 Planning, 2 Active, 3 On Hold, 4 Completed, 5 Cancelled)')]
     #[Api_Param('priority', type: 'int', description: 'Priority id (1 Low, 2 Medium, 3 High, 4 Urgent)')]
@@ -324,8 +324,8 @@ class Projects_Api_Controller extends Rsx_Api_Controller_Abstract
         // The API's door for the rich-text column: the string IS the HTML, so it is passed
         // through the type's filter as encoded content. Assigned bare it would be plain
         // text, and a description read and sent back would be stored as visible tags.
-        if (isset($values['description'])) {
-            $values['description'] = Rich_Text::from_untrusted_encoded($values['description']);
+        if (isset($values['description_html'])) {
+            $values['description_html'] = Rich_Text::from_untrusted_encoded($values['description_html']);
         }
 
         return $values;

@@ -126,10 +126,11 @@ class Client_Model extends Rsx_Site_Model_Abstract
      * `notes` is a plain textarea. Declaring it Raw_Text rather than leaving it undeclared is a
      * statement of intent: it pins the editor (a rich-text widget on the column is refused), it
      * routes display through the type's printer, and it means the day `notes` becomes Rich_Text
-     * the change is one line here plus a migration that re-encodes the column - not an audit of
-     * every place the value is printed.
+     * the change is this declaration plus a migration that re-encodes the column and renames it
+     * `notes_html` - not an audit of every place the value is printed.
      */
     public static $columns = [
+        // No `_html` suffix: the suffix follows the STORED form, and this column stores plain text.
         'notes' => ['text_type' => Raw_Text::class],
         'priority' => ['enum' => [
             1 => ['constant' => 'PRIORITY_LOW', 'label' => 'Low', 'badge' => 'bg-secondary'],

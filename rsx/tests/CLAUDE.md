@@ -240,7 +240,7 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   `direct_project_id` is the project until a chain reaches one and returns when it is removed,
   `project_id` is refused by the parameter check as an unknown write parameter, an update
   writes only the fields sent, another site's task is not found; over real dispatch
-  `description` reads as its HTML string (no `{__TEXT}` envelope) and a read sent back stores
+  `description_html` reads as its HTML string (no `{__TEXT}` envelope) and a read sent back stores
   the same value.
   `Project_Api_Test` — the projects API, the template's money example, over real dispatch: a
   budget reads as `"1234.50"` and the computed `subprojects_budget` / `unallocated_budget` as
@@ -269,7 +269,7 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   ownership; another site's id in the text is neither claimed nor referenced; `resolve_files` leaves out what the viewer may not see; the claim runs under
   `Revision::without()` and through a query-builder `update()`.
 - **Declared text types, the converted columns**: `Text_Type_Descriptions_Test` — the
-  `description` columns that moved from plain text to `Rich_Text` and still exist (`tasks`,
+  `description_html` columns converted from plain text to `Rich_Text` (`tasks`,
   `demo_products`): a bare string reads back typed on each, the filter strips a script on
   each, `to_plain_text()` reduces a stored value for a grid excerpt or a CSV cell, an emptied
   editor is empty by CONTENT, and — the case only a conversion has — the re-encode

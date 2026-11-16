@@ -27,12 +27,12 @@
                         </Form_Field>
 
                         <%--
-                        The DYNAMIC COMPONENT TAG: the editor is whatever `description`'s
+                        The DYNAMIC COMPONENT TAG: the editor is whatever `description_html`'s
                         declared text type says edits it, so this form names no widget.
                         Change Task_Model's text_type and the editor here changes with it.
                         --%>
                         <Form_Field $label="Description">
-                            <{Task_Model.editor_component_for('description')} $name="description"
+                            <{Task_Model.editor_component_for('description_html')} $name="description_html"
                                 $placeholder="Describe the task..." />
                         </Form_Field>
 

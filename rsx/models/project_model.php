@@ -31,7 +31,7 @@ use Rsx\Models\Task_Model;
  * @property string $deleted_at
  * @property int $deleted_by_id
  * @property string $deleted_by_type type ref: a model class name, stored as a type-ref id
- * @property \Rsx\Lib\TextTypes\RichText\Rich_Text $description text type: a value object, filtered on write
+ * @property \Rsx\Lib\TextTypes\RichText\Rich_Text $description_html text type (HTML): a value object, sanitized on write
  * @property string $due_date
  * @property int $id
  * @property string $name
@@ -108,7 +108,7 @@ class Project_Model extends Rsx_Site_Model_Abstract
     /**
      * Column declarations (see rsx:man model).
      *
-     * TEXT TYPES - `description` is authored in a WYSIWYG and holds HTML; `notes` is a plain
+     * TEXT TYPES - `description_html` is authored in a WYSIWYG and holds HTML; `notes` is a plain
      * textarea. Declared, that difference is no longer something each template, endpoint and
      * export has to remember - misremembering it was either a broken render or an XSS. The value
      * carries its own encoding: it is filtered by its type on write, rendered by its type's
@@ -135,7 +135,9 @@ class Project_Model extends Rsx_Site_Model_Abstract
             3 => ['constant' => 'PRIORITY_HIGH', 'label' => 'High', 'badge' => 'bg-warning'],
             4 => ['constant' => 'PRIORITY_URGENT', 'label' => 'Urgent', 'badge' => 'bg-danger'],
         ]],
-        'description' => ['text_type' => Rich_Text::class],
+        // Stores sanitized HTML, so the column is named `_html`.
+        'description_html' => ['text_type' => Rich_Text::class],
+        // No `_html` suffix: the suffix follows the STORED form, and this column stores plain text.
         'notes' => ['text_type' => Raw_Text::class],
         'budget' => ['money' => true],
     ];
@@ -425,7 +427,7 @@ class Project_Model extends Rsx_Site_Model_Abstract
     public function save_edit(Form_Edit $edit, array $values): void
     {
         $edit->set('name', $values['name'] ?? null);
-        $edit->set('description', $values['description'] ?? null);
+        $edit->set('description_html', $values['description_html'] ?? null);
         $edit->set('client_id', !empty($values['client_id']) ? (int) $values['client_id'] : null);
         $edit->set('parent_project_id', !empty($values['parent_project_id']) ? (int) $values['parent_project_id'] : null);
         $edit->set('status', !empty($values['status']) ? (int) $values['status'] : self::STATUS_ACTIVE);

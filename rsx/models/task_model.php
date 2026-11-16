@@ -24,7 +24,7 @@ use Rsx\Models\Project_Model;
  * @property string $deleted_at
  * @property int $deleted_by_id
  * @property string $deleted_by_type type ref: a model class name, stored as a type-ref id
- * @property \Rsx\Lib\TextTypes\RichText\Rich_Text $description text type: a value object, filtered on write
+ * @property \Rsx\Lib\TextTypes\RichText\Rich_Text $description_html text type (HTML): a value object, sanitized on write
  * @property int $direct_project_id
  * @property string $due_date
  * @property string $hour_estimate decimal
@@ -127,7 +127,7 @@ class Task_Model extends Rsx_Site_Model_Abstract
     /**
      * Column declarations (see rsx:man model).
      *
-     * `description` is authored in a WYSIWYG and holds HTML, so its text_type makes the value
+     * `description_html` is authored in a WYSIWYG and holds HTML, so its text_type makes the value
      * carry its own encoding instead of every template, endpoint and export remembering it -
      * the same decision Project_Model makes, and states in full, for the same kind of column.
      *
@@ -139,7 +139,7 @@ class Task_Model extends Rsx_Site_Model_Abstract
      */
     public static $columns = [
         'taskable_type' => ['type_ref' => true],
-        'description' => ['text_type' => Rich_Text::class],
+        'description_html' => ['text_type' => Rich_Text::class],
         'status' => ['enum' => [
             1 => ['constant' => 'STATUS_PENDING', 'label' => 'Pending', 'badge' => 'bg-secondary'],
             2 => ['constant' => 'STATUS_IN_PROGRESS', 'label' => 'In Progress', 'badge' => 'bg-info'],
@@ -468,7 +468,7 @@ class Task_Model extends Rsx_Site_Model_Abstract
     public function save_edit(Form_Edit $edit, array $values): void
     {
         $edit->set('title', $values['title'] ?? null);
-        $edit->set('description', $values['description'] ?? null);
+        $edit->set('description_html', $values['description_html'] ?? null);
         $edit->set('status', !empty($values['status']) ? (int) $values['status'] : self::STATUS_PENDING);
         $edit->set('priority', !empty($values['priority']) ? (int) $values['priority'] : self::PRIORITY_MEDIUM);
         $edit->set('due_date', !empty($values['due_date']) ? $values['due_date'] : null);

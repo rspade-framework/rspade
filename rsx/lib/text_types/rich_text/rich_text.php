@@ -35,6 +35,12 @@ use App\RSpade\Core\Files\File_Embed_References;
 class Rich_Text extends Rsx_Text_Abstract
 {
     /**
+     * The stored form is HTML, so a column declaring this type is named `<thing>_html`
+     * (MODEL-TEXT-HTML-01).
+     */
+    public const STORES_HTML = true;
+
+    /**
      * Every {{#...}} token. A file embed is {{#file:<attachment id>}}.
      */
     const FILE_TOKEN_PATTERN = '/\{\{#[^}]+\}\}/';

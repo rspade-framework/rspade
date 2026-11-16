@@ -23,13 +23,13 @@ class Projects_Edit_Action extends Spa_Action {
         this.data.from_client = !!this.args.client_id;
 
         // Form data stub - provide empty strings for all fields to avoid undefined.
-        // EXCEPT the value-object columns - the declared text types (description, notes) and
+        // EXCEPT the value-object columns - the declared text types (description_html, notes) and
         // the money column (budget): their inputs edit a value object, and '' is a string.
         // null is the right empty for them - it is what the column holds when it has no
         // value, and every such input handles it.
         this.data.form_data = {
             name: '',
-            description: null,
+            description_html: null,
             client_id: this.args.client_id || '',
             parent_project_id: '',
             // A new project is work in flight: the list opens on Active.
@@ -66,10 +66,10 @@ class Projects_Edit_Action extends Spa_Action {
                     updated_at: project.updated_at,
                     id: project.id,
                     name: project.name || '',
-                    // No `|| ''` on the value-object columns (description, budget, notes):
+                    // No `|| ''` on the value-object columns (description_html, budget, notes):
                     // the value is an object, and coercing an absent one to a string would
                     // hand the editor something it refuses. null passes through as null.
-                    description: project.description,
+                    description_html: project.description_html,
                     client_id: project.client_id || '',
                     parent_project_id: project.parent_project_id || '',
                     status: project.status || Project_Model.STATUS_ACTIVE,

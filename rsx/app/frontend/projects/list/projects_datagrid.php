@@ -95,7 +95,7 @@ class Projects_DataGrid extends DataGrid_Abstract
             $filter = $params['filter'];
             $query->where(function ($q) use ($filter) {
                 $q->where('projects.name', 'LIKE', "%{$filter}%")
-                    ->orWhere('projects.description', 'LIKE', "%{$filter}%")
+                    ->orWhere('projects.description_html', 'LIKE', "%{$filter}%")
                     ->orWhere('projects.notes', 'LIKE', "%{$filter}%");
             });
         }

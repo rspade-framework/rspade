@@ -17,7 +17,7 @@ renders itself into a server-generated document through to_html(). A call site n
 chooses an escaping function for this value, which is the whole reason the type exists.
 
 Usage:
-<Wysiwyg_Input $name="description" $placeholder="Describe the project..." />
+<Wysiwyg_Input $name="description_html" $placeholder="Describe the project..." />
 --%>
 <Define:Wysiwyg_Input extends="Form_Input_Abstract">
     <div $sid="editor" class="Wysiwyg_Input__editor"></div>

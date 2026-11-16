@@ -18,7 +18,7 @@ use Rsx\Lib\TextTypes\RichText\Rich_Text;
  * @property string $created_at
  * @property int $created_by_id
  * @property string $created_by_type type ref: a model class name, stored as a type-ref id
- * @property \Rsx\Lib\TextTypes\RichText\Rich_Text $description text type: a value object, filtered on write
+ * @property \Rsx\Lib\TextTypes\RichText\Rich_Text $description_html text type (HTML): a value object, sanitized on write
  * @property int $id
  * @property string $name
  * @property \App\RSpade\Core\Database\Money\Rsx_Money $price money: a value object, two decimal places, never a float
@@ -72,14 +72,14 @@ class Demo_Product_Model extends Rsx_Model_Abstract
     /**
      * Column declarations (see rsx:man model).
      *
-     * `description` is authored in a WYSIWYG and holds HTML, so its text_type makes the value
+     * `description_html` is authored in a WYSIWYG and holds HTML, so its text_type makes the value
      * carry its own encoding instead of every template, endpoint and export remembering it -
      * the same decision Project_Model makes, and states in full, for the same kind of column.
      *
      * `price` is money: it reads as an Rsx_Money, never a float (rsx:man money).
      */
     public static $columns = [
-        'description' => ['text_type' => Rich_Text::class],
+        'description_html' => ['text_type' => Rich_Text::class],
         'price' => ['money' => true],
         'status_id' => ['enum' => [
             1 => [

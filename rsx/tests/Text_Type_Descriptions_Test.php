@@ -14,8 +14,8 @@ use Rsx\Models\Demo_Product_Model;
 use Rsx\Models\Task_Model;
 
 /**
- * The `description` columns that were converted from plain text to Rich_Text and still
- * exist (tasks, demo_products), and the migration that re-encoded the rows they held.
+ * The `description_html` columns that were converted from plain text to Rich_Text
+ * (tasks, demo_products), and the migration that re-encoded the rows they held.
  *
  * Text_Type_Assignment_Test pins what a declared column DOES, on Project_Model. This pins
  * the columns that joined it, plus the one thing only a conversion can get wrong:
@@ -93,15 +93,15 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
     public static function test_a_bare_string_reads_back_as_rich_text_on_every_converted_column()
     {
         $task = static::__seed_task();
-        $task->description = 'a task description';
+        $task->description_html = 'a task description';
         $task->save();
 
         $product = static::__seed_product();
-        $product->description = 'a product description';
+        $product->description_html = 'a product description';
         $product->save();
 
-        static::__assert_instance_of(Rich_Text::class, Task_Model::find($task->id)->description, 'tasks.description');
-        static::__assert_instance_of(Rich_Text::class, Demo_Product_Model::find($product->id)->description, 'demo_products.description');
+        static::__assert_instance_of(Rich_Text::class, Task_Model::find($task->id)->description_html, 'tasks.description_html');
+        static::__assert_instance_of(Rich_Text::class, Demo_Product_Model::find($product->id)->description_html, 'demo_products.description_html');
     }
 
     /**
@@ -117,9 +117,9 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
         ];
 
         foreach ($records as $table => $record) {
-            $record->description = Rich_Text::from_untrusted_encoded($hostile);
+            $record->description_html = Rich_Text::from_untrusted_encoded($hostile);
 
-            $stored = $record->description->to_storage();
+            $stored = $record->description_html->to_storage();
 
             static::__assert_contains('keep', $stored, $table . ': the content survives');
             static::__assert_false(str_contains($stored, '<script'), $table . ': the script is gone');
@@ -133,10 +133,10 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
     public static function test_to_text_reduces_a_stored_value_to_plain_text()
     {
         $task = static::__seed_task();
-        $task->description = Rich_Text::from_untrusted_encoded('<p>first block</p><p>second <b>block</b></p>');
+        $task->description_html = Rich_Text::from_untrusted_encoded('<p>first block</p><p>second <b>block</b></p>');
         $task->save();
 
-        $text = Task_Model::find($task->id)->description->to_plain_text();
+        $text = Task_Model::find($task->id)->description_html->to_plain_text();
 
         static::__assert_false(str_contains($text, '<'), 'no markup survives');
         static::__assert_contains('first block', $text);
@@ -150,10 +150,10 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
     public static function test_an_empty_document_is_empty_by_content_not_by_string()
     {
         $task = static::__seed_task();
-        $task->description = Rich_Text::from_untrusted_encoded('<p><br></p>');
+        $task->description_html = Rich_Text::from_untrusted_encoded('<p><br></p>');
 
-        static::__assert_true($task->description->is_empty(), 'the type knows its own encoding');
-        static::__assert_false($task->description->to_storage() === '', 'and the string it holds is not empty');
+        static::__assert_true($task->description_html->is_empty(), 'the type knows its own encoding');
+        static::__assert_false($task->description_html->to_storage() === '', 'and the string it holds is not empty');
     }
 
     /**
@@ -173,16 +173,16 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
 
         // The pre-conversion state: plain text sitting in the column, written the way it
         // was written before the type was declared.
-        DB::update('UPDATE demo_products SET description = ? WHERE id = ?', [$plain, $product->id]);
+        DB::update('UPDATE demo_products SET description_html = ? WHERE id = ?', [$plain, $product->id]);
 
         // The migration's transformation, applied to that one row.
         DB::update(
-            'UPDATE demo_products SET description = ' . str_replace('?', 'description', self::MIGRATION_EXPRESSION)
+            'UPDATE demo_products SET description_html = ' . str_replace('?', 'description_html', self::MIGRATION_EXPRESSION)
             . ' WHERE id = ?',
             [$product->id]
         );
 
-        $migrated = DB::table('demo_products')->where('id', $product->id)->value('description');
+        $migrated = DB::table('demo_products')->where('id', $product->id)->value('description_html');
 
         static::__assert_equals(
             Rich_Text::from_plain_text($plain)->to_storage(),
@@ -198,9 +198,9 @@ class Text_Type_Descriptions_Test extends Rsx_Test_Abstract
         // through as markup.
         $reloaded = Demo_Product_Model::find($product->id);
 
-        static::__assert_instance_of(Rich_Text::class, $reloaded->description);
+        static::__assert_instance_of(Rich_Text::class, $reloaded->description_html);
 
-        $text = $reloaded->description->to_plain_text();
+        $text = $reloaded->description_html->to_plain_text();
 
         foreach (['a & b < c > d "quoted" and \'single\'', 'second line', 'fourth line'] as $fragment) {
             static::__assert_contains($fragment, $text, 'the re-encode kept: ' . $fragment);

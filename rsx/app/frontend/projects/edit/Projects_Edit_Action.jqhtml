@@ -28,7 +28,7 @@
 
                         <%--
                         The DYNAMIC COMPONENT TAG, and the one situation it is for: the
-                        editor is whatever `description`'s declared text type says edits it,
+                        editor is whatever `description_html`'s declared text type says edits it,
                         so this form names no widget. Change Project_Model's text_type and
                         the editor here changes with it - which is the promise the whole
                         text-type feature makes, and it cannot be kept by a template that
@@ -44,7 +44,7 @@
                         around two literal tags is the right answer everywhere else.
                         --%>
                         <Form_Field $label="Description">
-                            <{Project_Model.editor_component_for('description')} $name="description"
+                            <{Project_Model.editor_component_for('description_html')} $name="description_html"
                                 $placeholder="Enter project description..." />
                         </Form_Field>
 

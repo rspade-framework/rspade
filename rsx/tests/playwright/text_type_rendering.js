@@ -134,13 +134,13 @@ async function await_spa_ready(page) {
             const before = await Project_Model.fetch(1);
             await Frontend_Projects_Controller.save({
                 _loaded_updated_at: before.updated_at,
-                _changed: ['description', 'notes'],
+                _changed: ['description_html', 'notes'],
                 id: 1,
                 name: before.name,
                 client_id: before.client_id,
                 status: before.status,
                 priority: before.priority,
-                description: Rich_Text.from_editor(html),
+                description_html: Rich_Text.from_editor(html),
                 notes: Raw_Text.from_editor(notes),
             });
         }, [known_html, known_notes]);
@@ -200,7 +200,7 @@ async function await_spa_ready(page) {
                 return false;
             }
 
-            const input = form.input('description');
+            const input = form.input('description_html');
             const value = input ? input.val() : null;
 
             return !!value && !value.is_empty();
@@ -212,10 +212,10 @@ async function await_spa_ready(page) {
             const Frontend_Projects_Controller = Manifest.get_class_by_name('Frontend_Projects_Controller');
 
             const form = $('.Rsx_Form').component();
-            const description_input = form.input('description');
+            const description_input = form.input('description_html');
             const notes_input = form.input('notes');
 
-            const before = (await Project_Model.fetch(1)).description.to_storage();
+            const before = (await Project_Model.fetch(1)).description_html.to_storage();
 
             // Save the record back UNTOUCHED. Anything the editor cannot represent is lost
             // here, and lost silently - which is exactly the failure being guarded against.
@@ -224,20 +224,20 @@ async function await_spa_ready(page) {
             const record = await Project_Model.fetch(1);
             await Frontend_Projects_Controller.save({
                 _loaded_updated_at: record.updated_at,
-                _changed: ['description', 'notes'],
+                _changed: ['description_html', 'notes'],
                 id: 1,
                 name: record.name,
                 client_id: record.client_id,
                 status: record.status,
                 priority: record.priority,
-                description: description_input.val(),
+                description_html: description_input.val(),
                 notes: notes_input.val(),
             });
 
-            const after = (await Project_Model.fetch(1)).description.to_storage();
+            const after = (await Project_Model.fetch(1)).description_html.to_storage();
 
             return {
-                expected_editor: Project_Model.editor_component_for('description'),
+                expected_editor: Project_Model.editor_component_for('description_html'),
                 actual_editor: description_input ? description_input.constructor.name : null,
                 expected_notes_editor: Project_Model.editor_component_for('notes'),
                 actual_notes_editor: notes_input ? notes_input.constructor.name : null,
