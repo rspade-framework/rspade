@@ -17,7 +17,8 @@ Usage:
 
 A person's face is never an image URL in a payload. The producer ships the profile photo's
 attachment id and <Attachment_Thumbnail> renders it - so a re-cropped or newly uploaded photo
-replaces itself everywhere it is on screen, with no page reload.
+replaces itself everywhere it is on screen, with no page reload. The photo is a face-centred
+cover ($face=true): the disc is cut around the face found in the photo rather than its centre.
 --%>
 <Define:Person_Avatar tag="span">
   <% const _size = this.args.size === 'sm' ? 'sm' : (this.args.size === 'lg' ? 'lg' : 'md');
@@ -37,7 +38,7 @@ replaces itself everywhere it is on screen, with no page reload.
   <% const _px = _size === 'sm' ? 28 : (_size === 'lg' ? 72 : 36); %>
   <% if (this.args.attachment_id) { %>
     <span class="Person_Avatar__disc">
-      <Attachment_Thumbnail class="Person_Avatar__photo" $attachment_id=int(this.args.attachment_id) $type="cover" $width=_px $height=_px $alt=_name />
+      <Attachment_Thumbnail class="Person_Avatar__photo" $attachment_id=int(this.args.attachment_id) $type="cover" $face=true $width=_px $height=_px $alt=_name />
     </span>
   <% } else { %>
     <%-- background-color is inline: a per-person deterministic hue is data, not a token. --%>

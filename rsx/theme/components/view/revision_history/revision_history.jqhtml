@@ -16,6 +16,11 @@ the generated stub's field__enum_labels(), an _at / _date column goes through
 Rsx_Time / Rsx_Date (JQHTML-DATETIME-01), and an is_ column reads Yes/No. Nothing is
 formatted server-side - the endpoint ships the stored values under their real field names.
 
+The header counts the revisions shown: a revision whose every stored pair was noise (equal
+values, or columns the model no longer records - Revision::meaningful_changes()) is left off
+by the endpoint. A create whose recorded values are all hidden says so apart from one that
+recorded none (`hidden_count`).
+
 A never-exported column (a secret) is recorded REDACTED: both cells paint a muted "(redacted)",
 so the row still says the column changed while neither value was ever stored.
 
@@ -55,7 +60,7 @@ See: php artisan rsx:man revisions
                 <div class="Revision_History__header">
                     <div class="Revision_History__who">
                         <Record_Author $author=_t.get_created_by_author />
-                        <span class="Revision_History__count"><%= _t.revision_count %> <%= _t.revision_count === 1 ? 'change' : 'changes' %></span>
+                        <span class="Revision_History__count"><%= _t.revisions.length %> <%= _t.revisions.length === 1 ? 'change' : 'changes' %></span>
                     </div>
                     <div class="Revision_History__when"><%= Rsx_Time.relative(_t.created_at) %></div>
                 </div>
@@ -81,7 +86,11 @@ See: php artisan rsx:man revisions
 
                         <% const _fields = Object.keys(_r.diff); %>
                         <% if (_fields.length === 0) { %>
-                            <div class="Revision_History__nofields">No field values recorded for this operation.</div>
+                            <% if (_r.hidden_count > 0) { %>
+                                <div class="Revision_History__nofields">No field values that are still tracked were recorded for this operation.</div>
+                            <% } else { %>
+                                <div class="Revision_History__nofields">No field values recorded for this operation.</div>
+                            <% } %>
                         <% } else { %>
                             <table class="Revision_History__table">
                                 <thead>

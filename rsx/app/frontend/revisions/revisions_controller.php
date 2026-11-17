@@ -10,7 +10,6 @@ namespace Rsx\App\Frontend\Revisions;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
-use App\RSpade\Core\Manifest\Manifest;
 use App\RSpade\Lib\Revisions\Revision;
 use App\RSpade\Lib\Revisions\Revision_Model;
 use App\RSpade\Lib\Revisions\Transaction_Model;
@@ -153,8 +152,12 @@ class Frontend_Revisions_Controller extends Rsx_Controller_Abstract
      * Each diff is what Revision::meaningful_changes() keeps of it: a column the model no
      * longer records and a pair whose sides are the same value under the column's kind are
      * dropped, so changes recorded before a column was excluded, or before equal values were
-     * recognized as equal, never show as edits. An update left with nothing is skipped; a
-     * create or a delete always shows (a delete's document is empty by design).
+     * recognized as equal, never show as edits; a revision of a model this codebase no longer
+     * has is shown as stored. An update left with nothing is skipped; a create or a delete
+     * always shows (a delete's document is empty by design). `hidden_count` is how many
+     * stored pairs were left out, so an empty diff says whether nothing was recorded (0) or
+     * everything recorded was noise. The transaction's stored revision_count is not shipped:
+     * it counts revisions this page may have skipped, and the component counts the ones shown.
      *
      * The actor display comes from get_created_by_author(): the framework stamps a
      * transaction's authorship with its actor pair - the site user for a staff member
@@ -169,12 +172,7 @@ class Frontend_Revisions_Controller extends Rsx_Controller_Abstract
         $revisions = [];
 
         foreach ($transaction->revisions()->orderBy('sequence', 'asc')->get() as $revision) {
-            $diff = $revision->diff();
-
-            // A revision of a model this codebase no longer has is shown as stored.
-            if (Manifest::php_model_record($revision->record_type) !== null) {
-                $diff = Revision::meaningful_changes($revision->record_type, $diff);
-            }
+            $diff = Revision::meaningful_changes($revision->record_type, $revision->diff(), $removed);
 
             $is_update = (int) $revision->operation_id === Revision_Model::OPERATION_UPDATE;
 
@@ -190,6 +188,7 @@ class Frontend_Revisions_Controller extends Rsx_Controller_Abstract
                 'operation_id__label' => $revision->operation_id__label,
                 'sequence' => (int) $revision->sequence,
                 'diff' => $diff,
+                'hidden_count' => $removed,
             ];
         }
 
@@ -200,7 +199,6 @@ class Frontend_Revisions_Controller extends Rsx_Controller_Abstract
             'source_id__label' => $transaction->source_id__label,
             'endpoint' => $transaction->endpoint,
             'description' => $transaction->description,
-            'revision_count' => (int) $transaction->revision_count,
             'get_created_by_author' => $transaction->get_created_by_author(),
             'revisions' => $revisions,
         ];

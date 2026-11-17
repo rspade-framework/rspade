@@ -44,8 +44,10 @@ One subdirectory per component (template + SCSS, `.js` only where behaviour exis
   transaction that made it. A never-exported column's values arrive as the redaction
   marker the endpoint ships beside the page, and paint as a muted "(redacted)". It shows
   what `Revision::meaningful_changes()` keeps: the endpoint drops pairs for columns the
-  model no longer records and pairs equal under the column's kind, and skips an update (or
-  a whole transaction) left with nothing.
+  model no longer records and pairs equal under the column's kind (keeping a polymorphic
+  pair or a fact group whole), and skips an update (or a whole transaction) left with
+  nothing. The header counts the revisions shown, and a revision's `hidden_count` (the
+  pairs left out) tells "all noise" from "nothing recorded" for an empty create.
 - `record_attachments/` — `Record_Attachments`: a record's file list as a Section. Upload
   by button or by dropping files on it, each pending upload showing its percentage
   (`Ajax.upload()`'s `on_progress`); each file is a name with its type icon; a click
@@ -86,7 +88,9 @@ of them (`Feed_Row` vs `Author_Meta_Row`, `Empty_State` vs `Empty_Value`, `Kpi_C
   that is missing or denied (`ERROR_NOT_FOUND`) renders "Unknown"; any other fetch
   failure propagates.
 - `Person_Avatar` takes a `file_attachment_id`, never an image URL; the thumbnail
-  component fetches the picture so a re-uploaded photo replaces itself everywhere.
+  component fetches the picture so a re-uploaded photo replaces itself everywhere. It asks
+  for a face-centred cover (`$face=true`), so the disc is cut around the face rather than the
+  photo's centre; `Profile_Photo_Input`'s preview does the same (`face: true`).
 - **Giving another record type attachments is three steps and no new component**: two
   endpoints on its controller (list with `Record_Attachment_List::rows()`, claim with
   `::claim()` — copy `Frontend_Tasks_Controller::task_attachments()` / `attachments_add()`),

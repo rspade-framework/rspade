@@ -44,7 +44,7 @@ class Profile_Photo_Input extends Form_Input_Abstract {
             const height = this.args.height || 96;
             this.state.thumbnail_url = File_Attachment_Model.thumbnail_url(
                 { key: this.state.attachment_key },
-                { type: 'cover', width: width, height: height }
+                { type: 'cover', width: width, height: height, face: true }
             );
         } else {
             // No key - clear thumbnail
