@@ -80,7 +80,9 @@ return value is the run's return code, never data.
 - **`sample_data/` - `Sample_Data_Service::seed`** — `#[Task]` + `#[Command('rsx_app:seed')]`.
   Fills an EMPTY site with the sample dataset: fictional clients, contacts, projects (with a
   subproject), tasks (with subtasks, client-level and unattached ones), documents of every
-  preview type, request threads, announcements, parties and products. **It refuses a site
+  preview type, request threads, billing entries of every kind in every status with their
+  invoices (draft, issued, overdue, paid, void - created, issued, paid and voided through
+  the models' own rules), announcements and products. **It refuses a site
   that already holds application data**, in every mode - it is a starting point, never a
   merge. Runs as the site's first user, so records, revisions and the activity log are
   attributed; one `Site_Lock::write()` section (write lock, transaction, revision unit) per client. Every email is a test address and every phone a

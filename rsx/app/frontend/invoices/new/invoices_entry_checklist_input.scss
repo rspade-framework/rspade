@@ -1,0 +1,26 @@
+// Invoices_Entry_Checklist_Input - the entries to invoice, each row a toggle, with the running
+// total under the Amount column.
+.Invoices_Entry_Checklist_Input {
+    &__check {
+        width: 48px;
+    }
+
+    // The whole row is the toggle: an interactive surface, so it takes the pointer.
+    &__row {
+        cursor: pointer;
+
+        &:hover > * {
+            background-color: var(--bs-table-hover-bg);
+        }
+    }
+
+    &__row--selected > * {
+        background-color: var(--bs-primary-bg-subtle);
+    }
+
+    &__totals {
+        max-width: 360px;
+        margin-left: auto;
+        padding: $spacing-2 var(--card-pad-x) $spacing-3;
+    }
+}

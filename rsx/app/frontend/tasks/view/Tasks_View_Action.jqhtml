@@ -189,6 +189,12 @@
                         <Slot:label>Est. Hours</Slot:label>
                         <Slot:value><% if (_task.hour_estimate !== null && _task.hour_estimate !== undefined && _task.hour_estimate !== '') { %><%= _task.hour_estimate %><% } else { %>&mdash;<% } %></Slot:value>
                     </Kpi_Cell>
+                    <% if (this.data.hours_logged !== null) { %>
+                    <Kpi_Cell $tooltip="Hours on time entries for this task, whatever their status">
+                        <Slot:label>Hours Logged</Slot:label>
+                        <Slot:value><%= this.data.hours_logged %></Slot:value>
+                    </Kpi_Cell>
+                    <% } %>
                     <% if (_can_view_activity) { %>
                     <Kpi_Cell $clickable=true $tab="activity" $tooltip="Recorded activity for this task">
                         <Slot:label>Activity</Slot:label>

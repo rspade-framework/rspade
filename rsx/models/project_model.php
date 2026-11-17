@@ -33,6 +33,7 @@ use Rsx\Models\Task_Model;
  * @property string $deleted_by_type type ref: a model class name, stored as a type-ref id
  * @property \Rsx\Lib\TextTypes\RichText\Rich_Text $description_html text type (HTML): a value object, sanitized on write
  * @property string $due_date
+ * @property \App\RSpade\Core\Database\Money\Rsx_Money $hourly_rate money: a value object, two decimal places, never a float
  * @property int $id
  * @property string $name
  * @property \Rsx\Lib\TextTypes\RawText\Raw_Text $notes text type: a value object, filtered on write
@@ -140,6 +141,8 @@ class Project_Model extends Rsx_Site_Model_Abstract
         // No `_html` suffix: the suffix follows the STORED form, and this column stores plain text.
         'notes' => ['text_type' => Raw_Text::class],
         'budget' => ['money' => true],
+        // The rate a new time entry on this project is priced at; the entry keeps its own copy.
+        'hourly_rate' => ['money' => true],
     ];
 
     /**
@@ -309,6 +312,8 @@ class Project_Model extends Rsx_Site_Model_Abstract
      *     Rsx_Money, blank is no budget; not an amount, a third decimal place or an amount
      *     beyond the column is refused with the exception's own message, and a negative
      *     amount with "Budget must be zero or more."
+     *   - hourly_rate is read the same way, refused when negative with "Hourly rate must be
+     *     zero or more."
      *   - contacts and assigned_users, when present, are lists of record ids of this site
      *   - client_id, when present, names a live client of this site (blank: "Client is
      *     required"); parent_project_id, when not blank, a live project of this site that is
@@ -348,19 +353,22 @@ class Project_Model extends Rsx_Site_Model_Abstract
             }
         }
 
-        // Budget: a money column. A refusal whose is_input_problem() is true is the field
-        // error; any other exception is a coding error and is left to fail loud.
-        if (array_key_exists('budget', $values)) {
+        // Budget and hourly rate: money columns. A refusal whose is_input_problem() is true is
+        // the field error; any other exception is a coding error and is left to fail loud.
+        foreach (['budget' => 'Budget', 'hourly_rate' => 'Hourly rate'] as $field => $label) {
+            if (!array_key_exists($field, $values)) {
+                continue;
+            }
             try {
-                $budget = static::money_from_submitted('budget', $values['budget']);
-                if ($budget !== null && $budget->is_negative()) {
-                    $errors['budget'] = 'Budget must be zero or more.';
+                $amount = static::money_from_submitted($field, $values[$field]);
+                if ($amount !== null && $amount->is_negative()) {
+                    $errors[$field] = "{$label} must be zero or more.";
                 }
             } catch (Rsx_Money_Exception $e) {
                 if (!$e->is_input_problem()) {
                     throw $e;
                 }
-                $errors['budget'] = $e->getMessage();
+                $errors[$field] = $e->getMessage();
             }
         }
 
@@ -416,8 +424,8 @@ class Project_Model extends Rsx_Site_Model_Abstract
      * Form_Edit::run() after value_errors() found nothing: a new project is written whole, an
      * existing one only on the fields the submission changed.
      *
-     * A blank status is Active and a blank priority Medium; a blank date, parent or budget is
-     * none. The budget is read again by money_from_submitted(), so Form_Edit compares the
+     * A blank status is Active and a blank priority Medium; a blank date, parent, budget or
+     * hourly rate is none. The amounts are read again by money_from_submitted(), so Form_Edit compares the
      * exact amount and a figure re-typed differently ("1234.5" for 1234.50) writes nothing.
      * The contact and user links are the caller's: they are not columns of this record.
      *
@@ -435,6 +443,7 @@ class Project_Model extends Rsx_Site_Model_Abstract
         $edit->set('start_date', !empty($values['start_date']) ? $values['start_date'] : null);
         $edit->set('due_date', !empty($values['due_date']) ? $values['due_date'] : null);
         $edit->set('budget', static::money_from_submitted('budget', $values['budget'] ?? null));
+        $edit->set('hourly_rate', static::money_from_submitted('hourly_rate', $values['hourly_rate'] ?? null));
         $edit->set('notes', $values['notes'] ?? null);
 
         $this->save();

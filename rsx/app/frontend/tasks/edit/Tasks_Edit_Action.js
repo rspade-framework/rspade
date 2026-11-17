@@ -53,13 +53,14 @@ class Tasks_Edit_Action extends Spa_Action {
 
         try {
             const task = await Task_Model.fetch(this.args.id);
-            this.data.form_data = {
-                updated_at: task.updated_at,
-                id: task.id,
+            // The fetched record IS the form's seed, with the page's input shapes assigned
+            // onto it: the form judges a value a before_submit hook supplies against the
+            // record by the column's own rule (Task_Model.same_value()), which a plain copy
+            // of the fields cannot offer (rsx:man form_conventions, EDITING A RECORD). The
+            // text-type column (description_html) is left as it is: an absent one is null,
+            // which its editor takes.
+            this.data.form_data = Object.assign(task, {
                 title: task.title || '',
-                // No `|| ''` on a text-type column: the value is an object, and coercing
-                // an absent one to a string would hand the editor something it refuses.
-                description_html: task.description_html,
                 status: task.status || Task_Model.STATUS_PENDING,
                 priority: task.priority || Task_Model.PRIORITY_MEDIUM,
                 due_date: task.due_date || '',
@@ -67,7 +68,7 @@ class Tasks_Edit_Action extends Spa_Action {
                 assigned_to_user_id: task.assigned_to_user_id || '',
                 direct_project_id: task.direct_project_id || '',
                 taskable: { type: task.taskable_type || null, id: task.taskable_id || null },
-            };
+            });
         } catch (e) {
             this.data.error_data = e;
         }

@@ -1,0 +1,7 @@
+<Define:Invoices_Index_Action>
+<Page_Scaffold $flush=true>
+    <Slot:main>
+        <Invoices_DataGrid $client_options=this.data.clients />
+    </Slot:main>
+</Page_Scaffold>
+</Define:Invoices_Index_Action>

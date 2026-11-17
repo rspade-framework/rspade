@@ -10,11 +10,12 @@ clients/
 ├── clients_controller.php      Frontend_Clients_Controller - Ajax endpoints ONLY
 ├── list/                       Clients_Index_Action + clients_datagrid.{php,js,jqhtml}
 ├── view/                       Clients_View_Action  (tabs, sidebar, KPIs)
-│   │                           + its five REGION components, flat in the same
+│   │                           + its six REGION components, flat in the same
 │   │                           directory (see "The view page is decomposed")
 │   ├── clients_view_tab_overview.{jqhtml,scss}
 │   ├── clients_view_tab_contacts.jqhtml
 │   ├── clients_view_tab_projects.jqhtml
+│   ├── clients_view_tab_invoices.{jqhtml,scss}   (approvers only)
 │   ├── clients_view_tab_activity.jqhtml
 │   └── clients_view_sidebar.{jqhtml,js}
 ├── edit/                       Clients_Edit_Action  (ONE action, dual @route)
@@ -53,6 +54,14 @@ reply, status change or document decision, an announcement and a document-shared
 reach only members whose access is live (`Portal_Membership_Model::live_portal_user_ids()`,
 `has_membership()`), so a revoked member is told nothing after the revocation. `portal_add_member` accepts only one of THIS client's
 contacts, and every membership role write accepts only a `Portal_Membership_Model` role id.
+
+**The Invoices tab is an approver's.** It and the sidebar's Outstanding KPI draw only when
+`Clients_View_Action.can_view_invoices()` - `Permission.can_access('Invoices_Index_Action')`,
+the invoice screens' own gates (`can_approve_billing`) - and only then does the action ask
+`Frontend_Invoices_Controller::client_invoice_summary` in its parallel batch. The tab shows the
+client's outstanding, overdue and paid totals and how many approved entries are ready, a New
+invoice link carrying `client_id`, and `<Invoices_DataGrid $fixed_filters={client_id}>`; the
+invoice endpoints are `../invoices/`'s.
 
 **The address codes are ISO.** `address_country` is an ISO 3166-1 alpha-2 code (`US`) and
 `state` an ISO 3166-2 code of that country (`US-WA`, or `N/A` for a country with none) - the
@@ -129,17 +138,18 @@ file, PascalCase `<Define>`, `_tab_<name>` for a tab body). The rules it demonst
   genuinely LAZY (the tab exists only for a portal-enabled client and may never be opened)
   and owns its own realtime posture.
 - **A region gets a `.js` or `.scss` only where behaviour or style exists.** Four of the
-  five have neither. `clients_view_tab_overview.scss` exists for one reason: that region
+  six have neither. `clients_view_tab_overview.scss` exists for one reason: that region
   now stands between `Tab_Panel` and the Sections it stacks, so it inherits `Tab_Panel`'s
   container role for them (R1 — the container owns the gaps, same `--block-gap` token, one
-  level down). Its single-Section siblings need no rule.
+  level down). `clients_view_tab_invoices.scss` does the same for the figures Section and the
+  invoices grid it stacks. Its single-Section siblings need no rule.
 - **A cross-region interaction stays on the shell.** The `.Kpi_Cell--clickable` delegate
   lives in the action because the cells are in the sidebar and the `Tab_Bar` they drive is
   in the main column.
 
 Total lines went UP (~348 -> ~390 across six files); the win is the shell, not the count.
 
-**Saving**: `save` goes through `Form_Edit` and the edit seed carries `updated_at`, so only changed fields are written and two editors of one field are asked (`rsx:man form_conventions`, EDITING A RECORD).
+**Saving**: `save` goes through `Form_Edit` and the edit seed carries `updated_at`, so only changed fields are written and two editors of one field are asked (`rsx:man form_conventions`, EDITING A RECORD). The edit seed is the fetched `Client_Model` itself, with the page's input shapes assigned onto it, so a value a `before_submit` hook supplies is judged against the record by the column's own rule (`Client_Model.same_value()`).
 
 **Realtime**: `this.subscribe(Client_Model, id, () => this.refresh())` in `on_create()`.
 `refresh()`, never `reload()` — the server saying something changed must not destroy the

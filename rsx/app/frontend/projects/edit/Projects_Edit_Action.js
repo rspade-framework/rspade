@@ -24,7 +24,7 @@ class Projects_Edit_Action extends Spa_Action {
 
         // Form data stub - provide empty strings for all fields to avoid undefined.
         // EXCEPT the value-object columns - the declared text types (description_html, notes) and
-        // the money column (budget): their inputs edit a value object, and '' is a string.
+        // the money columns (budget, hourly_rate): their inputs edit a value object, and '' is a string.
         // null is the right empty for them - it is what the column holds when it has no
         // value, and every such input handles it.
         this.data.form_data = {
@@ -38,6 +38,7 @@ class Projects_Edit_Action extends Spa_Action {
             start_date: '',
             due_date: '',
             budget: null,
+            hourly_rate: null,
             notes: null,
             contacts: [],
             assigned_users: [],
@@ -61,26 +62,24 @@ class Projects_Edit_Action extends Spa_Action {
                 // Load project data via Model.fetch()
                 const project = await Project_Model.fetch(this.args.id);
 
-                // Build form data from project record
-                this.data.form_data = {
-                    updated_at: project.updated_at,
-                    id: project.id,
+                // The fetched record IS the form's seed, with the page's input shapes and
+                // the pivot fields assigned onto it: the form judges a value a before_submit
+                // hook supplies against the record by the column's own rule
+                // (Project_Model.same_value()), which a plain copy of the fields cannot offer
+                // (rsx:man form_conventions, EDITING A RECORD). The value-object columns
+                // (description_html, budget, hourly_rate, notes) are left as they are: an
+                // absent one is null, which every such input takes.
+                this.data.form_data = Object.assign(project, {
                     name: project.name || '',
-                    // No `|| ''` on the value-object columns (description_html, budget, notes):
-                    // the value is an object, and coercing an absent one to a string would
-                    // hand the editor something it refuses. null passes through as null.
-                    description_html: project.description_html,
                     client_id: project.client_id || '',
                     parent_project_id: project.parent_project_id || '',
                     status: project.status || Project_Model.STATUS_ACTIVE,
                     priority: project.priority || Project_Model.PRIORITY_MEDIUM,
                     start_date: project.start_date || '',
                     due_date: project.due_date || '',
-                    budget: project.budget,
-                    notes: project.notes,
                     contacts: [],
                     assigned_users: [],
-                };
+                });
             }
 
             // GENUINE DEPENDENCY - stays sequential: this call's client_id ARGUMENT

@@ -25,10 +25,10 @@ bundle. Everything else is a feature directory.
 - `frontend_pagemodal_layout.blade.php` — the bare Blade shell used when a page is
   opened inside a modal frame.
 - Feature directories: `dashboard/`, `action_logs/`, `clients/`,
-  `contacts/`, `projects/`, `tasks/`, `party/`, `notifications/`, `revisions/`,
-  `reports/`, `settings/` (its own sublayout).
-  `clients/`, `settings/`, `action_logs/` and `party/` (the detail-tables reference)
-  carry their own `CLAUDE.md`;
+  `contacts/`, `projects/`, `tasks/`, `billing/`, `invoices/`, `notifications/`,
+  `revisions/`, `reports/`, `settings/` (its own sublayout).
+  `clients/`, `billing/` (the detail-tables reference), `invoices/` (approvers only, and
+  `Stat_Row`'s consumer), `settings/` and `action_logs/` carry their own `CLAUDE.md`;
   `contacts/`, `projects/` and `tasks/` carry pointer files naming what differs from
   `clients/`.
 
@@ -68,7 +68,9 @@ new feature, and copy its structure rather than inventing one.
 - **Every edit endpoint saves through `Form_Edit::run($record, $params, fn (Form_Edit $edit) => ...)`**
   - only the changed fields are written, under a row lock, and a save that overlaps another
   editor's change asks first (`rsx:man form_conventions`, EDITING A RECORD). The model
-  declares `$revisions = true` and the edit form's `$data` carries `updated_at`. A form field
+  declares `$revisions = true` and the edit form's `$data` is the record the page fetched
+  (`X_Model.fetch()`), with the page's input shapes assigned onto it - so it carries
+  `updated_at`, and a value a `before_submit` hook supplies is judged by the column's own rule. A form field
   stored under another column name, or across several columns, is mapped with `fields:`, and a
   model's columns that hold one fact are a `$fact_groups` declaration - the task save
   (`Task_Model::EDIT_FIELDS`, the `parent` group) is the worked example.
@@ -99,7 +101,7 @@ new feature, and copy its structure rather than inventing one.
   cannot blank the record the page exists to show; the page's SUBJECT record is
   fatal and stays uncaught. Sequence only when the second call's ARGUMENTS come
   from the first's result — the test is the arguments, never the result — and say
-  so in a comment where it is not obvious (`party/edit/`, `projects/edit/`).
+  so in a comment where it is not obvious (`projects/edit/`).
   `dev/orm/` is the one deliberate exception, and it says why in place.
 - **Delegated handlers are namespaced and idempotent**: one `this.$.off('.ns')`, then
   `this.$.on('click.ns', selector, ...)`, in `on_render()` - which runs on the cached paint,
@@ -153,7 +155,8 @@ returns `{component: 'Name', args: {...}}` (or null), and `Frontend_Spa_Layout` 
 component in the header on every navigation. `Record_Page_Actions` (Back, optional Edit) and
 `List_Page_Actions` (New, optional Export) in `rsx/theme/components/page/` cover
 the CRUD pages; a page with buttons of its own declares a small component beside its action
-(`party/list/party_index_page_actions.jqhtml`). A button that calls back into the action
+(`billing/list/billing_index_page_actions.jqhtml`, the New entry menu of the three entry kinds).
+A button that calls back into the action
 gets a function in `args` (`List_Page_Actions`' `$on_export`) - the component owns its
 handlers, so nothing binds on the layout's element.
 

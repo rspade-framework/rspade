@@ -56,10 +56,11 @@ class Contacts_Edit_Action extends Spa_Action {
             // Load contact data via Model.fetch()
             const contact = await Contact_Model.fetch(this.args.id);
 
-            // Build form data from contact record
-            this.data.form_data = {
-                updated_at: contact.updated_at,
-                id: contact.id,
+            // The fetched record IS the form's seed, with the page's input shapes assigned
+            // onto it: the form judges a value a before_submit hook supplies against the
+            // record by the column's own rule (Contact_Model.same_value()), which a plain
+            // copy of the fields cannot offer (rsx:man form_conventions, EDITING A RECORD).
+            this.data.form_data = Object.assign(contact, {
                 first_name: contact.first_name || '',
                 last_name: contact.last_name || '',
                 title: contact.title || '',
@@ -76,7 +77,7 @@ class Contacts_Edit_Action extends Spa_Action {
                 is_active: contact.is_active ? '1' : '0',
                 priority: contact.priority || Contact_Model.PRIORITY_MEDIUM,
                 notes: contact.notes || '',
-            };
+            });
         } catch (e) {
             this.data.error_data = e;
         }

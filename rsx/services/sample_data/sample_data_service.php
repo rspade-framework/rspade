@@ -5,6 +5,7 @@ namespace Rsx\Services\SampleData;
 use libphonenumber\PhoneNumberFormat;
 use libphonenumber\PhoneNumberUtil;
 use App\RSpade\Core\Files\File_Attachment_Model;
+use App\RSpade\Core\Forms\Form_Edit;
 use App\RSpade\Core\Locks\Site_Lock;
 use App\RSpade\Core\Models\Site_Model;
 use App\RSpade\Core\Models\User_Model;
@@ -18,13 +19,15 @@ use Rsx\Lib\Attachments\Record_Attachment_List;
 use Rsx\Lib\Notification\Notification;
 use Rsx\Lib\TextTypes\RichText\Rich_Text;
 use Rsx\Models\Action_Log_Model;
+use Rsx\Models\Action_Log_Related_Model;
 use Rsx\Models\Announcement_Model;
+use Rsx\Models\Billable_Entry_Model;
 use Rsx\Models\Client_Department_Model;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Contact_Model;
 use Rsx\Models\Demo_Product_Model;
+use Rsx\Models\Invoice_Model;
 use Rsx\Models\Notification_Model;
-use Rsx\Models\Party_Model;
 use Rsx\Models\Portal_Request_Thread_Model;
 use Rsx\Models\Project_Contact_Model;
 use Rsx\Models\Project_Model;
@@ -33,8 +36,11 @@ use Rsx\Models\Task_Model;
 
 /**
  * The sample dataset: fills an EMPTY site with fictional clients, contacts, projects, tasks,
- * documents of every preview type, request threads, announcements, parties and products, so a
- * new install (or a demo) has something to look at in every screen.
+ * documents of every preview type, request threads, billing entries and invoices,
+ * announcements and products, so a new install (or a demo) has something to look at in every
+ * screen. Billing entries and invoices are written through their models' own rules
+ * (value_errors() / save_edit(), the lifecycle transitions, create_for_client()), exactly as
+ * the screens write them, so every seeded status is one a person could have reached.
  *
  *     php artisan rsx_app:seed [--site=<id>]
  *
@@ -56,7 +62,8 @@ class Sample_Data_Service extends Rsx_Service_Abstract
         Contact_Model::class,
         Project_Model::class,
         Task_Model::class,
-        Party_Model::class,
+        Billable_Entry_Model::class,
+        Invoice_Model::class,
         Announcement_Model::class,
     ];
 
@@ -93,7 +100,7 @@ class Sample_Data_Service extends Rsx_Service_Abstract
         }
 
         $data = json_decode((string) file_get_contents(__DIR__ . '/resource/sample_data.json'), true, 512, JSON_THROW_ON_ERROR);
-        $counts = ['clients' => 0, 'contacts' => 0, 'projects' => 0, 'tasks' => 0, 'documents' => 0, 'threads' => 0];
+        $counts = ['clients' => 0, 'contacts' => 0, 'projects' => 0, 'tasks' => 0, 'documents' => 0, 'threads' => 0, 'entries' => 0, 'invoices' => 0];
         $steps = count($data['clients']) + 1;
         $done = 0;
 
@@ -107,7 +114,7 @@ class Sample_Data_Service extends Rsx_Service_Abstract
             $task->heartbeat();
 
             // One write section per client - the site's write lock, one transaction and one
-            // revision entry: its contacts, projects and tasks with it.
+            // revision entry: its contacts, projects, tasks, billing entries and invoices with it.
             Site_Lock::write($site_id, function () use ($client_data, $site_id, $owner, &$counts) {
                 static::__seed_client($client_data, $site_id, $owner, $counts);
             }, "Seeded sample client {$client_data['name']}");
@@ -120,10 +127,9 @@ class Sample_Data_Service extends Rsx_Service_Abstract
         Site_Lock::write($site_id, function () use ($data, $site_id, $owner, &$counts) {
             static::__seed_reference_documents($data['reference_documents'], $site_id, $counts);
             static::__seed_announcements($data['announcements'], $site_id);
-            static::__seed_parties($data['parties'], $site_id);
             static::__seed_general_tasks($data['general_tasks'], $site_id, $owner, $counts);
             static::__seed_products($data['products']);
-        }, 'Seeded sample reference documents, announcements, parties and products');
+        }, 'Seeded sample reference documents, announcements and products');
         $task->progress_count(++$done, $steps);
 
         $task->state($counts);
@@ -211,9 +217,12 @@ class Sample_Data_Service extends Rsx_Service_Abstract
             $counts['documents']++;
         }
 
+        // Billing entries named for one of this client's invoices, by invoice key.
+        $invoice_lines = [];
         foreach ($data['projects'] as $project_data) {
-            static::__seed_project($project_data, $client, null, $contacts, $owner, $counts);
+            static::__seed_project($project_data, $client, null, $contacts, $owner, $invoice_lines, $counts);
         }
+        static::__seed_invoices($data['invoices'] ?? [], $client, $invoice_lines, $counts);
 
         foreach ($data['client_tasks'] ?? [] as $task_data) {
             static::__seed_task($task_data, $site_id, 'Client_Model', $client->id, $owner, $counts);
@@ -236,7 +245,7 @@ class Sample_Data_Service extends Rsx_Service_Abstract
         }
     }
 
-    private static function __seed_project(array $data, Client_Model $client, ?Project_Model $parent, array $contacts, User_Model $owner, array &$counts): void
+    private static function __seed_project(array $data, Client_Model $client, ?Project_Model $parent, array $contacts, User_Model $owner, array &$invoice_lines, array &$counts): void
     {
         $project = new Project_Model();
         $project->site_id = $client->site_id;
@@ -252,6 +261,7 @@ class Sample_Data_Service extends Rsx_Service_Abstract
             $project->completed_date = $project->due_date;
         }
         $project->budget = (string) $data['budget'];
+        $project->hourly_rate = isset($data['hourly_rate']) ? (string) $data['hourly_rate'] : null;
         $project->owner_user_id = $owner->id;
         $project->save();
         Action_Log::record(Action_Log_Model::TYPE_PROJECT_CREATED, $project);
@@ -271,12 +281,121 @@ class Sample_Data_Service extends Rsx_Service_Abstract
         $assigned->user_id = $owner->id;
         $assigned->save();
 
+        $tasks = [];
         foreach ($data['tasks'] as $task_data) {
-            static::__seed_task($task_data, $client->site_id, 'Project_Model', $project->id, $owner, $counts);
+            $tasks[$task_data['title']] = static::__seed_task($task_data, $client->site_id, 'Project_Model', $project->id, $owner, $counts);
         }
 
+        static::__seed_billing($data['billing'] ?? [], $project, $tasks, $invoice_lines, $counts);
+
         foreach ($data['subprojects'] ?? [] as $child) {
-            static::__seed_project($child, $client, $project, $contacts, $owner, $counts);
+            static::__seed_project($child, $client, $project, $contacts, $owner, $invoice_lines, $counts);
+        }
+    }
+
+    /**
+     * A project's billing entries, each saved through the model's own rules (value_errors(),
+     * then save_edit() inside Form_Edit::run(), as the entry form saves) and taken to its
+     * status through the lifecycle transitions, with the action log the screens write. An
+     * entry naming an invoice is approved and collected into $invoice_lines for its client's
+     * invoice. A refused entry is a fault in the data: it throws, naming the entry.
+     *
+     * @param Task_Model[] $tasks The project's tasks by title
+     */
+    private static function __seed_billing(array $entries, Project_Model $project, array $tasks, array &$invoice_lines, array &$counts): void
+    {
+        foreach ($entries as $data) {
+            $type_id = constant(Billable_Entry_Model::class . '::TYPE_' . $data['kind']);
+            $values = [
+                'project_id' => $project->id,
+                'task_id' => isset($data['task']) ? $tasks[$data['task']]->id : null,
+                'entry_date' => Rsx_Date::add_days(Rsx_Date::today(), $data['day']),
+                'description' => $data['description'],
+            ] + array_intersect_key($data, array_flip(['hours', 'hourly_rate', 'vendor', 'cost', 'amount']));
+
+            $errors = Billable_Entry_Model::value_errors($values, $type_id);
+            if ($errors === []) {
+                $entry = new Billable_Entry_Model();
+                $entry->type_id = $type_id;
+                $errors = Form_Edit::run($entry, $values, fn (Form_Edit $edit) => ['errors' => $entry->save_edit($edit, $values)])['errors'];
+            }
+            if ($errors !== []) {
+                throw new \RuntimeException("Sample billing entry \"{$data['description']}\" was refused: " . json_encode($errors));
+            }
+
+            $related = [[$project, Action_Log_Related_Model::ROLE_MENTIONED]];
+            Action_Log::record(Action_Log_Model::TYPE_BILLABLE_ENTRY_CREATED, $entry, $related);
+            $counts['entries']++;
+
+            $status = isset($data['invoice']) ? 'APPROVED' : $data['status'];
+            if ($status === 'DRAFT') {
+                continue;
+            }
+
+            $entry->submit();
+            Action_Log::record(Action_Log_Model::TYPE_BILLABLE_ENTRY_SUBMITTED, $entry, $related);
+
+            if ($status === 'APPROVED') {
+                $entry->approve();
+                Action_Log::record(Action_Log_Model::TYPE_BILLABLE_ENTRY_APPROVED, $entry, $related);
+            } elseif ($status === 'REJECTED') {
+                $entry->reject($data['rejection_reason']);
+                Action_Log::record(Action_Log_Model::TYPE_BILLABLE_ENTRY_REJECTED, $entry, $related, ['reason' => $entry->rejection_reason]);
+            }
+
+            if (isset($data['invoice'])) {
+                $invoice_lines[$data['invoice']][] = $entry->id;
+            }
+        }
+    }
+
+    /**
+     * A client's invoices, each created from the entries that name it
+     * (Invoice_Model::create_for_client(), which numbers it and bills them) and taken to its
+     * status through the lifecycle - issued, then paid or voided - with the action log the
+     * screens write. A refused step is a fault in the data: it throws.
+     */
+    private static function __seed_invoices(array $invoices, Client_Model $client, array $invoice_lines, array &$counts): void
+    {
+        $related = [[$client, Action_Log_Related_Model::ROLE_MENTIONED]];
+        $day = fn (int $offset) => Rsx_Date::add_days(Rsx_Date::today(), $offset);
+        $refuse = function (array $errors, string $key) use ($client) {
+            if ($errors !== []) {
+                throw new \RuntimeException("Sample invoice \"{$key}\" of {$client->name} was refused: " . json_encode($errors));
+            }
+        };
+
+        foreach ($invoices as $data) {
+            $entry_ids = $invoice_lines[$data['key']] ?? [];
+            $refuse(Invoice_Model::create_errors($client->id, $entry_ids), $data['key']);
+            $invoice = Invoice_Model::create_for_client($client->id, $entry_ids);
+            if (isset($data['notes'])) {
+                $invoice->notes = $data['notes'];
+                $invoice->save();
+            }
+            Action_Log::record(Action_Log_Model::TYPE_INVOICE_CREATED, $invoice, $related);
+            $counts['invoices']++;
+
+            if ($data['status'] === 'DRAFT') {
+                continue;
+            }
+
+            $dates = ['issue_date' => $day($data['issued']), 'due_date' => $day($data['due'])];
+            $refuse($invoice->issue_errors($dates), $data['key']);
+            $invoice->issue($dates);
+            Action_Log::record(Action_Log_Model::TYPE_INVOICE_ISSUED, $invoice, $related);
+
+            if ($data['status'] === 'PAID') {
+                $paid = ['paid_date' => $day($data['paid'])];
+                $refuse($invoice->mark_paid_errors($paid), $data['key']);
+                $invoice->mark_paid($paid);
+                Action_Log::record(Action_Log_Model::TYPE_INVOICE_PAID, $invoice, $related);
+            } elseif ($data['status'] === 'VOID') {
+                $refuse($invoice->void_errors(), $data['key']);
+                $released = count($entry_ids);
+                $invoice->void();
+                Action_Log::record(Action_Log_Model::TYPE_INVOICE_VOIDED, $invoice, $related, ['released_entries' => $released]);
+            }
         }
     }
 
@@ -348,35 +467,6 @@ class Sample_Data_Service extends Rsx_Service_Abstract
             $announcement->body = $data['body'];
             $announcement->published_at = Rsx_Time::add(Rsx_Time::now_iso(), $data['published'] * 86400);
             $announcement->save();
-        }
-    }
-
-    private static function __seed_parties(array $parties, int $site_id): void
-    {
-        foreach ($parties as $data) {
-            $party = new Party_Model();
-            $party->site_id = $site_id;
-            $party->type_id = constant(Party_Model::class . '::TYPE_' . $data['type']);
-            $party->name = $data['name'];
-            $party->email = $data['email'];
-            $party->phone = $data['phone'];
-            $party->save();
-
-            if ($party->type_id === Party_Model::TYPE_PERSON) {
-                $detail = $party->party_person;
-                $detail->first_name = $data['first_name'];
-                $detail->last_name = $data['last_name'];
-                $detail->title = $data['title'];
-                $detail->save();
-            } elseif ($party->type_id === Party_Model::TYPE_COMPANY) {
-                $detail = $party->party_company;
-                $detail->legal_name = $data['legal_name'];
-                $detail->industry = $data['industry'];
-                $detail->employee_count = $data['employee_count'];
-                $detail->save();
-            }
-
-            Action_Log::record(Action_Log_Model::TYPE_PARTY_CREATED, $party);
         }
     }
 
@@ -468,6 +558,7 @@ class Sample_Data_Service extends Rsx_Service_Abstract
     private static function __describe(array $counts): string
     {
         return "{$counts['clients']} clients, {$counts['contacts']} contacts, {$counts['projects']} projects, "
-            . "{$counts['tasks']} tasks, {$counts['documents']} documents and {$counts['threads']} request threads";
+            . "{$counts['tasks']} tasks, {$counts['documents']} documents, {$counts['threads']} request threads, "
+            . "{$counts['entries']} billing entries and {$counts['invoices']} invoices";
     }
 }

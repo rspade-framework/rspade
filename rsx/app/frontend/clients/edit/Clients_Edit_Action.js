@@ -99,34 +99,17 @@ class Clients_Edit_Action extends Spa_Action {
         try {
             const client = await Client_Model.fetch(this.args.id);
 
-            // Build form data from client record
-            this.data.form_data = {
-                updated_at: client.updated_at,
-                id: client.id,
-                name: client.name,
-                website: client.website,
-                email: client.email,
-                phone: client.phone,
-                fax: client.fax,
-                address_street: client.address_street,
-                city: client.city,
-                state: client.state,
-                zip: client.zip,
+            // The fetched record IS the form's seed, with the page's input shapes assigned
+            // onto it: the form judges a value a before_submit hook supplies against the
+            // record by the column's own rule (Client_Model.same_value()), which a plain copy
+            // of the fields cannot offer (rsx:man form_conventions, EDITING A RECORD).
+            this.data.form_data = Object.assign(client, {
                 address_country: client.address_country || 'US',
-                industry: client.industry,
-                company_size: client.company_size,
-                established_year: client.established_year,
-                revenue_range: client.revenue_range,
-                facebook_url: client.facebook_url,
-                twitter_handle: client.twitter_handle,
-                linkedin_url: client.linkedin_url,
-                instagram_handle: client.instagram_handle,
                 status_id: client.status_id || Client_Model.STATUS_ACTIVE,
                 preferred_contact_method: client.preferred_contact_method || 'email',
                 newsletter_opt_in: client.newsletter_opt_in ? '1' : '0',
-                notes: client.notes,
                 tags: client.tags || [],
-            };
+            });
         } catch (e) {
             this.data.error_data = e;
         }

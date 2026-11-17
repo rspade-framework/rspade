@@ -216,6 +216,21 @@
             "created_at": "2026-11-16T05:43:44+00:00",
             "created_by": "root",
             "command": "php artisan make:migration:safe rename_rich_text_description_columns_to_description_html"
+        },
+        "2026_11_16_213917_drop_parties_tables.php": {
+            "created_at": "2026-11-16T21:39:17+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe drop_parties_tables"
+        },
+        "2026_11_16_220014_create_billing_tables.php": {
+            "created_at": "2026-11-16T22:00:14+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe create_billing_tables"
+        },
+        "2026_11_16_220015_add_hourly_rate_to_projects.php": {
+            "created_at": "2026-11-16T22:00:14+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_hourly_rate_to_projects"
         }
     }
 }

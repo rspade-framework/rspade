@@ -10,11 +10,14 @@ namespace Rsx\App\Frontend\Revisions;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Controller\Rsx_Controller_Abstract;
+use App\RSpade\Core\Manifest\Manifest;
 use App\RSpade\Lib\Revisions\Revision;
 use App\RSpade\Lib\Revisions\Revision_Model;
 use App\RSpade\Lib\Revisions\Transaction_Model;
+use Rsx\Models\Billable_Entry_Model;
 use Rsx\Models\Client_Model;
 use Rsx\Models\Contact_Model;
+use Rsx\Models\Invoice_Model;
 use Rsx\Models\Task_Model;
 
 /**
@@ -42,6 +45,8 @@ class Frontend_Revisions_Controller extends Rsx_Controller_Abstract
         'Client_Model' => Client_Model::class,
         'Contact_Model' => Contact_Model::class,
         'Task_Model' => Task_Model::class,
+        'Billable_Entry_Model' => Billable_Entry_Model::class,
+        'Invoice_Model' => Invoice_Model::class,
     ];
 
     /**
@@ -120,7 +125,13 @@ class Frontend_Revisions_Controller extends Rsx_Controller_Abstract
 
         $transactions = [];
         foreach ($rows as $transaction) {
-            $transactions[] = self::_transaction_payload($transaction);
+            $payload = self::_transaction_payload($transaction);
+
+            // A transaction whose every revision was stored noise (see _transaction_payload())
+            // shows nothing, so it is left off the page.
+            if ($payload['revisions'] !== []) {
+                $transactions[] = $payload;
+            }
         }
 
         return [
@@ -130,12 +141,20 @@ class Frontend_Revisions_Controller extends Rsx_Controller_Abstract
             // definition and paints "(redacted)" instead of the marker.
             'redacted' => Revision::REDACTED,
             'has_more' => $has_more,
-            'next_before_id' => $has_more && !empty($transactions) ? end($transactions)['id'] : null,
+            // The last transaction READ, not the last one shown, so the next page starts after
+            // every row this page looked at.
+            'next_before_id' => $has_more ? (int) $rows->last()->id : null,
         ];
     }
 
     /**
      * One transaction plus its revisions, decoded.
+     *
+     * Each diff is what Revision::meaningful_changes() keeps of it: a column the model no
+     * longer records and a pair whose sides are the same value under the column's kind are
+     * dropped, so changes recorded before a column was excluded, or before equal values were
+     * recognized as equal, never show as edits. An update left with nothing is skipped; a
+     * create or a delete always shows (a delete's document is empty by design).
      *
      * The actor display comes from get_created_by_author(): the framework stamps a
      * transaction's authorship with its actor pair - the site user for a staff member
@@ -150,6 +169,19 @@ class Frontend_Revisions_Controller extends Rsx_Controller_Abstract
         $revisions = [];
 
         foreach ($transaction->revisions()->orderBy('sequence', 'asc')->get() as $revision) {
+            $diff = $revision->diff();
+
+            // A revision of a model this codebase no longer has is shown as stored.
+            if (Manifest::php_model_record($revision->record_type) !== null) {
+                $diff = Revision::meaningful_changes($revision->record_type, $diff);
+            }
+
+            $is_update = (int) $revision->operation_id === Revision_Model::OPERATION_UPDATE;
+
+            if ($is_update && $diff === []) {
+                continue;
+            }
+
             $revisions[] = [
                 'id' => (int) $revision->id,
                 'record_type' => $revision->record_type,
@@ -157,7 +189,7 @@ class Frontend_Revisions_Controller extends Rsx_Controller_Abstract
                 'operation_id' => (int) $revision->operation_id,
                 'operation_id__label' => $revision->operation_id__label,
                 'sequence' => (int) $revision->sequence,
-                'diff' => $revision->diff(),
+                'diff' => $diff,
             ];
         }
 

@@ -251,11 +251,10 @@ class Contacts_Edit_Action extends Spa_Action {
 
         try {
             const contact = await Contact_Model.fetch(this.args.id);
-            this.data.form_data = {
-                id: contact.id,
-                name: contact.name,
-                email: contact.email
-            };
+            // The record itself is the seed; only the page's input shapes are assigned onto it.
+            this.data.form_data = Object.assign(contact, {
+                email: contact.email || '',
+            });
         } catch (e) {
             this.data.error = e;
         }
@@ -279,7 +278,7 @@ an edited form is left: the form's `'input'` calls `Rsx.set_navigation_guard()`,
         <h1><%= this.data.is_edit ? 'Edit Contact' : 'Add Contact' %></h1>
 
         <Rsx_Form $controller="Frontend_Contacts_Controller" $method="save"
-                  $data="<%= JSON.stringify(this.data.form_data) %>">
+                  $data=this.data.form_data>
             <Hidden_Input $name="id" />
 
             <Form_Errors />
@@ -348,7 +347,7 @@ The model is also where a column's KIND is declared, one `$columns` entry per co
 3. **Models implement `fetch()`** - With `#[Ajax_Endpoint_Model_Fetch]`
 4. **DataGrids extend `DataGrid_Abstract`** - Query + columns + sorting
 5. **Three-state pattern** - Loading -> Error -> Content, for VIEW pages, with `@spinner_until_ready('uncached')`. An EDIT FORM instead renders the real form, keeping only the error branch, and declares `@spinner_until_ready('always')`. Skip the pattern entirely for DataGrid pages, static pages and redirect-only actions.
-6. **form_data must be serializable** - Plain objects, not models
+6. **An edit form's seed is the fetched record** - `Object.assign(record, {...input shapes})`, so it carries `updated_at` and the form judges a `before_submit` hook's values by the column's own rule (`Model.same_value()`); a plain copy of the fields loses that. An add form's seed is a plain object of defaults
 7. **Every surface is gated** - `#[Auth]` on every controller endpoint and model `fetch()`, `@auth` on every `@route` action. Closed by default; the manifest build fails without them, and `pre_dispatch()` never authorizes.
 
 ## More Information

@@ -1,0 +1,8 @@
+// Clients_View_Tab_Invoices stands between Tab_Panel and the blocks it stacks (the figures
+// Section and the invoices grid), so it takes Tab_Panel's container role for them: the
+// container owns the gap, with the same --block-gap token, one level down.
+.Clients_View_Tab_Invoices {
+    display: flex;
+    flex-direction: column;
+    gap: var(--block-gap);
+}

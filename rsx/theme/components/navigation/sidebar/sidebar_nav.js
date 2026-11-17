@@ -135,12 +135,22 @@ class Sidebar_Nav extends Component {
         that.$.find('.Sidebar_Nav__link, .Sidebar_Nav__subitem').removeClass('active');
         that.$.find('.Sidebar_Nav__item-expandable').removeClass('expanded');
 
-        // Check each nav item to see if it matches the URL
+        // Check each nav item to see if it matches the URL. When several do - /billing and
+        // /billing/approvals both prefix /billing/approvals - only the most specific (the
+        // longest href) is the active one.
+        let longest = 0;
+        that.$.find('.Sidebar_Nav__link').each(function () {
+            const href = $(this).attr('href');
+            if (that.is_url_active(href, path)) {
+                longest = Math.max(longest, str(href).length);
+            }
+        });
+
         that.$.find('.Sidebar_Nav__link').each(function () {
             const $link = $(this);
             const href = $link.attr('href');
 
-            if (that.is_url_active(href, path)) {
+            if (that.is_url_active(href, path) && str(href).length === longest) {
                 matched = true;
                 $link.addClass('active');
 

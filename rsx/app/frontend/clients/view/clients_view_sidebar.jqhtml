@@ -6,6 +6,8 @@ $contacts_count - Contacts KPI value (required)
 $projects_count - Projects KPI value (required)
 $activity_count - Activity KPI value (required; the cell shows only to administrators,
                   Activity_Feed.can_view())
+$invoice_summary - Frontend_Invoices_Controller.client_invoice_summary()'s answer, or null
+                  (optional; the Outstanding KPI shows only with one - an approver's view)
 
 A page REGION, not vocabulary. It owns its markup AND the handlers for that markup
 (enable/disable portal, delete, restore) - a split that left the shell reaching in
@@ -38,6 +40,13 @@ Usage:
                 <Slot:label>Projects</Slot:label>
                 <Slot:value><%= this.args.projects_count %></Slot:value>
             </Kpi_Cell>
+            <% if (this.args.invoice_summary) { %>
+            <% const _past_due = this.args.invoice_summary.overdue.is_positive(); %>
+            <Kpi_Cell $clickable=true $tab="invoices" $alert=_past_due $tooltip="Issued invoices not yet paid - red when some are past due">
+                <Slot:label>Outstanding</Slot:label>
+                <Slot:value><%= this.args.invoice_summary.outstanding %></Slot:value>
+            </Kpi_Cell>
+            <% } %>
             <% if (Activity_Feed.can_view()) { %>
             <Kpi_Cell $clickable=true $tab="activity" $tooltip="Recorded activity for this client">
                 <Slot:label>Activity</Slot:label>

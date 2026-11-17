@@ -45,7 +45,7 @@ use Rsx\Models\Shared_Item_Model;
  * @property string $phone
  * @property string $phone_secondary
  * @property bool $portal_enabled
- * @property string $portal_last_activity_at
+ * @property string $portal_last_activity_at not recorded in revisions
  * @property string $preferred_contact_method
  * @property int $priority enum: PRIORITY_LOW, PRIORITY_MEDIUM, PRIORITY_HIGH, PRIORITY_URGENT (also $priority__label and the other $priority__* properties)
  * @property string $revenue_range
@@ -144,6 +144,11 @@ class Client_Model extends Rsx_Site_Model_Abstract
             3 => ['constant' => 'STATUS_PROSPECT', 'label' => 'Prospect', 'badge' => 'bg-info'],
             4 => ['constant' => 'STATUS_ARCHIVED', 'label' => 'Archived', 'badge' => 'bg-warning'],
         ]],
+        // Bookkeeping: touch_portal_activity() moves it on every portal visit. Excluded, so it
+        // records no revision and a save of it alone leaves updated_at (the edit form's
+        // version) where it was. Its name is outside MODEL-REVISION-NOISE-01's patterns: the
+        // declaration is made because the column is bookkeeping, not because a rule asks.
+        'portal_last_activity_at' => ['revision_exclude' => true],
     ];
 
     // Realtime: this model publishes a Model_Changed_Topic notification on save/delete

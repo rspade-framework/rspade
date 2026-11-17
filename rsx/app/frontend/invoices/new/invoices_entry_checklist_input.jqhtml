@@ -1,0 +1,50 @@
+<%--
+Invoices_Entry_Checklist_Input - the "New invoice" checklist: a client's approved, uninvoiced
+billing entries, each with a checkbox, and the running total of the ticked ones.
+
+$entries - Frontend_Invoices_Controller.uninvoiced_entries()'s entries (required):
+           [{id, type_id__label, entry_date, description, project_name, amount}]
+
+The value is the list of ticked entry ids (ints). A form input like any other: the create
+endpoint validates the selection (at least one, every one approved, uninvoiced and the
+client's) and answers a field error under `entry_ids`.
+--%>
+<Define:Invoices_Entry_Checklist_Input extends="Form_Input_Abstract">
+    <% const _entries = this.args.entries || []; %>
+
+    <Record_Table>
+        <thead>
+            <tr>
+                <th class="Invoices_Entry_Checklist_Input__check">
+                    <input type="checkbox" class="form-check-input" $sid="all" aria-label="Select every entry" />
+                </th>
+                <th>Date</th>
+                <th>Kind</th>
+                <th>Project</th>
+                <th>Description</th>
+                <th class="text-end">Amount</th>
+            </tr>
+        </thead>
+        <tbody $sid="rows">
+            <% for (const entry of _entries) { %>
+            <tr class="Invoices_Entry_Checklist_Input__row" data-id="<%= entry.id %>">
+                <td class="Invoices_Entry_Checklist_Input__check">
+                    <input type="checkbox" class="form-check-input" value="<%= entry.id %>" aria-label="Invoice this entry" />
+                </td>
+                <td class="text-nowrap"><%= Rsx_Date.format(entry.entry_date) %></td>
+                <td><%= entry.type_id__label %></td>
+                <td><%= entry.project_name || '-' %></td>
+                <td><%= entry.description %></td>
+                <td class="text-end text-nowrap"><%= entry.amount %></td>
+            </tr>
+            <% } %>
+        </tbody>
+    </Record_Table>
+
+    <div class="Invoices_Entry_Checklist_Input__totals">
+        <Stat_Row $strong_label=true>
+            <Slot:label>Selected: <span $sid="count">0</span> of <%= _entries.length %></Slot:label>
+            <Slot:value><span $sid="total"><%= Rsx_Money.zero() %></span></Slot:value>
+        </Stat_Row>
+    </div>
+</Define:Invoices_Entry_Checklist_Input>

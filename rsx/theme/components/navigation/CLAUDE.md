@@ -4,8 +4,8 @@
 
 - `sidebar/sidebar_nav.{jqhtml,js,scss}` — `Sidebar_Nav`: the hierarchical primary
   navigation. It takes a `$sections` array of `{title, items[]}` where an item is
-  `{label, icon, route, href, children?}`, detects the active item from the current URL,
-  and auto-expands the parent of an active child. `follow_trail(meta)` takes the breadcrumb
+  `{label, icon, route, href, children?}`, detects the active item from the current URL (the most specific - longest - matching
+  href when several prefix it), and auto-expands the parent of an active child. `follow_trail(meta)` takes the breadcrumb
   resolver's meta: on a page reached through a breadcrumb origin (`meta.grafted`) it lights
   the section the TRAIL starts in (`meta.root_url`), falling back to the current URL when no
   item matches it (`rsx:man breadcrumb_origins`, SIDEBAR).

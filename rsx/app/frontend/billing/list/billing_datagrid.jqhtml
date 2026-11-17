@@ -1,0 +1,75 @@
+<%--
+Billing_DataGrid - the billable entries grid.
+
+$project_options - [{value, label}] for the project filter; no project filter when absent
+$fixed_filters   - filters the page pins (DataGrid_Abstract) - the project view's Billing tab
+                   passes {project_id}, and the grid then leaves out its Project column
+--%>
+<Define:Billing_DataGrid
+    extends="DataGrid_Abstract"
+    $data_source=Frontend_Billing_Controller.datagrid_fetch
+    $sort="entry_date"
+    $order="desc"
+    $per_page=15
+    class="card DataGrid">
+
+    <Slot:DG_Card_Header>
+        <Card_Title>Entries</Card_Title>
+        <Card_Header_Right>
+            <Search_Input $sid="filter_input" $placeholder="Search entries..." />
+            <select class="form-select w-auto" $sid="status_filter" aria-label="Filter by status">
+                <option value="">All Statuses</option>
+                <% for (const opt of Billable_Entry_Model.status__enum_select()) { %>
+                    <option value="<%= opt.value %>"><%= opt.label %></option>
+                <% } %>
+            </select>
+            <select class="form-select w-auto" $sid="mine_filter" aria-label="Whose entries">
+                <option value="">Everyone</option>
+                <option value="1">Mine</option>
+            </select>
+            <% if (this.args.project_options) { %>
+                <select class="form-select w-auto Billing_DataGrid__project-filter" $sid="project_filter" aria-label="Filter by project">
+                    <option value="">All Projects</option>
+                    <% for (const opt of this.args.project_options) { %>
+                        <option value="<%= opt.value %>"><%= opt.label %></option>
+                    <% } %>
+                </select>
+            <% } %>
+        </Card_Header_Right>
+    </Slot:DG_Card_Header>
+
+    <Slot:DG_Table_Header>
+        <tr>
+            <th data-sortby="entry_date">Date</th>
+            <th data-sortby="type_id">Kind</th>
+            <th data-sortby="person">Person</th>
+            <% if (!this.args.fixed_filters || !this.args.fixed_filters.project_id) { %>
+                <th data-sortby="project">Project</th>
+            <% } %>
+            <th data-sortby="description">Description</th>
+            <th data-sortby="amount" class="text-end">Amount</th>
+            <th data-sortby="status">Status</th>
+        </tr>
+    </Slot:DG_Table_Header>
+
+    <Slot:row>
+        <tr data-href="<%= Rsx.Route('Billing_View_Action', row.id) %>">
+            <td class="text-nowrap"><%= Rsx_Date.format(row.entry_date) %></td>
+            <td><Billing_Kind_Chip $label=row.type_id__label $badge=row.type_id__badge /></td>
+            <td><%= row.user_name || '-' %></td>
+            <% if (!this.args.fixed_filters || !this.args.fixed_filters.project_id) { %>
+                <td><%= row.project_name || '-' %></td>
+            <% } %>
+            <td><%= row.description %></td>
+            <td class="text-end"><% if (row.amount !== null) { %><%= row.amount %><% } else { %>-<% } %></td>
+            <td><Status_Badge $label=row.status__label $badge=row.status__badge /></td>
+        </tr>
+    </Slot:row>
+
+    <Slot:DG_Empty_State>
+        <Empty_State $icon="bi bi-stopwatch">
+            <Slot:title>No entries yet</Slot:title>
+            <Slot:body>Time, expenses and fixed fees logged against projects appear here.</Slot:body>
+        </Empty_State>
+    </Slot:DG_Empty_State>
+</Define:Billing_DataGrid>

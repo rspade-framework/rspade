@@ -122,9 +122,20 @@
                         filtered, and text that is not an amount is submitted as typed for
                         the save endpoint to refuse as a field error.
                         --%>
-                        <Form_Field $label="Budget">
-                            <Money_Input $name="budget" $placeholder="0.00" />
-                        </Form_Field>
+                        <div class="row">
+                            <div class="col-tablet-6">
+                                <Form_Field $label="Budget">
+                                    <Money_Input $name="budget" $placeholder="0.00" />
+                                </Form_Field>
+                            </div>
+                            <div class="col-tablet-6">
+                                <%-- The rate a new time entry on this project is priced at; each
+                                     entry keeps its own copy, so changing it re-prices nothing. --%>
+                                <Form_Field $label="Hourly Rate" $help="New time entries on this project start at this rate.">
+                                    <Money_Input $name="hourly_rate" $placeholder="0.00" />
+                                </Form_Field>
+                            </div>
+                        </div>
                     </Section>
 
                     <Section $title="Notes">

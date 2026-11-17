@@ -38,14 +38,14 @@ rule (`rsx:man template_app`, LIVING DOCUMENTATION, for the full statement).
 ## APPLICATION LAYOUT
 
 A multi-tenant B2B SaaS starter: sites, users with roles and per-user ACLs,
-clients, contacts, projects, tasks, parties (person/company detail tables),
+clients, contacts, projects, tasks, billing (time, expenses, approvals, invoices),
 announcements, notifications, an action log, and a client portal.
 
 **Staff modules** - `rsx/app/`, one directory per module, each with its own bundle:
 
 | Module | What it is |
 |---|---|
-| `frontend/` | The main authenticated SPA. `Frontend_Spa_Controller` + `Frontend_Spa_Layout` (persistent chrome, primary nav), then one directory per feature: `dashboard`, `clients`, `contacts`, `projects`, `tasks`, `party`, `action_logs`, `notifications`, `reports`, `settings`, `system`. |
+| `frontend/` | The main authenticated SPA. `Frontend_Spa_Controller` + `Frontend_Spa_Layout` (persistent chrome, primary nav), then one directory per feature: `dashboard`, `clients`, `contacts`, `projects`, `tasks`, `billing`, `invoices`, `action_logs`, `notifications`, `reports`, `settings`, `system`. |
 | `login/` | Server-rendered auth flows: login, invite acceptance, site selection, site-unauthorized. |
 | `errors/` | The full-page error screens, declared as `#[Route('/error/404')]` and friends and invoked by the framework when a request ends on that status. |
 | `api/` | External bearer REST surface, `v1/` (contacts, clients). Every path starts `/api/vN/`. |
@@ -64,8 +64,8 @@ password reset), `errors/` (the portal realm's own error pages), `dashboard/`,
 
 - CRM: `Client_Model`, `Client_Department_Model`, `Contact_Model`, `Project_Model`,
   `Project_Contact_Model`, `Project_User_Model`, `Task_Model`.
-- Party (class-table inheritance): `Party_Model` + `Party_Person_Detail_Model` /
-  `Party_Company_Detail_Model`.
+- Billing: `Billable_Entry_Model` (with detail tables `Billable_Entry_Time_Detail_Model`,
+  `Billable_Entry_Expense_Detail_Model`), `Invoice_Model`.
 - Portal: `Portal_Membership_Model`, `Portal_Invitation_Model`,
   `Portal_Password_Reset_Model`, `Portal_Project_Model`, `Shared_Item_Model`, and the
   request-thread set (`Portal_Request_Thread_Model`, `..._Message_Model`,

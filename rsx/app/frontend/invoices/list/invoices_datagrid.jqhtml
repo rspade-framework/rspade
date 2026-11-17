@@ -1,0 +1,82 @@
+<%--
+Invoices_DataGrid - the invoices grid.
+
+$client_options - [{value, label}] for the client filter; no client filter when absent
+$fixed_filters  - filters the page pins (DataGrid_Abstract) - the client view's Invoices tab
+                  passes {client_id}, and the grid then leaves out its Client column
+
+An ISSUED invoice past its due date shows its due date as overdue (the row's is_overdue,
+Invoice_Model's appended property). The total is the row's appended `total`.
+--%>
+<Define:Invoices_DataGrid
+    extends="DataGrid_Abstract"
+    $data_source=Frontend_Invoices_Controller.datagrid_fetch
+    $sort="invoice_number"
+    $order="desc"
+    $per_page=15
+    class="card DataGrid">
+
+    <Slot:DG_Card_Header>
+        <Card_Title>Invoices</Card_Title>
+        <Card_Header_Right>
+            <% const _one_client = this.args.fixed_filters && this.args.fixed_filters.client_id; %>
+            <Search_Input $sid="filter_input" $placeholder="<%= _one_client ? 'Invoice number...' : 'Number or client...' %>" />
+            <select class="form-select w-auto" $sid="status_filter" aria-label="Filter by status">
+                <option value="">All Statuses</option>
+                <% for (const opt of Invoice_Model.status__enum_select()) { %>
+                    <option value="<%= opt.value %>"><%= opt.label %></option>
+                <% } %>
+                <option value="overdue">Overdue</option>
+            </select>
+            <% if (this.args.client_options) { %>
+                <select class="form-select w-auto Invoices_DataGrid__client-filter" $sid="client_filter" aria-label="Filter by client">
+                    <option value="">All Clients</option>
+                    <% for (const opt of this.args.client_options) { %>
+                        <option value="<%= opt.value %>"><%= opt.label %></option>
+                    <% } %>
+                </select>
+            <% } %>
+        </Card_Header_Right>
+    </Slot:DG_Card_Header>
+
+    <Slot:DG_Table_Header>
+        <tr>
+            <th data-sortby="invoice_number">Number</th>
+            <% if (!this.args.fixed_filters || !this.args.fixed_filters.client_id) { %>
+                <th data-sortby="client">Client</th>
+            <% } %>
+            <th data-sortby="status">Status</th>
+            <th data-sortby="issue_date">Issued</th>
+            <th data-sortby="due_date">Due</th>
+            <th class="text-end">Total</th>
+        </tr>
+    </Slot:DG_Table_Header>
+
+    <Slot:row>
+        <tr data-href="<%= Rsx.Route('Invoices_View_Action', row.id) %>">
+            <td class="text-nowrap"><strong><%= row.invoice_number_formatted %></strong></td>
+            <% if (!this.args.fixed_filters || !this.args.fixed_filters.client_id) { %>
+                <td><%= row.client_name || '-' %></td>
+            <% } %>
+            <td><Status_Badge $label=row.status__label $badge=row.status__badge /></td>
+            <td class="text-nowrap"><% if (row.issue_date) { %><%= Rsx_Date.format(row.issue_date) %><% } else { %>-<% } %></td>
+            <td class="text-nowrap">
+                <% if (!row.due_date) { %>
+                    -
+                <% } else if (row.is_overdue) { %>
+                    <Invoice_Overdue_Date $date=row.due_date />
+                <% } else { %>
+                    <%= Rsx_Date.format(row.due_date) %>
+                <% } %>
+            </td>
+            <td class="text-end"><%= row.total %></td>
+        </tr>
+    </Slot:row>
+
+    <Slot:DG_Empty_State>
+        <Empty_State $icon="bi bi-receipt-cutoff">
+            <Slot:title>No invoices yet</Slot:title>
+            <Slot:body>Invoices created from approved billing entries appear here.</Slot:body>
+        </Empty_State>
+    </Slot:DG_Empty_State>
+</Define:Invoices_DataGrid>

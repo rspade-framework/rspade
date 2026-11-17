@@ -3,7 +3,8 @@
 ## WHAT IS HERE
 
 `Sample_Data_Service::seed` (`php artisan rsx_app:seed [--site=<id>]`) fills an EMPTY site
-with fictional clients, contacts, projects, tasks, documents and the rest, so a new install
+with fictional clients, contacts, projects, tasks, documents, billing entries, invoices
+and the rest, so a new install
 or a demo has something in every screen. It refuses a site that already holds application
 data, in every mode. The first-run setup screen offers it while
 `rsx.first_run.sample_data_task` (`rsx/resource/config/rsx.php`) names it.
@@ -11,7 +12,7 @@ data, in every mode. The first-run setup screen offers it while
 | File | What it is |
 |---|---|
 | `sample_data_service.php` | The seeder. Reads the JSON below; owns nothing else. |
-| `resource/sample_data.json` | THE DATA: every client with its contacts, departments, projects (subprojects, tasks, subtasks), documents and request threads; plus reference documents, announcements, parties, products and unattached tasks. Dates are day offsets from the day of seeding. |
+| `resource/sample_data.json` | THE DATA: every client with its contacts, departments, projects (subprojects, tasks, subtasks, an hourly rate and `billing[]` entries), invoices, documents and request threads; plus reference documents, announcements, products and unattached tasks. Dates are day offsets from the day of seeding. |
 | `resource/seed_gags.txt` | The cast: every character and client, its source, and its gag. Keep it in step with the JSON. |
 | `resource/documents/` | The committed documents the seeder attaches - generated (pdf, docx, xlsx, png, jpg) plus `reference/`, two real public-domain documents with their provenance in `reference/README.md`. |
 | `resource/generate_documents.php` (+ `render_html.js`) | Regenerates `resource/documents/` from the JSON's `documents[]` entries. A developer tool; seeding never runs it. |
@@ -33,6 +34,14 @@ data, in every mode. The first-run setup screen offers it while
   announcements live - it admits nobody.
 - **Data, not code.** A new kind of record is a new JSON key plus a few lines in the service;
   the service names no character, company or document itself.
+- **Records with rules go through the rules.** Billing entries are validated and saved by
+  `Billable_Entry_Model` (`value_errors()`, `save_edit()` inside `Form_Edit::run()`) and
+  taken to their status by its transitions; invoices are made by
+  `Invoice_Model::create_for_client()` and issued, paid or voided by its own methods - each
+  writing the action-log entry its screen writes. A value the rules refuse throws, naming the
+  record: fix the data, never the check. An entry with an `invoice` key is approved and
+  billed on that invoice of its client (`invoices[]`); a void invoice releases its entries
+  back to APPROVED, which leaves them ready to invoice again.
 
 ## REFRESHING THE DATA (the procedure)
 
@@ -56,8 +65,8 @@ new fields, new kinds of record - so the sample data shows them.
    create the first account on the first-run screen with "Add sample data" ticked (or
    `php artisan rsx_app:seed`), and wait for the run in `/_sys/tasks`.
 6. **Test.** `php artisan rsx:test Sample_Data_Seed_Test`, then walk the screens with
-   `rsx:debug` - clients, a client's documents and threads, projects, tasks, parties, the
-   dashboard, the activity log.
+   `rsx:debug` - clients, a client's documents and threads, projects, tasks, billing
+   entries and approvals, invoices, the dashboard, the activity log.
 7. **Ask the owner to review** the seeded site in a browser and take their critiques. Fix,
    then repeat 5-6 for anything that changed.
 8. **Record the refresh**: update `last_refresh.json` (today, and the commit the data was

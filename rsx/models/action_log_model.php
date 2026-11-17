@@ -32,7 +32,7 @@ use Rsx\Models\Action_Log_Related_Model;
  * @property int $site_id
  * @property int $subject_id
  * @property string $subject_type type ref: a model class name, stored as a type-ref id
- * @property int $type_id enum: TYPE_CLIENT_CREATED, TYPE_CLIENT_UPDATED, TYPE_CLIENT_DELETED, TYPE_CONTACT_CREATED, TYPE_CONTACT_UPDATED and 14 more (also $type_id__label and the other $type_id__* properties)
+ * @property int $type_id enum: TYPE_CLIENT_CREATED, TYPE_CLIENT_UPDATED, TYPE_CLIENT_DELETED, TYPE_CONTACT_CREATED, TYPE_CONTACT_UPDATED and 21 more (also $type_id__label and the other $type_id__* properties)
  * @property string $updated_at
  * @property int $updated_by_id
  * @property string $updated_by_type type ref: a model class name, stored as a type-ref id
@@ -65,13 +65,20 @@ class Action_Log_Model extends Rsx_Site_Model_Abstract
     const TYPE_TASK_CREATED = 30;
     const TYPE_TASK_UPDATED = 31;
     const TYPE_TASK_DELETED = 32;
-    const TYPE_PARTY_CREATED = 40;
-    const TYPE_PARTY_UPDATED = 41;
-    const TYPE_PARTY_DELETED = 42;
     const TYPE_PASSWORD_CHANGED = 50;
     const TYPE_PASSWORD_RESET_REQUESTED = 51;
     const TYPE_API_KEY_CREATED = 52;
     const TYPE_API_KEY_REVOKED = 53;
+    const TYPE_BILLABLE_ENTRY_CREATED = 60;
+    const TYPE_BILLABLE_ENTRY_UPDATED = 61;
+    const TYPE_BILLABLE_ENTRY_DELETED = 62;
+    const TYPE_BILLABLE_ENTRY_SUBMITTED = 63;
+    const TYPE_BILLABLE_ENTRY_APPROVED = 64;
+    const TYPE_BILLABLE_ENTRY_REJECTED = 65;
+    const TYPE_INVOICE_CREATED = 70;
+    const TYPE_INVOICE_ISSUED = 71;
+    const TYPE_INVOICE_PAID = 72;
+    const TYPE_INVOICE_VOIDED = 73;
     /**
      * UNBOUNDED: this table's row count grows with customer activity, not with the
      * codebase, so no reader may assume the set is small.
@@ -158,22 +165,6 @@ class Action_Log_Model extends Rsx_Site_Model_Abstract
                 'label' => 'Task Deleted',
                 'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::task_deleted',
             ],
-            // Party actions (40-49)
-            40 => [
-                'constant' => 'TYPE_PARTY_CREATED',
-                'label' => 'Party Created',
-                'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::party_created',
-            ],
-            41 => [
-                'constant' => 'TYPE_PARTY_UPDATED',
-                'label' => 'Party Updated',
-                'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::party_updated',
-            ],
-            42 => [
-                'constant' => 'TYPE_PARTY_DELETED',
-                'label' => 'Party Deleted',
-                'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::party_deleted',
-            ],
             // Account security (50-59) - written ONLY by tasks the account-security handlers
             // dispatch. Passwords (50-51): Password_Event_Handlers, from the framework's
             // password-change events, on every site the identity belongs to; metadata.cause is
@@ -200,6 +191,60 @@ class Action_Log_Model extends Rsx_Site_Model_Abstract
                 'constant' => 'TYPE_API_KEY_REVOKED',
                 'label' => 'API Key Revoked',
                 'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::api_key_revoked',
+            ],
+            // Billable entries (60-69). The subject is the entry; its project is related
+            // (ROLE_MENTIONED), so the project's activity shows its billing. A rejection carries
+            // metadata.reason.
+            60 => [
+                'constant' => 'TYPE_BILLABLE_ENTRY_CREATED',
+                'label' => 'Billable Entry Created',
+                'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::billable_entry_created',
+            ],
+            61 => [
+                'constant' => 'TYPE_BILLABLE_ENTRY_UPDATED',
+                'label' => 'Billable Entry Updated',
+                'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::billable_entry_updated',
+            ],
+            62 => [
+                'constant' => 'TYPE_BILLABLE_ENTRY_DELETED',
+                'label' => 'Billable Entry Deleted',
+                'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::billable_entry_deleted',
+            ],
+            63 => [
+                'constant' => 'TYPE_BILLABLE_ENTRY_SUBMITTED',
+                'label' => 'Billable Entry Submitted',
+                'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::billable_entry_submitted',
+            ],
+            64 => [
+                'constant' => 'TYPE_BILLABLE_ENTRY_APPROVED',
+                'label' => 'Billable Entry Approved',
+                'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::billable_entry_approved',
+            ],
+            65 => [
+                'constant' => 'TYPE_BILLABLE_ENTRY_REJECTED',
+                'label' => 'Billable Entry Rejected',
+                'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::billable_entry_rejected',
+            ],
+            // Invoices (70-79). The subject is the invoice; its client is related (ROLE_MENTIONED).
+            70 => [
+                'constant' => 'TYPE_INVOICE_CREATED',
+                'label' => 'Invoice Created',
+                'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::invoice_created',
+            ],
+            71 => [
+                'constant' => 'TYPE_INVOICE_ISSUED',
+                'label' => 'Invoice Issued',
+                'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::invoice_issued',
+            ],
+            72 => [
+                'constant' => 'TYPE_INVOICE_PAID',
+                'label' => 'Invoice Paid',
+                'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::invoice_paid',
+            ],
+            73 => [
+                'constant' => 'TYPE_INVOICE_VOIDED',
+                'label' => 'Invoice Voided',
+                'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::invoice_voided',
             ],
         ]],
     ];

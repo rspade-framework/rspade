@@ -105,6 +105,17 @@ Slots: `DG_Card_Header` (title, search, quick filters), `DG_Table_Header` (`<tr>
 **JS** - extends `DataGrid_Abstract` for filters, selection copy and mass actions. A grid with
 none of those needs no `.js` file at all.
 
+## Detail-tables models
+
+A grid whose query is over a model that declares `$detail_tables` (class-table inheritance,
+`rsx:man detail_tables`) gets every row's detail preloaded by `fetch()` - one query per detail
+table, through the model's `preload_details()`, between `get()` and `toArray()` - so each
+record's `__details` embed costs no query of its own. Nothing to declare: the hook runs for any
+`Rsx_Model_Abstract` subclass with detail tables and is skipped for every other model. The query
+must keep the base table's `id` and discriminator in its select (`billable_entries.*` does); a
+row without its discriminator is cached as having no detail. Worked example:
+`rsx/app/frontend/billing/list/billing_datagrid.php`.
+
 ## Sorting
 
 Three things must line up or the column silently will not sort:
@@ -142,6 +153,13 @@ API: `set_custom_filter(key, value)` (null/'' removes), `set_custom_filters({...
 resets to page 1. A key outside `allowed_filters` is refused with a console error.
 
 Server side reads them straight off `$params` in `build_query()`.
+
+**Pinned filters** - a page that mounts a grid scoped to one record passes `$fixed_filters`
+(`<Billing_DataGrid $fixed_filters=_pinned />` with `{project_id: id}` on the project view's
+Billing tab). They are sent with every request and every selection's `filter_params`, win over
+a quick filter of the same key, are never written to the URL hash and never shown as a widget;
+their keys need not be in `allowed_filters`. The server still validates them like any other
+param - a pinned filter is a page choice, not a security boundary.
 
 **Widget wiring** - widgets live in `Slot:DG_Card_Header` with a `$sid`, are the grid's own
 markup and so are bound in its `on_render()` (namespaced and idempotent - it re-fires on every

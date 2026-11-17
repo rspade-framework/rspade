@@ -79,12 +79,6 @@ class Frontend_Spa_Layout extends Spa_Layout {
                             href: Rsx.Route('Projects_Index_Action'),
                         },
                         {
-                            label: 'Parties',
-                            icon: 'bi-diagram-3',
-                            route: 'Party_Index_Action',
-                            href: Rsx.Route('Party_Index_Action'),
-                        },
-                        {
                             label: 'Tasks',
                             icon: 'bi-check2-square',
                             route: 'Tasks_Index_Action',
@@ -95,6 +89,24 @@ class Frontend_Spa_Layout extends Spa_Layout {
                 {
                     title: 'Financial',
                     items: [
+                        {
+                            label: 'Billing',
+                            icon: 'bi-stopwatch',
+                            route: 'Billing_Index_Action',
+                            href: Rsx.Route('Billing_Index_Action'),
+                        },
+                        {
+                            label: 'Approvals',
+                            icon: 'bi-check2-square',
+                            route: 'Billing_Approvals_Action',
+                            href: Rsx.Route('Billing_Approvals_Action'),
+                        },
+                        {
+                            label: 'Invoices',
+                            icon: 'bi-receipt-cutoff',
+                            route: 'Invoices_Index_Action',
+                            href: Rsx.Route('Invoices_Index_Action'),
+                        },
                         {
                             label: 'Reports',
                             icon: 'bi-bar-chart',

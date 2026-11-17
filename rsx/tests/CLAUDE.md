@@ -2,7 +2,7 @@
 
 ## WHAT IS HERE
 
-Seventy-five test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
+Seventy-nine test classes, flat in this directory, all `Rsx\Tests\<Thing>_Test extends
 Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 `setup()` / `teardown()`.
 
@@ -10,10 +10,8 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   `__assert_throws` and `__acting_as_site`.
 - **App libraries**: `Formatters_Test` (phone, transactions off),
   `Analytics_Test` (the external-resource example ships inert).
-- **Domain models**: `Party_Test` (class-table inheritance end to end, a Group rename, and
-  an edit validated against the STORED type),
-  `Client_Region_Name_Test` (a client's region is resolved within its own country - two
-  countries sharing a region code never borrow each other's name),
+- **Domain models**: `Client_Region_Name_Test` (a client's region is resolved within its own
+  country - two countries sharing a region code never borrow each other's name),
   `Client_Address_Codes_Test` (a client's address codes are ISO: an enabled alpha-2 country,
   a subdivision of THAT country or `N/A` - the rule the staff save and the API both check),
   `Polymorphic_Parents_Test` (type-ref pairs read through stock `morphTo()`),
@@ -43,10 +41,17 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
 - **Values a record cannot hold are field errors**: `Client_Validation_Test` (staff save and
   API: lengths, status and contact-method vocabularies, the year, http(s)-only links, tag
   shape, a blank API name), `Contact_Validation_Test` (staff save and API: lengths, secondary
-  email, priority, blank API names), `Crud_Validation_Test` (projects, tasks and parties:
+  email, priority, blank API names), `Crud_Validation_Test` (projects and tasks:
   lengths, ISO dates, enums, a budget refused with its own message when it is not an amount,
   has a third decimal place or is negative, 0 stored as 0.00, pivot ids that are not ids;
   plus the shared `Field_Checks` URL rule).
+- **"Did it change" is the column's rule**: `Column_Equivalence_Template_Test` - on
+  `Task_Model` (revisioned), `hour_estimate` (DECIMAL(8,2), not money) assigned `"1.5"` /
+  `1.5` over 1.50 and `notes` assigned `''` over NULL, directly and through the task save
+  endpoint, is no change: nothing dirty, no revision, `updated_at` / `updated_by` unmoved; a
+  real change is recorded in the column's storage form (`['1.50', '2.00']`); and
+  `Client_Model::touch_portal_activity()` stamps `portal_last_activity_at`
+  (`revision_exclude`) with no revision and `updated_at` unmoved.
 - **Money**: `Project_Budget_Test` — a project's budget, the template's money column, through
   the save endpoint: a typed `$1,234.50` stored as 1234.50, a blank as NULL, `12.345` /
   `(5.00)` / `12,34` and an amount larger than the DECIMAL(15,2) column holds refused as
@@ -55,6 +60,22 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   subprojects endpoint's per-row budgets and `sum_money()` total ($0.00 for none) and the
   view's Unallocated figure, negative when over-allocated; the CSV cell is the exact decimal;
   a float, or an amount larger than the column holds, assigned to the column throws.
+- **Billing and invoices**: `Billable_Entry_Test` — billable entries, the template's
+  worked example of DETAIL TABLES, through the billing endpoints: each kind writes and reads
+  its own detail (a time entry's hours and rate, an expense's vendor and cost, a fixed fee on
+  the base row alone), the wrong kind's accessor throws, the detail rides `toArray()` under
+  `__details`; the amount is computed (hours x rate rounded half-up, the cost, the fee); a new
+  time entry copies its project's rate; the task belongs to the entry's project; the
+  lifecycle (submit, approve, reject with a reason, an edit returning it to DRAFT, approved
+  locked); authors change only their own entries and only an approver approves.
+  `Billing_Screens_Test` — the entries grid preloads details (one query per detail table,
+  never one per row) and filters; the approvals grid holds only SUBMITTED entries for
+  approvers; the project and task figures. `Invoice_Test` — per-site sequential numbers
+  (`INV-0001`), creation billing only approved, uninvoiced entries of the client's projects,
+  the total as the exact sum of the lines, removing a line and voiding releasing entries back
+  to APPROVED, issue / mark paid and their refusals. `Invoice_Screens_Test` — the invoices
+  grid's client, status and overdue filters and number search, `is_overdue`, the client tab's
+  figures, the client picker's ready counts, every invoice read gated to approvers.
 - **Error pages**: `App_Error_Pages_Test` — this application's `/error/` declarations actually
   answer: an unmatched staff URL and a gate denial render `Errors_Layout` with 404 and 403,
   a foreign-origin form POST renders the 419 page, a portal failure renders
@@ -224,8 +245,10 @@ Rsx_Test_Abstract` with `public static function test_*()` methods and optional
   `Portal_Auth::verify_credentials()`, writes one success row to the portal login history.
 - **Sample data**: `Sample_Data_Seed_Test` — `Sample_Data_Service::seed` (`rsx_app:seed`) fills
   the empty test site with every kind of record its JSON declares (counts derived from the
-  JSON, a document of each preview type, every contact on a test address and number, the
-  run attributed to the site's first user, the activity log written), and refuses a site
+  JSON, a document of each preview type, every contact on a test address and number,
+  billing entries of every kind in every status and invoices in every status - one overdue -
+  whose totals are the sum of their lines, the run attributed to the site's first user, the
+  activity log written), and refuses a site
   that already holds data with nothing added.
 - **Founder wiring**: `Initial_User_Handler_Test` — this application's
   `user.initial.created` handler (the founder gets the top role), asserted on an account

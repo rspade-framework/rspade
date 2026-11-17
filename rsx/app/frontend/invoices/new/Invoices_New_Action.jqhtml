@@ -1,0 +1,53 @@
+<Define:Invoices_New_Action>
+<% if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Client"
+                $back_label="Go back to Invoices"
+                $back_url="<%= Rsx.Route('Invoices_Index_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <% const _entries = this.data.entries; %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Rsx_Form $data=this.data.form_data $controller="Frontend_Invoices_Controller" $method="create">
+                <Card_Widget>
+                    <Section $title="Client">
+                        <Form_Errors />
+
+                        <Form_Field $label="Client" $required=true $help="Clients with approved entries waiting to be invoiced say how many.">
+                            <Select_Input $sid="client_select" $name="client_id" $options=this.data.client_options $placeholder="Choose a client..." />
+                        </Form_Field>
+                    </Section>
+
+                    <% if (this.data.client_id) { %>
+                        <Section $title="Entries to invoice" $count=_entries.length $flush=true>
+                            <% if (_entries.length === 0) { %>
+                                <Empty_State $icon="bi bi-check2-all">
+                                    <Slot:title>Nothing to invoice</Slot:title>
+                                    <Slot:body>This client has no approved entries that are not on an invoice yet. Entries are invoiced once an approver approves them.</Slot:body>
+                                </Empty_State>
+                            <% } else { %>
+                                <Invoices_Entry_Checklist_Input $name="entry_ids" $entries=_entries />
+                            <% } %>
+                        </Section>
+                    <% } %>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="<%= Spa.return_url(Rsx.Route('Invoices_Index_Action')) %>" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-receipt"></i> Create Draft Invoice
+                        </button>
+                    </div>
+                </Card_Widget>
+            </Rsx_Form>
+        </Slot:main>
+    </Page_Scaffold>
+<% } %>
+</Define:Invoices_New_Action>

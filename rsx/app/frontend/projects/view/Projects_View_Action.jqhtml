@@ -31,6 +31,7 @@
         const _contacts = this.data.contacts;
         const _assigned_users = this.data.assigned_users;
         const _activity = this.data.activity; const _can_view_activity = Activity_Feed.can_view();
+        const _billing = this.data.billing;
         const _open_tasks = _tasks.filter(t => t.status === Task_Model.STATUS_PENDING || t.status === Task_Model.STATUS_IN_PROGRESS).length;
         const _overdue_tasks = _tasks.filter(t => t.is_overdue).length;
         const _has_overdue = _overdue_tasks > 0;
@@ -38,6 +39,7 @@
             { key: 'overview', label: 'Overview' },
             { key: 'tasks', label: 'Tasks', count: _tasks.length },
             { key: 'subprojects', label: 'Subprojects', count: _subprojects.length },
+            { key: 'billing', label: 'Billing', count: _billing ? _billing.entry_count : null },
             ...(_can_view_activity ? [{ key: 'activity', label: 'Activity', count: _activity.length }] : []),
         ];
     %>
@@ -88,7 +90,7 @@
                         </Section>
                         <% } %>
 
-                        <% if (_project.start_date || _project.due_date || _project.budget !== null) { %>
+                        <% if (_project.start_date || _project.due_date || _project.budget !== null || _project.hourly_rate !== null) { %>
                         <Section $title="Timeline & Budget">
                             <View_Fields>
                                 <View_Field $label="Start Date">
@@ -99,6 +101,9 @@
                                 </View_Field>
                                 <View_Field $label="Budget">
                                     <% if (_project.budget !== null) { %><%= _project.budget %><% } else { %><Empty_Value /><% } %>
+                                </View_Field>
+                                <View_Field $label="Hourly Rate">
+                                    <% if (_project.hourly_rate !== null) { %><%= _project.hourly_rate %><% } else { %><Empty_Value /><% } %>
                                 </View_Field>
                             </View_Fields>
                         </Section>
@@ -231,6 +236,10 @@
                         </Section>
                     </Tab_Panel>
 
+                    <Tab_Panel $key="billing">
+                        <Projects_View_Tab_Billing $project=_project $summary=_billing />
+                    </Tab_Panel>
+
                     <% if (_can_view_activity) { %>
                     <Tab_Panel $key="activity">
                         <Section $title="Activity" $count=_activity.length $flush=true>
@@ -269,6 +278,18 @@
                         <Slot:label>Subprojects</Slot:label>
                         <Slot:value><%= _subprojects.length %></Slot:value>
                     </Kpi_Cell>
+                    <% if (_billing) { %>
+                    <Kpi_Cell $clickable=true $tab="billing" $tooltip="Hours on this project's time entries, whatever their status">
+                        <Slot:label>Hours Logged</Slot:label>
+                        <Slot:value><%= _billing.hours_logged %></Slot:value>
+                    </Kpi_Cell>
+                    <% if (_billing.budget_remaining !== null) { %>
+                    <Kpi_Cell $clickable=true $tab="billing" $alert=_billing.budget_remaining.is_negative() $tooltip="The budget less the approved and billed entries">
+                        <Slot:label>Budget Left</Slot:label>
+                        <Slot:value><%= _billing.budget_remaining %></Slot:value>
+                    </Kpi_Cell>
+                    <% } %>
+                    <% } %>
                 </Sidebar_Kpi_Group>
 
                 <View_Fields>

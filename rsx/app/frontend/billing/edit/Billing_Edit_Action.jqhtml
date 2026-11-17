@@ -1,0 +1,136 @@
+<Define:Billing_Edit_Action>
+<% if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Entry"
+                $back_label="Go back to Billing"
+                $back_url="<%= Rsx.Route('Billing_Index_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <%
+        const _t = this.data.type_id;
+        const _is_time = _t === Billable_Entry_Model.TYPE_TIME;
+        const _is_expense = _t === Billable_Entry_Model.TYPE_EXPENSE;
+        const _is_fee = _t === Billable_Entry_Model.TYPE_FIXED_FEE;
+        const _cancel = this.data.is_edit
+            ? Rsx.Route('Billing_View_Action', this.args.id)
+            : Spa.return_url(Rsx.Route('Billing_Index_Action'));
+    %>
+    <Page_Scaffold>
+        <Slot:main>
+            <% if (!_is_time && !_is_expense && !_is_fee) { %>
+                <Callout $variant="warning" $icon="bi bi-exclamation-triangle">
+                    <Slot:title>Choose the kind of entry</Slot:title>
+                    <Slot:body>Start a new entry from the New entry menu on the <a href="<%= Rsx.Route('Billing_Index_Action') %>">Billing</a> page.</Slot:body>
+                </Callout>
+            <% } else { %>
+            <Rsx_Form $data=this.data.form_data $controller="Frontend_Billing_Controller" $method="save">
+                <% if (this.data.is_edit) { %>
+                    <Hidden_Input $name="id" />
+                <% } %>
+                <Hidden_Input $name="type_id" />
+
+                <Card_Widget>
+                    <Section $title=this.kind_label()>
+                        <Form_Errors />
+
+                        <div class="row">
+                            <div class="col-tablet-6">
+                                <Form_Field $label="Project" $required=true>
+                                    <Select_Input $sid="project_select" $name="project_id" $options=this.data.project_options $placeholder="Choose a project..." />
+                                </Form_Field>
+                            </div>
+                            <div class="col-tablet-6">
+                                <Form_Field $label="Task" $help="Optional - a task of the chosen project.">
+                                    <Billing_Task_Select_Input $sid="task_select" $name="task_id" $options=this.data.task_options $placeholder="No task" />
+                                </Form_Field>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-tablet-6">
+                                <Form_Field $label="Date" $required=true>
+                                    <Text_Input $name="entry_date" $type="date" $max_length=-1 />
+                                </Form_Field>
+                            </div>
+                            <% if (this.data.can_choose_user) { %>
+                            <div class="col-tablet-6">
+                                <Form_Field $label="Person" $required=true $help="Who did the work.">
+                                    <Select_Input $name="user_id" $options=this.data.user_options />
+                                </Form_Field>
+                            </div>
+                            <% } %>
+                        </div>
+
+                        <Form_Field $label="Description" $required=true>
+                            <Text_Input $name="description" $max_length=Billable_Entry_Model.field_length('description') $placeholder="What was done or bought" />
+                        </Form_Field>
+                    </Section>
+
+                    <%-- The kind's own fields: they live on its detail table (a fixed fee has none). --%>
+                    <% if (_is_time) { %>
+                        <Section $title="Time">
+                            <div class="row">
+                                <div class="col-tablet-6">
+                                    <Form_Field $label="Hours" $required=true $help="Decimal hours, or hours:minutes (1:30).">
+                                        <Time_Entry_Input $name="hours" $placeholder="0.00" />
+                                    </Form_Field>
+                                </div>
+                                <div class="col-tablet-6">
+                                    <Form_Field $label="Hourly Rate" $required=true $help="Copied from the project; this entry keeps its own.">
+                                        <Money_Input $sid="hourly_rate" $name="hourly_rate" $placeholder="0.00" />
+                                    </Form_Field>
+                                </div>
+                            </div>
+                        </Section>
+                    <% } else if (_is_expense) { %>
+                        <Section $title="Expense">
+                            <div class="row">
+                                <div class="col-tablet-6">
+                                    <Form_Field $label="Vendor">
+                                        <Text_Input $name="vendor" $max_length=Billable_Entry_Model.field_length('vendor') />
+                                    </Form_Field>
+                                </div>
+                                <div class="col-tablet-6">
+                                    <Form_Field $label="Cost" $required=true>
+                                        <Money_Input $name="cost" $placeholder="0.00" />
+                                    </Form_Field>
+                                </div>
+                            </div>
+                            <%-- The receipt is a file on the saved entry, so it is attached once the entry exists. --%>
+                            <div class="mb-3">
+                                <label class="form-label">Receipt</label>
+                                <% if (this.data.is_edit) { %>
+                                    <Billing_Receipt $sid="receipt" $entry_id=this.args.id $can_change=true />
+                                <% } else { %>
+                                    <div class="form-text">Save the expense first; its page then offers Upload receipt.</div>
+                                <% } %>
+                            </div>
+                        </Section>
+                    <% } else { %>
+                        <Section $title="Fixed Fee">
+                            <Form_Field $label="Amount" $required=true>
+                                <Money_Input $name="amount" $placeholder="0.00" />
+                            </Form_Field>
+                        </Section>
+                    <% } %>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="<%= _cancel %>" class="btn btn-secondary" @click=this.discard_changes>
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Save <%= this.kind_label() %>
+                        </button>
+                    </div>
+                </Card_Widget>
+            </Rsx_Form>
+            <% } %>
+        </Slot:main>
+    </Page_Scaffold>
+<% } %>
+</Define:Billing_Edit_Action>

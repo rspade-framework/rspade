@@ -1,0 +1,24 @@
+<%--
+Billing_Index_Page_Actions
+
+The billing list's page-header button: New entry, a menu of the three kinds an entry can be.
+Each item opens the add form with its kind fixed (?type=N). Billing_Index_Action hands it to
+the layout from page_actions(); the project view's Billing tab carries the same menu with the
+project chosen ($project_id).
+
+$project_id - optional; the project the new entry is for
+--%>
+<Define:Billing_Index_Page_Actions class="dropdown d-inline-block">
+    <%
+        const _extra = this.args.project_id ? { project_id: this.args.project_id } : {};
+        const _href = (type) => Rsx.Route('Billing_Edit_Action', { type: type, ..._extra });
+    %>
+    <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-plus-circle"></i> New entry
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item" href="<%= _href(Billable_Entry_Model.TYPE_TIME) %>"><i class="bi bi-stopwatch"></i> Time</a></li>
+        <li><a class="dropdown-item" href="<%= _href(Billable_Entry_Model.TYPE_EXPENSE) %>"><i class="bi bi-receipt"></i> Expense</a></li>
+        <li><a class="dropdown-item" href="<%= _href(Billable_Entry_Model.TYPE_FIXED_FEE) %>"><i class="bi bi-cash-coin"></i> Fixed fee</a></li>
+    </ul>
+</Define:Billing_Index_Page_Actions>

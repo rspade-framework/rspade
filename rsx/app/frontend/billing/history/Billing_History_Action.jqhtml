@@ -1,0 +1,41 @@
+<Define:Billing_History_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading history..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Entry"
+                $back_label="Go back to Billing"
+                $back_url="<%= Rsx.Route('Billing_Index_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <% const _record = this.data.record; %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Card_Widget>
+                <Entity_Header>
+                    <Slot:title><%= _record.description %></Slot:title>
+                    <Slot:meta>
+                        <span><%= _record.type_id__label %> entry #<%= _record.id %></span>
+                        <span><a href="<%= Rsx.Route('Billing_View_Action', _record.id) %>">Back to the entry</a></span>
+                    </Slot:meta>
+                </Entity_Header>
+
+                <Section $title="Change History" $icon="bi bi-clock-history">
+                    <%-- The component owns the whole timeline: loading, paging and the
+                         per-field before/after formatting. --%>
+                    <Revision_History $record_type="Billable_Entry_Model" $record_id=_record.id />
+                </Section>
+            </Card_Widget>
+        </Slot:main>
+    </Page_Scaffold>
+<% } %>
+</Define:Billing_History_Action>

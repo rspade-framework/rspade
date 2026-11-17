@@ -1,5 +1,5 @@
 {
-    "_about": "The sample data Sample_Data_Service seeds into an empty site. portal_enabled is the client-level portal switch only (it shows the Portal tab to staff); no contact is given portal access. Every value here is fictional: parody companies and film/TV characters (resource/seed_gags.txt is the chart), test email addresses (domain test.<company>.com, never delivered) and (nnn) 555-01nn phone numbers (never texted). Dates are day offsets from the day of seeding. Each documents[] entry is also the generator's input (resource/generate_documents.php): type pdf|docx|xlsx|png|jpg, with body paragraphs, or rows for xlsx, or lines for an image.",
+    "_about": "The sample data Sample_Data_Service seeds into an empty site. portal_enabled is the client-level portal switch only (it shows the Portal tab to staff); no contact is given portal access. Every value here is fictional: parody companies and film/TV characters (resource/seed_gags.txt is the chart), test email addresses (domain test.<company>.com, never delivered) and (nnn) 555-01nn phone numbers (never texted). Dates are day offsets from the day of seeding. A project's billing[] entries (kind TIME|EXPENSE|FIXED_FEE, day, optional task by title) are saved through Billable_Entry_Model's own rules and taken to their status (DRAFT|SUBMITTED|APPROVED|REJECTED with a rejection_reason); an entry naming an invoice key is approved and billed on that invoice of its client's invoices[] (status DRAFT|ISSUED|PAID|VOID; issued, due and paid are day offsets; a void invoice releases its entries back to APPROVED). Each documents[] entry is also the generator's input (resource/generate_documents.php): type pdf|docx|xlsx|png|jpg, with body paragraphs, or rows for xlsx, or lines for an image.",
 
     "clients": [
         {
@@ -25,7 +25,7 @@
             ],
             "projects": [
                 {
-                    "name": "Electrolyte Irrigation Pilot", "status": "ACTIVE", "priority": "URGENT", "start": -75, "due": 20, "budget": 250000,
+                    "name": "Electrolyte Irrigation Pilot", "status": "ACTIVE", "priority": "URGENT", "start": -75, "due": 20, "budget": 250000, "hourly_rate": 175,
                     "description": "Replace crop irrigation with the sponsor's sports drink across forty test fields, per presidential directive. Measure yield. Brace for results.",
                     "contacts": ["camacho", "bauers"],
                     "tasks": [
@@ -35,6 +35,14 @@
                         ]},
                         {"title": "Prepare yield report for the Cabinet", "status": "PENDING", "priority": "MEDIUM", "due": 14, "hours": 8},
                         {"title": "Stock monster-truck footage for the briefing", "status": "COMPLETED", "priority": "LOW", "due": -10, "hours": 1}
+                    ],
+                    "billing": [
+                        {"kind": "TIME", "invoice": "first", "day": -70, "task": "Confirm crops actually want electrolytes", "description": "Crop interviews, fields 1-10", "hours": "6"},
+                        {"kind": "TIME", "invoice": "first", "day": -62, "task": "Stock monster-truck footage for the briefing", "description": "Licensed monster-truck footage for the Cabinet briefing", "hours": "1.5"},
+                        {"kind": "EXPENSE", "invoice": "first", "day": -60, "description": "Sports drink for forty test fields, first delivery", "vendor": "Valley Irrigation Supply", "cost": "1840.00"},
+                        {"kind": "FIXED_FEE", "invoice": "second", "day": -45, "description": "Field trial setup fee", "amount": "2500.00"},
+                        {"kind": "TIME", "invoice": "second", "day": -40, "task": "Prepare yield report for the Cabinet", "description": "Yield report draft, with diagrams for the Cabinet", "hours": "8.25"},
+                        {"kind": "EXPENSE", "invoice": "second", "day": -38, "description": "Water for the control field (one delivery, unusual request)", "vendor": "Valley Irrigation Supply", "cost": "312.40"}
                     ]
                 },
                 {
@@ -46,6 +54,10 @@
                         {"title": "Draft the 'what a law is' primer", "status": "IN_PROGRESS", "priority": "MEDIUM", "due": 7, "hours": 5}
                     ]
                 }
+            ],
+            "invoices": [
+                {"key": "first", "status": "PAID", "issued": -48, "due": -18, "paid": -20},
+                {"key": "second", "status": "ISSUED", "issued": -33, "due": -3, "notes": "Payment reminder sent to the President's office."}
             ],
             "documents": [
                 {"file": "brawndough_irrigation_pilot_results.xlsx", "type": "xlsx", "title": "Irrigation Pilot - Field Results", "rows": [
@@ -148,13 +160,20 @@
             ],
             "projects": [
                 {
-                    "name": "Truck Recovery", "status": "ACTIVE", "priority": "URGENT", "start": -10, "due": 5, "budget": 7500,
+                    "name": "Truck Recovery", "status": "ACTIVE", "priority": "URGENT", "start": -10, "due": 5, "budget": 7500, "hourly_rate": 85,
                     "description": "Locate and recover the company's only truck, last seen in an alley under unusual circumstances.",
                     "contacts": ["burton"],
                     "tasks": [
                         {"title": "File stolen-vehicle report", "status": "COMPLETED", "priority": "HIGH", "due": -8, "hours": 1},
                         {"title": "Retrieve truck from basement of unknown building", "status": "IN_PROGRESS", "priority": "URGENT", "due": 1, "hours": 16},
                         {"title": "Claim insurance for 'mystical damage'", "status": "PENDING", "priority": "MEDIUM", "due": 12, "hours": 3}
+                    ],
+                    "billing": [
+                        {"kind": "TIME", "status": "APPROVED", "day": -9, "task": "File stolen-vehicle report", "description": "Stolen-vehicle report filed with the police", "hours": "1"},
+                        {"kind": "TIME", "status": "SUBMITTED", "day": -6, "task": "Retrieve truck from basement of unknown building", "description": "Search of the basement, first pass", "hours": "6.5"},
+                        {"kind": "TIME", "status": "REJECTED", "day": -5, "task": "Retrieve truck from basement of unknown building", "description": "Search of the basement, overnight", "hours": "12", "rejection_reason": "Twelve overnight hours need a note of what was searched - add it and resubmit."},
+                        {"kind": "EXPENSE", "status": "REJECTED", "day": -4, "description": "Fuel and a wager at the all-night station", "vendor": "Grant Avenue All-Night Station", "cost": "48.00", "rejection_reason": "A wager is not a billable expense - resubmit the fuel on its own."},
+                        {"kind": "FIXED_FEE", "status": "DRAFT", "day": -2, "description": "Recovery tow fee", "amount": "750.00"}
                     ]
                 },
                 {
@@ -204,7 +223,7 @@
             ],
             "projects": [
                 {
-                    "name": "1.21 Gigawatt Power Procurement", "status": "ACTIVE", "priority": "URGENT", "start": -50, "due": 9, "budget": 121000,
+                    "name": "1.21 Gigawatt Power Procurement", "status": "ACTIVE", "priority": "URGENT", "start": -50, "due": 9, "budget": 121000, "hourly_rate": 121,
                     "description": "Source a reliable 1.21 gigawatt supply for a short, very specific window. Lightning is under consideration.",
                     "contacts": ["brown"],
                     "tasks": [
@@ -213,6 +232,13 @@
                             {"title": "Run cable from the clock tower to the street", "status": "PENDING", "priority": "HIGH", "due": 1, "hours": 5}
                         ]},
                         {"title": "Source a replacement flux part", "status": "PENDING", "priority": "HIGH", "due": 6, "hours": 6, "attach": "hillvalley_power_quote.pdf"}
+                    ],
+                    "billing": [
+                        {"kind": "TIME", "invoice": "power", "day": -30, "task": "Quote plutonium alternatives", "description": "Plutonium alternatives - quotes from three suppliers", "hours": "4"},
+                        {"kind": "FIXED_FEE", "invoice": "power", "day": -25, "description": "Lightning strike feasibility study", "amount": "1210.00"},
+                        {"kind": "EXPENSE", "invoice": "power", "day": -20, "description": "Extension cable, 200 ft, heavy gauge", "vendor": "Hill Valley Hardware", "cost": "86.75"},
+                        {"kind": "TIME", "invoice": "power", "day": -14, "task": "Confirm lightning strike schedule with the clock tower", "description": "Clock tower schedule meeting (senior rate)", "hours": "2.5", "hourly_rate": "150.00"},
+                        {"kind": "TIME", "status": "DRAFT", "day": -1, "task": "Source a replacement flux part", "description": "Calls to flux part suppliers", "hours": "1.25"}
                     ],
                     "subprojects": [
                         {
@@ -236,6 +262,9 @@
                         {"title": "Investigate 'borrowed' time machine and missing sports almanac", "status": "PENDING", "priority": "URGENT", "due": -3, "hours": 8}
                     ]
                 }
+            ],
+            "invoices": [
+                {"key": "power", "status": "ISSUED", "issued": -10, "due": 20}
             ],
             "documents": [
                 {"file": "hillvalley_power_quote.pdf", "type": "pdf", "title": "Quotation - 1.21 Gigawatt Supply", "body": [
@@ -346,13 +375,20 @@
             ],
             "projects": [
                 {
-                    "name": "Cargo Haulage - Outer Rim Run", "status": "ACTIVE", "priority": "HIGH", "start": -25, "due": 18, "budget": 36000,
+                    "name": "Cargo Haulage - Outer Rim Run", "status": "ACTIVE", "priority": "HIGH", "start": -25, "due": 18, "budget": 36000, "hourly_rate": 90,
                     "description": "Three-stop freight run under 'no questions asked' terms. Our legal team has asked several questions.",
                     "contacts": ["reynolds", "cobb"],
                     "tasks": [
                         {"title": "Agree 'no questions asked' delivery terms", "status": "COMPLETED", "priority": "HIGH", "due": -18, "hours": 2},
                         {"title": "Ship knitted hat from Jayne's mother", "status": "IN_PROGRESS", "priority": "MEDIUM", "due": 3, "hours": 1, "description": "Handle with care. It is, apparently, a very cunning hat."},
                         {"title": "Reconcile cash payments", "status": "PENDING", "priority": "MEDIUM", "due": 20, "hours": 3}
+                    ],
+                    "billing": [
+                        {"kind": "TIME", "invoice": "voided", "day": -22, "task": "Agree 'no questions asked' delivery terms", "description": "Delivery terms negotiation", "hours": "2"},
+                        {"kind": "EXPENSE", "invoice": "voided", "day": -18, "description": "Fuel for the first two stops", "vendor": "Persephone Fuel Depot", "cost": "640.00"},
+                        {"kind": "FIXED_FEE", "invoice": "current", "day": -15, "description": "Outer Rim run - stop one delivery fee", "amount": "1500.00"},
+                        {"kind": "TIME", "invoice": "current", "day": -10, "task": "Ship knitted hat from Jayne's mother", "description": "Hat handling and packing", "hours": "0.75"},
+                        {"kind": "TIME", "invoice": "current", "day": -8, "task": "Reconcile cash payments", "description": "Cash reconciliation, stop one", "hours": "3"}
                     ]
                 },
                 {
@@ -364,6 +400,10 @@
                         {"title": "Fit and test the coil", "status": "PENDING", "priority": "HIGH", "due": 4, "hours": 6}
                     ]
                 }
+            ],
+            "invoices": [
+                {"key": "voided", "status": "VOID", "issued": -12, "due": 18, "notes": "Raised against the wrong cargo manifest; its entries go on the next invoice."},
+                {"key": "current", "status": "DRAFT"}
             ],
             "documents": [
                 {"file": "serenity_cargo_manifest.xlsx", "type": "xlsx", "title": "Cargo Manifest - Outer Rim Run", "rows": [
@@ -809,13 +849,19 @@
             ],
             "projects": [
                 {
-                    "name": "Station Health & Safety Review", "status": "ACTIVE", "priority": "URGENT", "start": -8, "due": 4, "budget": 9000,
+                    "name": "Station Health & Safety Review", "status": "ACTIVE", "priority": "URGENT", "start": -8, "due": 4, "budget": 9000, "hourly_rate": 140,
                     "description": "Introduce a reliable test that staff are who they say they are.",
                     "contacts": ["macready"],
                     "tasks": [
                         {"title": "Write up the blood-test procedure", "status": "COMPLETED", "priority": "URGENT", "due": -2, "hours": 3},
                         {"title": "Test every staff member (heated wire, petri dish)", "status": "IN_PROGRESS", "priority": "URGENT", "due": 0, "hours": 4},
                         {"title": "Order a replacement chess computer", "status": "PENDING", "priority": "LOW", "due": 14, "hours": 0.5}
+                    ],
+                    "billing": [
+                        {"kind": "TIME", "status": "APPROVED", "day": -7, "description": "Station walk-through with the pilot", "hours": "2.5"},
+                        {"kind": "EXPENSE", "status": "APPROVED", "day": -6, "description": "Petri dishes and a heated wire", "vendor": "Polar Scientific Supply", "cost": "129.95"},
+                        {"kind": "FIXED_FEE", "status": "APPROVED", "day": -5, "task": "Write up the blood-test procedure", "description": "Blood-test procedure write-up", "amount": "900.00"},
+                        {"kind": "FIXED_FEE", "status": "SUBMITTED", "day": -2, "task": "Test every staff member (heated wire, petri dish)", "description": "Staff testing session", "amount": "450.00"}
                     ]
                 }
             ],
@@ -903,13 +949,20 @@
             ],
             "projects": [
                 {
-                    "name": "Containment Unit Inspection", "status": "ACTIVE", "priority": "URGENT", "start": -11, "due": 2, "budget": 18000,
+                    "name": "Containment Unit Inspection", "status": "ACTIVE", "priority": "URGENT", "start": -11, "due": 2, "budget": 18000, "hourly_rate": 200,
                     "description": "Inspection of the basement containment unit after the city ordered it shut down.",
                     "contacts": ["spengler"],
                     "tasks": [
                         {"title": "Inspect the containment grid", "status": "IN_PROGRESS", "priority": "URGENT", "due": 0, "hours": 5},
                         {"title": "Confirm no one has turned off the power", "status": "PENDING", "priority": "URGENT", "due": -1, "hours": 0.5},
                         {"title": "Catalogue spores, moulds and fungus", "status": "PENDING", "priority": "LOW", "due": 20, "hours": 10}
+                    ],
+                    "billing": [
+                        {"kind": "TIME", "status": "SUBMITTED", "day": -9, "task": "Inspect the containment grid", "description": "Containment grid inspection", "hours": "5"},
+                        {"kind": "EXPENSE", "status": "SUBMITTED", "day": -8, "description": "Spore sample jars and labels", "vendor": "Eastside Lab Supplies", "cost": "245.00"},
+                        {"kind": "FIXED_FEE", "status": "REJECTED", "day": -7, "description": "Emergency call-out fee", "amount": "5000.00", "rejection_reason": "The city ordered this inspection; the emergency call-out fee does not apply."},
+                        {"kind": "TIME", "status": "DRAFT", "day": -1, "task": "Catalogue spores, moulds and fungus", "description": "Spore catalogue, shelves 1-3", "hours": "2"},
+                        {"kind": "EXPENSE", "status": "DRAFT", "day": 0, "description": "Mould sample slides", "vendor": "Eastside Lab Supplies", "cost": "58.20"}
                     ]
                 }
             ],
@@ -1049,14 +1102,6 @@
         {"name": "Guide to the Galaxy, Pocket Edition", "price": "42.00", "status": "AVAILABLE", "category": "BOOKS", "description": "Has the words 'Don't Panic' inscribed in large friendly letters on the cover."},
         {"name": "Containment Unit, Residential", "price": "8999.00", "status": "DISCONTINUED", "category": "ELECTRONICS", "description": "Discontinued after a city inspector turned one off."},
         {"name": "Chess Computer (Drink-Resistant)", "price": "149.00", "status": "AVAILABLE", "category": "ELECTRONICS", "description": "Survives having a drink poured into its circuits. Still beats you."}
-    ],
-
-    "parties": [
-        {"type": "COMPANY", "name": "Hill Valley Courthouse Trust", "email": "trust@test.hillvalley.com", "phone": "(303) 555-0301", "legal_name": "Hill Valley Clock Tower Preservation Trust", "industry": "Preservation", "employee_count": 6},
-        {"type": "COMPANY", "name": "Megadodo Publications", "email": "editors@test.megadodo.com", "phone": "(617) 555-0302", "legal_name": "Megadodo Publications Ltd.", "industry": "Publishing", "employee_count": 4000},
-        {"type": "PERSON", "name": "Emmett Brown", "email": "emmett.brown@test.hillvalley.com", "phone": "(303) 555-0303", "first_name": "Emmett", "last_name": "Brown", "title": "Inventor"},
-        {"type": "PERSON", "name": "Ford Prefect", "email": "ford.prefect@test.megadodo.com", "phone": "(617) 555-0304", "first_name": "Ford", "last_name": "Prefect", "title": "Field Researcher"},
-        {"type": "GROUP", "name": "The Space Paranoids Fan Club", "email": "fans@test.flynns.com", "phone": "(408) 555-0305"}
     ],
 
     "general_tasks": [

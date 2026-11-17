@@ -53,6 +53,7 @@ use App\RSpade\Core\Session\Session;
  *   can_export_data           PERM_DATA_EXPORT
  *   can_use_api               PERM_API_ACCESS
  *   can_impersonate           (redeclared) ROLE_MANAGER floor ("View as Client")
+ *   can_approve_billing       ROLE_MANAGER floor (approve time and expenses, invoice)
  *   is_developer              login_users.is_developer - the gate for a
  *                             developer-only surface
  */
@@ -162,6 +163,19 @@ class Permission extends Permission_Abstract
      */
     #[Auth_Check]
     public static function can_impersonate(): bool
+    {
+        return static::has_role(User_Model::ROLE_MANAGER);
+    }
+
+    /**
+     * May approve or reject billable entries and create, issue, pay and void invoices.
+     *
+     * The User_Model::ROLE_MANAGER floor: a Manager and every role above it. A User or a
+     * Viewer logs and submits their own entries but never decides on them. Billing endpoints
+     * that write name it beside can_edit_data, so a DENY on edit-data still refuses them.
+     */
+    #[Auth_Check]
+    public static function can_approve_billing(): bool
     {
         return static::has_role(User_Model::ROLE_MANAGER);
     }

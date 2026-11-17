@@ -1,0 +1,11 @@
+// Invoice_Overdue_Date - a due date that has passed on an unpaid invoice.
+.Invoice_Overdue_Date {
+    color: $danger-color;
+    font-weight: $font-weight-semibold;
+    white-space: nowrap;
+
+    &__label {
+        font-size: $font-size-sm;
+        font-weight: $font-weight-normal;
+    }
+}

@@ -1,0 +1,43 @@
+<%--
+Clients_View_Tab_Invoices - the Clients_View Invoices tab body (approvers only)
+
+$client_id - the client's id (required)
+$summary   - Frontend_Invoices_Controller.client_invoice_summary()'s answer, or null when that
+             call failed (required; supplied EAGER by Clients_View_Action, because the sidebar
+             KPI shows the outstanding figure)
+
+A page REGION. The client's invoice figures, a New invoice link with the client chosen, and the
+invoices grid pinned to this client ($fixed_filters) - the grid pages and sorts the invoices
+itself, since a client's invoices grow without bound. The tab and its KPI exist only for a
+viewer who may open the invoice screens (Permission.can_access('Invoices_Index_Action')).
+--%>
+<Define:Clients_View_Tab_Invoices>
+    <%
+        const _s = this.args.summary;
+        const _pinned = { client_id: this.args.client_id };
+    %>
+
+    <Section $title="Invoicing" $icon="bi bi-receipt-cutoff">
+        <Slot:actions>
+            <a href="<%= Rsx.Route('Invoices_New_Action', { client_id: this.args.client_id }) %>" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-circle"></i> New invoice
+            </a>
+        </Slot:actions>
+        <Slot:body>
+            <% if (_s) { %>
+                <View_Fields>
+                    <View_Field $label="Outstanding"><%= _s.outstanding %></View_Field>
+                    <View_Field $label="Overdue">
+                        <% if (_s.overdue.is_zero()) { %><%= _s.overdue %><% } else { %><Money_Display $value=_s.overdue $negative_red=true /> <span class="text-danger">past due</span><% } %>
+                    </View_Field>
+                    <View_Field $label="Paid"><%= _s.paid %></View_Field>
+                    <View_Field $label="Ready to Invoice"><%= _s.ready_count %> approved <%= _s.ready_count === 1 ? 'entry' : 'entries' %></View_Field>
+                </View_Fields>
+            <% } else { %>
+                <Empty_Value />
+            <% } %>
+        </Slot:body>
+    </Section>
+
+    <Invoices_DataGrid $fixed_filters=_pinned />
+</Define:Clients_View_Tab_Invoices>

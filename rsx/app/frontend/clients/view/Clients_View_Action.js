@@ -24,6 +24,9 @@ class Clients_View_Action extends Spa_Action {
         this.data.contacts = [];
         this.data.projects = [];
         this.data.activity = [];
+        // The Invoices tab's figures (Frontend_Invoices_Controller.client_invoice_summary), for
+        // a viewer who may open the invoice screens; null otherwise or when the call failed.
+        this.data.invoice_summary = null;
         this.data.error_data = null;
         this.data.loading = true;
 
@@ -67,21 +70,31 @@ class Clients_View_Action extends Spa_Action {
                 return deleted_result.client;
             });
 
-            const [client, contacts_result, projects_result, activity_result] = await Promise.all([
+            const [client, contacts_result, projects_result, activity_result, invoice_summary] = await Promise.all([
                 client_promise,
                 Frontend_Clients_Controller.client_contacts({id: this.args.id}).catch(() => ({contacts: []})),
                 Frontend_Clients_Controller.client_projects({id: this.args.id}).catch(() => ({projects: []})),
                 Activity_Feed.can_view() ? Frontend_Clients_Controller.client_activity({id: this.args.id}).catch(() => ({activity: []})) : {activity: []},
+                Clients_View_Action.can_view_invoices() ? Frontend_Invoices_Controller.client_invoice_summary({id: this.args.id}).catch(() => null) : null,
             ]);
             this.data.client = client;
             this.data.contacts = contacts_result.contacts;
             this.data.projects = projects_result.projects;
+            this.data.invoice_summary = invoice_summary;
             // Decorate each activity entry with its Feed_Row icon/variant (shared map).
             this.data.activity = activity_result.activity.map(a => ({...a, ...Activity_Feed.decorate(a.type_id)}));
         } catch (e) {
             this.data.error_data = e;
         }
         this.data.loading = false;
+    }
+
+    /**
+     * May the viewer see this client's invoices? Invoices are an approver's screens; the tab
+     * and its KPI follow the invoice list's own gates.
+     */
+    static can_view_invoices() {
+        return Permission.can_access('Invoices_Index_Action');
     }
 
     // Breadcrumb methods

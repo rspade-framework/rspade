@@ -57,14 +57,16 @@ Action_Log::record(
 - Read it back with `Action_Log::get_for_entity($entity, $limit)` (subject OR related).
 
 Live examples: `rsx/app/frontend/clients/clients_controller.php`,
-`tasks_controller.php`, `party_controller.php`.
+`tasks_controller.php`, `billing/billing_controller.php` (the entry's project as
+`ROLE_MENTIONED`, a rejection's reason as metadata).
 
 ## Adding an action type
 
 1. Add the integer to the `type_id` enum in `Action_Log_Model`'s `$columns` with `constant`,
    `label`, and a `renderer` of `FQCN::method`. **Keep the range convention**:
-   client 1-9, contact 10-19, project 20-29, task 30-39, party 40-49 - the activity
-   feed's icon map keys off those ranges.
+   client 1-9, contact 10-19, project 20-29, task 30-39, account security 50-59, billable
+   entries 60-69, invoices 70-79 - the
+   activity feed's icon map keys off those ranges.
 2. Write the renderer as a static method on `Rsx\Lib\ActionLog\Action_Log_Renderer`
    taking the `Action_Log_Model` and returning an HTML string: `htmlspecialchars()`
    every user value, `Rsx::Route()` every URL, and **handle a deleted subject

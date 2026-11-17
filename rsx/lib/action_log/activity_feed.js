@@ -7,11 +7,11 @@
  * Action_Log_Model::render(), so all a page adds is a leading icon + a color
  * accent by action category. This is the client-side twin of the dashboard's
  * server-side Frontend_Dashboard_Controller::_activity_icon() - kept in ONE place
- * so every entity view (Contacts / Projects / Party / Clients) decorates the feed
+ * so every entity view (Contacts / Projects / Tasks / Clients) decorates the feed
  * identically (cross-page consistency is the acceptance test).
  *
- * Type ranges: client 1-9, contact 10-19, project 20-29, task 30-39, party 40-49,
- * account security (passwords, API keys) 50-59.
+ * Type ranges: client 1-9, contact 10-19, project 20-29, task 30-39,
+ * account security (passwords, API keys) 50-59, billable entries 60-69, invoices 70-79.
  *
  * Usage (in on_load, after fetching the activity array):
  *   this.data.activity = result.activity.map(a => ({ ...a, ...Activity_Feed.decorate(a.type_id) }));
@@ -45,8 +45,9 @@ class Activity_Feed {
             case 1: return { icon: 'bi bi-person', variant: 'info' };
             case 2: return { icon: 'bi bi-folder', variant: 'success' };
             case 3: return { icon: 'bi bi-check2-square', variant: 'warning' };
-            case 4: return { icon: 'bi bi-diagram-3', variant: 'secondary' };
             case 5: return { icon: 'bi bi-shield-lock', variant: 'danger' };
+            case 6: return { icon: 'bi bi-stopwatch', variant: 'info' };
+            case 7: return { icon: 'bi bi-receipt', variant: 'success' };
             default: return { icon: 'bi bi-activity', variant: 'secondary' };
         }
     }

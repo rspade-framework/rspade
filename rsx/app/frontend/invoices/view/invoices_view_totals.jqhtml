@@ -1,0 +1,44 @@
+<%--
+Invoices_View_Totals - the invoice's money lines (Stat_Row), under its lines
+
+$invoice - the invoice (required); its `total` is the appended sum of its lines
+
+    Total        - always, the totals emphasis ($strong_label)
+    Amount due   - ISSUED: the total, red ($alert) once the invoice is overdue
+                   PAID:   nothing, with the paid line above it
+    VOID         - Amount due (void): nothing
+
+There is no tax and no stored total: the total can never disagree with the lines.
+--%>
+<Define:Invoices_View_Totals>
+    <%
+        const _inv = this.args.invoice;
+        const _issued = _inv.status === Invoice_Model.STATUS_ISSUED;
+        const _paid = _inv.status === Invoice_Model.STATUS_PAID;
+        const _void = _inv.status === Invoice_Model.STATUS_VOID;
+    %>
+    <Stat_Row $strong_label=true>
+        <Slot:label>Total</Slot:label>
+        <Slot:value><%= _inv.total %></Slot:value>
+    </Stat_Row>
+    <% if (_paid) { %>
+        <Stat_Row>
+            <Slot:label>Paid <%= Rsx_Date.format(_inv.paid_date) %></Slot:label>
+            <Slot:value><%= _inv.total.negate() %></Slot:value>
+        </Stat_Row>
+        <Stat_Row>
+            <Slot:label>Amount due</Slot:label>
+            <Slot:value><%= Rsx_Money.zero() %></Slot:value>
+        </Stat_Row>
+    <% } else if (_issued) { %>
+        <Stat_Row $alert=_inv.is_overdue>
+            <Slot:label>Amount due<% if (_inv.is_overdue) { %> (overdue)<% } %></Slot:label>
+            <Slot:value><%= _inv.total %></Slot:value>
+        </Stat_Row>
+    <% } else if (_void) { %>
+        <Stat_Row>
+            <Slot:label>Amount due (void)</Slot:label>
+            <Slot:value><%= Rsx_Money.zero() %></Slot:value>
+        </Stat_Row>
+    <% } %>
+</Define:Invoices_View_Totals>

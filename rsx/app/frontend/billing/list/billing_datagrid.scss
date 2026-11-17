@@ -1,0 +1,7 @@
+// Billing_DataGrid - the project filter is capped: its options are long project and client
+// names, and an uncapped select would push the card header's search and filters off the row.
+.Billing_DataGrid {
+    &__project-filter {
+        max-width: 240px;
+    }
+}

@@ -1,7 +1,7 @@
 /**
  * Task detail view action
  *
- * The five-entity view archetype (matches Clients_View / Contacts_View / Party_View):
+ * The entity view archetype (matches Clients_View / Contacts_View / Projects_View):
  * Page_Scaffold / Card_Widget / Entity_Header / Tab_Bar / Tab_Panels / Section /
  * View_Fields / Record_Table / Feed_Row / Detail_Sidebar / Action_Menu. Tabs:
  * Overview / Subtasks / Activity, with a KPI sidebar. The Overview tab carries the
@@ -23,6 +23,8 @@ class Tasks_View_Action extends Spa_Action {
         this.data.subtasks = [];
         this.data.activity = [];
         this.data.attachments = [];
+        // Hours on time entries naming this task (decimal string), null when that call failed.
+        this.data.hours_logged = null;
         this.data.error_data = null;
         this.data.loading = true;
 
@@ -40,17 +42,19 @@ class Tasks_View_Action extends Spa_Action {
         try {
             // One parallel batch: every call keys off this.args.id, so none of them
             // depends on another's RESULT. The task is FATAL - the page IS this record -
-            // and carries no .catch(); the three side lists are non-fatal and degrade to
-            // empty so a failing tab cannot blank the record.
-            const [task, subtasks_result, activity_result, attachments_result] = await Promise.all([
+            // and carries no .catch(); the side lists and the hours figure are non-fatal and
+            // degrade to empty so a failing tab cannot blank the record.
+            const [task, subtasks_result, activity_result, attachments_result, billing] = await Promise.all([
                 Task_Model.fetch(this.args.id),
                 Frontend_Tasks_Controller.task_subtasks({ id: this.args.id }).catch(() => ({ subtasks: [] })),
                 Activity_Feed.can_view() ? Frontend_Tasks_Controller.task_activity({ id: this.args.id }).catch(() => ({ activity: [] })) : {activity: []},
                 Frontend_Tasks_Controller.task_attachments({ id: this.args.id }).catch(() => ({ attachments: [] })),
+                Frontend_Billing_Controller.task_billing_summary({ id: this.args.id }).catch(() => ({ hours_logged: null })),
             ]);
             this.data.task = task;
             this.data.subtasks = subtasks_result.subtasks;
             this.data.attachments = attachments_result.attachments;
+            this.data.hours_logged = billing.hours_logged;
             // Decorate each activity entry with its Feed_Row icon/variant (shared map).
             this.data.activity = activity_result.activity.map(a => ({ ...a, ...Activity_Feed.decorate(a.type_id) }));
         } catch (e) {

@@ -105,13 +105,29 @@ ACTION TYPES
         TYPE_TASK_CREATED       30
         TYPE_TASK_UPDATED       31
         TYPE_TASK_DELETED       32
-        TYPE_PARTY_CREATED      40
-        TYPE_PARTY_UPDATED      41
-        TYPE_PARTY_DELETED      42
         TYPE_PASSWORD_CHANGED           50   metadata.cause
         TYPE_PASSWORD_RESET_REQUESTED   51
         TYPE_API_KEY_CREATED            52   metadata: the key's facts
         TYPE_API_KEY_REVOKED            53   metadata: the key's facts + how
+        TYPE_BILLABLE_ENTRY_CREATED     60
+        TYPE_BILLABLE_ENTRY_UPDATED     61
+        TYPE_BILLABLE_ENTRY_DELETED     62
+        TYPE_BILLABLE_ENTRY_SUBMITTED   63
+        TYPE_BILLABLE_ENTRY_APPROVED    64
+        TYPE_BILLABLE_ENTRY_REJECTED    65   metadata.reason
+        TYPE_INVOICE_CREATED            70
+        TYPE_INVOICE_ISSUED             71
+        TYPE_INVOICE_PAID               72
+        TYPE_INVOICE_VOIDED             73   metadata.released_entries
+
+    Billing Types
+        A billable entry's row (60-69) has the entry as its subject and its
+        project related (ROLE_MENTIONED), so the project's activity shows its
+        billing; an invoice's row (70-79) has the invoice as its subject and
+        its client related. Written by Frontend_Billing_Controller and
+        Frontend_Invoices_Controller (rsx/app/frontend/billing/,
+        rsx/app/frontend/invoices/) and by the sample-data seeder, which
+        records the same rows for what it creates.
 
     Account Security Types
         Written by ONE place, Password_Audit_Service::record_password_event,
@@ -162,10 +178,10 @@ ACTION TYPES
             public static $columns = [
                 'type_id' => ['enum' => [
                     // ... existing types ...
-                    100 => [
-                        'constant' => 'TYPE_INVOICE_SENT',
-                        'label' => 'Invoice Sent',
-                        'renderer' => 'App\\Renderers\\Invoice_Renderer::sent',
+                    74 => [
+                        'constant' => 'TYPE_INVOICE_EMAILED',
+                        'label' => 'Invoice Emailed',
+                        'renderer' => 'Rsx\\Lib\\Action_Log\\Action_Log_Renderer::invoice_emailed',
                     ],
                 ]],
             ];

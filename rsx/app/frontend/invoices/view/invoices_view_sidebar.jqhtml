@@ -1,0 +1,88 @@
+<%--
+Invoices_View_Sidebar - the Invoices_View entity sidebar (KPIs, facts, lifecycle buttons)
+
+$invoice        - the invoice (required; supplied EAGER by Invoices_View_Action)
+$line_count     - Lines KPI value (required)
+$activity_count - Activity KPI value (required; the cell shows only to administrators,
+                  Activity_Feed.can_view())
+
+A page REGION that owns its markup AND its handlers (Issue, Mark Paid, Void). The buttons follow
+the invoice's state: DRAFT Issue / Edit / Void, ISSUED Mark Paid / Edit / Void, PAID and VOID
+none. The KPI cells only EXPOSE data-kpi-tab; activating the tab is the shell's job.
+
+Fires:
+    invoice_changed - the invoice was issued, paid or voided; the owner should reload()
+--%>
+<Define:Invoices_View_Sidebar>
+    <%
+        const _inv = this.args.invoice;
+        const _draft = _inv.status === Invoice_Model.STATUS_DRAFT;
+        const _issued = _inv.status === Invoice_Model.STATUS_ISSUED;
+        const _open = _draft || _issued;
+    %>
+
+    <Detail_Sidebar>
+        <Sidebar_Kpi_Group>
+            <Kpi_Cell $alert=_inv.is_overdue $tooltip="The sum of the invoice's lines">
+                <Slot:label><% if (_issued) { %>Amount Due<% } else { %>Total<% } %></Slot:label>
+                <Slot:value><%= _inv.total %></Slot:value>
+            </Kpi_Cell>
+            <Kpi_Cell $clickable=true $tab="lines" $tooltip="Billing entries on this invoice">
+                <Slot:label>Lines</Slot:label>
+                <Slot:value><%= this.args.line_count %></Slot:value>
+            </Kpi_Cell>
+            <% if (Activity_Feed.can_view()) { %>
+            <Kpi_Cell $clickable=true $tab="activity" $tooltip="Recorded activity for this invoice">
+                <Slot:label>Activity</Slot:label>
+                <Slot:value><%= this.args.activity_count %></Slot:value>
+            </Kpi_Cell>
+            <% } %>
+        </Sidebar_Kpi_Group>
+
+        <View_Fields>
+            <View_Field $label="Number" $inline=true><%= _inv.invoice_number_formatted %></View_Field>
+            <View_Field $label="Client" $inline=true><Entity_Link $model="Client_Model" $id=_inv.client_id /></View_Field>
+            <View_Field $label="Status" $inline=true><%= _inv.status__label %></View_Field>
+            <View_Field $label="Issued" $inline=true><% if (_inv.issue_date) { %><%= Rsx_Date.format(_inv.issue_date) %><% } else { %><Empty_Value /><% } %></View_Field>
+            <View_Field $label="Due" $inline=true>
+                <% if (!_inv.due_date) { %><Empty_Value /><% } else if (_inv.is_overdue) { %><Invoice_Overdue_Date $date=_inv.due_date /><% } else { %><%= Rsx_Date.format(_inv.due_date) %><% } %>
+            </View_Field>
+            <% if (_inv.paid_date) { %>
+            <View_Field $label="Paid" $inline=true><%= Rsx_Date.format(_inv.paid_date) %></View_Field>
+            <% } %>
+            <View_Field $label="Created" $inline=true><%= Rsx_Time.format_date(_inv.created_at) %></View_Field>
+        </View_Fields>
+
+        <div class="d-grid gap-2">
+            <% if (_draft) { %>
+                <button type="button" class="btn btn-primary btn-sm" data-action="issue">
+                    <i class="bi bi-send"></i> Issue Invoice
+                </button>
+            <% } %>
+            <% if (_issued) { %>
+                <button type="button" class="btn btn-success btn-sm" data-action="mark-paid">
+                    <i class="bi bi-cash-coin"></i> Mark Paid
+                </button>
+            <% } %>
+            <% if (_open && Permission.can_access('Invoices_Edit_Action')) { %>
+                <a href="<%= Rsx.Route('Invoices_Edit_Action', _inv.id) %>" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-pencil"></i> Edit Invoice
+                </a>
+            <% } %>
+            <% if (Permission.can_access('Invoices_History_Action')) { %>
+                <a href="<%= Rsx.Route('Invoices_History_Action', _inv.id) %>" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-clock-history"></i> History
+                </a>
+            <% } %>
+        </div>
+        <% if (_open) { %>
+        <div class="d-flex justify-content-end">
+            <Action_Menu $label="More invoice actions">
+                <button type="button" class="dropdown-item text-danger" data-action="void">
+                    <i class="bi bi-x-octagon"></i> Void Invoice
+                </button>
+            </Action_Menu>
+        </div>
+        <% } %>
+    </Detail_Sidebar>
+</Define:Invoices_View_Sidebar>

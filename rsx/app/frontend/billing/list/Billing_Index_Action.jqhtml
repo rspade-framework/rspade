@@ -1,0 +1,7 @@
+<Define:Billing_Index_Action>
+<Page_Scaffold $flush=true>
+    <Slot:main>
+        <Billing_DataGrid $project_options=this.data.projects />
+    </Slot:main>
+</Page_Scaffold>
+</Define:Billing_Index_Action>

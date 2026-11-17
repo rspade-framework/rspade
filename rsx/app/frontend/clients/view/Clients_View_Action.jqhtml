@@ -5,6 +5,7 @@ Every visible seam of this page is one named region in this directory:
     Clients_View_Tab_Overview    - the Overview tab body
     Clients_View_Tab_Contacts    - the Contacts tab body
     Clients_View_Tab_Projects    - the Projects tab body
+    Clients_View_Tab_Invoices    - the Invoices tab body (approvers only)
     Clients_View_Tab_Activity    - the Activity tab body
     Clients_Portal_Panel         - the Portal tab body (self-loading, see below)
     Clients_View_Sidebar         - the entity sidebar, with its own action handlers
@@ -44,6 +45,11 @@ its own realtime posture accordingly.
             { key: 'contacts', label: 'Contacts', count: _contacts.length },
             { key: 'projects', label: 'Projects', count: _projects.length },
         ];
+        // Invoices are an approver's screens (Clients_View_Action.can_view_invoices()).
+        const _can_view_invoices = Clients_View_Action.can_view_invoices();
+        if (_can_view_invoices) {
+            _tabs.push({ key: 'invoices', label: 'Invoices', count: this.data.invoice_summary ? this.data.invoice_summary.invoice_count : null });
+        }
         // The action log is for administrators (Activity_Feed.can_view()).
         const _can_view_activity = Activity_Feed.can_view();
         if (_can_view_activity) {
@@ -95,6 +101,12 @@ its own realtime posture accordingly.
                         <Clients_View_Tab_Projects $client_id=_client.id $projects=_projects />
                     </Tab_Panel>
 
+                    <% if (_can_view_invoices) { %>
+                    <Tab_Panel $key="invoices">
+                        <Clients_View_Tab_Invoices $client_id=_client.id $summary=this.data.invoice_summary />
+                    </Tab_Panel>
+                    <% } %>
+
                     <% if (_can_view_activity) { %>
                     <Tab_Panel $key="activity">
                         <Clients_View_Tab_Activity $activity=_activity />
@@ -115,7 +127,8 @@ its own realtime posture accordingly.
                 $client=_client
                 $contacts_count=_contacts.length
                 $projects_count=_projects.length
-                $activity_count=_activity.length />
+                $activity_count=_activity.length
+                $invoice_summary=this.data.invoice_summary />
         </Slot:sidebar>
     </Page_Scaffold>
 <% } %>

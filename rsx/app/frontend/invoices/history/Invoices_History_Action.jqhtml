@@ -1,0 +1,41 @@
+<Define:Invoices_History_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading history..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Invoice"
+                $back_label="Go back to Invoices"
+                $back_url="<%= Rsx.Route('Invoices_Index_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <% const _record = this.data.record; %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Card_Widget>
+                <Entity_Header>
+                    <Slot:title><%= _record.invoice_number_formatted %></Slot:title>
+                    <Slot:meta>
+                        <span>Client: <Entity_Link $model="Client_Model" $id=_record.client_id $small=true /></span>
+                        <span><a href="<%= Rsx.Route('Invoices_View_Action', _record.id) %>">Back to the invoice</a></span>
+                    </Slot:meta>
+                </Entity_Header>
+
+                <Section $title="Change History" $icon="bi bi-clock-history">
+                    <%-- The component owns the whole timeline: loading, paging and the
+                         per-field before/after formatting. --%>
+                    <Revision_History $record_type="Invoice_Model" $record_id=_record.id />
+                </Section>
+            </Card_Widget>
+        </Slot:main>
+    </Page_Scaffold>
+<% } %>
+</Define:Invoices_History_Action>

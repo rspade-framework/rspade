@@ -10,18 +10,15 @@ namespace Rsx\Tests;
 use Illuminate\Http\Request;
 use App\RSpade\Core\Response\Error_Response;
 use App\RSpade\Core\Testing\Rsx_Test_Abstract;
-use Rsx\App\Frontend\Party\Frontend_Party_Controller;
 use Rsx\App\Frontend\Projects\Frontend_Projects_Controller;
 use Rsx\App\Frontend\Tasks\Frontend_Tasks_Controller;
 use Rsx\Lib\FieldChecks\Field_Checks;
 use Rsx\Models\Client_Model;
-use Rsx\Models\Party_Model;
-use Rsx\Models\Party_Person_Detail_Model;
 use Rsx\Models\Project_Model;
 use Rsx\Models\Task_Model;
 
 /**
- * Project, task and party saves refuse what the record cannot hold as FIELD errors - never
+ * Project and task saves refuse what the record cannot hold as FIELD errors - never
  * a database exception:
  *
  *   - an over-long name or title (the model's field_length())
@@ -30,8 +27,7 @@ use Rsx\Models\Task_Model;
  *   - a budget that is not an amount of money, has more than two decimal places or is
  *     negative, each with its own message; a budget of 0 is stored as 0.00
  *   - a pivot list entry that is not a record id ("abc", 0)
- *   - a party email that is not an address, an employee count that is not a whole number
- *
+ * *
  * Plus the Field_Checks rule those saves share: http(s)-only web addresses.
  */
 class Crud_Validation_Test extends Rsx_Test_Abstract
@@ -137,43 +133,6 @@ class Crud_Validation_Test extends Rsx_Test_Abstract
         ]);
 
         static::__assert_array_has_key('id', $result, 'the save succeeds');
-    }
-
-    // ---------------------------------------------------------------------
-    // party
-    // ---------------------------------------------------------------------
-
-    private static function __save_party(array $values)
-    {
-        return Frontend_Party_Controller::save(new Request(), $values);
-    }
-
-    public static function test_party_refuses_bad_values()
-    {
-        static::__assert_field_error(static::__save_party([
-            'type_id' => Party_Model::TYPE_PERSON,
-            'first_name' => str_repeat('f', Party_Person_Detail_Model::field_length('first_name') + 1),
-            'last_name' => 'Doe',
-        ]), 'first_name', 'an over-long first name is refused');
-
-        static::__assert_field_error(static::__save_party([
-            'type_id' => Party_Model::TYPE_PERSON,
-            'first_name' => 'Jane',
-            'last_name' => 'Doe',
-            'date_of_birth' => 'last spring',
-        ]), 'date_of_birth', 'a non-date birth date is refused');
-
-        static::__assert_field_error(static::__save_party([
-            'type_id' => Party_Model::TYPE_GROUP,
-            'name' => 'Group',
-            'email' => 'not an address',
-        ]), 'email', 'a malformed email is refused');
-
-        static::__assert_field_error(static::__save_party([
-            'type_id' => Party_Model::TYPE_COMPANY,
-            'legal_name' => 'Acme',
-            'employee_count' => '-3',
-        ]), 'employee_count', 'a negative employee count is refused');
     }
 
     // ---------------------------------------------------------------------

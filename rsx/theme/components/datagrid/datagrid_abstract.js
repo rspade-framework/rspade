@@ -44,6 +44,10 @@
  * - `order` - Default sort order (default: 'asc')
  * - `hash_ns` - The URL-hash namespace of this grid's state (default: the component name).
  *   Give each of two grids of the same class on one page its own.
+ * - `fixed_filters` - Filters the PAGE pins, as {key: value} - a grid mounted on one record's
+ *   view showing only that record's rows (`$fixed_filters={project_id: id}`). Sent with every
+ *   request and every selection payload, winning over a quick filter of the same key; never
+ *   written to the URL hash, never changed by the user. Keys need not be in allowed_filters.
  */
 class DataGrid_Abstract extends Component {
     /**
@@ -634,6 +638,9 @@ class DataGrid_Abstract extends Component {
                 active[key] = that.state.custom_filters[key];
             }
         }
+
+        // The page's pinned filters ($fixed_filters) ride every request and win.
+        Object.assign(active, that.args.fixed_filters || {});
 
         return active;
     }

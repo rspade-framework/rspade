@@ -1,0 +1,20 @@
+<%--
+Billing_Reject_Form - the body of the Reject dialog (Billing_Entry_Actions.reject()).
+
+Sends the entry back to its author with a reason. The reason is required by the reject
+endpoint, which answers a blank one as a field error under it.
+
+$id - the entry being rejected
+--%>
+<Define:Billing_Reject_Form>
+    <% const _seed = { id: this.args.id, rejection_reason: '' }; %>
+    <Rsx_Form $controller="Frontend_Billing_Controller" $method="reject" $data=_seed>
+        <Hidden_Input $name="id" />
+
+        <Form_Errors />
+
+        <Form_Field $label="Reason" $required=true $help="The author sees this on the entry and can correct and resubmit it.">
+            <Text_Input $name="rejection_reason" $type="textarea" $rows=3 $max_length=Billable_Entry_Model.field_length('rejection_reason') $autofocus=true />
+        </Form_Field>
+    </Rsx_Form>
+</Define:Billing_Reject_Form>

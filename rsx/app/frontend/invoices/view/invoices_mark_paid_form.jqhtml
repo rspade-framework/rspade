@@ -1,0 +1,20 @@
+<%--
+Invoices_Mark_Paid_Form - the body of the Mark Paid dialog (Invoices_View_Sidebar).
+
+Records an ISSUED invoice as paid on a date, seeded today (the server applies the same default
+to a blank date).
+
+$id - the invoice being marked paid
+--%>
+<Define:Invoices_Mark_Paid_Form>
+    <% const _seed = { id: this.args.id, paid_date: Rsx_Date.today() }; %>
+    <Rsx_Form $controller="Frontend_Invoices_Controller" $method="mark_paid" $data=_seed>
+        <Hidden_Input $name="id" />
+
+        <Form_Errors />
+
+        <Form_Field $label="Paid Date" $help="The day the payment arrived. Blank is today.">
+            <Text_Input $name="paid_date" $type="date" $max_length=-1 />
+        </Form_Field>
+    </Rsx_Form>
+</Define:Invoices_Mark_Paid_Form>

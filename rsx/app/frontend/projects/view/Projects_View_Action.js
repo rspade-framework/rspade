@@ -4,7 +4,9 @@
  * Displays a single project, composed from the semantic view-page vocabulary
  * (Page_Scaffold / Card_Widget / Entity_Header / Tab_Bar / Tab_Panels / Section /
  * View_Fields / Record_Table / Feed_Row / Detail_Sidebar). Tabbed like the
- * Clients_View archetype: Overview / Tasks / Activity, with a KPI sidebar.
+ * Clients_View archetype: Overview / Tasks / Subprojects / Billing / Activity, with a KPI
+ * sidebar. The Billing tab is a region (projects_view_tab_billing.jqhtml): the project's
+ * billing figures and the billing entries grid pinned to this project.
  */
 @route('/projects/view/:id')
 @layout('Frontend_Spa_Layout')
@@ -29,6 +31,9 @@ class Projects_View_Action extends Spa_Action {
         this.data.contacts = [];
         this.data.assigned_users = [];
         this.data.activity = [];
+        // The Billing tab's figures (Frontend_Billing_Controller.project_billing_summary),
+        // null until they arrive or when that call failed.
+        this.data.billing = null;
         this.data.error_data = null;
         this.data.loading = true;
 
@@ -46,14 +51,15 @@ class Projects_View_Action extends Spa_Action {
         try {
             // One parallel batch: every call keys off this.args.id, so none of them
             // depends on another's RESULT. The project is FATAL - the page IS this
-            // record - and carries no .catch(); the four side lists are non-fatal and
-            // degrade to empty so a failing tab cannot blank the record.
-            const [project, tasks_result, subprojects_result, people_result, activity_result] = await Promise.all([
+            // record - and carries no .catch(); the side lists and the billing figures are
+            // non-fatal and degrade to empty so a failing tab cannot blank the record.
+            const [project, tasks_result, subprojects_result, people_result, activity_result, billing] = await Promise.all([
                 Project_Model.fetch(this.args.id),
                 Frontend_Projects_Controller.project_tasks({id: this.args.id}).catch(() => ({tasks: []})),
                 Frontend_Projects_Controller.project_subprojects({id: this.args.id}).catch(() => ({subprojects: [], subprojects_budget: null})),
                 Frontend_Projects_Controller.project_people({id: this.args.id}).catch(() => ({contacts: [], users: []})),
                 Activity_Feed.can_view() ? Frontend_Projects_Controller.project_activity({id: this.args.id}).catch(() => ({activity: []})) : {activity: []},
+                Frontend_Billing_Controller.project_billing_summary({id: this.args.id}).catch(() => null),
             ]);
             this.data.project = project;
             this.data.tasks = tasks_result.tasks;
@@ -61,6 +67,7 @@ class Projects_View_Action extends Spa_Action {
             this.data.subprojects_budget = subprojects_result.subprojects_budget;
             this.data.contacts = people_result.contacts;
             this.data.assigned_users = people_result.users;
+            this.data.billing = billing;
             // Decorate each activity entry with its Feed_Row icon/variant (shared map).
             this.data.activity = activity_result.activity.map(a => ({...a, ...Activity_Feed.decorate(a.type_id)}));
         } catch (e) {

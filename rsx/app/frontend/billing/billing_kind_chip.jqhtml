@@ -1,0 +1,10 @@
+<%--
+Billing_Kind_Chip - an entry's kind (Time / Expense / Fixed Fee) as an outline
+classification chip (the Rule of Two Chips: the status is the filled pill beside it).
+
+$label - the kind's label (row.type_id__label)
+$badge - the kind's enum badge class (row.type_id__badge), drawn as its outline variant
+--%>
+<Define:Billing_Kind_Chip tag="span">
+    <span class="badge <%= (this.args.badge || 'bg-secondary').replace('bg-', 'badge-outline-') %>"><%= this.args.label %></span>
+</Define:Billing_Kind_Chip>

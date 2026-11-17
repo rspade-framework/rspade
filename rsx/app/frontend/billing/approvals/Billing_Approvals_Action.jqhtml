@@ -1,0 +1,7 @@
+<Define:Billing_Approvals_Action>
+<Page_Scaffold $flush=true>
+    <Slot:main>
+        <Billing_Approvals_DataGrid />
+    </Slot:main>
+</Page_Scaffold>
+</Define:Billing_Approvals_Action>

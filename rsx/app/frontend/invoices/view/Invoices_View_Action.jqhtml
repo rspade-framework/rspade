@@ -1,0 +1,93 @@
+<%--
+Invoices_View_Action - the invoice detail page shell (a table of contents)
+
+    Invoices_View_Tab_Lines  - the Lines tab: the lines (remove while DRAFT), then
+                               Invoices_View_Totals and the notes
+    Invoices_View_Sidebar    - KPIs, facts and the lifecycle buttons, with their handlers
+
+DATA: the action loads the invoice, its lines and its activity in one parallel batch and passes
+them down.
+--%>
+<Define:Invoices_View_Action>
+<% if (this.data.loading) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Loading_Spinner $message="Loading invoice..." />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else if (this.data.error_data) { %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Universal_Error_Page_Component
+                $error_data="<%= this.data.error_data %>"
+                $record_type="Invoice"
+                $back_label="Go back to Invoices"
+                $back_url="<%= Rsx.Route('Invoices_Index_Action') %>"
+            />
+        </Slot:main>
+    </Page_Scaffold>
+<% } else { %>
+    <%
+        const _inv = this.data.invoice;
+        const _lines = this.data.lines;
+        const _activity = this.data.activity;
+        const _can_view_activity = Activity_Feed.can_view();
+        const _tabs = [
+            { key: 'lines', label: 'Lines', count: _lines.length },
+            ...(_can_view_activity ? [{ key: 'activity', label: 'Activity', count: _activity.length }] : []),
+        ];
+    %>
+    <Page_Scaffold>
+        <Slot:main>
+            <Card_Widget>
+                <Entity_Header>
+                    <Slot:title><%= _inv.invoice_number_formatted %></Slot:title>
+                    <Slot:chips>
+                        <Status_Badge $label=_inv.status__label $badge=_inv.status__badge />
+                    </Slot:chips>
+                    <Slot:meta>
+                        <span>Client: <Entity_Link $model="Client_Model" $id=_inv.client_id $small=true /></span>
+                        <% if (_inv.issue_date) { %><span>Issued <%= Rsx_Date.format(_inv.issue_date) %></span><% } %>
+                        <% if (_inv.due_date) { %>
+                            <span>Due <% if (_inv.is_overdue) { %><Invoice_Overdue_Date $date=_inv.due_date /><% } else { %><%= Rsx_Date.format(_inv.due_date) %><% } %></span>
+                        <% } %>
+                        <% if (_inv.paid_date) { %><span>Paid <%= Rsx_Date.format(_inv.paid_date) %></span><% } %>
+                    </Slot:meta>
+                </Entity_Header>
+
+                <Tab_Bar $sid="tabs" $tabs=_tabs $hash="tab" $divided=true />
+
+                <Tab_Panels $sid="panels">
+                    <Tab_Panel $key="lines">
+                        <Invoices_View_Tab_Lines $sid="lines" $invoice=_inv $lines=_lines />
+                    </Tab_Panel>
+
+                    <% if (_can_view_activity) { %>
+                    <Tab_Panel $key="activity">
+                        <Section $title="Activity" $count=_activity.length $flush=true>
+                            <% if (_activity.length === 0) { %>
+                                <Empty_State $icon="bi bi-activity">
+                                    <Slot:title>No activity yet</Slot:title>
+                                    <Slot:body>Changes to this invoice will appear here.</Slot:body>
+                                </Empty_State>
+                            <% } else { %>
+                                <% for (const a of _activity) { %>
+                                    <Feed_Row $icon=a.icon $variant=a.variant>
+                                        <Slot:body><%!= a.html %></Slot:body>
+                                        <Slot:time><%= Rsx_Time.relative(a.created_at) %></Slot:time>
+                                    </Feed_Row>
+                                <% } %>
+                            <% } %>
+                        </Section>
+                    </Tab_Panel>
+                    <% } %>
+                </Tab_Panels>
+            </Card_Widget>
+        </Slot:main>
+
+        <Slot:sidebar>
+            <Invoices_View_Sidebar $sid="sidebar" $invoice=_inv $line_count=_lines.length $activity_count=_activity.length />
+        </Slot:sidebar>
+    </Page_Scaffold>
+<% } %>
+</Define:Invoices_View_Action>

@@ -1,0 +1,67 @@
+<%--
+Invoices_View_Tab_Lines - the Invoices_View Lines tab body
+
+$invoice - the invoice (required; supplied EAGER by Invoices_View_Action)
+$lines   - Frontend_Invoices_Controller.invoice_lines()'s lines (required)
+
+A page REGION. The lines, each linking to its billing entry; a Remove button on each line while
+the invoice is a DRAFT (the entry goes back to Approved); then the totals and the notes.
+
+Fires:
+    invoice_changed - a line was removed; the owner should reload()
+--%>
+<Define:Invoices_View_Tab_Lines>
+    <%
+        const _inv = this.args.invoice;
+        const _lines = this.args.lines;
+        const _is_draft = _inv.status === Invoice_Model.STATUS_DRAFT;
+    %>
+
+    <Section $title="Lines" $count=_lines.length $flush=true>
+        <% if (_lines.length === 0) { %>
+            <Empty_State $icon="bi bi-receipt">
+                <Slot:title>No lines</Slot:title>
+                <Slot:body><% if (_inv.status === Invoice_Model.STATUS_VOID) { %>This invoice was voided: its entries went back to Approved, ready to be invoiced again.<% } else { %>Every entry has been removed from this invoice. Void it, or invoice the entries again from New invoice.<% } %></Slot:body>
+            </Empty_State>
+        <% } else { %>
+            <Record_Table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Kind</th>
+                        <th>Project</th>
+                        <th>Description</th>
+                        <th class="text-end">Amount</th>
+                        <% if (_is_draft) { %><th class="text-end"><span class="visually-hidden">Remove</span></th><% } %>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% for (const line of _lines) { %>
+                    <tr data-href="<%= Rsx.Route('Billing_View_Action', line.id) %>">
+                        <td class="text-nowrap"><%= Rsx_Date.format(line.entry_date) %></td>
+                        <td><Billing_Kind_Chip $label=line.type_id__label $badge=line.type_id__badge /></td>
+                        <td><%= line.project_name || '-' %></td>
+                        <td><%= line.description %></td>
+                        <td class="text-end text-nowrap"><%= line.amount %></td>
+                        <% if (_is_draft) { %>
+                        <td class="text-end text-nowrap">
+                            <button type="button" class="btn btn-outline-danger btn-sm" data-action="remove-line" data-id="<%= line.id %>" title="Remove from this invoice">
+                                <i class="bi bi-x-lg"></i> Remove
+                            </button>
+                        </td>
+                        <% } %>
+                    </tr>
+                    <% } %>
+                </tbody>
+            </Record_Table>
+        <% } %>
+    </Section>
+
+    <Invoices_View_Totals $invoice=_inv />
+
+    <% if (_inv.notes && !_inv.notes.is_empty()) { %>
+        <Section $title="Notes">
+            <%= _inv.notes %>
+        </Section>
+    <% } %>
+</Define:Invoices_View_Tab_Lines>

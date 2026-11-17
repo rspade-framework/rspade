@@ -2,8 +2,15 @@
 
 Follows `rsx/app/frontend/clients/CLAUDE.md` and the app skill `crud-patterns`: `list/` + `view/` + `edit/`, one controller of Ajax endpoints, one datagrid, a dual-`@route` add/edit action. **What differs here:**
 
-- **No `history/`** — the only one of the four CRUD features with no revision-history action or History link (`Project_Model` records revisions; nothing here shows them). No portal subtree, no modals, no SCSS; no `delete`/`restore` (so no delete button and no `Action_Menu` in the sidebar); CSV export only.
+- **No `history/`** — the only one of the four CRUD features with no revision-history action or History link (`Project_Model` records revisions; nothing here shows them). No portal subtree, no modals, and no SCSS but the Billing tab region's block rhythm; no `delete`/`restore` (so no delete button and no `Action_Menu` in the sidebar); CSV export only.
 - **The datagrid joins `clients`** (`map_sort_column()`: `client` -> `client_name`) and **boots filtered** — `static default_filters = { status: Project_Model.STATUS_ACTIVE }`.
+- **A Billing tab**, a region (`view/projects_view_tab_billing.{jqhtml,scss}`): the figures
+  `Frontend_Billing_Controller::project_billing_summary()` answers (hours logged, approved and
+  billed amounts, budget remaining - also the sidebar's Hours Logged and Budget Left KPIs), a New
+  entry menu for this project, and `<Billing_DataGrid $fixed_filters={project_id}>` - the billing
+  grid pinned to the project. The data is `../billing/`'s (`../billing/CLAUDE.md`).
+- **`hourly_rate`, a second money column**, edited beside the budget: the rate a NEW time entry
+  on the project starts at. Each entry keeps its own copy, so changing it re-prices nothing.
 - **A projects-only `subprojects` tab**: the model is self-referencing, and the save rules run a cycle guard on `parent_project_id` through `Project_Model::self_and_descendant_ids()`.
 - **Computed values in the view template** (open tasks, overdue tasks, an `$alert` KPI when any task is overdue) and **two `People_List` mounts** in Overview — the only consumer of that component.
 - **Status and priority are enum selects** (`Project_Model.status__enum_select()` / `priority__enum_select()`); a new project defaults to `STATUS_ACTIVE`, so it appears in the list's default view.

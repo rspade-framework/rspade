@@ -1,0 +1,60 @@
+<%--
+Billing_Approvals_DataGrid - the SUBMITTED entries, with Approve / Reject on each row. The
+server fixes the status (Billing_Approvals_DataGrid::build_query()); the grid offers no status
+filter of its own.
+--%>
+<Define:Billing_Approvals_DataGrid
+    extends="DataGrid_Abstract"
+    $data_source=Frontend_Billing_Controller.approvals_datagrid_fetch
+    $sort="entry_date"
+    $order="asc"
+    $per_page=25
+    class="card DataGrid">
+
+    <Slot:DG_Card_Header>
+        <Card_Title>Waiting for approval</Card_Title>
+        <Card_Header_Right>
+            <Search_Input $sid="filter_input" $placeholder="Search entries..." />
+        </Card_Header_Right>
+    </Slot:DG_Card_Header>
+
+    <Slot:DG_Table_Header>
+        <tr>
+            <th data-sortby="entry_date">Date</th>
+            <th data-sortby="type_id">Kind</th>
+            <th data-sortby="person">Person</th>
+            <th data-sortby="project">Project</th>
+            <th data-sortby="description">Description</th>
+            <th data-sortby="amount" class="text-end">Amount</th>
+            <th style="width: 190px;">Decision</th>
+        </tr>
+    </Slot:DG_Table_Header>
+
+    <Slot:row>
+        <tr data-href="<%= Rsx.Route('Billing_View_Action', row.id) %>">
+            <td class="text-nowrap"><%= Rsx_Date.format(row.entry_date) %></td>
+            <td><Billing_Kind_Chip $label=row.type_id__label $badge=row.type_id__badge /></td>
+            <td><%= row.user_name || '-' %></td>
+            <td><%= row.project_name || '-' %></td>
+            <td><%= row.description %></td>
+            <td class="text-end"><% if (row.amount !== null) { %><%= row.amount %><% } else { %>-<% } %></td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-success" type="button" data-action="approve" data-id="<%= row.id %>">
+                        <i class="bi bi-check-lg"></i> Approve
+                    </button>
+                    <button class="btn btn-outline-danger" type="button" data-action="reject" data-id="<%= row.id %>">
+                        <i class="bi bi-x-lg"></i> Reject
+                    </button>
+                </div>
+            </td>
+        </tr>
+    </Slot:row>
+
+    <Slot:DG_Empty_State>
+        <Empty_State $icon="bi bi-check2-all">
+            <Slot:title>Nothing to approve</Slot:title>
+            <Slot:body>Entries appear here when their authors submit them.</Slot:body>
+        </Empty_State>
+    </Slot:DG_Empty_State>
+</Define:Billing_Approvals_DataGrid>

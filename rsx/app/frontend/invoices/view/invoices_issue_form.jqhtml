@@ -1,0 +1,35 @@
+<%--
+Invoices_Issue_Form - the body of the Issue dialog (Invoices_View_Sidebar).
+
+Issues a DRAFT invoice with its dates, seeded today and today + Invoice_Model.PAYMENT_TERMS_DAYS
+(the server applies the same defaults to a blank date, and refuses a due date before the issue
+date as a field error).
+
+$id - the invoice being issued
+--%>
+<Define:Invoices_Issue_Form>
+    <%
+        const _today = Rsx_Date.today();
+        const _seed = { id: this.args.id, issue_date: _today, due_date: Rsx_Date.add_days(_today, Invoice_Model.PAYMENT_TERMS_DAYS) };
+    %>
+    <Rsx_Form $controller="Frontend_Invoices_Controller" $method="issue" $data=_seed>
+        <Hidden_Input $name="id" />
+
+        <Form_Errors />
+
+        <div class="row">
+            <div class="col-tablet-6">
+                <Form_Field $label="Issue Date" $help="Blank is today.">
+                    <Text_Input $name="issue_date" $type="date" $max_length=-1 />
+                </Form_Field>
+            </div>
+            <div class="col-tablet-6">
+                <Form_Field $label="Due Date" $help="Blank is <%= Invoice_Model.PAYMENT_TERMS_DAYS %> days after the issue date.">
+                    <Text_Input $name="due_date" $type="date" $max_length=-1 />
+                </Form_Field>
+            </div>
+        </div>
+
+        <p class="text-muted small mb-0">Once issued, lines can no longer be removed; the invoice can still be voided.</p>
+    </Rsx_Form>
+</Define:Invoices_Issue_Form>

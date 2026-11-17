@@ -1,0 +1,8 @@
+// Invoices_View_Totals - the money lines sit under the lines' Amount column, right-aligned
+// and narrow, the way an invoice's totals read.
+.Invoices_View_Totals {
+    width: 100%;
+    max-width: 360px;
+    margin-left: auto;
+    padding: 0 var(--card-pad-x);
+}

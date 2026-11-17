@@ -42,7 +42,10 @@ One subdirectory per component (template + SCSS, `.js` only where behaviour exis
 - `entity_link/` — `Entity_Link`: a fetched entity reference (type icon + name + link).
 - `revision_history/` — `Revision_History`: one record's change timeline, grouped by the
   transaction that made it. A never-exported column's values arrive as the redaction
-  marker the endpoint ships beside the page, and paint as a muted "(redacted)".
+  marker the endpoint ships beside the page, and paint as a muted "(redacted)". It shows
+  what `Revision::meaningful_changes()` keeps: the endpoint drops pairs for columns the
+  model no longer records and pairs equal under the column's kind, and skips an update (or
+  a whole transaction) left with nothing.
 - `record_attachments/` — `Record_Attachments`: a record's file list as a Section. Upload
   by button or by dropping files on it, each pending upload showing its percentage
   (`Ajax.upload()`'s `on_progress`); each file is a name with its type icon; a click

@@ -1,0 +1,7 @@
+// Invoices_DataGrid - the client filter is capped: client labels carry a name and a number,
+// and an uncapped select would push the card header's search and status filter off the row.
+.Invoices_DataGrid {
+    &__client-filter {
+        max-width: 260px;
+    }
+}

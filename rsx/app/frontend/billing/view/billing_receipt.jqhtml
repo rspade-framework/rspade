@@ -1,0 +1,26 @@
+<%--
+Billing_Receipt - an expense entry's receipt, with Upload / Replace while it can be changed.
+See billing_receipt.js.
+
+$entry_id   - the entry
+$can_change - show the upload button
+--%>
+<Define:Billing_Receipt>
+    <% const _r = this.data.receipt; %>
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+        <% if (_r) { %>
+            <a href="<%= _r.download_url %>" class="d-inline-flex align-items-center gap-2">
+                <File_Type_Icon $file_name=_r.name />
+                <span><%= _r.name %></span>
+            </a>
+        <% } else { %>
+            <span class="text-body-secondary">No receipt attached</span>
+        <% } %>
+        <% if (this.args.can_change) { %>
+            <input type="file" class="d-none" $sid="file_input" />
+            <button type="button" class="btn btn-outline-secondary btn-sm" $sid="upload_btn">
+                <i class="bi bi-upload"></i> <%= _r ? 'Replace receipt' : 'Upload receipt' %>
+            </button>
+        <% } %>
+    </div>
+</Define:Billing_Receipt>

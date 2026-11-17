@@ -1,0 +1,44 @@
+<%--
+Projects_View_Tab_Billing - the Projects_View Billing tab body
+
+$project - the project (required)
+$summary - Frontend_Billing_Controller.project_billing_summary()'s answer, or null when that
+           call failed (required; supplied EAGER by Projects_View_Action, because the sidebar
+           KPIs show the same figures)
+
+A page REGION. The figures, a New entry menu for this project, and the billing entries grid
+pinned to this project ($fixed_filters) - the grid pages and sorts the entries itself, since a
+project's entries grow without bound.
+--%>
+<Define:Projects_View_Tab_Billing>
+    <%
+        const _project = this.args.project;
+        const _s = this.args.summary;
+        const _pinned = { project_id: _project.id };
+    %>
+
+    <Section $title="Billing" $icon="bi bi-stopwatch">
+        <Slot:actions>
+            <Billing_Index_Page_Actions $project_id=_project.id />
+        </Slot:actions>
+        <Slot:body>
+            <% if (_s) { %>
+                <View_Fields>
+                    <View_Field $label="Hours Logged"><%= _s.hours_logged %></View_Field>
+                    <View_Field $label="Hourly Rate">
+                        <% if (_project.hourly_rate !== null) { %><%= _project.hourly_rate %><% } else { %><Empty_Value /><% } %>
+                    </View_Field>
+                    <View_Field $label="Approved"><%= _s.approved_amount %></View_Field>
+                    <View_Field $label="Billed"><%= _s.billed_amount %></View_Field>
+                    <View_Field $label="Budget Remaining">
+                        <% if (_s.budget_remaining !== null) { %><Money_Display $value=_s.budget_remaining $negative_red=true /><% } else { %><Empty_Value /><% } %>
+                    </View_Field>
+                </View_Fields>
+            <% } else { %>
+                <Empty_Value />
+            <% } %>
+        </Slot:body>
+    </Section>
+
+    <Billing_DataGrid $fixed_filters=_pinned />
+</Define:Projects_View_Tab_Billing>

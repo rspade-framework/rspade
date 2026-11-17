@@ -1,0 +1,14 @@
+<%--
+Invoice_Overdue_Date - an overdue invoice's due date: the date in the danger color with a
+warning mark and the word "overdue", so the state reads without relying on color alone.
+
+$date - the due date (a calendar date string, YYYY-MM-DD) (required)
+
+Shown wherever an ISSUED invoice is past due (Invoice_Model's is_overdue): the invoices grid's
+Due column and the invoice view.
+--%>
+<Define:Invoice_Overdue_Date tag="span">
+    <i class="bi bi-exclamation-circle-fill"></i>
+    <%= Rsx_Date.format(this.args.date) %>
+    <span class="Invoice_Overdue_Date__label">overdue</span>
+</Define:Invoice_Overdue_Date>

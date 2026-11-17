@@ -13,8 +13,17 @@ the grouping is for readers only):
 
 - **CRM** — `Client_Model`, `Client_Department_Model`, `Contact_Model`, `Project_Model`,
   `Project_Contact_Model`, `Project_User_Model`, `Task_Model`.
-- **Party** (class-table inheritance) — `Party_Model` plus `Party_Person_Detail_Model` and
-  `Party_Company_Detail_Model`, the worked example for `$detail_tables`.
+- **Billing** — `Billable_Entry_Model` (time, expenses and fixed fees logged against a
+  project, with an approval lifecycle) and `Invoice_Model` (per-site numbered invoices that
+  bill a client's approved entries; the total is a `sum_money()` over its entries, never
+  stored). The entry is the application's worked example of DETAIL TABLES (`rsx:man
+  detail_tables`): `type_id` picks `Billable_Entry_Time_Detail_Model` (`hours`,
+  `hourly_rate`) or `Billable_Entry_Expense_Detail_Model` (`vendor`, `cost`) through
+  `$detail_tables`, and a fixed fee has no detail. A money column on a detail is read through
+  the DETAIL class (`Billable_Entry_Time_Detail_Model::money_from_submitted('hourly_rate', ...)`).
+  Value rules, pricing and every transition are the models' (`value_errors()` / `save_edit()`,
+  the `*_error(s)()` / transition pairs); the screens are `rsx/app/frontend/billing/` and
+  `invoices/`.
 - **Portal** — `Portal_Membership_Model`, `Portal_Invitation_Model`,
   `Portal_Password_Reset_Model`, `Portal_Project_Model`, `Shared_Item_Model`, and the
   request-thread set (`Portal_Request_Thread_Model` plus its `_Message_`, `_Document_` and
@@ -96,14 +105,14 @@ the grouping is for readers only):
   delegating to the public method** — Eloquent serializes it inside `toArray()`, so it
   rides every payload, and the JS stub declares it. Hand-adding the key inside `fetch()`
   puts it on that one payload and on no other, so **no `fetch()` here does that**: every
-  body is security plus a bare `toArray()`. The declarations are `party_model.php`
-  (`party_id_formatted`), `client_model.php` (`country_name`, `client_id_formatted`,
+  body is security plus a bare `toArray()`. The declarations are `client_model.php` (`country_name`, `client_id_formatted`,
   `region_name`, `portal_member_count`), `contact_model.php` (`contact_id_formatted`,
   `full_name`, `portal_user_id`), `project_model.php` (`project_id_formatted`),
+  `invoice_model.php` (`invoice_number_formatted`, `total`, `is_overdue`),
   `action_log_model.php` (`render`, `actor_display`,
   `subject_display`), `notification_model.php` (`render`, `is_read`)
   and `announcement_model.php` (`is_published`). A derivation that READS A ROW
-  (`portal_user_id`, `portal_member_count`, `country_name`, `region_name`) says so in its docblock: it is
+  (`portal_user_id`, `portal_member_count`, `country_name`, `region_name`, an invoice's `total`) says so in its docblock: it is
   still declared once, and a caller wanting a wide list selects columns rather than
   serializing. `client_model.php::to_fetch_array()` keeps `get_created_by_author`
   hand-added on purpose — it resolves a realm-gated profile URL for one viewer, which a
@@ -140,6 +149,14 @@ the grouping is for readers only):
   `never_export`, `revision_exclude`, `derived` + `from`. A model with nothing to declare
   declares nothing - except a DECIMAL, FLOAT or DOUBLE column, which is always declared (MODEL-DECIMAL-01).
   Read a declaration through the accessors (`enum_values('col')`, ...), never `::$columns`.
+- **Revision history records what a person entered or decided**: a column the system moves
+  on its own on a revisioned model is `revision_exclude` - `Client_Model`'s
+  `portal_last_activity_at` is the one here. MODEL-REVISION-NOISE-01 insists on a declaration
+  only for bookkeeping-shaped names (`*_count`, `last_*_at`, `sort_order`, `*_code`, ...); no
+  revisioned template model has one, so the rule is satisfied here with nothing declared.
+  A save that assigns a stored value in another shape (`"1.5"` over `1.50`, `''` over NULL)
+  is no change and records nothing (`rsx:man model`, COLUMN EQUIVALENCE);
+  `rsx/tests/Column_Equivalence_Template_Test.php` shows it on `Task_Model`.
 - **Enums** are BIGINT columns with an `enum` entry in `$columns`. `migrate` regenerates
   the constants and the `_AUTO_GENERATED_` header in development; run
   `php artisan rsx:constants:regenerate` after changing one without a migration.

@@ -39,6 +39,7 @@ use League\Csv\EscapeFormula;
 use League\Csv\Writer;
 use App\RSpade\Core\Ajax\Ajax;
 use App\RSpade\Core\Database\Rsx_Result_Set;
+use App\RSpade\Core\Manifest\Manifest;
 
 abstract class DataGrid_Abstract
 {
@@ -355,8 +356,18 @@ abstract class DataGrid_Abstract
         $offset = ($page - 1) * $per_page;
         $query->offset($offset)->limit($per_page);
 
-        // Execute query
-        $records = $query->get()->toArray();
+        // Execute query. A grid over a DETAIL-TABLES model (one declaring $detail_tables,
+        // rsx:man detail_tables) has every row's detail loaded here, one query per detail
+        // table, before toArray() embeds each row's detail under __details - without it,
+        // toArray() reads the detail one row at a time. The query must select the base
+        // table's id and discriminator (`table.*` does); preload_details() is a no-op for
+        // any other model.
+        $rows = $query->get();
+        $model_class = get_class($query->getModel());
+        if (Manifest::php_is_subclass_of($model_class, 'Rsx_Model_Abstract') && $model_class::has_detail_tables()) {
+            $model_class::preload_details($rows);
+        }
+        $records = $rows->toArray();
 
         // Transform records (if overridden)
         $records = static::transform_records($records, $params);

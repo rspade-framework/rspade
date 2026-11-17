@@ -9,6 +9,8 @@ use App\RSpade\Core\Models\Login_User_Model;
 use App\RSpade\Core\Rsx;
 use App\RSpade\Lib\Portal\Portal_User_Model;
 use Rsx\Models\Action_Log_Model;
+use Rsx\Models\Client_Model;
+use Rsx\Models\Project_Model;
 
 /**
  * Action_Log_Renderer - Renders action log entries as human-readable HTML
@@ -227,51 +229,125 @@ class Action_Log_Renderer
     }
 
     // =========================================================================
-    // Party Actions
+    // Billable Entries (60-69)
+    //
+    // An entry is named by its kind and its description, linked to the entry's view page,
+    // followed by a link to its project.
     // =========================================================================
 
-    public static function party_created(Action_Log_Model $log): string
+    public static function billable_entry_created(Action_Log_Model $log): string
     {
-        $actor_name = static::actor_name($log);
-        $party = $log->subject;
-
-        if (!$party) {
-            return "{$actor_name} created a party (deleted)";
-        }
-
-        $link = Rsx::Route('Party_View_Action', $party->id);
-        $name = htmlspecialchars($party->name);
-
-        return "{$actor_name} created party <a href=\"{$link}\">{$name}</a>";
+        return static::__entry_line($log, 'logged', 'logged an entry (deleted)');
     }
 
-    public static function party_updated(Action_Log_Model $log): string
+    public static function billable_entry_updated(Action_Log_Model $log): string
     {
-        $actor_name = static::actor_name($log);
-        $party = $log->subject;
-
-        if (!$party) {
-            return "{$actor_name} updated a party (deleted)";
-        }
-
-        $link = Rsx::Route('Party_View_Action', $party->id);
-        $name = htmlspecialchars($party->name);
-
-        return "{$actor_name} updated party <a href=\"{$link}\">{$name}</a>";
+        return static::__entry_line($log, 'updated', 'updated an entry (deleted)');
     }
 
-    public static function party_deleted(Action_Log_Model $log): string
+    public static function billable_entry_deleted(Action_Log_Model $log): string
+    {
+        return static::__entry_line($log, 'deleted', 'deleted an entry');
+    }
+
+    public static function billable_entry_submitted(Action_Log_Model $log): string
+    {
+        return static::__entry_line($log, 'submitted', 'submitted an entry (deleted)');
+    }
+
+    public static function billable_entry_approved(Action_Log_Model $log): string
+    {
+        return static::__entry_line($log, 'approved', 'approved an entry (deleted)');
+    }
+
+    public static function billable_entry_rejected(Action_Log_Model $log): string
+    {
+        $line = static::__entry_line($log, 'rejected', 'rejected an entry (deleted)');
+        $reason = $log->get_metadata()['reason'] ?? null;
+
+        return $reason !== null && $reason !== ''
+            ? $line . ': ' . htmlspecialchars((string) $reason)
+            : $line;
+    }
+
+    /**
+     * "{actor} {verb} time entry "<a>Design review</a>" on project <a>Website</a>". A deleted
+     * entry (the subject reads as null) renders $missing after the actor.
+     */
+    protected static function __entry_line(Action_Log_Model $log, string $verb, string $missing): string
     {
         $actor_name = static::actor_name($log);
-        $party = $log->subject;
+        $entry = $log->subject;
 
-        if (!$party) {
-            return "{$actor_name} deleted a party";
+        if (!$entry) {
+            return "{$actor_name} {$missing}";
         }
 
-        $name = htmlspecialchars($party->name);
+        $kind = htmlspecialchars(strtolower($entry->type_id__label));
+        $description = htmlspecialchars($entry->description);
+        $entry_link = Rsx::Route('Billing_View_Action', $entry->id);
+        $line = "{$actor_name} {$verb} {$kind} entry \"<a href=\"{$entry_link}\">{$description}</a>\"";
 
-        return "{$actor_name} deleted party {$name}";
+        // Looked up, never read as $entry->project: a loaded relation would ride the
+        // subject into the action log's payload and collide with the JS model's project().
+        $project = Project_Model::find($entry->project_id);
+        if ($project) {
+            $link = Rsx::Route('Projects_View_Action', $project->id);
+            $line .= ' on project <a href="' . $link . '">' . htmlspecialchars($project->name) . '</a>';
+        }
+
+        return $line;
+    }
+
+    // =========================================================================
+    // Invoices (70-79)
+    //
+    // An invoice is named by its number, linked to the invoice's view page, followed by a link
+    // to its client.
+    // =========================================================================
+
+    public static function invoice_created(Action_Log_Model $log): string
+    {
+        return static::__invoice_line($log, 'created', 'created an invoice (deleted)');
+    }
+
+    public static function invoice_issued(Action_Log_Model $log): string
+    {
+        return static::__invoice_line($log, 'issued', 'issued an invoice (deleted)');
+    }
+
+    public static function invoice_paid(Action_Log_Model $log): string
+    {
+        return static::__invoice_line($log, 'marked paid', 'marked an invoice paid (deleted)');
+    }
+
+    public static function invoice_voided(Action_Log_Model $log): string
+    {
+        return static::__invoice_line($log, 'voided', 'voided an invoice (deleted)');
+    }
+
+    /** "{actor} {verb} invoice <a>INV-0001</a> for client <a>Acme</a>". */
+    protected static function __invoice_line(Action_Log_Model $log, string $verb, string $missing): string
+    {
+        $actor_name = static::actor_name($log);
+        $invoice = $log->subject;
+
+        if (!$invoice) {
+            return "{$actor_name} {$missing}";
+        }
+
+        $invoice_link = Rsx::Route('Invoices_View_Action', $invoice->id);
+        $line = "{$actor_name} {$verb} invoice <a href=\"{$invoice_link}\">" . htmlspecialchars($invoice->invoice_number_formatted()) . '</a>';
+
+        // Looked up, never read as $invoice->client: a loaded relation would ride the
+        // subject into the action log's payload and collide with the JS model's client().
+        $client = Client_Model::find($invoice->client_id);
+        if ($client) {
+            $link = Rsx::Route('Clients_View_Action', $client->id);
+            $line .= ' for client <a href="' . $link . '">' . htmlspecialchars($client->name) . '</a>';
+        }
+
+        return $line;
     }
 
     // =========================================================================

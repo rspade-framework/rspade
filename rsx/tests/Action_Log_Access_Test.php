@@ -41,7 +41,6 @@ class Action_Log_Access_Test extends Rsx_Test_Abstract
         'Frontend_Contacts_Controller::contact_activity',
         'Frontend_Projects_Controller::project_activity',
         'Frontend_Tasks_Controller::task_activity',
-        'Frontend_Party_Controller::party_activity',
     ];
 
     /**
