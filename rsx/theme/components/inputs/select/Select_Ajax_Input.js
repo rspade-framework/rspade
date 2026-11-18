@@ -12,6 +12,7 @@ class Select_Ajax_Input extends Select_Input {
      * caught: it reaches the framework's error handling like any other Ajax call.
      * Subclasses that know their own endpoint override on_load() instead.
      */
+    @Replaceable
     async on_load() {
         if (this.args.source) {
             this.data.select_values = await Ajax.call(this.args.source, {});

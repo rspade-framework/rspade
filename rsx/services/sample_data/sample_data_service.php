@@ -90,7 +90,7 @@ class Sample_Data_Service extends Rsx_Service_Abstract
 
             return 1;
         }
-        Session::set_login_user_id((int) $owner->login_user_id, false);
+        Session::set_login_user_id((int) $owner->login_user_id, touch_last_login: false);
 
         $occupied = static::__occupancy();
         if ($occupied !== []) {

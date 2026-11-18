@@ -103,7 +103,7 @@ class Session_Screens_Test extends Rsx_Test_Abstract
 
     private static function __is_signed_in(int $login_user_id, int $user_session_id): bool
     {
-        foreach (Session::get_sessions_for_user($login_user_id, null, true) as $session) {
+        foreach (Session::get_sessions_for_user($login_user_id, include_impersonations: true) as $session) {
             if ($session['id'] === $user_session_id) {
                 return $session['is_signed_in'];
             }

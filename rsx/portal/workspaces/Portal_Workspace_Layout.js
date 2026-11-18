@@ -41,6 +41,8 @@ class Portal_Workspace_Layout extends Spa_Layout {
     };
 
     on_create() {
+        super.on_create();
+
         this.state = {
             // The workspace id whose header is currently loaded (null until loaded).
             loaded_id: null,
@@ -88,6 +90,8 @@ class Portal_Workspace_Layout extends Spa_Layout {
     }
 
     on_ready() {
+        super.on_ready();
+
         this._update_active_nav();
     }
 

@@ -28,7 +28,7 @@ HISTORY below).
 
 A caller creates, edits, re-roles, disables and re-enables only users whose role is EQUAL to
 or LOWER than their own - the role's `can_admin_roles` list (the `role_id` enum on `User_Model`, where every
-administering role names itself and the roles below it), read through `can_admin_role()`.
+administering role names itself and the roles below it), read through `can_admin_role()`, the sole "may manage" test (`rsx:man auth`, ROLES).
 Every write asks it of the target's CURRENT role (`__administrable_user()`: `get_user_for_edit`,
 `save_user`, `set_user_enabled`, `get_user_for_password_reset`, `set_user_password`, `revoke_user_api_key`, `terminate_user_session`,
 `terminate_all_user_sessions`) and of any NEW role
@@ -59,7 +59,8 @@ kept so re-enabling restores them.
 
 **Nobody acts against their own access.** `set_user_enabled` refuses to switch the caller
 off, and `save_user` refuses a role on the caller's own record lower than the one they hold
-(`role_id` field error, "You cannot lower your own role"). The view page hides Enable/Disable
+(`role_id` field error, "You cannot lower your own role") - a ranking rule, the one place
+these screens compare role ids. The view page hides Enable/Disable
 on the caller's own row and the edit form offers only the role they already hold
 (`get_user_for_edit` reports `is_self`). Peer administration otherwise stands: a Site Owner
 may still demote or disable another Site Owner.

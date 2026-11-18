@@ -2,8 +2,8 @@
  * Ajax_Entity_Select_Input
  *
  * Remote-search single-type entity picker. See ajax_entity_select_input.jqhtml.
- * Extends Select_Input for the val()/buffering machinery but replaces on_ready
- * with a TomSelect configured for remote loading via search_parents.
+ * Extends Select_Input for the val()/buffering machinery and the widget lifecycle, and
+ * replaces its Tom Select configuration with one loading remotely via search_parents.
  */
 class Ajax_Entity_Select_Input extends Select_Input {
     _get_value() {
@@ -46,10 +46,10 @@ class Ajax_Entity_Select_Input extends Select_Input {
             });
     }
 
-    on_ready() {
+    _tom_select_config() {
         const that = this;
 
-        this.tom_select = new TomSelect(this.$sid('input').get(0), {
+        return {
             valueField: 'id',
             labelField: 'label',
             searchField: 'label',
@@ -73,9 +73,7 @@ class Ajax_Entity_Select_Input extends Select_Input {
             onChange: function (value) {
                 that._notify_input(value);
             },
-        });
-
-        this._mark_ready();
+        };
     }
 
     /**
@@ -104,9 +102,5 @@ class Ajax_Entity_Select_Input extends Select_Input {
         } else {
             this.tom_select.enable();
         }
-    }
-
-    on_stop() {
-        if (this.tom_select) this.tom_select.destroy();
     }
 }

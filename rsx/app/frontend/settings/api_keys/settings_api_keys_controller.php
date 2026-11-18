@@ -234,7 +234,7 @@ class Frontend_Settings_Api_Keys_Controller extends Rsx_Controller_Abstract
             'error' => empty($malformed) ? null : Arr::first($malformed),
             'unrestricted' => Api_Scopes::is_unrestricted($scopes),
             'groups' => static::_preview_groups(
-                Api_Catalog::resolve_for_scopes(1, $scopes, false, $read_only)
+                Api_Catalog::resolve_for_scopes(1, $scopes, read_only: $read_only)
             ),
         ];
     }

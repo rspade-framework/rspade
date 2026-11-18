@@ -104,14 +104,13 @@ class Public_Bundle_Contents_Test extends Rsx_Test_Abstract
     {
         if (!isset(static::$compiled[$bundle])) {
             $result = (new BundleCompiler())->compile(static::__fqcn($bundle), []);
-            $directory = Rsx_Project_Paths::bundles_dir() . '/';
 
             static::__assert_not_empty($result['app_js_bundle_path'] ?? null, "{$bundle} compiles an application script");
             static::__assert_not_empty($result['app_css_bundle_path'] ?? null, "{$bundle} compiles an application stylesheet");
 
             static::$compiled[$bundle] = [
-                'js' => Minifier::minify_js(file_get_contents($directory . $result['app_js_bundle_path']), $bundle . '.js'),
-                'css' => preg_replace('~/\*.*?\*/~s', '', file_get_contents($directory . $result['app_css_bundle_path'])),
+                'js' => Minifier::minify_js(file_get_contents(Rsx_Project_Paths::bundles_dir() . '/' . $result['app_js_bundle_path']), $bundle . '.js'),
+                'css' => preg_replace('~/\*.*?\*/~s', '', file_get_contents(Rsx_Project_Paths::bundles_dir() . '/' . $result['app_css_bundle_path'])),
             ];
         }
 

@@ -66,7 +66,7 @@ class Invite_Expiry_Test extends Rsx_Test_Abstract
 
         $code = static::__invitation(Rsx_Time::to_iso($now->copy()->subMinute()));
 
-        $result = Invite_Helper::validate_invitation($code, false);
+        $result = Invite_Helper::validate_invitation($code, require_email_match: false);
 
         static::__assert_false($result['valid'], 'expired a minute ago, earlier today');
         static::__assert_equals('expired', $result['error_type']);
@@ -76,7 +76,7 @@ class Invite_Expiry_Test extends Rsx_Test_Abstract
     {
         $code = static::__invitation(Rsx_Time::to_iso(Rsx_Time::now()->addMinute()));
 
-        $result = Invite_Helper::validate_invitation($code, false);
+        $result = Invite_Helper::validate_invitation($code, require_email_match: false);
 
         static::__assert_true($result['valid'], 'not yet expired');
     }
@@ -85,6 +85,6 @@ class Invite_Expiry_Test extends Rsx_Test_Abstract
     {
         $code = static::__invitation(null);
 
-        static::__assert_true(Invite_Helper::validate_invitation($code, false)['valid']);
+        static::__assert_true(Invite_Helper::validate_invitation($code, require_email_match: false)['valid']);
     }
 }

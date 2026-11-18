@@ -316,8 +316,7 @@ class Login_Controller extends Rsx_Controller_Abstract
                     Login_History::record_failure(
                         (string) $login_user->email,
                         Login_History::STATUS_FAILED_DISABLED,
-                        null,
-                        (int) $login_user->id
+                        identity_id: (int) $login_user->id
                     );
 
                     return rsx_view('Login_Index', [

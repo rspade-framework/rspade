@@ -24,6 +24,8 @@ class Frontend_Spa_Layout extends Spa_Layout {
     static TITLE_CACHE_PREFIX = 'header_text:';
 
     on_create() {
+        super.on_create();
+
         // A user who still owes a second-factor enrollment (rsx.auth.require_two_factor) is
         // held on the enrollment screen by the server: page loads are redirected there and
         // every other Ajax call is refused. With SPA navigation off, each link is a page

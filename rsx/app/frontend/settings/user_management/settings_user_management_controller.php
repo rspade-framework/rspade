@@ -372,7 +372,8 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
 
         // Nobody lowers their own role. Peers at the same level may still administer each
         // other; what is refused is a user demoting themselves out of the access that lets
-        // them undo it. Higher role ids are lower privilege.
+        // them undo it. This is a RANKING rule, so it compares role ids (higher id = less
+        // privilege); every "may manage" question above is can_admin_role() (rsx:man auth, ROLES).
         if ($role_id !== null
             && (int) $user->id === (int) Session::get_user_id()
             && $role_id > (int) $user->role_id) {
@@ -973,7 +974,7 @@ class Frontend_Settings_User_Management_Controller extends Rsx_Controller_Abstra
             return [];
         }
 
-        return Session::get_sessions_for_user((int) $user->login_user_id, Session::get_site_id(), true);
+        return Session::get_sessions_for_user((int) $user->login_user_id, Session::get_site_id(), include_impersonations: true);
     }
 
     /**

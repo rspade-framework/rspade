@@ -21,7 +21,7 @@ use Symfony\Component\Process\Process;
 
 $resource = __DIR__;
 $out_dir = $resource . '/documents';
-$data = json_decode((string) file_get_contents($resource . '/sample_data.json'), true, 512, JSON_THROW_ON_ERROR);
+$data = json_decode((string) file_get_contents(__DIR__ . '/sample_data.json'), true, 512, JSON_THROW_ON_ERROR);
 
 $e = fn ($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 

@@ -28,6 +28,8 @@ class Settings_Layout extends Spa_Layout {
     };
 
     on_create() {
+        super.on_create();
+
         this.state = {
             active_page: null,
         };

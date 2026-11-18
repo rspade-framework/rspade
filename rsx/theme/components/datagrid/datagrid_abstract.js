@@ -355,6 +355,7 @@ class DataGrid_Abstract extends Component {
      * @param {string} action - The data-action value from the clicked menu item
      * @param {Object} selection - {mode: 'additive'|'subtractive'|'all', ids: number[], total: number, filter_params: Object}
      */
+    @Replaceable
     on_footer_action(action, selection) {
         // Stub - override in subclass
     }

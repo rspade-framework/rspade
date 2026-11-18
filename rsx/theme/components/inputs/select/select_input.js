@@ -22,6 +22,11 @@ class Select_Input extends Form_Input_Abstract {
         this.tom_select = null;
     }
 
+    /**
+     * Read the selection from Tom Select, or from the bare <select> before it exists. A
+     * subclass that holds its value elsewhere replaces this.
+     */
+    @Replaceable
     _get_value() {
         if (this.tom_select) {
             return this.tom_select.getValue();
@@ -29,6 +34,11 @@ class Select_Input extends Form_Input_Abstract {
         return this.$sid('input').val();
     }
 
+    /**
+     * Select a value in Tom Select, or in the bare <select> before it exists. A subclass
+     * that holds its value elsewhere replaces this.
+     */
+    @Replaceable
     _set_value(value) {
         // Convert to string for TomSelect option matching (handles numeric IDs)
         const str_value = value == null ? '' : str(value);
@@ -40,8 +50,6 @@ class Select_Input extends Form_Input_Abstract {
     }
 
     on_ready() {
-        const that = this;
-
         // A reload() renders again and calls this again: the previous instance goes first, or
         // its dropdown (parented to <body>) is left behind.
         if (this.tom_select) {
@@ -49,8 +57,22 @@ class Select_Input extends Form_Input_Abstract {
             this.tom_select = null;
         }
 
-        // Initialize Tom Select
-        let config = {
+        this.tom_select = new TomSelect(this.$sid('input').get(0), this._tom_select_config());
+
+        this._mark_ready();
+    }
+
+    /**
+     * The Tom Select configuration on_ready() builds the widget from. A subclass searching a
+     * remote source replaces it; its onChange must still call this._notify_input(value).
+     *
+     * @returns {Object}
+     */
+    @Replaceable
+    _tom_select_config() {
+        const that = this;
+
+        return {
             placeholder: this.args.placeholder || '',
             allowEmptyOption: true,
             create: false,
@@ -70,10 +92,6 @@ class Select_Input extends Form_Input_Abstract {
                 that._notify_input(value);
             }
         };
-
-        this.tom_select = new TomSelect(this.$sid('input').get(0), config);
-
-        this._mark_ready();
     }
 
     on_stop() {

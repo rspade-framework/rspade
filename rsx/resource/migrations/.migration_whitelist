@@ -231,6 +231,11 @@
             "created_at": "2026-11-16T22:00:14+00:00",
             "created_by": "root",
             "command": "php artisan make:migration:safe add_hourly_rate_to_projects"
+        },
+        "2026_11_18_033102_add_billable_task_and_invitation_sweep_indexes.php": {
+            "created_at": "2026-11-18T03:31:02+00:00",
+            "created_by": "root",
+            "command": "php artisan make:migration:safe add_billable_task_and_invitation_sweep_indexes"
         }
     }
 }

@@ -12,10 +12,18 @@ class Text_Input extends Form_Input_Abstract {
         }
     }
 
+    /**
+     * Read the <input>. A subclass that formats or parses the text replaces this.
+     */
+    @Replaceable
     _get_value() {
         return this.$sid('input').val();
     }
 
+    /**
+     * Write the <input>. A subclass that formats or parses the text replaces this.
+     */
+    @Replaceable
     _set_value(value) {
         this.$sid('input').val(value ?? '');
     }

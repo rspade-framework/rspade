@@ -40,8 +40,7 @@ class Notification_Recipient_Test extends Rsx_Test_Abstract
         [$sent] = Notification::send(
             Notification_Model::TYPE_TASK_ASSIGNED,
             [(int) $user->login_user_id],
-            null,
-            ['task_title' => 'Recipient probe', 'project_name' => 'Recipient probe']
+            metadata: ['task_title' => 'Recipient probe', 'project_name' => 'Recipient probe']
         );
 
         // A decoy filed under the site-user id: no reader may pick it up.
