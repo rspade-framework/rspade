@@ -24,13 +24,15 @@ no PHP, no Node, no MySQL on your machine.
 ```bash
 git clone --depth 1 --recurse-submodules https://github.com/rspade-framework/rspade my-app
 cd my-app
-bash system/app/RSpade/resource/docker/build.sh
 docker compose up
 ```
 
-Then open **http://localhost:8080** and follow the setup screens: the
-application asks for its own address, then for the account you want to sign in
-with. That's it — no `.env` to edit first, no install step, no build to run.
+The first start downloads the RSpade development image
+(`ghcr.io/rspade-framework/rspade-server-dev`, built for x86 and ARM alike), which
+takes a few minutes once. Then open **http://localhost:8080** and follow the setup
+screens: the application asks for its own address, then for the account you want
+to sign in with. That's it — no `.env` to edit first, no install step, no build to
+run.
 
 Keep `docker compose up` in the foreground for that first run. Once you're set
 up, `docker compose up -d` is fine.
@@ -40,9 +42,9 @@ up, `docker compose up -d` is fine.
 
 - **Docker** with Compose v2 (`docker compose`, not `docker-compose`)
 - **4 GB RAM** available to Docker. It will run in less, but the container holds
-  MySQL, Redis, nginx, two PHP-FPM pools and several Node services, and 2 GB is
-  uncomfortably tight.
-- **~6 GB disk** for the image and its build cache
+  MySQL, Redis, nginx, PHP and several Node services, and 2 GB is uncomfortably
+  tight.
+- **~6 GB disk** for the image
 - A free port. `8080` by default — change it in `docker-compose.yml` if
   something else has it, and nothing else needs to agree with it.
 
@@ -64,21 +66,27 @@ git submodule update --init --recursive
 
 The project ships editor support for the things the framework adds to PHP — RSX
 naming conventions, `.jqhtml` components, `Rsx::Route()` calls, jump-to-definition
-across the manifest. Two extensions provide it, and both are already listed as
-workspace recommendations.
-
-**Open the project folder in VS Code and click "Install" when it offers the
-recommended extensions.** That is the whole setup.
-
-To install them by hand instead, search the Extensions view (`Ctrl+Shift+X`) for:
-
-- **JQHTML**
-- **RSpade Framework Support**
-
-Neither is required — the framework builds and runs the same without them. They
-are worth having because RSpade's conventions are invisible to a stock PHP
-setup, which will flag correct code as wrong and offer no navigation for
+across the manifest. **Open the project folder in VS Code and click "Install" when
+it offers the recommended extensions** (**JQHTML** and **RSpade Framework
+Support**). Neither is required, but RSpade's conventions are invisible to a stock
+PHP setup, which will flag correct code as wrong and offer no navigation for
 components, routes or models.
+
+---
+
+## Documentation
+
+Everything ships with the framework, so it always matches the version you run:
+
+| | |
+|---|---|
+| [**Developer crash course**](https://github.com/rspade-framework/rspade_system/tree/master/app/RSpade/docs/developer/DEVELOPER_QUICKSTART.md) | the framework in one sitting — **start here** |
+| [Development environment](https://github.com/rspade-framework/rspade_system/tree/master/app/RSpade/docs/developer/DEVELOPMENT_ENVIRONMENT.md) | Compose or `docker run`, file ownership, the database and GUI clients, a reverse proxy, Claude Code, updating the image |
+| [System administration](https://github.com/rspade-framework/rspade_system/tree/master/app/RSpade/docs/operations/SYSTEM_ADMINISTRATION.md) | what runs in the container, backups, updates, health, logs, maintenance mode, the `/_sys` panel |
+| [Production deployment](https://github.com/rspade-framework/rspade_system/tree/master/app/RSpade/docs/operations/PRODUCTION_DEPLOYMENT.md) | the production image, first install, the deploy procedure, rollback, the container environment |
+| `php artisan rsx:man` | the reference: every topic, listed |
+| `.env.README` | every credential in `.env`: what it is and how to obtain one |
+| `rsx/resource/docs/` | your application's own documentation lives here |
 
 ---
 
@@ -124,7 +132,7 @@ running alongside the staff application with its own routing and permissions.
 
 ## Working on it
 
-**New to RSpade? Read [DEVELOPER_QUICKSTART.md](https://github.com/rspade-framework/rspade_system/tree/master/app/RSpade/docs/developer/DEVELOPER_QUICKSTART.md) first.**
+**New to RSpade? Read the [developer crash course](https://github.com/rspade-framework/rspade_system/tree/master/app/RSpade/docs/developer/DEVELOPER_QUICKSTART.md) first.**
 It is the whole framework in one sitting, written for somebody joining an
 existing project rather than designing one from scratch: how a page is assembled,
 how a component loads its data and what the lifecycle rules are for, how models
@@ -154,27 +162,27 @@ php artisan rsx:debug /clients      # render a page headlessly, with real JS
 php artisan migrate                 # apply schema changes
 ```
 
-`php artisan rsx:man` with no argument lists every topic there is. The framework
-is heavily documented from the inside; that command is the way in.
-
 Run those from inside the container, not from your host. In development mode
-`artisan` checks and refuses if it is anywhere else — the tooling assumes the
-container's services and data layout, and outside it commands would half-work
-rather than fail cleanly. The refusal prints the `docker compose exec` line for
-whatever you just typed, so it costs you one retry. A deployed application in
-production mode has no such restriction.
+`artisan` refuses anywhere else — the tooling assumes the container's services and
+data layout — and the refusal prints the `docker compose exec` line for whatever
+you just typed, so it costs you one retry.
 
-Your code lives in `rsx/`. The framework lives in `system/` and is updated as a
-unit:
+**The database** is in the container too: `docker compose exec app mysql rspade`
+gives you a SQL prompt. Connecting a GUI client such as TablePlus or DBeaver takes
+one published port —
+[Development environment](https://github.com/rspade-framework/rspade_system/tree/master/app/RSpade/docs/developer/DEVELOPMENT_ENVIRONMENT.md#4-the-database).
 
-```bash
-php artisan rsx:framework:pull
-```
+**Configuration.** `.env` holds deployment-specific values — database
+credentials, mail settings, API keys — and is created for you on first run;
+`.env.README` explains every one. Application *behaviour* is configured in
+`rsx/resource/config/rsx.php`, which is version-controlled and merges over the
+framework's defaults.
 
-That fetches the current release, applies it, and leaves your application
-untouched. Treat `system/` as read-only — customising a framework class is done
-by copying it into `rsx/` under the same class name, and the framework will use
-yours instead.
+**Your code lives in `rsx/`. The framework lives in `system/`** and is updated as a
+unit with `php artisan rsx:framework:pull`, which leaves your application
+untouched. Treat `system/` as read-only — customising a framework class is done by
+copying it into `rsx/` under the same class name, and the framework will use yours
+instead.
 
 ---
 
@@ -183,29 +191,20 @@ yours instead.
 **Run git inside the container**, not on your host:
 
 ```bash
-docker compose exec app bash        # then use git normally
-```
-
-or without the shell:
-
-```bash
 docker compose exec app git status
 docker compose exec app git commit -am "..."
 ```
 
 Inside the container `git` is the RSpade git proxy. It behaves like git in every
 way you care about, with one difference that matters: **it keeps `system/` out of
-your commits.**
+your commits.** That directory is the framework, written by `rsx:framework:pull`,
+and it is almost never in a settled state — commit it alongside your own work and
+those files fight the next framework update. The proxy also puts the application
+into maintenance mode around operations that rewrite the working tree, so nothing
+is reading `system/` while it changes underneath.
 
-That directory is the framework, written by `rsx:framework:pull`, and it is
-almost never in a settled state — it carries build artifacts, temporary override
-files, and whatever a half-finished update left behind. Commit that alongside
-your own work and those files fight the next framework update. The proxy also
-puts the application into maintenance mode around operations that rewrite the
-working tree, so nothing is reading `system/` while it changes underneath.
-
-Using git from your host instead is not forbidden, it just gives up those two
-things — so the container is the path of least regret.
+Using git from your host is not forbidden, it just gives up those two things — so
+the container is the path of least regret.
 
 ---
 
@@ -219,33 +218,61 @@ place. That is several hundred pages of conventions, mandates and worked
 examples, so an assistant writes *RSpade* code rather than generic Laravel — the
 difference between help and hindrance on an opinionated framework.
 
-Build the image with Claude Code included:
-
-```bash
-bash system/app/RSpade/resource/docker/build.sh --claude
-```
-
-Then start a session inside the container:
+Start a session inside the container:
 
 ```bash
 docker compose exec app claude
 ```
 
-Or from a shell you are already in (`docker compose exec app bash`), just type
-`claude`.
+The first `claude` installs Claude Code into the container, and it keeps itself up
+to date from then on. Your login, preferences and history are kept in
+`storage/.claude` in your project (gitignored), so they survive
+`docker compose down` and a new image. Run it inside the container rather than on
+your host — that is where the project, the tooling and the documentation all are.
 
-The launcher checks for a newer release on each start and updates itself, so the
-CLI does not go stale at whatever version existed on the day you built the
-image. 
+---
 
-**Your settings persist.** `docker-compose.yml` maps `~/.claude` in the
-container to `storage/.claude` in your project, so your login, preferences and
-history survive `docker compose down` and rebuilding the image. That directory is
-gitignored, so none of it is committed.
+## Administration basics
 
-Run it inside the container rather than on your host — that is where the project,
-the tooling and the documentation all are, and where `git` is the RSpade proxy
-described above.
+The full picture is in
+[System administration](https://github.com/rspade-framework/rspade_system/tree/master/app/RSpade/docs/operations/SYSTEM_ADMINISTRATION.md);
+these are the parts everyone needs.
+
+**Where your data lives.** Everything the running application writes lands in your
+project, outside the container: the database in `storage/mysql_data`, uploaded
+files in `storage/uploads`, logs in `storage/logs`. A backup is the database,
+`storage/`, and `.env` (which is not in git) —
+[what to back up, and how](https://github.com/rspade-framework/rspade_system/tree/master/app/RSpade/docs/operations/SYSTEM_ADMINISTRATION.md#2-where-the-data-lives-and-what-to-back-up).
+
+**Updating.** The image: `docker compose pull`, then `docker compose up -d` —
+nothing is lost, because nothing lives in the container. When a framework update
+needs a newer image than the one you are running, the container, `artisan` and the
+web all refuse with the `docker pull` that fixes it. The framework:
+`php artisan rsx:framework:pull`, then `php artisan rsx:framework:breaking_changes`
+for anything it asks you to change by hand —
+[updating](https://github.com/rspade-framework/rspade_system/tree/master/app/RSpade/docs/operations/SYSTEM_ADMINISTRATION.md#3-updating).
+
+**Security updates are automatic.** The container installs PHP and system security
+patches at every start and every four hours, restarting PHP without dropping a
+request in flight.
+
+**Health.** `php artisan rsx:health` checks every service, dependency and setting
+the installation relies on, with a remedy beside anything wrong. The `/_sys` panel
+shows the same report, and more, in the browser.
+
+**Logs.** The application's log is `storage/logs/laravel.log`, rotated nightly by
+the framework; the container's own output is `docker compose logs app` —
+[logs](https://github.com/rspade-framework/rspade_system/tree/master/app/RSpade/docs/operations/SYSTEM_ADMINISTRATION.md#5-logs).
+
+**Other ways to run it.** Without Compose, as a single `docker run`, or behind a
+reverse proxy on a real hostname:
+[Development environment](https://github.com/rspade-framework/rspade_system/tree/master/app/RSpade/docs/developer/DEVELOPMENT_ENVIRONMENT.md).
+
+**Going to production.** Production runs the production image,
+`ghcr.io/rspade-framework/rspade-server-prod`, with your own MySQL behind a
+TLS-terminating proxy, as a sealed build; every deploy is pull the image, stop,
+pull your code, snapshot the database, start —
+[Production deployment](https://github.com/rspade-framework/rspade_system/tree/master/app/RSpade/docs/operations/PRODUCTION_DEPLOYMENT.md).
 
 ---
 
@@ -259,238 +286,6 @@ objects.
 
 Do not assume a Laravel pattern works here without checking.
 `rsx:man framework_divergences` lists every difference.
-
----
-
-## Documentation
-
-Everything ships with the framework:
-
-| | |
-|---|---|
-| [`DEVELOPER_QUICKSTART.md`](https://github.com/rspade-framework/rspade_system/tree/master/app/RSpade/docs/developer/DEVELOPER_QUICKSTART.md) | the framework in one sitting — start here |
-| `php artisan rsx:man` | every topic, listed |
-| `.env.README` | every credential in `.env` |
-| `rsx/resource/docs/` | your application's own documentation lives here |
-
-**RSpade is built to be worked on with [Claude Code](#claude-code).** Alongside
-the pages above it ships documentation written for an assistant to read —
-instruction files throughout the tree, a skill per subsystem, and the reference
-application as a worked example. It is enough for one to understand the
-codebase, answer questions about it, and write RSpade code rather than generic
-Laravel.
-
----
-
-## Configuration
-
-`.env` holds deployment-specific values — database credentials, mail settings,
-API keys. It is created for you on first run.
-
-**`.env.README` explains every credential**: what it is, how to obtain one, and
-what happens when it is not set. Start there rather than guessing from key
-names.
-
-Application *behaviour* is configured in `rsx/resource/config/rsx.php`, which is
-version-controlled and merges over the framework's defaults.
-
-### The database
-
-The development container runs its own MySQL, and the client tools are in there
-with it — you do not need MySQL installed on your machine to use them.
-
-```bash
-# A SQL prompt on the application's database
-docker compose exec app mysql rspade
-
-# Dump the whole schema and its data
-docker compose exec app mysqldump rspade | less
-
-# Throw the database away and start over
-echo "drop database rspade; create database rspade" | docker compose exec app mysql
-```
-
-**Name the database.** `mysql` on its own connects to the server without
-selecting anything, and the first query answers `ERROR 1046 (3D000): No database
-selected`. `mysql rspade` is the form to use. Same for `mysqldump`, which dumps
-nothing useful without being told what to dump.
-
-**After a reset, migrate.** Dropping the database leaves you with an empty one
-and an application that cannot serve a page. Bring the schema back, then let the
-setup screen create your account again:
-
-```bash
-docker compose exec app php artisan migrate
-```
-
-The first-run screens return on the next page load, because the account you had
-lived in the database you just dropped.
-
-**No password, and that is not an oversight.** MySQL's `root` account here
-authenticates by unix socket — the operating-system user connecting *is* the
-credential — and `docker compose exec` runs as root inside the container. So
-these commands arrive already authenticated, as `root`, with more privilege than
-the application itself has. The application connects as the `rspade` user with
-the password in `.env`, which is why `DB_USERNAME` and `DB_PASSWORD` are there
-and why you never need to type them here.
-
-None of this reaches outside the container: the socket is not on your machine
-and the port is not published. If you renamed the database in `.env`, use that
-name in place of `rspade`.
-
-**Connecting from your own tools** — TablePlus, DataGrip, DBeaver — needs the
-port published to your machine, which it is not by default. Add it to the `app`
-service in `docker-compose.yml`:
-
-```yaml
-    ports:
-      - "8080:80"
-      - "3306:3306"
-```
-
-Then connect to `127.0.0.1:3306` with the credentials from `.env`. Leave it off
-if you do not need it: it is one more thing listening on your machine.
-
-### Where your data lives
-
-Everything the running application writes lands under `storage/` in your
-project — it is gitignored, and it is the whole of the state:
-
-| | |
-|---|---|
-| `storage/mysql_data` | the database |
-| `storage/uploads` | uploaded file attachments |
-| `storage/logs` | application logs |
-| `storage/.claude` | Claude Code's settings and history |
-
-Back the project up by copying it. `docker compose down -v` destroys named
-volumes, and none of this is in one, so it survives.
-
----
-
-## Running it without Compose
-
-`docker compose up` is the shortest path and the one the Quick start uses. The
-shipped `docker-compose.yml` is not doing anything clever, though — here is the
-whole of it as a single `docker run`:
-
-```bash
-docker run -d \
-  --name rspade \
-  -p 8080:80 \
-  -e PUID=$(id -u) -e PGID=$(id -g) \
-  -v "$PWD":/var/www/html \
-  -v "$PWD/storage/mysql_data":/var/lib/mysql \
-  -v "$PWD/storage/.claude":/root/.claude \
-  --stop-timeout 30 \
-  rspade/rspade-server-dev:latest
-```
-
-Reach for this when Compose is in your way: when the container is one service in
-a larger stack, when you want the project, the database or Claude Code's state
-somewhere other than this directory, or when the port should not be published to
-the host at all because something else is terminating traffic in front of it.
-
-What each part is for:
-
-| | |
-|---|---|
-| `-p 8080:80` | the application. Drop it entirely behind a reverse proxy on a shared network — see below |
-| `-e PUID` / `-e PGID` | run as you, so files the application writes (including the database) are yours. Linux only; harmless elsewhere |
-| `-v "$PWD":/var/www/html` | your project. The container serves what you edit |
-| `-v .../var/lib/mysql` | the database. Point it anywhere you like — it is an ordinary directory |
-| `-v .../root/.claude` | Claude Code's login and history, if you use it |
-| `--stop-timeout 30` | lets the container shut down cleanly instead of being killed mid-write |
-
-Pass a command and it runs once the application is actually serving, taking the
-container down when it exits — so this boots in the foreground, shows you the
-startup, and leaves you at a prompt:
-
-```bash
-docker run -it --rm \
-  -p 8080:80 \
-  -v "$PWD":/var/www/html \
-  -v "$PWD/storage/mysql_data":/var/lib/mysql \
-  rspade/rspade-server-dev:latest bash
-```
-
-Keep the database mount even here. Without it the container gets a fresh,
-empty database that `--rm` throws away when the shell exits — fine if that is
-what you meant, surprising if it is not.
-
-### Behind a reverse proxy
-
-The container never holds a certificate: TLS is terminated in front of it, and
-the proxy forwards to port **8000**. That port is the same site as port 80,
-telling the application the visitor is on https - which is what makes generated
-URLs `https://` and the session cookie `Secure`. Port 80 is the plain-http
-port for a local container with nothing in front of it. Put the container on a
-network with your proxy and publish nothing:
-
-```bash
-docker network create web
-
-docker run -d --name rspade --network web \
-  -e VIRTUAL_HOST=app.example.com \
-  -e VIRTUAL_PORT=8000 \
-  -e LETSENCRYPT_HOST=app.example.com \
-  -v "$PWD":/var/www/html \
-  -v "$PWD/storage/mysql_data":/var/lib/mysql \
-  rspade/rspade-server-dev:latest
-```
-
-That labelling is [nginx-proxy](https://github.com/nginx-proxy/nginx-proxy)'s.
-With [Caddy](https://caddyserver.com/), a two-line Caddyfile does the same job
-and obtains the certificate itself:
-
-```
-app.example.com {
-    reverse_proxy rspade:8000
-}
-```
-
-**Set `APP_URL` to the address people actually type**, not the container's:
-
-```
-APP_URL=https://app.example.com
-```
-
-RSpade generates every URL from that one value, and outside development mode it
-must be `https` — the session cookie is `Secure` there, so a plain-http page
-would discard it on every request and nobody could stay logged in. Your proxy is
-what makes it https; the container itself never needs a certificate.
-
-Two things that follow from that, worth knowing before you debug them:
-
-- The port decides the scheme, not a header. The container ignores an
-  `X-Forwarded-Proto` a proxy sends: a proxy pointed at port 80 gets `http://`
-  redirects and links however it is configured. If logins loop or links come out
-  `http://`, the proxy is forwarding to 80 - point it at 8000.
-- Forward `X-Forwarded-For` (both proxies above do by default) and name the
-  proxy in `RSPADE_TRUSTED_PROXIES`, so the application sees each visitor's own
-  address and not the proxy's.
-- The **production** image (`rspade/rspade-server-prod`) ships no database. It
-  expects one you provide, configured through `.env` — so the `/var/lib/mysql`
-  mount above is a development-image concern and does not apply to it.
-
----
-
-## Going to production
-
-```bash
-php artisan rsx:mode:set prod
-php artisan rsx:prod:enable
-```
-
-Production is a sealed build: assets are compiled once, minified and pinned, and
-the application refuses to serve anything that drifts from the seal. There is a
-matching production container target that omits the bundled database and expects
-you to bring your own.
-
-Before you launch, walk `php artisan rsx:man launch_checklist` on the production
-host, and have the launch conformance audits run against your code
-(`php artisan rsx:conformance:list --when=launch`). Together they cover what is
-impractical to enforce automatically.
 
 ---
 
